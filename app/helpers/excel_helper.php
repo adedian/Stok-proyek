@@ -111,12 +111,52 @@ function streamExcelReport(string $title, string $companyName, string $periodTex
         $rowNum++;
     }
 
+    // --- Baris TOTAL: SUM tiap kolom nominal (format 'rupiah') dari $rows yang
+    // sama persis dengan yang sudah ditampilkan (sudah kena filter aktif) --
+    // TIDAK query ulang ke DB, supaya SUM selalu match dengan isi tabel di atasnya.
+    $sumCols = array_filter($columns, fn($c) => !empty($c['sum']));
+    if (!empty($sumCols) && !empty($rows)) {
+        $totalRow = $rowNum;
+        $sheet->setCellValue('A' . $totalRow, 'TOTAL');
+        $sheet->getStyle('A' . $totalRow)->getFont()->setBold(true);
+
+        $colIndex = 2;
+        foreach ($columns as $col) {
+            $letter = Coordinate::stringFromColumnIndex($colIndex);
+            if (!empty($col['sum'])) {
+                $sum = array_sum(array_map(fn($r) => (float) ($r[$col['field']] ?? 0), $rows));
+                $cell = $letter . $totalRow;
+                $sheet->setCellValue($cell, $sum);
+                $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('"Rp" #,##0');
+                $sheet->getStyle($cell)->getFont()->setBold(true);
+                $sheet->getStyle($cell)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+            }
+            $colIndex++;
+        }
+        $sheet->getStyle("A{$totalRow}:{$lastColLetter}{$totalRow}")
+            ->getBorders()->getTop()->setBorderStyle(Border::BORDER_MEDIUM);
+        $rowNum++;
+    }
+
     $lastDataRow = max($rowNum - 1, $headerRow);
     $sheet->getStyle("A{$headerRow}:{$lastColLetter}{$lastDataRow}")
         ->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
     $sheet->getPageSetup()->setOrientation(PageSetup::ORIENTATION_LANDSCAPE);
     $sheet->setTitle('Laporan');
+
+    // --- Notes kecil pojok kanan bawah: tanggal/jam cetak (WIB) + user login ---
+    $noteRow = $lastDataRow + 3;
+    $sheet->mergeCells("A{$noteRow}:{$lastColLetter}{$noteRow}");
+    $sheet->setCellValue('A' . $noteRow, 'Tanggal & Jam: ' . printedAtLabel());
+    $sheet->getStyle('A' . $noteRow)->getFont()->setSize(8)->getColor()->setRGB('999999');
+    $sheet->getStyle('A' . $noteRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+
+    $noteRow2 = $noteRow + 1;
+    $sheet->mergeCells("A{$noteRow2}:{$lastColLetter}{$noteRow2}");
+    $sheet->setCellValue('A' . $noteRow2, 'Dicetak oleh: ' . printedByLabel());
+    $sheet->getStyle('A' . $noteRow2)->getFont()->setSize(8)->getColor()->setRGB('999999');
+    $sheet->getStyle('A' . $noteRow2)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
 
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     header('Content-Disposition: attachment; filename="' . $filename . '.xlsx"');

@@ -50,6 +50,26 @@ function formatTanggalLengkap(?string $date = null): string
 }
 
 /**
+ * Notes kecil "Tanggal & Jam: dd-mm-YYYY HH:MM WIB" untuk pojok kanan bawah
+ * setiap hasil print/export (Revisi 7 #14) -- pakai date() biasa karena
+ * date_default_timezone_set('Asia/Jakarta') sudah di-set global di config.php,
+ * jadi server time = WIB, tidak perlu konversi timezone manual.
+ */
+function printedAtLabel(): string
+{
+    return date('d-m-Y H:i') . ' WIB';
+}
+
+/**
+ * Notes kecil "Dicetak oleh: [nama user login]" -- SELALU dari akun yang sedang
+ * login (currentUserName()), jangan pernah hardcode.
+ */
+function printedByLabel(): string
+{
+    return currentUserName();
+}
+
+/**
  * Waktu relatif ("5 menit lalu", "2 jam lalu") untuk feed aktivitas terbaru.
  * Jatuh balik ke tanggal lengkap kalau sudah lebih dari 7 hari.
  */

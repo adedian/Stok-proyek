@@ -45,7 +45,7 @@ class CollectionReceiptController extends Controller
         ];
 
         $this->view('collection_receipt/list', [
-            'pageTitle' => 'Tanda Terima',
+            'pageTitle' => 'Pembayaran',
             'receipts'  => $this->receiptModel->listWithRelations($filters),
             'filters'   => $filters,
         ]);
@@ -73,7 +73,7 @@ class CollectionReceiptController extends Controller
         }
 
         $this->view('collection_receipt/select', [
-            'pageTitle'    => 'Buat Tanda Terima',
+            'pageTitle'    => 'Buat Pembayaran',
             'invoices'     => $invoices,
             'client'       => $client,
             'deliveryNotes' => $this->deliveryNoteModel->listWithRelations([]),
@@ -131,16 +131,16 @@ class CollectionReceiptController extends Controller
                 currentUserId(),
                 'collection_receipt',
                 'create',
-                "Tanda Terima {$data['receipt_number']} dibuat untuk " . count($invoices) . ' invoice'
+                "Pembayaran {$data['receipt_number']} dibuat untuk " . count($invoices) . ' invoice'
             );
 
             $pdo->commit();
-            setFlash('success', "Tanda Terima {$data['receipt_number']} berhasil dibuat.");
+            setFlash('success', "Pembayaran {$data['receipt_number']} berhasil dibuat.");
             $this->redirect('collection_receipt', 'print', ['id' => $receiptId]);
         } catch (Throwable $e) {
             $pdo->rollBack();
             error_log('CollectionReceipt store error: ' . $e->getMessage());
-            setFlash('error', 'Gagal membuat Tanda Terima. Silakan coba lagi.');
+            setFlash('error', 'Gagal membuat Pembayaran. Silakan coba lagi.');
             $this->redirect('sales_invoice', 'index');
         }
     }
@@ -161,7 +161,7 @@ class CollectionReceiptController extends Controller
         $receipt = $this->receiptModel->findWithRelations($id);
 
         if (!$receipt) {
-            setFlash('error', 'Tanda Terima tidak ditemukan.');
+            setFlash('error', 'Pembayaran tidak ditemukan.');
             $this->redirect('collection_receipt', 'index');
         }
 
@@ -174,7 +174,7 @@ class CollectionReceiptController extends Controller
         $availableInvoices = $this->invoiceModel->availableForClient((int) $receipt['client_id'], $id);
 
         $this->view('collection_receipt/edit', [
-            'pageTitle'        => 'Edit Tanda Terima',
+            'pageTitle'        => 'Edit Pembayaran',
             'receipt'          => $receipt,
             'currentItems'     => $currentItems,
             'currentInvoiceIds' => $currentInvoiceIds,
@@ -196,13 +196,13 @@ class CollectionReceiptController extends Controller
         $id = (int) ($_POST['id'] ?? 0);
         $existing = $this->receiptModel->find($id);
         if (!$existing) {
-            setFlash('error', 'Tanda Terima tidak ditemukan.');
+            setFlash('error', 'Pembayaran tidak ditemukan.');
             $this->redirect('collection_receipt', 'index');
         }
 
         $invoiceIds = $this->parseIds($_POST['invoice_ids'] ?? []);
         if (empty($invoiceIds)) {
-            setFlash('error', 'Minimal 1 invoice harus tetap ada di Tanda Terima.');
+            setFlash('error', 'Minimal 1 invoice harus tetap ada di Pembayaran.');
             $this->redirect('collection_receipt', 'edit', ['id' => $id]);
         }
 
@@ -222,7 +222,7 @@ class CollectionReceiptController extends Controller
         }
 
         if (empty($invoices)) {
-            setFlash('error', 'Invoice yang dipilih tidak valid untuk Tanda Terima ini.');
+            setFlash('error', 'Invoice yang dipilih tidak valid untuk Pembayaran ini.');
             $this->redirect('collection_receipt', 'edit', ['id' => $id]);
         }
 
@@ -260,16 +260,16 @@ class CollectionReceiptController extends Controller
                 currentUserId(),
                 'collection_receipt',
                 'update',
-                "Tanda Terima {$existing['receipt_number']} diperbarui (" . count($invoices) . ' invoice)'
+                "Pembayaran {$existing['receipt_number']} diperbarui (" . count($invoices) . ' invoice)'
             );
 
             $pdo->commit();
-            setFlash('success', "Tanda Terima {$existing['receipt_number']} berhasil diperbarui.");
+            setFlash('success', "Pembayaran {$existing['receipt_number']} berhasil diperbarui.");
             $this->redirect('collection_receipt', 'print', ['id' => $id]);
         } catch (Throwable $e) {
             $pdo->rollBack();
             error_log('CollectionReceipt update error: ' . $e->getMessage());
-            setFlash('error', 'Gagal memperbarui Tanda Terima.');
+            setFlash('error', 'Gagal memperbarui Pembayaran.');
             $this->redirect('collection_receipt', 'edit', ['id' => $id]);
         }
     }
@@ -280,14 +280,14 @@ class CollectionReceiptController extends Controller
         $receipt = $this->receiptModel->findWithRelations($id);
 
         if (!$receipt) {
-            setFlash('error', 'Tanda Terima tidak ditemukan.');
+            setFlash('error', 'Pembayaran tidak ditemukan.');
             $this->redirect('collection_receipt', 'index');
         }
 
         $receipt['items'] = $this->receiptItemModel->itemsByReceipt($id);
 
         $this->view('collection_receipt/print', [
-            'pageTitle' => 'Cetak Tanda Terima',
+            'pageTitle' => 'Cetak Pembayaran',
             'receipts'  => [$receipt],
             'company'   => (new SystemSetting())->getGroup('company'),
         ]);
@@ -323,12 +323,12 @@ class CollectionReceiptController extends Controller
         }
 
         if (empty($receipts)) {
-            setFlash('error', 'Tanda Terima yang dipilih tidak ditemukan.');
+            setFlash('error', 'Pembayaran yang dipilih tidak ditemukan.');
             $this->redirect('collection_receipt', 'index');
         }
 
         $this->view('collection_receipt/print', [
-            'pageTitle' => 'Cetak Tanda Terima',
+            'pageTitle' => 'Cetak Pembayaran',
             'receipts'  => $receipts,
             'company'   => (new SystemSetting())->getGroup('company'),
         ]);
@@ -347,15 +347,15 @@ class CollectionReceiptController extends Controller
         $receipt = $this->receiptModel->find($id);
 
         if (!$receipt) {
-            setFlash('error', 'Tanda Terima tidak ditemukan.');
+            setFlash('error', 'Pembayaran tidak ditemukan.');
             $this->redirect('collection_receipt', 'index');
         }
 
         // collection_receipt_items ikut terhapus via ON DELETE CASCADE -- invoice
         // yang tadinya masuk tanda terima ini otomatis bisa dipilih lagi (isBilled()).
         $this->receiptModel->deleteById($id);
-        $this->activityLog->log(currentUserId(), 'collection_receipt', 'delete', "Tanda Terima {$receipt['receipt_number']} dihapus");
-        setFlash('success', 'Tanda Terima berhasil dihapus.');
+        $this->activityLog->log(currentUserId(), 'collection_receipt', 'delete', "Pembayaran {$receipt['receipt_number']} dihapus");
+        setFlash('success', 'Pembayaran berhasil dihapus.');
         $this->redirect('collection_receipt', 'index');
     }
 
@@ -377,7 +377,7 @@ class CollectionReceiptController extends Controller
     private function validInvoices(array $ids): array
     {
         if (empty($ids)) {
-            return [[], 'Pilih minimal 1 Invoice Keluar untuk dibuatkan Tanda Terima.'];
+            return [[], 'Pilih minimal 1 Invoice Keluar untuk dibuatkan Pembayaran.'];
         }
 
         $invoices = [];
@@ -389,13 +389,13 @@ class CollectionReceiptController extends Controller
         }
 
         if (empty($invoices)) {
-            return [[], 'Invoice yang dipilih tidak valid atau sudah tercatat di Tanda Terima lain.'];
+            return [[], 'Invoice yang dipilih tidak valid atau sudah tercatat di Pembayaran lain.'];
         }
 
         $clientId = $invoices[0]['client_id'];
         foreach ($invoices as $inv) {
             if ((int) $inv['client_id'] !== (int) $clientId) {
-                return [[], 'Semua invoice yang dipilih harus dari Client yang sama (satu Tanda Terima = satu Customer).'];
+                return [[], 'Semua invoice yang dipilih harus dari Client yang sama (satu Pembayaran = satu Customer).'];
             }
         }
 

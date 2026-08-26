@@ -86,10 +86,28 @@
                             <?php endforeach; ?>
                         </tr>
                     <?php endforeach; ?>
+                    <?php $hasSumCols = !empty(array_filter($columns, fn($c) => !empty($c['sum']))); ?>
+                    <?php if ($hasSumCols && !empty($rows)): ?>
+                        <tr class="fw-bold border-top border-dark-subtle">
+                            <?php if ($isInventory): ?><td class="no-print"></td><?php endif; ?>
+                            <td class="text-end">TOTAL</td>
+                            <?php foreach ($columns as $col): ?>
+                                <?php if (!empty($col['sum'])): ?>
+                                    <td class="text-end"><?= e(formatRupiah(array_sum(array_map(fn($r) => (float) ($r[$col['field']] ?? 0), $rows)))) ?></td>
+                                <?php else: ?>
+                                    <td></td>
+                                <?php endif; ?>
+                            <?php endforeach; ?>
+                        </tr>
+                    <?php endif; ?>
                 </tbody>
             </table>
         </div>
     </div>
+</div>
+<div class="print-note-onscreen">
+    Tanggal &amp; Jam: <?= e(printedAtLabel()) ?><br>
+    Dicetak oleh: <?= e(printedByLabel()) ?>
 </div>
 
 <?php if ($isInventory): ?>

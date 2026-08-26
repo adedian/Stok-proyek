@@ -159,7 +159,7 @@ class PurchaseOrder extends Model
     public function listItemsForReport(array $filters = []): array
     {
         $sql = "SELECT po.po_date, s.supplier_name, COALESCE(it.item_code, '-') AS kode_barang,
-                       poi.item_name, poi.qty_order, poi.price, poi.subtotal, u.full_name AS pembuat_po
+                       poi.item_name, poi.unit, poi.qty_order, poi.price, poi.subtotal, u.full_name AS pembuat_po
                 FROM purchase_order_items poi
                 JOIN purchase_orders po ON po.id = poi.purchase_order_id
                 JOIN suppliers s ON s.id = po.supplier_id

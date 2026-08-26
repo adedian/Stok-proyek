@@ -49,8 +49,8 @@
                 <label class="form-label small text-muted mb-1">Status Tagih</label>
                 <select name="billing_status" class="form-select form-select-sm">
                     <option value="">Semua</option>
-                    <option value="belum_tertagih" <?= $filters['billing_status'] === 'belum_tertagih' ? 'selected' : '' ?>>Belum Terbayar</option>
-                    <option value="tertagih" <?= $filters['billing_status'] === 'tertagih' ? 'selected' : '' ?>>Sudah Terbayar</option>
+                    <option value="belum_tertagih" <?= $filters['billing_status'] === 'belum_tertagih' ? 'selected' : '' ?>>Belum Tertagih</option>
+                    <option value="tertagih" <?= $filters['billing_status'] === 'tertagih' ? 'selected' : '' ?>>Sudah Tertagih</option>
                 </select>
             </div>
             <div class="col-md-2 d-flex gap-2">
@@ -80,7 +80,7 @@
         </a>
         <?php if (can('collection_receipt', 'create')): ?>
             <button type="button" class="btn btn-sm btn-outline-primary" id="siMakeReceiptBtn" disabled>
-                <i class="bi bi-journal-check"></i> Buat Tanda Terima
+                <i class="bi bi-journal-check"></i> Buat Pembayaran
             </button>
         <?php endif; ?>
     </div>
@@ -132,9 +132,9 @@
                             <td class="text-end"><?= formatRupiah($inv['total_amount']) ?></td>
                             <td class="text-center">
                                 <?php if ((int) $inv['is_tertagih'] === 1): ?>
-                                    <span class="badge text-bg-success">Sudah Terbayar</span>
+                                    <span class="badge text-bg-success">Sudah Tertagih</span>
                                 <?php else: ?>
-                                    <span class="badge text-bg-warning">Belum Terbayar</span>
+                                    <span class="badge text-bg-warning">Belum Tertagih</span>
                                 <?php endif; ?>
                             </td>
                             <td class="text-center no-print">

@@ -75,7 +75,7 @@
             'url' => BASE_URL . '/index.php?module=inventory'],
     ];
     if ($notifFlags['invoice_pending']) {
-        $kpis[] = ['icon' => 'bi-receipt', 'color' => 'purple', 'label' => 'Invoice Belum Terbayar', 'value' => (int) $stats['invoice_pending'],
+        $kpis[] = ['icon' => 'bi-receipt', 'color' => 'purple', 'label' => 'Invoice Belum Tertagih', 'value' => (int) $stats['invoice_pending'],
             'url' => BASE_URL . '/index.php?module=sales_invoice&billing_status=belum_tertagih'];
     }
     $kpis[] = ['icon' => 'bi-shop', 'color' => 'brand', 'label' => 'Pembelian Offline', 'value' => (int) $stats['pembelian_offline'],

@@ -21,7 +21,7 @@ function appMenus(): array
         // disembunyikan dari sidebar (2026-08-24), lalu DIHAPUS TOTAL (2026-08-26,
         // sudah 0 data aktif sejak digantikan "Invoice Keluar" di bawah).
         ['label' => 'Invoice Keluar', 'module' => 'sales_invoice', 'icon' => 'bi-cash-stack', 'roles' => permissionRoles('sales_invoice', 'view'), 'active' => true, 'group' => 'Transaksi'],
-        ['label' => 'Pembayaran', 'module' => 'collection_receipt', 'icon' => 'bi-journal-check', 'roles' => permissionRoles('collection_receipt', 'view'), 'active' => true, 'group' => 'Transaksi'],
+        ['label' => 'Tanda Terima', 'module' => 'collection_receipt', 'icon' => 'bi-journal-check', 'roles' => permissionRoles('collection_receipt', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Pembelian Offline', 'module' => 'offline_purchase', 'icon' => 'bi-shop', 'roles' => permissionRoles('offline_purchase', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Laporan', 'module' => 'report', 'icon' => 'bi-bar-chart-line', 'roles' => permissionRoles('report', 'view'), 'active' => true, 'group' => 'Laporan & Administrasi'],
         ['label' => 'User Management', 'module' => 'user', 'icon' => 'bi-people', 'roles' => permissionRoles('user', 'view'), 'active' => true, 'group' => 'Laporan & Administrasi'],

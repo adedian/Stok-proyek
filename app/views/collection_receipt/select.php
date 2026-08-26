@@ -1,6 +1,6 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-        <h4 class="mb-0">Buat Pembayaran</h4>
+        <h4 class="mb-0">Buat Tanda Terima</h4>
         <small class="text-muted">Customer: <strong><?= e($client['name'] ?? '-') ?></strong> &middot; <?= count($invoices) ?> invoice terpilih</small>
     </div>
     <a href="<?= BASE_URL ?>/index.php?module=sales_invoice" class="btn btn-outline-secondary">
@@ -60,7 +60,7 @@
         <div class="card-body">
             <div class="row g-3">
                 <div class="col-md-4">
-                    <label class="form-label">Tanggal Pembayaran</label>
+                    <label class="form-label">Tanggal Tanda Terima</label>
                     <input type="date" name="receipt_date" class="form-control" value="<?= e(date('Y-m-d')) ?>" required>
                 </div>
                 <div class="col-md-4">
@@ -85,7 +85,7 @@
     </div>
 
     <div class="d-flex gap-2">
-        <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Buat &amp; Cetak Pembayaran</button>
+        <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Buat &amp; Cetak Tanda Terima</button>
         <a href="<?= BASE_URL ?>/index.php?module=sales_invoice" class="btn btn-light border">Batal</a>
     </div>
 </form>

@@ -21,7 +21,7 @@
 
 <?php if ($isBilled): ?>
     <div class="alert alert-info small mb-3">
-        <i class="bi bi-info-circle"></i> Invoice ini sudah tercatat di sebuah Pembayaran.
+        <i class="bi bi-info-circle"></i> Invoice ini sudah tercatat di sebuah Tanda Terima.
     </div>
 <?php endif; ?>
 

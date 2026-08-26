@@ -31,7 +31,7 @@ foreach ($availableInvoices as $inv) {
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-        <h4 class="mb-0">Edit Pembayaran</h4>
+        <h4 class="mb-0">Edit Tanda Terima</h4>
         <small class="text-muted">
             No. <strong><?= e($receipt['receipt_number']) ?></strong> &middot; Customer: <strong><?= e($receipt['client_name']) ?></strong>
             <span class="text-muted">(nomor &amp; client tidak bisa diganti)</span>
@@ -88,14 +88,14 @@ foreach ($availableInvoices as $inv) {
         </div>
     </div>
     <div class="alert alert-light border small mb-3">
-        <i class="bi bi-info-circle"></i> Centang invoice yang termasuk di Pembayaran ini. Hapus centang untuk melepas invoice (invoice itu bisa dipakai lagi di Pembayaran lain).
+        <i class="bi bi-info-circle"></i> Centang invoice yang termasuk di Tanda Terima ini. Hapus centang untuk melepas invoice (invoice itu bisa dipakai lagi di Tanda Terima lain).
     </div>
 
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-body">
             <div class="row g-3">
                 <div class="col-md-4">
-                    <label class="form-label">Tanggal Pembayaran</label>
+                    <label class="form-label">Tanggal Tanda Terima</label>
                     <input type="date" name="receipt_date" class="form-control" value="<?= e($receipt['receipt_date']) ?>" required>
                 </div>
                 <div class="col-md-4">

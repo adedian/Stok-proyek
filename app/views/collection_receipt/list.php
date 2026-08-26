@@ -1,7 +1,7 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-        <h4 class="mb-0">Pembayaran</h4>
-        <small class="text-muted">Pembayaran invoice, dibuat dari Invoice Keluar terpilih</small>
+        <h4 class="mb-0">Tanda Terima</h4>
+        <small class="text-muted">Tanda terima penagihan, dibuat dari Invoice Keluar terpilih</small>
     </div>
 </div>
 
@@ -10,7 +10,7 @@
         <form method="GET" action="<?= BASE_URL ?>/index.php" class="row g-2 align-items-end">
             <input type="hidden" name="module" value="collection_receipt">
             <div class="col-md-4">
-                <label class="form-label small text-muted mb-1">Cari (No. Pembayaran / Client)</label>
+                <label class="form-label small text-muted mb-1">Cari (No. Tanda Terima / Client)</label>
                 <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword']) ?>">
             </div>
             <div class="col-md-3">
@@ -53,7 +53,7 @@
                 <thead class="table-light">
                     <tr>
                         <th class="no-print" style="width: 36px;"></th>
-                        <th>No. Pembayaran</th>
+                        <th>No. Tanda Terima</th>
                         <th>Client</th>
                         <th>Tanggal</th>
                         <th class="text-end">Grand Total</th>
@@ -65,8 +65,8 @@
                         <tr><td colspan="6" class="p-0">
                             <div class="empty-state">
                                 <i class="bi bi-journal-check empty-icon"></i>
-                                <div class="empty-title">Belum ada Pembayaran</div>
-                                <div class="empty-desc">Buat Pembayaran dari Invoice Keluar yang sudah dicentang.</div>
+                                <div class="empty-title">Belum ada Tanda Terima</div>
+                                <div class="empty-desc">Buat Tanda Terima dari Invoice Keluar yang sudah dicentang.</div>
                             </div>
                         </td></tr>
                     <?php endif; ?>
@@ -98,7 +98,7 @@
                                         <?php if (can('collection_receipt', 'delete')): ?>
                                             <li>
                                                 <form method="POST" action="<?= BASE_URL ?>/index.php?module=collection_receipt&action=delete"
-                                                      class="js-confirm-delete" data-message="Hapus Pembayaran <?= e($r['receipt_number']) ?>?">
+                                                      class="js-confirm-delete" data-message="Hapus Tanda Terima <?= e($r['receipt_number']) ?>?">
                                                     <?= csrfField() ?>
                                                     <input type="hidden" name="id" value="<?= (int) $r['id'] ?>">
                                                     <button type="submit" class="dropdown-item text-danger">

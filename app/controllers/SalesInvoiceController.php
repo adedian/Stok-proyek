@@ -283,7 +283,7 @@ class SalesInvoiceController extends Controller
         }
 
         if ($this->invoiceModel->isBilled($id)) {
-            setFlash('error', 'Invoice ini sudah dipakai di sebuah Pembayaran, tidak bisa dihapus.');
+            setFlash('error', 'Invoice ini sudah dipakai di sebuah Tanda Terima, tidak bisa dihapus.');
             $this->redirect('sales_invoice', 'detail', ['id' => $id]);
         }
 

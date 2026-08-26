@@ -80,7 +80,7 @@
         </a>
         <?php if (can('collection_receipt', 'create')): ?>
             <button type="button" class="btn btn-sm btn-outline-primary" id="siMakeReceiptBtn" disabled>
-                <i class="bi bi-journal-check"></i> Buat Pembayaran
+                <i class="bi bi-journal-check"></i> Buat Tanda Terima
             </button>
         <?php endif; ?>
     </div>

@@ -1,0 +1,7 @@
+# Cegah listing folder uploads & akses langsung ke file .php di luar index.php (opsional, tergantung kebutuhan)
+Options -Indexes
+
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+</IfModule>

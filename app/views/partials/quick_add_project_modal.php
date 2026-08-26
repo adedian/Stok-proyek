@@ -1,0 +1,66 @@
+<?php
+/**
+ * Modal quick-add Project. Include di halaman manapun yang punya
+ * <select id="project_id">. Butuh variabel $picUsers (User::activeList())
+ * dan permission 'project'.'quick_add'.
+ */
+$picUsers = $picUsers ?? [];
+$quickAddProjectTargetId = $quickAddProjectTargetId ?? 'project_id';
+?>
+<div class="modal fade" id="modalQuickAddProject" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="formQuickAddProject">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-kanban"></i> Tambah Project Cepat</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger d-none quick-add-error"></div>
+                    <?= csrfField() ?>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Nama Project <span class="text-danger">*</span></label>
+                            <input type="text" name="project_name" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Status</label>
+                            <select name="status" class="form-select">
+                                <option value="planning">Planning</option>
+                                <option value="ongoing" selected>Ongoing</option>
+                                <option value="closed">Closed</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Lokasi</label>
+                            <input type="text" name="location" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">PIC Project</label>
+                            <select name="pm_id" class="form-select">
+                                <option value="">-- Belum ditentukan --</option>
+                                <?php foreach ($picUsers as $u): ?>
+                                    <option value="<?= (int) $u['id'] ?>"><?= e($u['full_name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    initQuickAdd({
+        modalId: 'modalQuickAddProject',
+        formId: 'formQuickAddProject',
+        selectEl: '<?= e($quickAddProjectTargetId) ?>',
+        endpoint: '<?= BASE_URL ?>/index.php?module=project&action=quickStore',
+    });
+});
+</script>

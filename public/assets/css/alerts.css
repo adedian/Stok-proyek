@@ -1,0 +1,40 @@
+/* ============================================================
+   Alerts -- masih dipakai untuk pesan statis non-flash (login page,
+   info banner). Flash message sekarang pakai toast (lihat main.php).
+   ============================================================ */
+.alert {
+    border-radius: var(--radius-sm);
+    border-width: 0;
+    border-left: 4px solid transparent;
+}
+
+.alert-warning { border-left-color: var(--warning); }
+.alert-danger  { border-left-color: var(--danger); }
+.alert-success { border-left-color: var(--success); }
+.alert-info    { border-left-color: var(--info); }
+
+/* Empty state -- pola ikon + teks + CTA dipakai konsisten di semua list.php */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--ink-faint);
+}
+
+.empty-state .empty-icon {
+    font-size: 2.25rem;
+    color: var(--ink-faint);
+    opacity: .55;
+    display: block;
+    margin-bottom: .75rem;
+}
+
+.empty-state .empty-title {
+    font-weight: 600;
+    color: var(--ink-soft);
+    margin-bottom: .25rem;
+}
+
+.empty-state .empty-desc {
+    font-size: .85rem;
+    margin-bottom: 1rem;
+}

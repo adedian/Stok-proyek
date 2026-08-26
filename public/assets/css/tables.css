@@ -1,0 +1,99 @@
+/* ============================================================
+   Tables (enterprise data table)
+   ============================================================ */
+.table thead th {
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--ink-soft);
+    background-color: var(--bg-app) !important;
+    border-bottom: 1px solid var(--border);
+    padding-top: .7rem;
+    padding-bottom: .7rem;
+    white-space: nowrap;
+}
+
+.table td {
+    color: var(--ink);
+    padding-top: .65rem;
+    padding-bottom: .65rem;
+    vertical-align: middle;
+}
+
+.table-hover > tbody > tr:hover > * {
+    background-color: var(--brand-50);
+}
+
+.table td .bi-inbox {
+    color: var(--ink-faint);
+    opacity: .6;
+}
+
+/* Kelas ditambah/dilepas otomatis oleh layout.js saat dropdown .row-actions di
+   dalam tabel dibuka/ditutup, supaya menu-nya tidak ter-clip oleh overflow-x:auto
+   bawaan .table-responsive (lihat komentar di layout.js untuk penjelasan lengkap). */
+.table-responsive.dropdown-open-overflow {
+    overflow: visible;
+}
+
+/* Kolom aksi berbentuk dropdown titik-tiga, dipakai di list.php seluruh modul */
+.row-actions .btn-row-actions {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border-radius: var(--radius-sm);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink-soft);
+    background: transparent;
+    border: 1px solid transparent;
+}
+
+.row-actions .btn-row-actions:hover,
+.row-actions .btn-row-actions:focus {
+    background-color: var(--bg-app);
+    border-color: var(--border);
+    color: var(--ink);
+}
+
+.row-actions .btn-row-actions::after {
+    display: none; /* sembunyikan caret dropdown-toggle default */
+}
+
+.row-actions .dropdown-menu {
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-soft);
+    padding: .35rem;
+    min-width: 170px;
+}
+
+.row-actions .dropdown-item {
+    border-radius: 6px;
+    font-size: .85rem;
+    padding: .45rem .6rem;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+
+.row-actions .dropdown-item i {
+    width: 16px;
+    color: var(--ink-faint);
+}
+
+.row-actions .dropdown-item:hover {
+    background-color: var(--brand-50);
+    color: var(--brand-700);
+}
+
+.row-actions .dropdown-item.text-danger:hover {
+    background-color: var(--danger-light);
+    color: var(--danger) !important;
+}
+
+.row-actions .dropdown-item.text-danger:hover i {
+    color: var(--danger);
+}

@@ -1,0 +1,48 @@
+/* ============================================================
+   Utilities -- kelas kecil lintas halaman
+   ============================================================ */
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.min-w-0 {
+    min-width: 0;
+}
+
+.text-truncate-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.icon-circle {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+}
+
+.fw-semibold {
+    font-weight: 600;
+}
+
+/* ============================================================
+   Layout cetak laporan -- sembunyikan navbar/sidebar/tombol,
+   biarkan hanya konten laporan yang tercetak
+   ============================================================ */
+@media print {
+    .navbar, .sidebar, .no-print, .btn-sidebar-toggle {
+        display: none !important;
+    }
+    .main-content {
+        padding: 0 !important;
+        background: #fff !important;
+    }
+    body {
+        background: #fff !important;
+    }
+}

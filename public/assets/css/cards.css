@@ -1,0 +1,38 @@
+/* ============================================================
+   Cards
+   ============================================================ */
+.card {
+    border-radius: var(--radius);
+    border: 1px solid var(--border-soft);
+}
+
+.card.shadow-sm {
+    box-shadow: var(--shadow-sm) !important;
+}
+
+a.card:hover {
+    box-shadow: var(--shadow-md) !important;
+    border-color: var(--brand-100);
+    transform: translateY(-1px);
+    transition: box-shadow var(--transition-fast), transform var(--transition-fast), border-color var(--transition-fast);
+}
+
+.card-body h6 {
+    font-weight: 700;
+    font-size: .8rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--ink-soft);
+}
+
+.card-section-title {
+    font-weight: 700;
+    font-size: .95rem;
+    color: var(--ink);
+    margin-bottom: 0;
+}
+
+.card-section-subtitle {
+    font-size: .78rem;
+    color: var(--ink-faint);
+}

@@ -1,0 +1,77 @@
+/* ============================================================
+   Buttons
+   ============================================================ */
+.btn {
+    border-radius: var(--radius-sm);
+    font-weight: 500;
+    transition: box-shadow var(--transition-fast), transform .1s ease;
+}
+
+.btn-primary {
+    --bs-btn-bg: var(--brand-600);
+    --bs-btn-border-color: var(--brand-600);
+    --bs-btn-hover-bg: var(--brand-700);
+    --bs-btn-hover-border-color: var(--brand-700);
+    --bs-btn-active-bg: var(--brand-800);
+    --bs-btn-active-border-color: var(--brand-800);
+    --bs-btn-focus-shadow-rgb: 42, 82, 152;
+}
+
+.btn-outline-primary {
+    --bs-btn-color: var(--brand-600);
+    --bs-btn-border-color: var(--brand-600);
+    --bs-btn-hover-bg: var(--brand-600);
+    --bs-btn-hover-border-color: var(--brand-600);
+}
+
+.btn-primary:hover, .btn-primary:focus {
+    box-shadow: 0 4px 10px rgba(30, 60, 114, .25);
+}
+
+.btn-success {
+    --bs-btn-bg: var(--success);
+    --bs-btn-border-color: var(--success);
+    --bs-btn-hover-bg: #14833C;
+    --bs-btn-hover-border-color: #14833C;
+}
+
+.btn-danger {
+    --bs-btn-bg: var(--danger);
+    --bs-btn-border-color: var(--danger);
+}
+
+.btn-sm {
+    border-radius: 7px;
+}
+
+/* Loading state -- dipicu JS saat form submit (lihat public/assets/js/layout.js) */
+.btn.is-loading {
+    position: relative;
+    color: transparent !important;
+    pointer-events: none;
+}
+
+.btn.is-loading::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 15px;
+    height: 15px;
+    margin: -7.5px 0 0 -7.5px;
+    border: 2px solid rgba(255, 255, 255, .5);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: btn-spin .6s linear infinite;
+}
+
+.btn-outline-primary.is-loading::after,
+.btn-outline-secondary.is-loading::after,
+.btn-light.is-loading::after {
+    border: 2px solid rgba(42, 82, 152, .25);
+    border-top-color: var(--brand-600);
+}
+
+@keyframes btn-spin {
+    to { transform: rotate(360deg); }
+}

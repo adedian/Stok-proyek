@@ -1,0 +1,54 @@
+/* ============================================================
+   Design tokens -- satu-satunya tempat nilai warna/radius/shadow
+   didefinisikan. Semua file CSS lain mereferensikan variable ini,
+   supaya ubah tema cukup di satu tempat.
+   ============================================================ */
+:root {
+    /* Brand (navy/corporate blue) */
+    --brand-900: #14243B;
+    --brand-800: #1B3358;
+    --brand-700: #1E3C72;
+    --brand-600: #2A5298;
+    --brand-500: #3B69B0;
+    --brand-100: #E7EEF8;
+    --brand-50:  #F3F6FB;
+
+    /* Semantic accent -- dipakai sebagai indikator status, bukan dekorasi */
+    --success: #16A34A;
+    --success-light: #E8F7EE;
+    --warning: #F59E0B;
+    --warning-light: #FEF6E7;
+    --danger: #DC2626;
+    --danger-light: #FDECEC;
+    --info: #0891B2;
+    --info-light: #E7F6F9;
+    --purple: #7C3AED;
+    --purple-light: #F3EEFC;
+
+    /* Neutrals */
+    --ink: #1C2530;
+    --ink-soft: #5C6779;
+    --ink-faint: #8B96A6;
+
+    --bg-app: #F1F4F9;
+    --surface: #FFFFFF;
+    --border: #E4E8EF;
+    --border-soft: #EDF0F5;
+
+    /* Geometry */
+    --radius-sm: 8px;
+    --radius: 12px;
+    --radius-lg: 16px;
+
+    --shadow-xs: 0 1px 2px rgba(16, 24, 40, .04);
+    --shadow-sm: 0 1px 3px rgba(16, 24, 40, .06), 0 1px 2px rgba(16, 24, 40, .04);
+    --shadow-md: 0 6px 16px rgba(16, 24, 40, .08), 0 2px 4px rgba(16, 24, 40, .04);
+
+    /* Layout */
+    --sidebar-width: 260px;
+    --sidebar-width-collapsed: 76px;
+    --topbar-height: 60px;
+
+    --transition-fast: .15s ease;
+    --transition-base: .2s ease;
+}

@@ -1,0 +1,64 @@
+/* ============================================================
+   Responsive -- breakpoint diuji: 1920 / 1440 / 1366 / 1024 / 768 / 430 / 390
+   Bootstrap breakpoint yang relevan: xl=1200, lg=992, md=768, sm=576
+   ============================================================ */
+
+/* Layar besar (1920/1440/1366): tetap seperti default, cuma batasi main-content
+   supaya tidak terlalu lebar & sulit dibaca di monitor lebar */
+@media (min-width: 1400px) {
+    .main-content {
+        padding: 32px 40px;
+    }
+}
+
+/* Tablet landscape / laptop kecil (1024) turun ke 992 breakpoint Bootstrap:
+   sidebar otomatis jadi offcanvas (class .offcanvas-lg bawaan Bootstrap) */
+@media (max-width: 991.98px) {
+    .main-content {
+        padding: 20px;
+    }
+    .app-topbar .navbar-brand {
+        font-size: .95rem;
+    }
+    .kpi-value {
+        font-size: 1.4rem;
+    }
+}
+
+/* Tablet potrait (768) */
+@media (max-width: 767.98px) {
+    .main-content {
+        padding: 16px;
+    }
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .app-breadcrumb {
+        display: none; /* hemat ruang di layar sempit, judul halaman cukup lewat page-header */
+    }
+    .dashboard-date {
+        font-size: .74rem;
+        padding: .3rem .55rem;
+    }
+}
+
+/* Mobile (430 / 390) */
+@media (max-width: 480px) {
+    .main-content {
+        padding: 12px;
+    }
+    .app-topbar .navbar-brand .brand-full,
+    .app-topbar .navbar-brand .brand-short {
+        display: none;
+    }
+    .app-user-avatar + span .d-block {
+        display: none !important; /* sembunyikan nama, sisakan avatar+role saja */
+    }
+    .kpi-card {
+        padding: .9rem 1rem;
+    }
+    .topbar-dropdown-menu {
+        min-width: 90vw;
+    }
+}

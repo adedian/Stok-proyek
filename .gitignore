@@ -1,0 +1,8 @@
+/.claude/
+/vendor/
+/logs/*
+!/logs/.gitkeep
+/storage/backups/*
+!/storage/backups/.gitkeep
+/public/uploads/*
+!/public/uploads/.gitkeep

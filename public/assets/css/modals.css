@@ -1,0 +1,46 @@
+/* ============================================================
+   Modals (quick-add & lainnya)
+   ============================================================ */
+.modal-content {
+    border: none;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+}
+
+.modal-header {
+    background: var(--brand-50);
+    border-bottom: 1px solid var(--border-soft);
+    padding: 1rem 1.25rem;
+}
+
+.modal-header .modal-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+
+.modal-header .modal-title i {
+    color: var(--brand-600);
+}
+
+.modal-body {
+    padding: 1.25rem;
+}
+
+.modal-footer {
+    padding: .9rem 1.25rem;
+    border-top: 1px solid var(--border-soft);
+}
+
+.modal.fade .modal-dialog {
+    transform: translateY(-12px) scale(.98);
+    transition: transform .2s ease-out;
+}
+
+.modal.show .modal-dialog {
+    transform: none;
+}

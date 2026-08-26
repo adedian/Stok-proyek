@@ -1,0 +1,215 @@
+/* ============================================================
+   Topbar
+   ============================================================ */
+.navbar.app-topbar {
+    background: linear-gradient(100deg, var(--brand-900) 0%, var(--brand-700) 100%);
+    box-shadow: var(--shadow-sm);
+    padding-top: .6rem;
+    padding-bottom: .6rem;
+    min-height: var(--topbar-height);
+}
+
+.app-topbar .navbar-brand {
+    font-weight: 600;
+    letter-spacing: .01em;
+    font-size: 1.05rem;
+    white-space: nowrap;
+}
+
+.app-topbar .navbar-brand i {
+    color: #8FB2E6;
+}
+
+.app-topbar .navbar-brand-logo {
+    height: 30px;
+    width: auto;
+    object-fit: contain;
+}
+
+.app-topbar .brand-full {
+    display: inline;
+}
+
+.app-topbar .brand-short {
+    display: none;
+}
+
+.sidebar-collapsed .app-topbar .brand-full {
+    display: none;
+}
+
+.sidebar-collapsed .app-topbar .brand-short {
+    display: inline;
+}
+
+/* Hamburger */
+.btn-sidebar-toggle {
+    background: transparent;
+    border: none;
+    color: #E7EEF8;
+    font-size: 1.15rem;
+    padding: .3rem .5rem;
+    border-radius: var(--radius-sm);
+    transition: background-color var(--transition-fast);
+}
+
+.btn-sidebar-toggle:hover {
+    background-color: rgba(255, 255, 255, .12);
+    color: #fff;
+}
+
+/* Breadcrumb */
+.app-breadcrumb {
+    color: #C9D8EE;
+    font-size: .82rem;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.app-breadcrumb .crumb-current {
+    color: #fff;
+    font-weight: 600;
+}
+
+.app-breadcrumb .crumb-sep {
+    opacity: .5;
+}
+
+/* User avatar */
+.app-user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .14);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .78rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: .02em;
+    flex: none;
+}
+
+.app-topbar .btn-outline-light {
+    border-color: rgba(255, 255, 255, .35);
+    transition: background-color var(--transition-fast);
+}
+
+.app-topbar .btn-outline-light:hover {
+    background-color: rgba(255, 255, 255, .12);
+    border-color: rgba(255, 255, 255, .5);
+}
+
+/* Icon buttons di topbar (notifikasi, dsb) */
+.topbar-icon-btn {
+    position: relative;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #E7EEF8;
+    background: transparent;
+    border: none;
+    font-size: 1.05rem;
+    transition: background-color var(--transition-fast);
+}
+
+.topbar-icon-btn:hover {
+    background-color: rgba(255, 255, 255, .12);
+    color: #fff;
+}
+
+.topbar-icon-btn .notif-dot {
+    position: absolute;
+    top: 5px;
+    right: 6px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 3px;
+    border-radius: 999px;
+    background: var(--danger);
+    color: #fff;
+    font-size: .62rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    border: 2px solid var(--brand-800);
+}
+
+/* Dropdown menu (notifikasi & profile) */
+.topbar-dropdown-menu {
+    min-width: 320px;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
+    padding: 0;
+    overflow: hidden;
+}
+
+.topbar-dropdown-header {
+    padding: .85rem 1rem;
+    font-weight: 700;
+    font-size: .85rem;
+    color: var(--ink);
+    background: var(--brand-50);
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.topbar-dropdown-item {
+    display: flex;
+    gap: .65rem;
+    align-items: flex-start;
+    padding: .7rem 1rem;
+    border-bottom: 1px solid var(--border-soft);
+    color: var(--ink);
+    text-decoration: none;
+}
+
+.topbar-dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.topbar-dropdown-item:hover {
+    background-color: var(--brand-50);
+}
+
+.topbar-dropdown-item .item-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    font-size: .95rem;
+}
+
+.topbar-dropdown-empty {
+    padding: 1.5rem 1rem;
+    text-align: center;
+    color: var(--ink-faint);
+    font-size: .85rem;
+}
+
+.profile-dropdown-header {
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    background: var(--brand-50);
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.profile-dropdown-header .app-user-avatar {
+    background: var(--brand-600);
+    width: 40px;
+    height: 40px;
+    font-size: .9rem;
+}

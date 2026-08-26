@@ -6,7 +6,9 @@
  * gabungan di sini (lihat app/models/CodeConfig.php untuk kenapa).
  */
 $icons = [
-    'item' => 'bi-box-seam',
+    'item_stok_proyek' => 'bi-box-seam',
+    'item_stok_lampu' => 'bi-lightbulb',
+    'item_inventory_kantor' => 'bi-archive',
     'supplier' => 'bi-truck',
     'client' => 'bi-people',
     'warehouse' => 'bi-building',

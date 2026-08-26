@@ -29,6 +29,15 @@ function itemSortLink(string $col, string $label, string $sort, string $dir): st
                 <label class="form-label small text-muted mb-1">Cari (Nama / Kode)</label>
                 <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword']) ?>">
             </div>
+            <div class="col-md-2">
+                <label class="form-label small text-muted mb-1">Jenis Stok</label>
+                <select name="stock_type" class="form-select form-select-sm">
+                    <option value="">Semua</option>
+                    <?php foreach ($stockTypeLabels as $st => $stLabel): ?>
+                        <option value="<?= e($st) ?>" <?= ($filters['stock_type'] ?? '') === $st ? 'selected' : '' ?>><?= e($stLabel) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
             <div class="col-md-3">
                 <label class="form-label small text-muted mb-1">Kategori</label>
                 <select name="category_id" class="form-select form-select-sm">
@@ -73,6 +82,7 @@ function itemSortLink(string $col, string $label, string $sort, string $dir): st
                     <tr>
                         <th><?= itemSortLink('item_code', 'Kode', $sort, $dir) ?></th>
                         <th><?= itemSortLink('item_name', 'Nama Barang', $sort, $dir) ?></th>
+                        <th>Jenis Stok</th>
                         <th>Kategori</th>
                         <th>Satuan</th>
                         <th class="text-end">Tersedia</th>
@@ -98,6 +108,7 @@ function itemSortLink(string $col, string $label, string $sort, string $dir): st
                         <tr>
                             <td><?= e($i['item_code']) ?></td>
                             <td><?= e($i['item_name']) ?></td>
+                            <td><span class="badge text-bg-light border"><?= e($stockTypeLabels[$i['stock_type']] ?? $i['stock_type']) ?></span></td>
                             <td><?= e($i['category_name'] ?? '-') ?></td>
                             <td><?= e($i['unit_name']) ?></td>
                             <?php

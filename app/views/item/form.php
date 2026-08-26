@@ -15,9 +15,11 @@ $actionUrl = $isEdit ? 'update' : 'store';
 </div>
 
 <?php if (!$isEdit): ?>
-    <div class="mb-3">
-        <?php $codeEntityType = 'item'; $codeEntityLabel = 'Barang'; require ROOT_PATH . '/app/views/partials/code_preview.php'; ?>
-    </div>
+    <?php foreach ($stockTypeLabels as $st => $stLabel): ?>
+        <div class="mb-3 js-code-preview" data-stock-type="<?= e($st) ?>" style="display: none;">
+            <?php $codeConfig = $codeConfigs[$st]; $codeEntityType = 'item_' . $st; $codeEntityLabel = 'Barang - ' . $stLabel; require ROOT_PATH . '/app/views/partials/code_preview.php'; ?>
+        </div>
+    <?php endforeach; ?>
 <?php endif; ?>
 
 <form method="POST" action="<?= BASE_URL ?>/index.php?module=item&action=<?= $actionUrl ?>">
@@ -40,6 +42,20 @@ $actionUrl = $isEdit ? 'update' : 'store';
                         <option value="active" <?= ($item['status'] ?? 'active') === 'active' ? 'selected' : '' ?>>Aktif</option>
                         <option value="inactive" <?= ($item['status'] ?? '') === 'inactive' ? 'selected' : '' ?>>Nonaktif</option>
                     </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Jenis Stok <span class="text-danger">*</span></label>
+                    <select name="stock_type" id="stockTypeSelect" class="form-select" required <?= $isEdit ? 'disabled' : '' ?>>
+                        <?php foreach ($stockTypeLabels as $st => $stLabel): ?>
+                            <option value="<?= e($st) ?>" <?= ($item['stock_type'] ?? 'stok_proyek') === $st ? 'selected' : '' ?>><?= e($stLabel) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <?php if ($isEdit): ?>
+                        <input type="hidden" name="stock_type" value="<?= e($item['stock_type'] ?? 'stok_proyek') ?>">
+                        <div class="form-text">Jenis Stok menentukan kelompok kode (Master Kode &raquo; Barang) saat dibuat, tidak bisa diganti setelah kode terbit.</div>
+                    <?php else: ?>
+                        <div class="form-text">Menentukan kelompok kode (prefix) dari Master Kode &raquo; Barang.</div>
+                    <?php endif; ?>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Kategori</label>
@@ -79,7 +95,32 @@ $actionUrl = $isEdit ? 'update' : 'store';
     </div>
 
     <div class="d-flex gap-2">
-        <button type="submit" class="btn btn-primary" <?= (!$isEdit && $codeConfig === null) ? 'disabled' : '' ?>><i class="bi bi-save"></i> Simpan</button>
+        <button type="submit" class="btn btn-primary" id="itemSubmitBtn"><i class="bi bi-save"></i> Simpan</button>
         <a href="<?= BASE_URL ?>/index.php?module=item" class="btn btn-light border">Batal</a>
     </div>
 </form>
+
+<?php if (!$isEdit): ?>
+<script>
+(function () {
+    // Preview kode & tombol Simpan mengikuti Jenis Stok yang dipilih -- tiap
+    // kelompok (Stok Proyek/Stok Lampu/Inventory Kantor) punya konfigurasi
+    // prefix SENDIRI (lihat Master Kode > Barang), jadi status "belum
+    // dikonfigurasi" juga berbeda-beda per kelompok.
+    var configured = <?= json_encode(array_map(fn($c) => $c !== null, $codeConfigs)) ?>;
+    var select = document.getElementById('stockTypeSelect');
+    var submitBtn = document.getElementById('itemSubmitBtn');
+
+    function applyStockTypeState() {
+        var current = select.value;
+        document.querySelectorAll('.js-code-preview').forEach(function (el) {
+            el.style.display = el.dataset.stockType === current ? '' : 'none';
+        });
+        submitBtn.disabled = !configured[current];
+    }
+
+    select.addEventListener('change', applyStockTypeState);
+    applyStockTypeState();
+})();
+</script>
+<?php endif; ?>

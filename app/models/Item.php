@@ -90,6 +90,10 @@ class Item extends Model
             $sql .= " AND i.status = :status";
             $params['status'] = $filters['status'];
         }
+        if (!empty($filters['stock_type'])) {
+            $sql .= " AND i.stock_type = :stock_type";
+            $params['stock_type'] = $filters['stock_type'];
+        }
 
         if (!$countOnly) {
             $sql .= " GROUP BY i.id";

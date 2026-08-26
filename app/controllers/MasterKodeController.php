@@ -59,6 +59,13 @@ class MasterKodeController extends Controller
 
         $model = $this->resolveModel($type);
         $filters = ['keyword' => trim($_GET['keyword'] ?? '')];
+        // Kelompok Barang (item_stok_proyek/item_stok_lampu/item_inventory_kantor)
+        // semuanya baca dari tabel `items` yang SAMA -- filter stock_type supaya
+        // daftar kode di sini cuma menampilkan barang KELOMPOK INI saja, bukan
+        // gabungan ketiganya (lihat catatan di CodeConfig::$entities).
+        if (!empty($meta['stock_type'])) {
+            $filters['stock_type'] = $meta['stock_type'];
+        }
         $page = (int) ($_GET['page'] ?? 1);
 
         $totalRows = $model->countFiltered($filters);
@@ -131,7 +138,10 @@ class MasterKodeController extends Controller
     private function resolveModel(string $type)
     {
         switch ($type) {
-            case 'item': return new Item();
+            case 'item_stok_proyek':
+            case 'item_stok_lampu':
+            case 'item_inventory_kantor':
+                return new Item();
             case 'supplier': return new Supplier();
             case 'client': return new Client();
             case 'warehouse': return new Warehouse();

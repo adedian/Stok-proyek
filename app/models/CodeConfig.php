@@ -21,9 +21,22 @@ class CodeConfig extends Model
      * masing-masing entity (generate kode saat create).
      */
     private array $entities = [
-        'item' => [
+        // Barang dipecah 3 kelompok kode (Revisi 7 #23-33) -- masing-masing prefix/
+        // sequence SENDIRI-SENDIRI, tapi tetap satu tabel/kolom kode fisik (items.item_code)
+        // supaya keunikan kode tetap GLOBAL (dipakai lintas PO/Inventory/Validasi/Laporan) --
+        // nextCode() sudah cek collision langsung ke items.item_code apa pun kelompoknya,
+        // jadi dua kelompok kebetulan menghasilkan kode yang sama otomatis dihindari.
+        'item_stok_proyek' => [
             'table' => 'items', 'code_col' => 'item_code', 'name_col' => 'item_name',
-            'label' => 'Barang', 'module' => 'item',
+            'label' => 'Barang - Stok Proyek', 'module' => 'item', 'stock_type' => 'stok_proyek',
+        ],
+        'item_stok_lampu' => [
+            'table' => 'items', 'code_col' => 'item_code', 'name_col' => 'item_name',
+            'label' => 'Barang - Stok Lampu', 'module' => 'item', 'stock_type' => 'stok_lampu',
+        ],
+        'item_inventory_kantor' => [
+            'table' => 'items', 'code_col' => 'item_code', 'name_col' => 'item_name',
+            'label' => 'Barang - Inventory Kantor', 'module' => 'item', 'stock_type' => 'inventory_kantor',
         ],
         'supplier' => [
             'table' => 'suppliers', 'code_col' => 'supplier_code', 'name_col' => 'supplier_name',

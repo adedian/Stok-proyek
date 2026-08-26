@@ -15,6 +15,22 @@ class ItemController extends Controller
     private ActivityLog $activityLog;
     private CodeConfig $codeConfig;
 
+    /**
+     * Jenis Stok (items.stock_type) -> kelompok Master Kode (code_configs.entity_type)
+     * -- lihat app/models/CodeConfig.php untuk kenapa Barang dipecah 3 kelompok kode.
+     */
+    public const STOCK_TYPE_LABELS = [
+        'stok_proyek'      => 'Stok Proyek',
+        'stok_lampu'       => 'Stok Lampu',
+        'inventory_kantor' => 'Inventory Kantor',
+    ];
+
+    private const STOCK_TYPE_CODE_ENTITY = [
+        'stok_proyek'      => 'item_stok_proyek',
+        'stok_lampu'       => 'item_stok_lampu',
+        'inventory_kantor' => 'item_inventory_kantor',
+    ];
+
     public function __construct()
     {
         // quickStore() dicek permission-nya sendiri (lebih longgar, lihat method-nya) --
@@ -36,6 +52,7 @@ class ItemController extends Controller
             'keyword'     => trim($_GET['keyword'] ?? ''),
             'category_id' => $_GET['category_id'] ?? '',
             'status'      => $_GET['status'] ?? '',
+            'stock_type'  => $_GET['stock_type'] ?? '',
         ];
         $sort = $_GET['sort'] ?? 'item_name';
         $dir  = $_GET['dir'] ?? 'asc';
@@ -50,14 +67,15 @@ class ItemController extends Controller
         ])));
 
         $this->view('item/list', [
-            'pageTitle'  => 'Barang',
-            'items'      => $items,
-            'filters'    => $filters,
-            'sort'       => $sort,
-            'dir'        => $dir,
-            'pagination' => $pg,
-            'baseQuery'  => $baseQuery,
-            'categories' => $this->categoryModel->activeList(),
+            'pageTitle'       => 'Barang',
+            'items'           => $items,
+            'filters'         => $filters,
+            'sort'            => $sort,
+            'dir'             => $dir,
+            'pagination'      => $pg,
+            'baseQuery'       => $baseQuery,
+            'categories'      => $this->categoryModel->activeList(),
+            'stockTypeLabels' => self::STOCK_TYPE_LABELS,
         ]);
     }
 
@@ -67,6 +85,7 @@ class ItemController extends Controller
             'keyword'     => trim($_GET['keyword'] ?? ''),
             'category_id' => $_GET['category_id'] ?? '',
             'status'      => $_GET['status'] ?? '',
+            'stock_type'  => $_GET['stock_type'] ?? '',
         ];
         $rows = $this->itemModel->listPaginated($filters, 'item_name', 'asc', 10000, 0);
 
@@ -75,10 +94,10 @@ class ItemController extends Controller
 
         $out = fopen('php://output', 'w');
         fputs($out, "\xEF\xBB\xBF");
-        fputcsv($out, ['Kode', 'Nama Barang', 'Kategori', 'Satuan', 'Spesifikasi', 'Tersedia', 'Stok Minimum', 'Status']);
+        fputcsv($out, ['Kode', 'Nama Barang', 'Jenis Stok', 'Kategori', 'Satuan', 'Spesifikasi', 'Tersedia', 'Stok Minimum', 'Status']);
         foreach ($rows as $r) {
             fputcsv($out, [
-                $r['item_code'], $r['item_name'], $r['category_name'] ?? '-', $r['unit_name'],
+                $r['item_code'], $r['item_name'], self::STOCK_TYPE_LABELS[$r['stock_type']] ?? $r['stock_type'], $r['category_name'] ?? '-', $r['unit_name'],
                 $r['specification'], $r['total_available'] ?? 0, $r['min_stock'], $r['status'],
             ]);
         }
@@ -90,13 +109,19 @@ class ItemController extends Controller
     {
         Middleware::requirePermission('item', 'create');
 
+        $codeConfigs = [];
+        foreach (self::STOCK_TYPE_CODE_ENTITY as $stockType => $entityType) {
+            $codeConfigs[$stockType] = $this->codeConfig->getConfig($entityType);
+        }
+
         $this->view('item/form', [
-            'pageTitle'  => 'Tambah Barang',
-            'mode'       => 'create',
-            'item'       => null,
-            'categories' => $this->categoryModel->activeList(),
-            'units'      => $this->unitModel->activeList(),
-            'codeConfig' => $this->codeConfig->getConfig('item'),
+            'pageTitle'       => 'Tambah Barang',
+            'mode'            => 'create',
+            'item'            => null,
+            'categories'      => $this->categoryModel->activeList(),
+            'units'           => $this->unitModel->activeList(),
+            'stockTypeLabels' => self::STOCK_TYPE_LABELS,
+            'codeConfigs'     => $codeConfigs,
         ]);
     }
 
@@ -117,9 +142,11 @@ class ItemController extends Controller
             $this->redirect('item', 'create');
         }
 
-        $itemCode = $this->codeConfig->nextCode('item');
+        $codeEntityType = self::STOCK_TYPE_CODE_ENTITY[$data['stock_type']];
+        $itemCode = $this->codeConfig->nextCode($codeEntityType);
         if ($itemCode === null) {
-            setFlash('error', 'Prefix kode Barang belum dikonfigurasi. Silakan konfigurasi melalui Master Kode > Barang.');
+            $label = self::STOCK_TYPE_LABELS[$data['stock_type']];
+            setFlash('error', "Prefix kode Barang - {$label} belum dikonfigurasi. Silakan konfigurasi melalui Master Kode > Barang - {$label}.");
             $this->redirect('item', 'create');
         }
 
@@ -146,11 +173,13 @@ class ItemController extends Controller
         }
 
         $this->view('item/form', [
-            'pageTitle'  => 'Edit Barang',
-            'mode'       => 'edit',
-            'item'       => $item,
-            'categories' => $this->categoryModel->activeList(),
-            'units'      => $this->unitModel->activeList(),
+            'pageTitle'       => 'Edit Barang',
+            'mode'            => 'edit',
+            'item'            => $item,
+            'categories'      => $this->categoryModel->activeList(),
+            'units'           => $this->unitModel->activeList(),
+            'stockTypeLabels' => self::STOCK_TYPE_LABELS,
+            'codeConfigs'     => [],
         ]);
     }
 
@@ -228,9 +257,11 @@ class ItemController extends Controller
             $this->json(['errors' => $errors], 422);
         }
 
-        $itemCode = $this->codeConfig->nextCode('item');
+        $codeEntityType = self::STOCK_TYPE_CODE_ENTITY[$data['stock_type']];
+        $itemCode = $this->codeConfig->nextCode($codeEntityType);
         if ($itemCode === null) {
-            $this->json(['errors' => ['Prefix kode Barang belum dikonfigurasi. Silakan konfigurasi melalui Master Kode > Barang.']], 422);
+            $label = self::STOCK_TYPE_LABELS[$data['stock_type']];
+            $this->json(['errors' => ["Prefix kode Barang - {$label} belum dikonfigurasi. Silakan konfigurasi melalui Master Kode > Barang - {$label}."]], 422);
         }
 
         $id = $this->itemModel->create(array_merge($data, [
@@ -264,10 +295,15 @@ class ItemController extends Controller
     private function collectInput(): array
     {
         $status = $_POST['status'] ?? 'active';
+        // Default 'stok_proyek' kalau field tidak dikirim -- dipakai quickStore()
+        // (modal quick-add dari form PO dkk. tidak punya field Jenis Stok, konteksnya
+        // memang selalu pengadaan barang proyek).
+        $stockType = $_POST['stock_type'] ?? 'stok_proyek';
 
         return [
             'item_name'     => trim($_POST['item_name'] ?? ''),
             'category_id'   => !empty($_POST['category_id']) ? (int) $_POST['category_id'] : null,
+            'stock_type'    => array_key_exists($stockType, self::STOCK_TYPE_LABELS) ? $stockType : 'stok_proyek',
             'unit_id'       => (int) ($_POST['unit_id'] ?? 0),
             'specification' => trim($_POST['specification'] ?? ''),
             'min_stock'     => (float) ($_POST['min_stock'] ?? 0),

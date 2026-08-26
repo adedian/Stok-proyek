@@ -99,6 +99,7 @@
                         <th>Pembuat PO</th>
                         <th>Supplier</th>
                         <th class="text-center">Termin</th>
+                        <th>Sumber Dana</th>
                         <th>Metode</th>
                         <th class="text-end">Nominal</th>
                         <th>Tanggal</th>
@@ -130,6 +131,11 @@
                             <td><?= e($pay['pembuat_po'] ?? '-') ?></td>
                             <td><?= e($pay['supplier_name']) ?></td>
                             <td class="text-center">Ke-<?= (int) $pay['termin'] ?></td>
+                            <td>
+                                <span class="badge text-bg-light border">
+                                    <?= e($fundingSourceLabels[$pay['funding_source']] ?? $pay['funding_source']) ?>
+                                </span>
+                            </td>
                             <td><?= e($pay['method_name'] ?? '-') ?></td>
                             <td class="text-end"><?= formatRupiah($pay['amount']) ?></td>
                             <td><?= formatTanggal($pay['payment_date']) ?></td>

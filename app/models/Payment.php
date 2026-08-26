@@ -1,5 +1,6 @@
 <?php
 require_once ROOT_PATH . '/core/Model.php';
+require_once ROOT_PATH . '/app/models/DocumentNumber.php';
 
 class Payment extends Model
 {
@@ -19,23 +20,48 @@ class Payment extends Model
     ];
 
     /**
-     * Generate nomor pembayaran otomatis: PAY/2026/08/0001
+     * Sumber dana pembayaran (Revisi 7 #16-21) -- label + kode BK/KK/KKP dan
+     * key setting prefix nomor (system_settings, tab Pengaturan > Penomoran)
+     * masing-masing, supaya sequence-nya TERPISAH per sumber dana (bukan
+     * nomor global) sesuai permintaan.
      */
-    public function generatePaymentNumber(): string
+    public array $fundingSourceLabels = [
+        'bank'         => 'Bank',
+        'kas_kecil'    => 'Kas Kecil',
+        'kas_project'  => 'Kas Project',
+    ];
+
+    public array $fundingSourceCodes = [
+        'bank'        => 'BK',
+        'kas_kecil'   => 'KK',
+        'kas_project' => 'KKP',
+    ];
+
+    private const FUNDING_SOURCE_DOC_TYPE = [
+        'bank'        => 'payment_bk',
+        'kas_kecil'   => 'payment_kk',
+        'kas_project' => 'payment_kkp',
+    ];
+
+    private const FUNDING_SOURCE_SETTING_KEY = [
+        'bank'        => 'prefix_pay_bk',
+        'kas_kecil'   => 'prefix_pay_kk',
+        'kas_project' => 'prefix_pay_kkp',
+    ];
+
+    /**
+     * Generate nomor pembayaran otomatis, format "001/BK.HME/VIII/2026" dkk
+     * -- sequence ATOMIC & TERPISAH per sumber dana (lihat DocumentNumber::next()),
+     * jadi Bank/Kas Kecil/Kas Project masing-masing mulai dari 001, bukan
+     * berbagi satu nomor urut global.
+     */
+    public function generatePaymentNumber(string $fundingSource, ?string $date = null): string
     {
-        $prefix = 'PAY/' . date('Y') . '/' . date('m') . '/';
+        $docType = self::FUNDING_SOURCE_DOC_TYPE[$fundingSource] ?? self::FUNDING_SOURCE_DOC_TYPE['bank'];
+        $settingKey = self::FUNDING_SOURCE_SETTING_KEY[$fundingSource] ?? self::FUNDING_SOURCE_SETTING_KEY['bank'];
+        $default = $this->fundingSourceCodes[$fundingSource] ?? 'BK';
 
-        $last = $this->db->fetchOne(
-            "SELECT payment_number FROM payments WHERE payment_number LIKE :prefix ORDER BY id DESC LIMIT 1",
-            ['prefix' => $prefix . '%']
-        );
-
-        $next = 1;
-        if ($last) {
-            $next = (int) substr($last['payment_number'], strlen($prefix)) + 1;
-        }
-
-        return $prefix . str_pad((string) $next, 4, '0', STR_PAD_LEFT);
+        return (new DocumentNumber())->next($docType, $settingKey, $date, $default . '.HME');
     }
 
     /**

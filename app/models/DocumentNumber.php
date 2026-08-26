@@ -39,13 +39,13 @@ class DocumentNumber extends Model
      * Y-m-d, default hari ini). $codeSettingKey adalah key di system_settings
      * yang menyimpan kode dokumen (mis. 'prefix_sls' -> "INV.HME").
      */
-    public function next(string $docType, string $codeSettingKey, ?string $date = null): string
+    public function next(string $docType, string $codeSettingKey, ?string $date = null, ?string $defaultCode = null): string
     {
         $date = $date ?: date('Y-m-d');
         $ts = strtotime($date) ?: time();
         $year = (int) date('Y', $ts);
         $month = (int) date('n', $ts);
-        $code = (new SystemSetting())->get($codeSettingKey, strtoupper($docType));
+        $code = (new SystemSetting())->get($codeSettingKey, $defaultCode ?? strtoupper($docType));
 
         $this->db->beginTransaction();
         try {

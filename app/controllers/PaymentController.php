@@ -43,6 +43,7 @@ class PaymentController extends Controller
             'filters'          => $filters,
             'statusLabels'     => $this->paymentModel->statusLabels,
             'statusBadgeClass' => $this->paymentModel->statusBadgeClass,
+            'fundingSourceLabels' => $this->paymentModel->fundingSourceLabels,
         ]);
     }
 
@@ -74,12 +75,18 @@ class PaymentController extends Controller
             'pageTitle'     => 'Tambah Pembayaran',
             'mode'          => 'create',
             'payment'       => null,
-            'paymentNumber' => $this->paymentModel->generatePaymentNumber(),
+            // Nomor pembayaran BELUM digenerate di sini -- DocumentNumber::next()
+            // memakai counter persisten yang increment tiap dipanggil (bukan cuma
+            // MAX(number)+1 seperti dulu), jadi kalau dipanggil di sini untuk
+            // sekadar preview, nomor akan "terbakar"/terlewat tiap kali form ini
+            // dibuka tanpa disimpan. Nomor asli baru dibuat sekali di store().
+            'paymentNumber' => null,
             'poList'        => $this->getPayablePoList(),
             'selectedPo'    => $selectedPo,
             'remaining'     => $selectedPo ? $this->getRemaining($selectedPo) : null,
             'progress'      => $selectedPo ? $this->paymentModel->poPaymentInfo((int) $selectedPo['id'], (float) $selectedPo['total_amount']) : null,
             'paymentMethods' => $this->methodModel->activeList(),
+            'fundingSourceLabels' => $this->paymentModel->fundingSourceLabels,
         ]);
     }
 
@@ -112,9 +119,10 @@ class PaymentController extends Controller
 
         $this->paymentModel->create([
             'purchase_order_id' => $data['purchase_order_id'],
-            'payment_number'    => $this->paymentModel->generatePaymentNumber(),
+            'payment_number'    => $this->paymentModel->generatePaymentNumber($data['funding_source'], $data['payment_date']),
             'termin'            => $data['termin'],
             'payment_method_id' => $data['payment_method_id'],
+            'funding_source'    => $data['funding_source'],
             'amount'            => $data['amount'],
             'payment_date'      => $data['payment_date'],
             'proof_file'        => $proofFile,
@@ -156,6 +164,7 @@ class PaymentController extends Controller
             'remaining'     => $this->getRemaining($po, (float) $payment['amount']),
             'progress'      => $po ? $this->paymentModel->poPaymentInfo((int) $po['id'], (float) $po['total_amount']) : null,
             'paymentMethods' => $this->methodModel->activeList(),
+            'fundingSourceLabels' => $this->paymentModel->fundingSourceLabels,
         ]);
     }
 
@@ -199,6 +208,7 @@ class PaymentController extends Controller
             'purchase_order_id' => $data['purchase_order_id'],
             'termin'            => $data['termin'],
             'payment_method_id' => $data['payment_method_id'],
+            'funding_source'    => $data['funding_source'],
             'amount'            => $data['amount'],
             'payment_date'      => $data['payment_date'],
             'status'            => $status,
@@ -303,10 +313,20 @@ class PaymentController extends Controller
 
     private function collectInput(): array
     {
+        $fundingSource = $_POST['funding_source'] ?? 'bank';
+        if (!array_key_exists($fundingSource, $this->paymentModel->fundingSourceLabels)) {
+            $fundingSource = 'bank';
+        }
+
         return [
             'purchase_order_id' => (int) ($_POST['purchase_order_id'] ?? 0),
             'termin'            => max(1, (int) ($_POST['termin'] ?? 1)),
-            'payment_method_id' => (int) ($_POST['payment_method_id'] ?? 0) ?: null,
+            'funding_source'    => $fundingSource,
+            // Jenis Bank (payment_method_id, master Cek/Giro/Transfer Bank/Tunai) HANYA
+            // relevan kalau sumber dana = Bank -- kalau Kas Kecil/Kas Project, dipaksa
+            // null di sini (backend, bukan cuma disembunyikan di UI) supaya data tidak
+            // menyesatkan (misal Jenis "Tunai" nempel di pembayaran Kas Project).
+            'payment_method_id' => $fundingSource === 'bank' ? ((int) ($_POST['payment_method_id'] ?? 0) ?: null) : null,
             'amount'            => parseCurrencyInput($_POST['amount'] ?? 0),
             'payment_date'      => $_POST['payment_date'] ?? '',
             'notes'             => trim($_POST['notes'] ?? ''),
@@ -334,8 +354,8 @@ class PaymentController extends Controller
         if (empty($data['payment_date'])) {
             $errors[] = 'Tanggal pembayaran wajib diisi.';
         }
-        if (empty($data['payment_method_id'])) {
-            $errors[] = 'Metode pembayaran wajib dipilih.';
+        if ($data['funding_source'] === 'bank' && empty($data['payment_method_id'])) {
+            $errors[] = 'Jenis Pembayaran (Cek/Giro/Transfer Bank/Tunai) wajib dipilih untuk sumber dana Bank.';
         }
 
         $excludeAmount = $excludePaymentId ? (float) $this->paymentModel->find($excludePaymentId)['amount'] : 0;

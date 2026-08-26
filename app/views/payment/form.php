@@ -6,7 +6,11 @@ $selectedPoId = $selectedPo['id'] ?? ($payment['purchase_order_id'] ?? '');
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h4 class="mb-0"><?= $isEdit ? 'Edit' : 'Tambah' ?> Pembayaran</h4>
-        <small class="text-muted">No. Pembayaran: <strong><?= e($paymentNumber) ?></strong> (otomatis)</small>
+        <small class="text-muted">
+            No. Pembayaran:
+            <strong><?= $paymentNumber ? e($paymentNumber) : '(otomatis sesuai sumber dana, dibuat saat disimpan)' ?></strong>
+            <?= $paymentNumber ? '(otomatis)' : '' ?>
+        </small>
     </div>
     <a href="<?= BASE_URL ?>/index.php?module=payment" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Kembali
@@ -58,10 +62,20 @@ $selectedPoId = $selectedPo['id'] ?? ($payment['purchase_order_id'] ?? '');
                            value="<?= e($payment['payment_date'] ?? date('Y-m-d')) ?>" required>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Metode Pembayaran <span class="text-danger">*</span></label>
+                    <label class="form-label">Melalui <span class="text-danger">*</span></label>
+                    <?php $fundingSource = $payment['funding_source'] ?? 'bank'; ?>
+                    <select name="funding_source" id="fundingSourceSelect" class="form-select" required>
+                        <?php foreach ($fundingSourceLabels as $key => $label): ?>
+                            <option value="<?= e($key) ?>" <?= $fundingSource === $key ? 'selected' : '' ?>><?= e($label) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <div class="form-text">Bank = kode BK, Kas Kecil = kode KK, Kas Project = kode KKP (nomor urut terpisah per sumber dana).</div>
+                </div>
+                <div class="col-md-6" id="paymentMethodWrap">
+                    <label class="form-label">Jenis Pembayaran <span class="text-danger">*</span></label>
                     <div class="input-group">
-                        <select name="payment_method_id" id="payment_method_id" class="form-select" required>
-                            <option value="">-- Pilih Metode --</option>
+                        <select name="payment_method_id" id="payment_method_id" class="form-select">
+                            <option value="">-- Pilih Jenis (Cek/Giro/Transfer Bank/Tunai) --</option>
                             <?php foreach ($paymentMethods as $pm): ?>
                                 <option value="<?= (int) $pm['id'] ?>"
                                     <?= (string) ($payment['payment_method_id'] ?? '') === (string) $pm['id'] ? 'selected' : '' ?>>
@@ -119,6 +133,26 @@ $selectedPoId = $selectedPo['id'] ?? ($payment['purchase_order_id'] ?? '');
     const poSelect = document.getElementById('poSelect');
     const remainingInfo = document.getElementById('remainingInfo');
     const excludePaymentId = <?= $isEdit ? (int) $payment['id'] : 0 ?>;
+
+    // Jenis Pembayaran (Cek/Giro/Transfer Bank/Tunai) HANYA relevan kalau
+    // "Melalui" = Bank -- backend (PaymentController::collectInput/validateInput)
+    // tetap jadi otoritas sebenarnya, ini cuma UX supaya field tidak
+    // membingungkan saat sumber dana Kas Kecil/Kas Project.
+    const fundingSourceSelect = document.getElementById('fundingSourceSelect');
+    const paymentMethodWrap = document.getElementById('paymentMethodWrap');
+    const paymentMethodSelect = document.getElementById('payment_method_id');
+
+    function applyFundingSourceState() {
+        const isBank = fundingSourceSelect.value === 'bank';
+        paymentMethodWrap.classList.toggle('d-none', !isBank);
+        paymentMethodSelect.required = isBank;
+        if (!isBank) {
+            paymentMethodSelect.value = '';
+        }
+    }
+
+    fundingSourceSelect.addEventListener('change', applyFundingSourceState);
+    applyFundingSourceState();
 
     function formatPercentage(bar, percentage) {
         if (!bar) { return; }

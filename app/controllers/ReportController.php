@@ -292,6 +292,7 @@ class ReportController extends Controller
                 $rows = $model->listWithRelations($filters);
                 foreach ($rows as &$r) {
                     $r['status_label'] = $model->statusLabels[$r['status']] ?? $r['status'];
+                    $r['funding_source_label'] = $model->fundingSourceLabels[$r['funding_source']] ?? $r['funding_source'];
                 }
                 return [
                     'title' => 'Laporan Pembayaran',
@@ -303,6 +304,7 @@ class ReportController extends Controller
                         ['field' => 'supplier_name', 'label' => 'Supplier'],
                         ['field' => 'payment_date', 'label' => 'Tanggal', 'format' => 'date'],
                         ['field' => 'termin', 'label' => 'Termin'],
+                        ['field' => 'funding_source_label', 'label' => 'Sumber Dana'],
                         ['field' => 'method_name', 'label' => 'Metode'],
                         ['field' => 'status_label', 'label' => 'Status'],
                         ['field' => 'amount', 'label' => 'Nominal', 'format' => 'rupiah', 'align' => 'end', 'sum' => true],

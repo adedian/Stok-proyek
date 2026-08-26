@@ -209,4 +209,13 @@ return [
         'view' => [ROLE_SUPER_ADMIN],
         'edit' => [ROLE_SUPER_ADMIN],
     ],
+
+    // Tempat Sampah -- daftar gabungan semua modul yang soft-delete (lihat
+    // core/Model.php: $softDelete). Administratif lintas modul, sama seperti
+    // Master Data/Master Kode/Settings: khusus Super Admin.
+    'trash' => [
+        'view'         => [ROLE_SUPER_ADMIN],
+        'restore'      => [ROLE_SUPER_ADMIN],
+        'force_delete' => [ROLE_SUPER_ADMIN],
+    ],
 ];

@@ -37,6 +37,7 @@ class Router
         'delivery_note'      => 'DeliveryNoteController',
         'collection_receipt' => 'CollectionReceiptController',
         'dp_percentage'      => 'DpPercentageController',
+        'trash'              => 'TrashController',
     ];
 
     public function dispatch(): void

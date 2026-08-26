@@ -26,6 +26,7 @@ function appMenus(): array
         ['label' => 'Laporan', 'module' => 'report', 'icon' => 'bi-bar-chart-line', 'roles' => permissionRoles('report', 'view'), 'active' => true, 'group' => 'Laporan & Administrasi'],
         ['label' => 'User Management', 'module' => 'user', 'icon' => 'bi-people', 'roles' => permissionRoles('user', 'view'), 'active' => true, 'group' => 'Laporan & Administrasi'],
         ['label' => 'Master Data', 'module' => 'master_data', 'icon' => 'bi-database', 'roles' => permissionRoles('master_data', 'view'), 'active' => true, 'group' => 'Laporan & Administrasi'],
+        ['label' => 'Tempat Sampah', 'module' => 'trash', 'icon' => 'bi-trash3', 'roles' => permissionRoles('trash', 'view'), 'active' => true, 'group' => 'Laporan & Administrasi'],
         ['label' => 'Pengaturan Sistem', 'module' => 'settings', 'icon' => 'bi-gear', 'roles' => permissionRoles('settings', 'view'), 'active' => true, 'group' => 'Laporan & Administrasi'],
     ];
 }

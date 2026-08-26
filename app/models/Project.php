@@ -41,10 +41,7 @@ class Project extends Model
     public function findWithRelations(int $id)
     {
         return $this->db->fetchOne(
-            "SELECT p.*, u.full_name AS pm_name
-             FROM projects p
-             LEFT JOIN users u ON u.id = p.pm_id
-             WHERE p.id = :id AND p.deleted_at IS NULL",
+            "SELECT p.* FROM projects p WHERE p.id = :id AND p.deleted_at IS NULL",
             ['id' => $id]
         );
     }
@@ -67,8 +64,8 @@ class Project extends Model
 
     private function buildListQuery(array $filters, bool $countOnly = false): array
     {
-        $select = $countOnly ? 'SELECT COUNT(*) AS total' : 'SELECT p.*, u.full_name AS pm_name';
-        $sql = "{$select} FROM projects p LEFT JOIN users u ON u.id = p.pm_id WHERE p.deleted_at IS NULL";
+        $select = $countOnly ? 'SELECT COUNT(*) AS total' : 'SELECT p.*';
+        $sql = "{$select} FROM projects p WHERE p.deleted_at IS NULL";
         $params = [];
 
         if (!empty($filters['keyword'])) {

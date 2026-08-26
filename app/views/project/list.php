@@ -67,7 +67,7 @@ function projectSortLink(string $col, string $label, string $sort, string $dir):
                         <th><?= projectSortLink('project_code', 'Kode', $sort, $dir) ?></th>
                         <th><?= projectSortLink('project_name', 'Nama Project', $sort, $dir) ?></th>
                         <th><?= projectSortLink('location', 'Lokasi', $sort, $dir) ?></th>
-                        <th>PIC</th>
+                        <th>Nama</th>
                         <th class="text-center"><?= projectSortLink('status', 'Status', $sort, $dir) ?></th>
                         <th class="text-center no-print">Aksi</th>
                     </tr>
@@ -90,7 +90,7 @@ function projectSortLink(string $col, string $label, string $sort, string $dir):
                             <td><?= e($p['project_code']) ?></td>
                             <td><?= e($p['project_name']) ?></td>
                             <td><?= e($p['location'] ?? '-') ?></td>
-                            <td><?= e($p['pm_name'] ?? '-') ?></td>
+                            <td><?= e($p['pic_name'] ?? '-') ?></td>
                             <td class="text-center">
                                 <span class="badge bg-<?= $statusBadgeClass[$p['status']] ?>"><?= e($statusLabels[$p['status']]) ?></span>
                             </td>

@@ -39,16 +39,9 @@ $actionUrl = $isEdit ? 'update' : 'store';
                     <input type="text" name="location" class="form-control" value="<?= e($project['location'] ?? '') ?>">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">PIC Project</label>
-                    <select name="pm_id" class="form-select">
-                        <option value="">-- Belum ditentukan --</option>
-                        <?php foreach ($picUsers as $u): ?>
-                            <option value="<?= (int) $u['id'] ?>"
-                                <?= $isEdit && (int) ($project['pm_id'] ?? 0) === (int) $u['id'] ? 'selected' : '' ?>>
-                                <?= e($u['full_name']) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
+                    <label class="form-label">Nama</label>
+                    <input type="text" name="pic_name" class="form-control"
+                           value="<?= e($project['pic_name'] ?? '') ?>" placeholder="Nama PIC">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Status</label>

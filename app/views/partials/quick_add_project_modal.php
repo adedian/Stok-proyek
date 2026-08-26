@@ -1,10 +1,8 @@
 <?php
 /**
  * Modal quick-add Project. Include di halaman manapun yang punya
- * <select id="project_id">. Butuh variabel $picUsers (User::activeList())
- * dan permission 'project'.'quick_add'.
+ * <select id="project_id">. Butuh permission 'project'.'quick_add'.
  */
-$picUsers = $picUsers ?? [];
 $quickAddProjectTargetId = $quickAddProjectTargetId ?? 'project_id';
 ?>
 <div class="modal fade" id="modalQuickAddProject" tabindex="-1" aria-hidden="true">
@@ -36,13 +34,8 @@ $quickAddProjectTargetId = $quickAddProjectTargetId ?? 'project_id';
                             <input type="text" name="location" class="form-control">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">PIC Project</label>
-                            <select name="pm_id" class="form-select">
-                                <option value="">-- Belum ditentukan --</option>
-                                <?php foreach ($picUsers as $u): ?>
-                                    <option value="<?= (int) $u['id'] ?>"><?= e($u['full_name']) ?></option>
-                                <?php endforeach; ?>
-                            </select>
+                            <label class="form-label">Nama</label>
+                            <input type="text" name="pic_name" class="form-control" placeholder="Nama PIC">
                         </div>
                     </div>
                 </div>

@@ -2,14 +2,12 @@
 require_once ROOT_PATH . '/core/Controller.php';
 require_once ROOT_PATH . '/core/Middleware.php';
 require_once ROOT_PATH . '/app/models/Project.php';
-require_once ROOT_PATH . '/app/models/User.php';
 require_once ROOT_PATH . '/app/models/ActivityLog.php';
 require_once ROOT_PATH . '/app/models/CodeConfig.php';
 
 class ProjectController extends Controller
 {
     private Project $projectModel;
-    private User $userModel;
     private ActivityLog $activityLog;
     private CodeConfig $codeConfig;
 
@@ -22,7 +20,6 @@ class ProjectController extends Controller
         }
 
         $this->projectModel = new Project();
-        $this->userModel    = new User();
         $this->activityLog  = new ActivityLog();
         $this->codeConfig   = new CodeConfig();
     }
@@ -73,11 +70,11 @@ class ProjectController extends Controller
 
         $out = fopen('php://output', 'w');
         fputs($out, "\xEF\xBB\xBF");
-        fputcsv($out, ['Kode', 'Nama Project', 'Lokasi', 'PIC', 'Status']);
+        fputcsv($out, ['Kode', 'Nama Project', 'Lokasi', 'Nama', 'Status']);
         foreach ($rows as $r) {
             fputcsv($out, [
                 $r['project_code'], $r['project_name'], $r['location'],
-                $r['pm_name'], $this->projectModel->statusLabels[$r['status']] ?? $r['status'],
+                $r['pic_name'], $this->projectModel->statusLabels[$r['status']] ?? $r['status'],
             ]);
         }
         fclose($out);
@@ -92,7 +89,6 @@ class ProjectController extends Controller
             'pageTitle' => 'Tambah Project',
             'mode'      => 'create',
             'project'   => null,
-            'picUsers'  => $this->userModel->activeList(),
             'codeConfig' => $this->codeConfig->getConfig('project'),
         ]);
     }
@@ -145,7 +141,6 @@ class ProjectController extends Controller
             'pageTitle' => 'Edit Project',
             'mode'      => 'edit',
             'project'   => $project,
-            'picUsers'  => $this->userModel->activeList(),
         ]);
     }
 
@@ -284,7 +279,7 @@ class ProjectController extends Controller
         return [
             'project_name' => trim($_POST['project_name'] ?? ''),
             'location'     => trim($_POST['location'] ?? ''),
-            'pm_id'        => !empty($_POST['pm_id']) ? (int) $_POST['pm_id'] : null,
+            'pic_name'     => trim($_POST['pic_name'] ?? '') ?: null,
             'status'       => in_array($status, ['planning', 'ongoing', 'closed'], true) ? $status : 'planning',
         ];
     }

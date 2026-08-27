@@ -394,6 +394,10 @@ class PurchaseOrderController extends Controller
         $qtys  = $_POST['qty_order'] ?? [];
         $prices = $_POST['price'] ?? [];
         $itemIds = $_POST['item_id'] ?? [];
+        // Kategori: read-only di form, ikut kategori master Barang (data-category).
+        // Diperlakukan seperti unit[] -- string snapshot yang dikirim apa adanya,
+        // hanya dipakai untuk kolom Kategori di CETAK PO.
+        $categories = $_POST['category'] ?? [];
 
         foreach ($names as $i => $name) {
             $name = trim($name);
@@ -405,6 +409,7 @@ class PurchaseOrderController extends Controller
             $items[] = [
                 'item_id'   => !empty($itemIds[$i]) ? (int) $itemIds[$i] : null,
                 'item_name' => $name,
+                'category'  => trim($categories[$i] ?? '') ?: null,
                 'unit'      => trim($units[$i] ?? ''),
                 'qty_order' => $qty,
                 'price'     => $price,
@@ -471,6 +476,7 @@ class PurchaseOrderController extends Controller
                 'purchase_order_id' => $poId,
                 'item_id'   => $item['item_id'] ?? null,
                 'item_name' => $item['item_name'],
+                'category'  => $item['category'] ?? null,
                 'unit'      => $item['unit'],
                 'qty_order' => $item['qty_order'],
                 'price'     => $item['price'],

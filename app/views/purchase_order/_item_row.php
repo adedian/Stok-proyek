@@ -14,13 +14,17 @@ $itemCatalog = $itemCatalog ?? [];
 $hasItemId = !empty($item['item_id']);
 $isLegacyRow = !$hasItemId && $item['item_name'] !== '';
 
-// Prefill Kode Barang untuk baris yang sudah punya item_id (mode edit) -- baris baru
-// diisi otomatis lewat JS saat user memilih barang (lihat listener 'change' di form.php).
+// Prefill Kode Barang + Kategori untuk baris yang sudah punya item_id (mode edit) --
+// baris baru diisi otomatis lewat JS saat user memilih barang (lihat listener
+// 'change' di form.php). Kategori READ-ONLY, ikut kategori master Barang; kalau
+// kategori master kosong/terhapus, pakai snapshot yang tersimpan di baris PO.
 $selectedItemCode = '';
+$selectedCategory = $item['category'] ?? '';
 if ($hasItemId) {
     foreach ($itemCatalog as $it) {
         if ((int) $it['id'] === (int) $item['item_id']) {
             $selectedItemCode = $it['item_code'];
+            $selectedCategory = ($it['category_name'] ?? '') !== '' ? $it['category_name'] : ($item['category'] ?? '');
             break;
         }
     }
@@ -37,7 +41,7 @@ if ($hasItemId) {
                     </option>
                 <?php endif; ?>
                 <?php foreach ($itemCatalog as $it): ?>
-                    <option value="<?= (int) $it['id'] ?>" data-unit="<?= e($it['unit_name']) ?>" data-itemcode="<?= e($it['item_code']) ?>"
+                    <option value="<?= (int) $it['id'] ?>" data-unit="<?= e($it['unit_name']) ?>" data-itemcode="<?= e($it['item_code']) ?>" data-category="<?= e($it['category_name'] ?? '') ?>"
                         <?= $hasItemId && (int) $item['item_id'] === (int) $it['id'] ? 'selected' : '' ?>>
                         <?= e($it['item_name']) ?>
                     </option>
@@ -52,6 +56,10 @@ if ($hasItemId) {
     </td>
     <td style="width: 110px;">
         <input type="text" class="form-control form-control-sm code-display" value="<?= e($selectedItemCode) ?>" readonly placeholder="-">
+    </td>
+    <td style="width: 140px;">
+        <input type="text" class="form-control form-control-sm category-display" value="<?= e($selectedCategory) ?>" readonly placeholder="-" title="Kategori mengikuti master Barang (tampil di cetak PO)">
+        <input type="hidden" name="category[]" class="category-input" value="<?= e($selectedCategory) ?>">
     </td>
     <td style="width: 110px;">
         <input type="text" class="form-control form-control-sm unit-display" value="<?= e($item['unit']) ?>" readonly>

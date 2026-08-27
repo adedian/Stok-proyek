@@ -163,6 +163,7 @@ $actionUrl = $isEdit ? 'update' : 'store';
                         <tr>
                             <th>Nama Barang</th>
                             <th>Kode Barang</th>
+                            <th>Kategori</th>
                             <th>Satuan</th>
                             <th>Qty</th>
                             <th>Harga Satuan</th>
@@ -181,7 +182,7 @@ $actionUrl = $isEdit ? 'update' : 'store';
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td colspan="5" class="text-end fw-bold">Total</td>
+                            <td colspan="6" class="text-end fw-bold">Total</td>
                             <td class="text-end fw-bold" id="grandTotal">Rp 0.00</td>
                             <td></td>
                         </tr>
@@ -287,6 +288,13 @@ $actionUrl = $isEdit ? 'update' : 'store';
         const unitDisplay = row.querySelector('.unit-display');
         const unitInput = row.querySelector('.unit-input');
         const codeDisplay = row.querySelector('.code-display');
+        const categoryDisplay = row.querySelector('.category-display');
+        const categoryInput = row.querySelector('.category-input');
+
+        function setCategory(val) {
+            if (categoryDisplay) categoryDisplay.value = val;
+            if (categoryInput) categoryInput.value = val;
+        }
 
         if (opt.dataset.legacy) {
             idInput.value = '';
@@ -294,18 +302,21 @@ $actionUrl = $isEdit ? 'update' : 'store';
             unitDisplay.value = opt.dataset.unit || '';
             unitInput.value = opt.dataset.unit || '';
             if (codeDisplay) codeDisplay.value = '';
+            setCategory('');
         } else if (opt.value) {
             idInput.value = opt.value;
             nameInput.value = opt.textContent.trim();
             unitDisplay.value = opt.dataset.unit || '';
             unitInput.value = opt.dataset.unit || '';
             if (codeDisplay) codeDisplay.value = opt.dataset.itemcode || '';
+            setCategory(opt.dataset.category || '');
         } else {
             idInput.value = '';
             nameInput.value = '';
             unitDisplay.value = '';
             unitInput.value = '';
             if (codeDisplay) codeDisplay.value = '';
+            setCategory('');
         }
     });
 

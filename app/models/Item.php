@@ -11,9 +11,10 @@ class Item extends Model
     public function activeList(): array
     {
         return $this->db->fetchAll(
-            "SELECT i.*, u.unit_name
+            "SELECT i.*, u.unit_name, c.category_name
              FROM items i
              JOIN units u ON u.id = i.unit_id
+             LEFT JOIN item_categories c ON c.id = i.category_id AND c.deleted_at IS NULL
              WHERE i.deleted_at IS NULL AND i.status = 'active'
              ORDER BY i.item_name ASC"
         );

@@ -265,6 +265,7 @@
                     <th style="width: 55px;">Satuan</th>
                     <th class="num" style="width: 95px;">Harga Satuan</th>
                     <th class="num" style="width: 105px;">Total</th>
+                    <th style="width: 90px;">Kategori</th>
                 </tr>
             </thead>
             <tbody>
@@ -276,11 +277,13 @@
                         <td><?= e($item['unit']) ?></td>
                         <td class="num"><?= formatRupiah($item['price']) ?></td>
                         <td class="num"><?= formatRupiah($item['subtotal']) ?></td>
+                        <td><?= e($item['category'] ?? '') ?></td>
                     </tr>
                 <?php endforeach; ?>
                 <tr class="po-print-total-row">
                     <td colspan="5" class="num">TOTAL</td>
                     <td class="num"><?= formatRupiah($po['total_amount']) ?></td>
+                    <td></td>
                 </tr>
             </tbody>
         </table>

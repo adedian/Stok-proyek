@@ -1,10 +1,13 @@
 -- ============================================================
--- Kolom Kategori (snapshot) di baris item Purchase Order
+-- Kolom Kategori (catatan teks bebas) di baris item Purchase Order
 --
--- Ditampilkan HANYA di hasil cetak PO (purchase_order/print.php), TIDAK di
--- halaman list/detail PO. Diisi otomatis (read-only di form) dari kategori
--- Barang yang dipilih -- disimpan sebagai teks snapshot supaya cetakan PO
--- lama tetap benar walau kategori master Barang berubah/terhapus nanti.
+-- Catatan per baris item PO, DIKETIK MANUAL di form Tambah/Edit PO -- TIDAK
+-- terhubung ke kategori di Master Data > Barang. Ditampilkan HANYA di hasil
+-- cetak PO (purchase_order/print.php), TIDAK di halaman list/detail PO.
+--
+-- Backfill di bawah HANYA mengisi nilai awal yang masuk akal untuk PO yang
+-- SUDAH ada (diambil dari kategori master Barang saat migrasi dijalankan) --
+-- setelah itu murni teks bebas & bisa diedit per PO.
 -- ============================================================
 
 ALTER TABLE `purchase_order_items`

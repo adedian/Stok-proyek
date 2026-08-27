@@ -288,13 +288,8 @@ $actionUrl = $isEdit ? 'update' : 'store';
         const unitDisplay = row.querySelector('.unit-display');
         const unitInput = row.querySelector('.unit-input');
         const codeDisplay = row.querySelector('.code-display');
-        const categoryDisplay = row.querySelector('.category-display');
-        const categoryInput = row.querySelector('.category-input');
-
-        function setCategory(val) {
-            if (categoryDisplay) categoryDisplay.value = val;
-            if (categoryInput) categoryInput.value = val;
-        }
+        // Catatan: kolom Kategori (.category-input) TIDAK disentuh di sini --
+        // itu catatan teks bebas per baris, tidak terhubung ke master Barang.
 
         if (opt.dataset.legacy) {
             idInput.value = '';
@@ -302,21 +297,18 @@ $actionUrl = $isEdit ? 'update' : 'store';
             unitDisplay.value = opt.dataset.unit || '';
             unitInput.value = opt.dataset.unit || '';
             if (codeDisplay) codeDisplay.value = '';
-            setCategory('');
         } else if (opt.value) {
             idInput.value = opt.value;
             nameInput.value = opt.textContent.trim();
             unitDisplay.value = opt.dataset.unit || '';
             unitInput.value = opt.dataset.unit || '';
             if (codeDisplay) codeDisplay.value = opt.dataset.itemcode || '';
-            setCategory(opt.dataset.category || '');
         } else {
             idInput.value = '';
             nameInput.value = '';
             unitDisplay.value = '';
             unitInput.value = '';
             if (codeDisplay) codeDisplay.value = '';
-            setCategory('');
         }
     });
 

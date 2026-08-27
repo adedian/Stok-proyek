@@ -56,11 +56,17 @@
         <label class="form-check-label small" for="soSelectAll">Centang Semua</label>
     </div>
     <div class="d-flex gap-2">
+        <?php if (can('delivery_note', 'create')): ?>
+            <button type="button" class="btn btn-sm btn-primary" id="soCreateDeliveryNoteBtn" disabled>
+                <i class="bi bi-truck"></i> Buat Surat Jalan
+            </button>
+        <?php endif; ?>
         <button type="button" class="btn btn-sm btn-outline-dark" id="soPrintDeliveryNoteBtn" disabled>
             <i class="bi bi-printer"></i> Cetak Surat Jalan Terpilih
         </button>
     </div>
 </div>
+<div class="small text-muted mb-2 no-print" id="soSelectHint"></div>
 <?php endif; ?>
 
 <div class="card border-0 shadow-sm">
@@ -100,11 +106,21 @@
                         <tr>
                             <?php if (can('delivery_note', 'view')): ?>
                                 <td class="no-print">
-                                    <?php if (!empty($so['delivery_note_id'])): ?>
-                                        <input type="checkbox" class="form-check-input so-row-check"
-                                               value="<?= (int) $so['id'] ?>"
-                                               data-delivery-note-id="<?= (int) $so['delivery_note_id'] ?>">
-                                    <?php endif; ?>
+                                    <?php
+                                    // Checkbox SELALU ada di setiap baris (dulu cuma muncul kalau baris
+                                    // SUDAH punya Surat Jalan -- akibatnya Pengeluaran Barang yang baru
+                                    // dibuat tidak bisa dipilih untuk diterbitkan Surat Jalan sama sekali).
+                                    // data-has-dn menandai baris yang sudah punya SJ: JS memakainya untuk
+                                    // memilah tombol "Buat Surat Jalan" (baris tanpa SJ) vs "Cetak Surat
+                                    // Jalan Terpilih" (baris yang sudah punya SJ).
+                                    ?>
+                                    <input type="checkbox" class="form-check-input so-row-check"
+                                           value="<?= (int) $so['id'] ?>"
+                                           data-stock-out-id="<?= (int) $so['id'] ?>"
+                                           <?php if (!empty($so['delivery_note_id'])): ?>
+                                               data-has-dn="1"
+                                               data-delivery-note-id="<?= (int) $so['delivery_note_id'] ?>"
+                                           <?php endif; ?>>
                                 </td>
                             <?php endif; ?>
                             <td><?= e($so['stock_out_number'] ?? '-') ?></td>
@@ -165,24 +181,56 @@
 <?php if (can('delivery_note', 'view')): ?>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    var printBtn = document.getElementById('soPrintDeliveryNoteBtn');
+    var createBtn = document.getElementById('soCreateDeliveryNoteBtn'); // null kalau tak punya izin create
+    var printBtn  = document.getElementById('soPrintDeliveryNoteBtn');
+    var hint      = document.getElementById('soSelectHint');
 
-    function refreshPrintBtn() {
-        printBtn.disabled = document.querySelector('.so-row-check:checked') === null;
+    function checkedBoxes() {
+        return Array.prototype.filter.call(
+            document.querySelectorAll('.so-row-check'),
+            function (c) { return c.checked; }
+        );
     }
 
-    wireSelectAllCheckbox('#soSelectAll', '.so-row-check', refreshPrintBtn);
+    function refresh() {
+        var sel = checkedBoxes();
+        var withoutDn = sel.filter(function (c) { return !c.dataset.hasDn; });
+        var withDn    = sel.filter(function (c) { return c.dataset.hasDn === '1'; });
+
+        if (createBtn) { createBtn.disabled = withoutDn.length === 0; }
+        printBtn.disabled = withDn.length === 0;
+
+        if (hint) {
+            var parts = [];
+            if (withoutDn.length) { parts.push(withoutDn.length + ' baris belum ada Surat Jalan'); }
+            if (withDn.length)    { parts.push(withDn.length + ' baris sudah ada Surat Jalan'); }
+            hint.textContent = parts.length ? 'Terpilih: ' + parts.join('  •  ') : '';
+        }
+    }
+
+    wireSelectAllCheckbox('#soSelectAll', '.so-row-check', refresh);
+
+    if (createBtn) {
+        createBtn.addEventListener('click', function () {
+            var ids = checkedBoxes()
+                .filter(function (c) { return !c.dataset.hasDn; })
+                .map(function (c) { return c.dataset.stockOutId; });
+            if (ids.length === 0) { return; }
+            window.location.href = '<?= BASE_URL ?>/index.php?module=delivery_note&action=select&ids=' + ids.join(',');
+        });
+    }
 
     printBtn.addEventListener('click', function () {
-        var deliveryNoteIds = Array.prototype.filter.call(document.querySelectorAll('.so-row-check'), function (c) { return c.checked; })
+        var deliveryNoteIds = checkedBoxes()
+            .filter(function (c) { return c.dataset.hasDn === '1'; })
             .map(function (c) { return c.dataset.deliveryNoteId; });
         // Dedup -- beberapa baris terpilih bisa saja satu Surat Jalan yang sama.
         var uniqueIds = deliveryNoteIds.filter(function (id, i) { return deliveryNoteIds.indexOf(id) === i; });
-        if (uniqueIds.length === 0) return;
+        if (uniqueIds.length === 0) { return; }
         window.open('<?= BASE_URL ?>/index.php?module=delivery_note&action=printMany&ids=' + uniqueIds.join(','), '_blank');
     });
 
-    refreshPrintBtn();
+    refresh();
 });
 </script>
 <?php endif; ?>

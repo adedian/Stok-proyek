@@ -67,6 +67,7 @@
     }
     .tt-print-table td.num, .tt-print-table th.num {
         text-align: right;
+        white-space: nowrap;
     }
     .tt-print-total-row td {
         font-weight: 700;

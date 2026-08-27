@@ -88,6 +88,7 @@
     }
     .po-print-table td.num, .po-print-table th.num {
         text-align: right;
+        white-space: nowrap;
     }
     .po-print-total-row td {
         font-weight: 700;

@@ -45,6 +45,11 @@
     body {
         background: #fff !important;
     }
+    /* Sel nominal (Rp) & angka di tabel laporan JANGAN pecah baris saat dicetak --
+       supaya "Rp" selalu menempel di depan angkanya & kolomnya rapi. */
+    table td.text-end, table th.text-end {
+        white-space: nowrap;
+    }
 }
 
 /* ============================================================

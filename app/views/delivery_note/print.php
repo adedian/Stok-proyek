@@ -81,6 +81,7 @@
     }
     .sj-print-table td.num, .sj-print-table th.num {
         text-align: right;
+        white-space: nowrap;
     }
     .sj-print-table tr {
         page-break-inside: avoid;

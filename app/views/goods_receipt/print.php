@@ -45,6 +45,7 @@
     }
     .gr-print-table td.num, .gr-print-table th.num {
         text-align: right;
+        white-space: nowrap;
     }
     .gr-print-notes {
         margin-top: 10px;

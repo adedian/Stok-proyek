@@ -10,7 +10,7 @@
     table { width: 100%; border-collapse: collapse; }
     th, td { border: 1px solid #000; padding: 5px 8px; text-align: left; }
     th { font-weight: bold; text-align: center; }
-    td.end, th.end { text-align: right; }
+    td.end, th.end { text-align: right; white-space: nowrap; }
     tr.total-row td { font-weight: bold; border-top: 2px solid #000; }
     .print-note { margin-top: 16px; text-align: right; font-size: 9px; color: #999; }
 </style>

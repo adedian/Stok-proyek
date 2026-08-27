@@ -145,18 +145,17 @@ function streamExcelReport(string $title, string $companyName, string $periodTex
     $sheet->getPageSetup()->setOrientation(PageSetup::ORIENTATION_LANDSCAPE);
     $sheet->setTitle('Laporan');
 
-    // --- Notes kecil pojok kanan bawah: tanggal/jam cetak (WIB) + user login ---
+    // --- Notes "[tgl jam WIB], [user cetak]" di POJOK KANAN BAWAH: pakai footer
+    // cetak asli Excel (muncul di dasar SETIAP halaman saat di-print) + tetap
+    // ditulis sebagai baris kecil rata kanan supaya kelihatan juga waktu file
+    // cuma dibuka (tidak dicetak). ---
+    _excelPrintFooter($sheet);
+
     $noteRow = $lastDataRow + 3;
     $sheet->mergeCells("A{$noteRow}:{$lastColLetter}{$noteRow}");
-    $sheet->setCellValue('A' . $noteRow, 'Tanggal & Jam: ' . printedAtLabel());
+    $sheet->setCellValue('A' . $noteRow, printedAtLabel() . ', ' . printedByLabel());
     $sheet->getStyle('A' . $noteRow)->getFont()->setSize(8)->getColor()->setRGB('999999');
     $sheet->getStyle('A' . $noteRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-
-    $noteRow2 = $noteRow + 1;
-    $sheet->mergeCells("A{$noteRow2}:{$lastColLetter}{$noteRow2}");
-    $sheet->setCellValue('A' . $noteRow2, 'Dicetak oleh: ' . printedByLabel());
-    $sheet->getStyle('A' . $noteRow2)->getFont()->setSize(8)->getColor()->setRGB('999999');
-    $sheet->getStyle('A' . $noteRow2)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
 
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     header('Content-Disposition: attachment; filename="' . $filename . '.xlsx"');
@@ -211,20 +210,27 @@ function _stockExcelTitleBlock($sheet, string $title, string $companyName, strin
     return 5;
 }
 
-/** Notes kecil "Tanggal & Jam / Dicetak oleh" pojok kanan bawah (Revisi 8 #5-#8). */
+/**
+ * Notes "[tgl jam WIB], [user cetak]" di POJOK KANAN BAWAH:
+ * - footer cetak asli Excel (dasar SETIAP halaman saat di-print)
+ * - + satu baris kecil rata kanan supaya kelihatan juga waktu file dibuka biasa.
+ */
 function _stockExcelNotes($sheet, int $startRow, string $lastColLetter): void
 {
-    $r1 = $startRow;
-    $sheet->mergeCells("A{$r1}:{$lastColLetter}{$r1}");
-    $sheet->setCellValue('A' . $r1, 'Tanggal & Jam: ' . printedAtLabel());
-    $sheet->getStyle('A' . $r1)->getFont()->setSize(8)->getColor()->setRGB('999999');
-    $sheet->getStyle('A' . $r1)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+    _excelPrintFooter($sheet);
 
-    $r2 = $startRow + 1;
-    $sheet->mergeCells("A{$r2}:{$lastColLetter}{$r2}");
-    $sheet->setCellValue('A' . $r2, 'Dicetak oleh: ' . printedByLabel());
-    $sheet->getStyle('A' . $r2)->getFont()->setSize(8)->getColor()->setRGB('999999');
-    $sheet->getStyle('A' . $r2)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+    $sheet->mergeCells("A{$startRow}:{$lastColLetter}{$startRow}");
+    $sheet->setCellValue('A' . $startRow, printedAtLabel() . ', ' . printedByLabel());
+    $sheet->getStyle('A' . $startRow)->getFont()->setSize(8)->getColor()->setRGB('999999');
+    $sheet->getStyle('A' . $startRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+}
+
+/** Set footer cetak asli Excel: bagian kanan (&R) berisi notes tanggal/jam/user. */
+function _excelPrintFooter($sheet): void
+{
+    $text = str_replace('&', '&&', printedAtLabel() . ', ' . printedByLabel());
+    $sheet->getHeaderFooter()->setOddFooter('&R&8&K808080' . $text);
+    $sheet->getHeaderFooter()->setEvenFooter('&R&8&K808080' . $text);
 }
 
 function _stockExcelStream(Spreadsheet $spreadsheet, string $filename): void

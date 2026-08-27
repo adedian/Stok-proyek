@@ -31,7 +31,7 @@ if (!function_exists('formatQtyPrint')) {
     .grp-out { background-color: #d6e8fb; }
     .grp-akhir { background-color: #e6e6e6; }
     tr.summary-row td { font-weight: bold; background-color: #f8f9fa; }
-    .print-note { margin-top: 16px; text-align: right; font-size: 9px; color: #999; }
+    .print-note { position: fixed; bottom: 0; left: 0; right: 0; text-align: right; padding: 4px 14px; font-size: 9px; color: #999; }
 </style>
 </head>
 <body>
@@ -89,9 +89,6 @@ if (!function_exists('formatQtyPrint')) {
         </tbody>
     </table>
     <?php endif; ?>
-    <div class="print-note">
-        Tanggal &amp; Jam: <?= e(printedAtLabel()) ?><br>
-        Dicetak oleh: <?= e(printedByLabel()) ?>
-    </div>
+    <div class="print-note"><?= e(printedAtLabel()) ?>, <?= e(printedByLabel()) ?></div>
 </body>
 </html>

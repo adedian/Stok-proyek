@@ -112,10 +112,7 @@
         </div>
     </div>
 </div>
-<div class="print-note-onscreen">
-    Tanggal &amp; Jam: <?= e(printedAtLabel()) ?><br>
-    Dicetak oleh: <?= e(printedByLabel()) ?>
-</div>
+<div class="print-note-onscreen"><?= e(printedAtLabel()) ?>, <?= e(printedByLabel()) ?></div>
 
 <?php if ($isInventory): ?>
 <script>

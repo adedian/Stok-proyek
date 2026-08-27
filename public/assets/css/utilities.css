@@ -63,25 +63,43 @@
 @media print {
     .print-note-onscreen {
         display: block;
-        margin-top: 16px;
+        position: fixed;
+        bottom: 8px;
+        left: 0;
+        right: 0;
         text-align: right;
+        padding-right: 14mm;
         font-size: 9px;
         color: #999;
     }
 }
 
 /* ============================================================
-   Notes kecil "[tgl jam WIB], [user cetak]" di pojok kanan bawah
-   SETIAP dokumen cetak resmi (PO / Penerimaan Barang / Invoice /
-   Surat Jalan / Tanda Terima) -- Revisi 8 #5-#8. Beda dari
-   .print-note-onscreen: dokumen ini memang halaman siap-cetak,
-   jadi notes-nya tampil di layar & ikut tercetak. Kecil, rata
-   kanan, tidak menutupi tanda tangan (selalu di paling bawah blok).
+   Notes kecil "[tgl jam WIB], [user cetak]" di POJOK KANAN BAWAH
+   (footer) SETIAP dokumen cetak resmi (PO / Penerimaan Barang /
+   Invoice / Surat Jalan / Tanda Terima).
+   - Di layar: statis di bawah halaman preview (rata kanan).
+   - Saat dicetak: position:fixed di dasar SETIAP halaman (Chrome/
+     Firefox mengulang elemen fixed di tiap halaman cetak), jadi
+     selalu nongol di pojok kanan bawah tiap lembar.
    ============================================================ */
 .doc-print-meta {
-    margin-top: 18px;
+    margin: 12px auto 0;
+    max-width: 210mm;
+    padding: 0 14mm;
     text-align: right;
     font-size: 9px;
     color: #9aa0a6;
     line-height: 1.4;
+}
+@media print {
+    .doc-print-meta {
+        position: fixed;
+        bottom: 8px;
+        left: 0;
+        right: 0;
+        margin: 0;
+        max-width: none;
+        padding: 0 12mm 0 0;
+    }
 }

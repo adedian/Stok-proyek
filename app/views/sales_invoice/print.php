@@ -310,7 +310,7 @@
                 </div>
             </div>
         <?php endif; ?>
-
-        <div class="doc-print-meta"><?= e(printedAtLabel()) ?>, <?= e(printedByLabel()) ?></div>
     </div>
 <?php endforeach; ?>
+
+<div class="doc-print-meta"><?= e(printedAtLabel()) ?>, <?= e(printedByLabel()) ?></div>

@@ -32,6 +32,12 @@ class StockOpname extends Model
         return (new DocumentNumber())->next('stock_opname', 'prefix_opn', $opnameDate);
     }
 
+    /** Preview nomor untuk FORM tambah (tidak menaikkan counter) -- lihat DocumentNumber::preview(). */
+    public function previewOpnameNumber(?string $opnameDate = null): string
+    {
+        return (new DocumentNumber())->preview('stock_opname', 'prefix_opn', $opnameDate);
+    }
+
     public function listWithRelations(array $filters = []): array
     {
         // LEFT JOIN (bukan INNER JOIN) karena stock_scope='kantor' boleh punya

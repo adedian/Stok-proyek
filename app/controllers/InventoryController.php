@@ -123,7 +123,7 @@ class InventoryController extends Controller
 
         $this->view('inventory/opname_form', [
             'pageTitle'   => 'Tambah Stok Opname',
-            'opnameNumber' => $this->opnameModel->generateOpnameNumber(),
+            'opnameNumber' => $this->opnameModel->previewOpnameNumber(),
             'projects'    => $this->projectModel->activeList(),
             'selectedStockScope' => $stockScope,
             'selectedProjectId'  => $projectId,

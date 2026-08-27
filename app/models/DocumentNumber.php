@@ -35,6 +35,29 @@ class DocumentNumber extends Model
     }
 
     /**
+     * Preview nomor berikutnya TANPA menaikkan counter -- khusus untuk ditampilkan
+     * di FORM tambah dokumen (label "otomatis"). Nomor asli tetap dibuat sekali di
+     * store() lewat next(). Dulu form memanggil next() langsung, jadi tiap kali form
+     * dibuka nomor "terbakar"/terlewat walau tidak jadi disimpan.
+     */
+    public function preview(string $docType, string $codeSettingKey, ?string $date = null, ?string $defaultCode = null): string
+    {
+        $date = $date ?: date('Y-m-d');
+        $ts = strtotime($date) ?: time();
+        $year = (int) date('Y', $ts);
+        $month = (int) date('n', $ts);
+        $code = (new SystemSetting())->get($codeSettingKey, $defaultCode ?? strtoupper($docType));
+
+        $row = $this->db->fetchOne(
+            "SELECT next_number FROM document_number_counters WHERE doc_type = :t AND year = :y",
+            ['t' => $docType, 'y' => $year]
+        );
+        $number = $row ? (int) $row['next_number'] : 1;
+
+        return str_pad((string) $number, 3, '0', STR_PAD_LEFT) . '/' . $code . '/' . self::romanMonth($month) . '/' . $year;
+    }
+
+    /**
      * Generate nomor berikutnya untuk $docType pada tahun dari $date (format
      * Y-m-d, default hari ini). $codeSettingKey adalah key di system_settings
      * yang menyimpan kode dokumen (mis. 'prefix_sls' -> "INV.HME").
@@ -47,7 +70,16 @@ class DocumentNumber extends Model
         $month = (int) date('n', $ts);
         $code = (new SystemSetting())->get($codeSettingKey, $defaultCode ?? strtoupper($docType));
 
-        $this->db->beginTransaction();
+        // Kalau caller (mis. PurchaseOrderController::store()) SUDAH membuka
+        // transaction sendiri, JANGAN buka transaction baru di sini -- PDO tidak
+        // mendukung nested transaction & akan throw "There is already an active
+        // transaction". Cukup ikut transaction yang sedang berjalan (SELECT ...
+        // FOR UPDATE tetap mengunci baris counter dengan benar), commit/rollback
+        // diserahkan ke caller. Kalau belum ada transaction, kelola sendiri.
+        $manageTx = !$this->db->inTransaction();
+        if ($manageTx) {
+            $this->db->beginTransaction();
+        }
         try {
             $row = $this->db->fetchOne(
                 "SELECT * FROM document_number_counters WHERE doc_type = :t AND year = :y FOR UPDATE",
@@ -69,9 +101,13 @@ class DocumentNumber extends Model
                 ]);
             }
 
-            $this->db->commit();
+            if ($manageTx) {
+                $this->db->commit();
+            }
         } catch (Throwable $e) {
-            $this->db->rollBack();
+            if ($manageTx && $this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
             throw $e;
         }
 

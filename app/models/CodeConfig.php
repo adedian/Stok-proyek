@@ -141,14 +141,22 @@ class CodeConfig extends Model
             return null;
         }
 
-        $this->db->beginTransaction();
+        // Nesting-safe: kalau caller sudah membuka transaction sendiri, ikut
+        // transaction itu (PDO tidak mendukung nested transaction). Commit/rollback
+        // diserahkan ke caller; di sini cukup TIDAK menyentuh transaction sama sekali.
+        $manageTx = !$this->db->inTransaction();
+        if ($manageTx) {
+            $this->db->beginTransaction();
+        }
         try {
             $config = $this->db->fetchOne(
                 "SELECT * FROM code_configs WHERE entity_type = :t AND status = 'active' FOR UPDATE",
                 ['t' => $entityType]
             );
             if (!$config) {
-                $this->db->rollBack();
+                if ($manageTx) {
+                    $this->db->rollBack();
+                }
                 return null;
             }
 
@@ -168,7 +176,9 @@ class CodeConfig extends Model
             }
 
             if ($code === null) {
-                $this->db->rollBack();
+                if ($manageTx) {
+                    $this->db->rollBack();
+                }
                 return null;
             }
 
@@ -176,10 +186,14 @@ class CodeConfig extends Model
                 "UPDATE code_configs SET next_number = :next WHERE entity_type = :t",
                 ['next' => $number + 1, 't' => $entityType]
             );
-            $this->db->commit();
+            if ($manageTx) {
+                $this->db->commit();
+            }
             return $code;
         } catch (Throwable $e) {
-            $this->db->rollBack();
+            if ($manageTx && $this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
             throw $e;
         }
     }

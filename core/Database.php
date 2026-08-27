@@ -57,6 +57,11 @@ class Database
         return $this->pdo->lastInsertId();
     }
 
+    public function inTransaction(): bool
+    {
+        return $this->pdo->inTransaction();
+    }
+
     public function beginTransaction(): bool
     {
         return $this->pdo->beginTransaction();

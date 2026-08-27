@@ -31,6 +31,12 @@ class OfflinePurchase extends Model
         return (new DocumentNumber())->next('offline_purchase', 'prefix_off', $purchaseDate);
     }
 
+    /** Preview nomor untuk FORM tambah (tidak menaikkan counter) -- lihat DocumentNumber::preview(). */
+    public function previewPurchaseNumber(?string $purchaseDate = null): string
+    {
+        return (new DocumentNumber())->preview('offline_purchase', 'prefix_off', $purchaseDate);
+    }
+
     public function listWithRelations(array $filters = []): array
     {
         $sql = "SELECT op.*, p.project_name,

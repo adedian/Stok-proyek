@@ -116,7 +116,7 @@ class PurchaseOrderController extends Controller
             'mode'        => 'create',
             'po'          => null,
             'items'       => [],
-            'poNumber'    => $this->poModel->generatePoNumber(),
+            'poNumber'    => $this->poModel->previewPoNumber(),
             'suppliers'   => $this->supplierModel->activeList(),
             'projects'    => $this->projectModel->activeList(),
             'picUsers'    => $this->userModel->activeList(),

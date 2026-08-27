@@ -17,6 +17,12 @@ class GoodsReceipt extends Model
         return (new DocumentNumber())->next('goods_receipt', 'prefix_gr', $receiptDate);
     }
 
+    /** Preview nomor untuk FORM tambah (tidak menaikkan counter) -- lihat DocumentNumber::preview(). */
+    public function previewReceiptNumber(?string $receiptDate = null): string
+    {
+        return (new DocumentNumber())->preview('goods_receipt', 'prefix_gr', $receiptDate);
+    }
+
     public function listWithRelations(array $filters = []): array
     {
         $sql = "SELECT gr.*,

@@ -87,7 +87,7 @@ class OfflinePurchaseController extends Controller
             'mode'           => 'create',
             'purchase'       => null,
             'items'          => [],
-            'purchaseNumber' => $this->purchaseModel->generatePurchaseNumber(),
+            'purchaseNumber' => $this->purchaseModel->previewPurchaseNumber(),
             'projects'       => $this->projectModel->activeList(),
             'picUsers'       => $this->userModel->activeList(),
             'itemCatalog'    => $this->barangModel->activeList(),

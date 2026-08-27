@@ -260,6 +260,12 @@ class PurchaseOrder extends Model
         return (new DocumentNumber())->next('purchase_order', 'prefix_po', $poDate);
     }
 
+    /** Preview nomor untuk FORM tambah (tidak menaikkan counter) -- lihat DocumentNumber::preview(). */
+    public function previewPoNumber(?string $poDate = null): string
+    {
+        return (new DocumentNumber())->preview('purchase_order', 'prefix_po', $poDate);
+    }
+
     public function recalculateTotal(int $poId): void
     {
         $sql = "SELECT COALESCE(SUM(subtotal), 0) AS total

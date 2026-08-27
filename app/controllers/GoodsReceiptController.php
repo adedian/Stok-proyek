@@ -104,7 +104,7 @@ class GoodsReceiptController extends Controller
             'pageTitle'      => 'Tambah Penerimaan Barang',
             'mode'           => 'create',
             'receipt'        => $offlinePurchaseId ? ['receipt_type' => 'offline_purchase'] : null,
-            'receiptNumber'  => $this->receiptModel->generateReceiptNumber(),
+            'receiptNumber'  => $this->receiptModel->previewReceiptNumber(),
             'poList'         => $this->poModel->receivablePoList(),
             'selectedPo'     => $selectedPo,
             'poItems'        => $poItems,

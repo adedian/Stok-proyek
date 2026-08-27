@@ -166,3 +166,224 @@ function streamExcelReport(string $title, string $companyName, string $periodTex
     $writer->save('php://output');
     exit;
 }
+
+/**
+ * ============================================================
+ * EXPORT EXCEL LAPORAN STOK BARANG -- Detail & Rekap (Revisi 8 #9-#13).
+ *
+ * Struktur, kolom, grouping, & angka WAJIB sama persis dengan cetak PDF-nya
+ * (app/views/report/_stock_detail_print.php & _stock_recap_print.php). Data
+ * masuk lewat parameter $groups/$rows yang datang dari method model yang SAMA
+ * dipakai PDF (Inventory::stockDetailReport()/stockRecapReport()), dengan
+ * $filters yang identik -- jadi filter periode/barang/"Stok != 0"/dll otomatis
+ * konsisten antara PDF & Excel, tidak ada query terpisah di sini.
+ * ============================================================
+ */
+
+/** Qty numerik untuk sel Excel: bilangan bulat tanpa desimal, selain itu 2 desimal
+ *  -- mencerminkan formatQtyPrint() di kedua template cetak PDF stok. */
+function _stockExcelQty($sheet, string $cell, $value): void
+{
+    $sheet->setCellValue($cell, $value !== null ? (float) $value : 0);
+    $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('#,##0.###');
+    $sheet->getStyle($cell)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+}
+
+/** 3 baris judul (judul/perusahaan/periode) di atas tabel -- identik gaya dengan
+ *  streamExcelReport(). Return nomor baris header tabel (baris 5). */
+function _stockExcelTitleBlock($sheet, string $title, string $companyName, string $periodText, string $lastColLetter): int
+{
+    $sheet->mergeCells("A1:{$lastColLetter}1");
+    $sheet->setCellValue('A1', $title);
+    $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14)->getColor()->setRGB('C55A11');
+    $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+    $sheet->mergeCells("A2:{$lastColLetter}2");
+    $sheet->setCellValue('A2', $companyName);
+    $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(11)->getColor()->setRGB('0070C0');
+    $sheet->getStyle('A2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+    $sheet->mergeCells("A3:{$lastColLetter}3");
+    $sheet->setCellValue('A3', $periodText);
+    $sheet->getStyle('A3')->getFont()->setSize(11)->getColor()->setRGB('0070C0');
+    $sheet->getStyle('A3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+    return 5;
+}
+
+/** Notes kecil "Tanggal & Jam / Dicetak oleh" pojok kanan bawah (Revisi 8 #5-#8). */
+function _stockExcelNotes($sheet, int $startRow, string $lastColLetter): void
+{
+    $r1 = $startRow;
+    $sheet->mergeCells("A{$r1}:{$lastColLetter}{$r1}");
+    $sheet->setCellValue('A' . $r1, 'Tanggal & Jam: ' . printedAtLabel());
+    $sheet->getStyle('A' . $r1)->getFont()->setSize(8)->getColor()->setRGB('999999');
+    $sheet->getStyle('A' . $r1)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+
+    $r2 = $startRow + 1;
+    $sheet->mergeCells("A{$r2}:{$lastColLetter}{$r2}");
+    $sheet->setCellValue('A' . $r2, 'Dicetak oleh: ' . printedByLabel());
+    $sheet->getStyle('A' . $r2)->getFont()->setSize(8)->getColor()->setRGB('999999');
+    $sheet->getStyle('A' . $r2)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+}
+
+function _stockExcelStream(Spreadsheet $spreadsheet, string $filename): void
+{
+    $spreadsheet->getActiveSheet()->getPageSetup()->setOrientation(PageSetup::ORIENTATION_LANDSCAPE);
+    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    header('Content-Disposition: attachment; filename="' . $filename . '.xlsx"');
+    header('Cache-Control: max-age=0');
+    (new Xlsx($spreadsheet))->save('php://output');
+    exit;
+}
+
+/**
+ * Excel DETAIL Stok -- cerminan app/views/report/_stock_detail_print.php:
+ * per barang, satu baris per transaksi mutasi, kolom Saldo Awal / In / Out /
+ * Saldo Akhir masing-masing (Qty + Satuan), lalu baris ringkasan "Saldo Akhir".
+ *
+ * @param array $groups Hasil Inventory::stockDetailReport() -- tiap elemen:
+ *              item_code, item_name, unit, project_name, saldo_akhir, lines[]
+ *              (transaction_date, no_bukti, saldo_awal, in_qty, out_qty, saldo_akhir)
+ */
+function streamStockDetailExcel(array $groups, string $companyName, string $periodText, string $filename): void
+{
+    $spreadsheet = new Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+    $sheet->setTitle('Detail Stok');
+
+    $lastColLetter = 'L'; // 12 kolom: 4 info + 4x(Qty,Satuan)
+    $headerRow = _stockExcelTitleBlock($sheet, 'Laporan Stok Barang - Detail', $companyName, $periodText, $lastColLetter);
+    $sub = $headerRow + 1;
+
+    // Header 2 baris (mengikuti thead PDF Detail)
+    foreach (['A' => 'Tanggal', 'B' => 'No Bukti', 'C' => 'Kode Barang', 'D' => 'Nama Barang'] as $col => $label) {
+        $sheet->setCellValue($col . $headerRow, $label);
+        $sheet->mergeCells("{$col}{$headerRow}:{$col}{$sub}");
+    }
+    $pairs = ['E' => 'Saldo Awal', 'G' => 'In', 'I' => 'Out', 'K' => 'Saldo Akhir'];
+    foreach ($pairs as $startCol => $label) {
+        $endCol = chr(ord($startCol) + 1);
+        $sheet->setCellValue($startCol . $headerRow, $label);
+        $sheet->mergeCells("{$startCol}{$headerRow}:{$endCol}{$headerRow}");
+        $sheet->setCellValue($startCol . $sub, 'Qty');
+        $sheet->setCellValue($endCol . $sub, 'Satuan');
+    }
+    $sheet->getStyle("A{$headerRow}:{$lastColLetter}{$sub}")->getFont()->setBold(true);
+    $sheet->getStyle("A{$headerRow}:{$lastColLetter}{$sub}")->getAlignment()
+        ->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
+    foreach (['A' => 16, 'B' => 16, 'C' => 15, 'D' => 34, 'E' => 12, 'F' => 9, 'G' => 12, 'H' => 9, 'I' => 12, 'J' => 9, 'K' => 12, 'L' => 9] as $c => $w) {
+        $sheet->getColumnDimension($c)->setWidth($w);
+    }
+
+    $row = $sub + 1;
+    $firstDataRow = $row;
+    foreach ($groups as $g) {
+        foreach ($g['lines'] as $line) {
+            $sheet->setCellValue('A' . $row, formatTanggal(substr((string) $line['transaction_date'], 0, 10)));
+            $sheet->setCellValue('B' . $row, $line['no_bukti'] !== '' ? $line['no_bukti'] : '-');
+            $sheet->setCellValue('C' . $row, $g['item_code'] ?: '-');
+            $sheet->setCellValue('D' . $row, $g['item_name']);
+            _stockExcelQty($sheet, 'E' . $row, $line['saldo_awal']);
+            $sheet->setCellValue('F' . $row, $g['unit']);
+            if ((float) $line['in_qty'] > 0) {
+                _stockExcelQty($sheet, 'G' . $row, $line['in_qty']);
+                $sheet->setCellValue('H' . $row, $g['unit']);
+            }
+            if ((float) $line['out_qty'] > 0) {
+                _stockExcelQty($sheet, 'I' . $row, $line['out_qty']);
+                $sheet->setCellValue('J' . $row, $g['unit']);
+            }
+            _stockExcelQty($sheet, 'K' . $row, $line['saldo_akhir']);
+            $sheet->setCellValue('L' . $row, $g['unit']);
+            $row++;
+        }
+        // Baris ringkasan "Saldo Akhir" per barang (mengikuti summary-row PDF Detail)
+        $sheet->setCellValue('A' . $row, 'Saldo Akhir - ' . ($g['item_code'] ?: $g['item_name']));
+        $sheet->mergeCells("A{$row}:J{$row}");
+        $sheet->getStyle("A{$row}:L{$row}")->getFont()->setBold(true);
+        $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        _stockExcelQty($sheet, 'K' . $row, $g['saldo_akhir']);
+        $sheet->setCellValue('L' . $row, $g['unit']);
+        $row++;
+    }
+    if ($row === $firstDataRow) {
+        $sheet->setCellValue('A' . $row, 'Tidak ada mutasi stok pada periode ini.');
+        $sheet->mergeCells("A{$row}:L{$row}");
+        $row++;
+    }
+
+    $lastDataRow = $row - 1;
+    $sheet->getStyle("A{$headerRow}:{$lastColLetter}{$lastDataRow}")
+        ->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+    _stockExcelNotes($sheet, $lastDataRow + 3, $lastColLetter);
+
+    _stockExcelStream($spreadsheet, $filename);
+}
+
+/**
+ * Excel REKAP Stok -- cerminan app/views/report/_stock_recap_print.php:
+ * satu baris per barang, ringkasan Saldo Awal / In (total masuk) / Out (total
+ * keluar) / Saldo Akhir (masing-masing Qty + Satuan).
+ *
+ * @param array $rows Hasil Inventory::stockRecapReport() -- item_code, item_name,
+ *              unit, saldo_awal, mutasi_masuk, mutasi_keluar, saldo_akhir
+ */
+function streamStockRecapExcel(array $rows, string $companyName, string $periodText, string $filename): void
+{
+    $spreadsheet = new Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+    $sheet->setTitle('Rekap Stok');
+
+    $lastColLetter = 'K'; // 11 kolom: No + Kode + Nama + 4x(Qty,Satuan)
+    $headerRow = _stockExcelTitleBlock($sheet, 'Laporan Stok Barang - Rekap', $companyName, $periodText, $lastColLetter);
+    $sub = $headerRow + 1;
+
+    foreach (['A' => 'No', 'B' => 'Kode Barang', 'C' => 'Nama Barang'] as $col => $label) {
+        $sheet->setCellValue($col . $headerRow, $label);
+        $sheet->mergeCells("{$col}{$headerRow}:{$col}{$sub}");
+    }
+    $pairs = ['D' => 'Saldo Awal', 'F' => 'In', 'H' => 'Out', 'J' => 'Saldo Akhir'];
+    foreach ($pairs as $startCol => $label) {
+        $endCol = chr(ord($startCol) + 1);
+        $sheet->setCellValue($startCol . $headerRow, $label);
+        $sheet->mergeCells("{$startCol}{$headerRow}:{$endCol}{$headerRow}");
+        $sheet->setCellValue($startCol . $sub, 'Qty');
+        $sheet->setCellValue($endCol . $sub, 'Satuan');
+    }
+    $sheet->getStyle("A{$headerRow}:{$lastColLetter}{$sub}")->getFont()->setBold(true);
+    $sheet->getStyle("A{$headerRow}:{$lastColLetter}{$sub}")->getAlignment()
+        ->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
+    foreach (['A' => 6, 'B' => 15, 'C' => 36, 'D' => 12, 'E' => 9, 'F' => 12, 'G' => 9, 'H' => 12, 'I' => 9, 'J' => 12, 'K' => 9] as $c => $w) {
+        $sheet->getColumnDimension($c)->setWidth($w);
+    }
+
+    $row = $sub + 1;
+    if (empty($rows)) {
+        $sheet->setCellValue('A' . $row, 'Tidak ada data barang yang cocok dengan filter ini.');
+        $sheet->mergeCells("A{$row}:K{$row}");
+        $row++;
+    }
+    foreach ($rows as $i => $r) {
+        $sheet->setCellValue('A' . $row, $i + 1);
+        $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->setCellValue('B' . $row, $r['item_code'] ?: '-');
+        $sheet->setCellValue('C' . $row, $r['item_name']);
+        _stockExcelQty($sheet, 'D' . $row, $r['saldo_awal']);
+        $sheet->setCellValue('E' . $row, $r['unit']);
+        _stockExcelQty($sheet, 'F' . $row, $r['mutasi_masuk']);
+        $sheet->setCellValue('G' . $row, $r['unit']);
+        _stockExcelQty($sheet, 'H' . $row, $r['mutasi_keluar']);
+        $sheet->setCellValue('I' . $row, $r['unit']);
+        _stockExcelQty($sheet, 'J' . $row, $r['saldo_akhir']);
+        $sheet->setCellValue('K' . $row, $r['unit']);
+        $row++;
+    }
+
+    $lastDataRow = $row - 1;
+    $sheet->getStyle("A{$headerRow}:{$lastColLetter}{$lastDataRow}")
+        ->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+    _stockExcelNotes($sheet, $lastDataRow + 3, $lastColLetter);
+
+    _stockExcelStream($spreadsheet, $filename);
+}

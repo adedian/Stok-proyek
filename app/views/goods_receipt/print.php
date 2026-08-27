@@ -179,4 +179,6 @@
             <div class="gr-signature-position"><?= formatTanggal($receipt['receipt_date']) ?></div>
         </div>
     </div>
+
+    <div class="doc-print-meta"><?= e(printedAtLabel()) ?>, <?= e(printedByLabel()) ?></div>
 </div>

@@ -201,6 +201,49 @@ class ReportController extends Controller
         streamPdf($html, 'laporan_stok_rekap_' . date('Ymd_His'));
     }
 
+    /**
+     * Export Excel DETAIL Laporan Stok Barang -- struktur & angka SAMA PERSIS
+     * dengan printStockDetail() (Gambar 2): pakai stockFilters($_GET) &
+     * Inventory::stockDetailReport() yang identik, jadi filter periode/barang/
+     * "Stok != 0"/pilihan baris ikut sama (Revisi 8 #9-#13).
+     */
+    public function exportStockDetail(): void
+    {
+        $filters = $this->stockFilters($_GET);
+        $groups = (new Inventory())->stockDetailReport($filters);
+        [$companyName, $periodText] = $this->stockReportHeaderMeta($filters);
+        streamStockDetailExcel($groups, $companyName, $periodText, 'laporan_stok_detail_' . date('Ymd_His'));
+    }
+
+    /**
+     * Export Excel REKAP Laporan Stok Barang -- struktur & angka SAMA PERSIS
+     * dengan printStockRecap() (Gambar 3): pakai stockFilters($_GET) &
+     * Inventory::stockRecapReport() yang identik (Revisi 8 #9-#13).
+     */
+    public function exportStockRecap(): void
+    {
+        $filters = $this->stockFilters($_GET);
+        $rows = (new Inventory())->stockRecapReport($filters);
+        [$companyName, $periodText] = $this->stockReportHeaderMeta($filters);
+        streamStockRecapExcel($rows, $companyName, $periodText, 'laporan_stok_rekap_' . date('Ymd_His'));
+    }
+
+    /**
+     * Nama perusahaan + baris periode untuk header Excel Stok -- format periode
+     * dibuat dari date_from/date_to yang SAMA dengan yang dipakai template PDF
+     * stok (_stock_detail_print.php/_stock_recap_print.php).
+     */
+    private function stockReportHeaderMeta(array $filters): array
+    {
+        $company = (new SystemSetting())->getGroup('company');
+        $companyName = $company['company_name'] ?: 'Perusahaan';
+        $periodText = 'Periode : '
+            . ($filters['date_from'] !== '' ? formatTanggal($filters['date_from']) : '(seluruh riwayat)')
+            . ' - '
+            . ($filters['date_to'] !== '' ? formatTanggal($filters['date_to']) : 'Sekarang');
+        return [$companyName, $periodText];
+    }
+
     // ================= Helper privat =================
 
     private function stockFilters(array $get): array
@@ -264,22 +307,16 @@ class ReportController extends Controller
                 // lihat _table.php), BUKAN exportCsv() generik, karena harus persis format
                 // "Laporan Rekap PO" (judul/subjudul/periode + border) yang diminta user --
                 // exportCsv() cuma dump text/csv polos, tidak bisa styling.
+                // Laporan PO DETAIL: per baris item PO. Kolom + urutannya SATU sumber
+                // (poDetailColumns()) dipakai bareng tampilan layar, Export Excel Detail,
+                // & PDF Detail -- urutan WAJIB: No, Tanggal, No PO, Supplier, Kode Barang,
+                // Nama Barang, Qty, Satuan, Harga Satuan, Total, Pembuat PO (Revisi 8 #1/#3).
                 $model = new PurchaseOrder();
                 $filters = ['date_from' => $dateFrom, 'date_to' => $dateTo, 'project_id' => $projectId, 'status' => $status, 'keyword' => $keyword];
                 $rows = $model->listItemsForReport($filters);
                 return [
-                    'title' => 'Laporan Rekap PO',
-                    'columns' => [
-                        ['field' => 'po_date', 'label' => 'Tanggal', 'format' => 'date'],
-                        ['field' => 'supplier_name', 'label' => 'Supplier'],
-                        ['field' => 'kode_barang', 'label' => 'Kode Barang'],
-                        ['field' => 'item_name', 'label' => 'Nama Barang'],
-                        ['field' => 'qty_order', 'label' => 'Qty', 'format' => 'number', 'align' => 'end'],
-                        ['field' => 'unit', 'label' => 'Satuan'],
-                        ['field' => 'price', 'label' => 'Harga Satuan', 'format' => 'rupiah', 'align' => 'end'],
-                        ['field' => 'subtotal', 'label' => 'Total', 'format' => 'rupiah', 'align' => 'end', 'sum' => true],
-                        ['field' => 'pembuat_po', 'label' => 'Pembuat PO'],
-                    ],
+                    'title' => 'Laporan PO - Detail Barang',
+                    'columns' => $this->poDetailColumns(),
                     'rows' => $rows,
                     'filterForm' => ['date' => true, 'project' => true, 'status' => $model->statusLabels, 'keyword' => true],
                     'filters' => compact('dateFrom', 'dateTo', 'projectId', 'status', 'keyword'),
@@ -542,6 +579,7 @@ class ReportController extends Controller
     {
         return [
             ['field' => 'po_date', 'label' => 'Tanggal', 'format' => 'date', 'width' => 16],
+            ['field' => 'po_number', 'label' => 'No PO', 'width' => 20],
             ['field' => 'supplier_name', 'label' => 'Supplier', 'width' => 22],
             ['field' => 'kode_barang', 'label' => 'Kode Barang', 'width' => 14],
             ['field' => 'item_name', 'label' => 'Nama Barang', 'width' => 32],
@@ -559,13 +597,16 @@ class ReportController extends Controller
      */
     private function poRecapColumns(): array
     {
+        // Laporan PO REKAP: 1 baris per PO, fokus nilai & pembayaran (BUKAN barang).
+        // Urutan WAJIB (Revisi 8 #1): No, Tanggal, Supplier, Nilai PO, Total Dibayar,
+        // Sisa Belum Dibayar, % Belum Bayar.
         return [
             ['field' => 'po_date', 'label' => 'Tanggal', 'format' => 'date', 'width' => 16],
             ['field' => 'supplier_name', 'label' => 'Supplier', 'width' => 22],
             ['field' => 'nilai_po', 'label' => 'Nilai PO', 'format' => 'rupiah', 'align' => 'end', 'width' => 18, 'sum' => true],
-            ['field' => 'total_dibayar', 'label' => 'Total dibayar', 'format' => 'rupiah', 'align' => 'end', 'width' => 18, 'sum' => true],
-            ['field' => 'sisa_belum_dibayar', 'label' => 'Sisa belum dibayar', 'format' => 'rupiah', 'align' => 'end', 'width' => 20, 'sum' => true],
-            ['field' => 'pct_belum_dibayar', 'label' => '% blm dibayar', 'format' => 'percent', 'align' => 'end', 'width' => 14],
+            ['field' => 'total_dibayar', 'label' => 'Total Dibayar', 'format' => 'rupiah', 'align' => 'end', 'width' => 18, 'sum' => true],
+            ['field' => 'sisa_belum_dibayar', 'label' => 'Sisa Belum Dibayar', 'format' => 'rupiah', 'align' => 'end', 'width' => 20, 'sum' => true],
+            ['field' => 'pct_belum_dibayar', 'label' => '% Belum Bayar', 'format' => 'percent', 'align' => 'end', 'width' => 14],
         ];
     }
 

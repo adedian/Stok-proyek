@@ -89,7 +89,11 @@
     </div>
 </div>
 
-<p class="text-muted small mt-2">
+<div class="print-note-onscreen">
+    <?= e(printedAtLabel()) ?>, <?= e(printedByLabel()) ?>
+</div>
+
+<p class="text-muted small mt-2 no-print">
     <i class="bi bi-info-circle"></i>
     Export PDF/Excel & print untuk laporan ini akan dilengkapi di modul Reporting (Phase 12).
 </p>

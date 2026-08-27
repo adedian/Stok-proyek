@@ -11,6 +11,13 @@
             <a href="<?= BASE_URL ?>/index.php?module=report&action=exportPoRecap<?= $exportQuery ?>" class="btn btn-outline-success btn-sm">
                 <i class="bi bi-file-earmark-spreadsheet"></i> Export Rekap Bayar
             </a>
+        <?php elseif ($isInventory): ?>
+            <a href="<?= BASE_URL ?>/index.php?module=report&action=exportStockDetail<?= $exportQuery ?>" id="btnExportStockDetail" class="btn btn-outline-success btn-sm">
+                <i class="bi bi-file-earmark-spreadsheet"></i> Export Detail Excel
+            </a>
+            <a href="<?= BASE_URL ?>/index.php?module=report&action=exportStockRecap<?= $exportQuery ?>" id="btnExportStockRecap" class="btn btn-outline-success btn-sm">
+                <i class="bi bi-file-earmark-spreadsheet"></i> Export Rekap Excel
+            </a>
         <?php else: ?>
             <a href="<?= BASE_URL ?>/index.php?module=report&action=exportExcel&type=<?= e($reportKey) ?><?= $exportQuery ?>" class="btn btn-outline-success btn-sm">
                 <i class="bi bi-file-earmark-spreadsheet"></i> Export Excel
@@ -141,6 +148,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     wireSelectedIdsLink('btnCetakStockDetail');
     wireSelectedIdsLink('btnCetakStockRecap');
+    wireSelectedIdsLink('btnExportStockDetail');
+    wireSelectedIdsLink('btnExportStockRecap');
 });
 </script>
 <?php endif; ?>

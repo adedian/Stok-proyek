@@ -64,3 +64,19 @@
         color: #999;
     }
 }
+
+/* ============================================================
+   Notes kecil "[tgl jam WIB], [user cetak]" di pojok kanan bawah
+   SETIAP dokumen cetak resmi (PO / Penerimaan Barang / Invoice /
+   Surat Jalan / Tanda Terima) -- Revisi 8 #5-#8. Beda dari
+   .print-note-onscreen: dokumen ini memang halaman siap-cetak,
+   jadi notes-nya tampil di layar & ikut tercetak. Kecil, rata
+   kanan, tidak menutupi tanda tangan (selalu di paling bawah blok).
+   ============================================================ */
+.doc-print-meta {
+    margin-top: 18px;
+    text-align: right;
+    font-size: 9px;
+    color: #9aa0a6;
+    line-height: 1.4;
+}

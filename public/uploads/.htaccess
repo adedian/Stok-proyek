@@ -1,0 +1,32 @@
+# =========================================================================
+#  Folder UPLOAD -- hanya menyimpan file statis (gambar & PDF).
+#  TIDAK BOLEH mengeksekusi skrip apa pun. Ini lapisan kedua: validasi di
+#  app/helpers/upload_helper.php sudah menolak file non-gambar/PDF lebih dulu.
+# =========================================================================
+
+Options -Indexes -ExecCGI -MultiViews
+
+# --- Matikan mesin PHP untuk folder ini (mod_php / XAMPP) ---
+<IfModule php_module>
+    php_flag engine off
+</IfModule>
+
+# --- Lepas handler skrip apa pun, paksa dianggap teks biasa ---
+<IfModule mod_mime.c>
+    RemoveHandler .php .phtml .phtm .pht .phps .php3 .php4 .php5 .php7 .php8 .phar .cgi .pl .py .sh .fcgi .fpl .asp .aspx .jsp
+    RemoveType .php .phtml .phtm .pht .phps .php3 .php4 .php5 .php7 .php8 .phar .cgi .pl .py .sh .asp .aspx .jsp
+    AddType text/plain .php .phtml .phtm .pht .phps .php3 .php4 .php5 .php7 .php8 .phar .cgi .pl .py .sh .inc
+</IfModule>
+
+# --- Tolak total akses ke file yang bukan gambar / PDF ---
+<IfModule mod_authz_core.c>
+    <FilesMatch "(?i)\.(php\d?|phtml|phtm|pht|phps|phar|inc|cgi|pl|py|rb|sh|bash|exe|bat|com|dll|so|jar|jsp|asp|aspx|htaccess|htpasswd|ini|log|sql|bak|tmp|swp|xml|svg|svgz|htm|html|xhtml|shtml|js|mjs|css)$">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set Content-Security-Policy "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; object-src 'none'"
+    Header set Referrer-Policy "no-referrer"
+</IfModule>

@@ -1,0 +1,3 @@
+# Folder internal aplikasi -- tidak boleh diakses langsung lewat browser.
+# Semua request PHP masuk lewat public/index.php (front controller).
+Require all denied

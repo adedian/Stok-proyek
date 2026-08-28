@@ -23,15 +23,43 @@ $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' :
 $host   = $_SERVER['HTTP_HOST'] ?? 'localhost';
 define('BASE_URL', $scheme . '://' . $host . '/stok-proyek/public');
 
-define('APP_ENV', 'development'); // development | production
+// Lingkungan ditentukan otomatis dari host: akses lewat localhost/127.0.0.1
+// dianggap 'development' (developer sedang menguji, error tampil penuh).
+// Akses lewat alamat lain (mis. IP LAN tempat aplikasi dipakai sehari-hari)
+// dianggap 'production' -- error TIDAK ditampilkan ke user, hanya dicatat ke
+// logs/error.log. Untuk memaksa salah satu mode, ganti baris di bawah dengan
+// define('APP_ENV', 'development'); atau 'production';.
+$appHost = strtolower((string) ($_SERVER['HTTP_HOST'] ?? 'localhost'));
+define('APP_ENV', preg_match('/^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/', $appHost) ? 'development' : 'production');
 
-// Tampilkan error hanya saat development
 if (APP_ENV === 'development') {
     error_reporting(E_ALL);
-    ini_set('display_errors', 1);
+    ini_set('display_errors', '1');
 } else {
-    error_reporting(0);
-    ini_set('display_errors', 0);
+    // Production: jangan pernah bocorkan warning/stack trace/SQL error/path server.
+    error_reporting(E_ALL);
+    ini_set('display_errors', '0');
+    ini_set('display_startup_errors', '0');
+
+    // Tangkap error/exception yang tidak tertangani -> catat ke log, tampilkan
+    // pesan generik. Tanpa ini, PDOException dsb bisa muncul mentah ke layar.
+    set_exception_handler(static function (\Throwable $e): void {
+        error_log('Uncaught ' . get_class($e) . ': ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
+        if (!headers_sent()) {
+            http_response_code(500);
+        }
+        echo 'Terjadi kesalahan pada server. Silakan coba lagi atau hubungi administrator.';
+    });
+    register_shutdown_function(static function (): void {
+        $err = error_get_last();
+        if ($err && in_array($err['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+            error_log("Fatal: {$err['message']} @ {$err['file']}:{$err['line']}");
+            if (!headers_sent()) {
+                http_response_code(500);
+            }
+            echo 'Terjadi kesalahan pada server. Silakan coba lagi atau hubungi administrator.';
+        }
+    });
 }
 
 // Path absolut penting

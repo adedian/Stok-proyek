@@ -141,7 +141,7 @@
                             <td><?= formatTanggal($pay['payment_date']) ?></td>
                             <td class="text-center">
                                 <?php if (!empty($pay['proof_file'])): ?>
-                                    <a href="<?= BASE_URL ?>/<?= e($pay['proof_file']) ?>" target="_blank" title="Lihat bukti">
+                                    <a href="<?= e(fileUrl($pay['proof_file'])) ?>" target="_blank" title="Lihat bukti">
                                         <i class="bi bi-file-earmark-check text-success fs-5"></i>
                                     </a>
                                 <?php else: ?>

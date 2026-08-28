@@ -47,7 +47,7 @@
                     <div class="col-md-6">
                         <div class="text-muted small">Bukti Pembelian</div>
                         <?php if (!empty($purchase['proof_file'])): ?>
-                            <a href="<?= BASE_URL ?>/<?= e($purchase['proof_file']) ?>" target="_blank">Lihat bukti</a>
+                            <a href="<?= e(fileUrl($purchase['proof_file'])) ?>" target="_blank">Lihat bukti</a>
                         <?php else: ?>
                             <span class="text-muted">-</span>
                         <?php endif; ?>

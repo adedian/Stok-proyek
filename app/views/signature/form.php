@@ -30,7 +30,7 @@ $actionUrl = $isEdit ? 'update' : 'store';
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Gambar Tanda Tangan <?= $isEdit ? '' : '<span class="text-danger">*</span>' ?></label>
-                    <input type="file" name="signature_image" class="form-control" accept=".jpg,.jpeg,.png" <?= $isEdit ? '' : 'required' ?>>
+                    <input type="file" name="signature_image" class="form-control" accept=".jpg,.jpeg,.png,.webp" <?= $isEdit ? '' : 'required' ?>>
                     <div class="form-text">Format JPG/PNG, maksimal 2MB. Gunakan gambar latar transparan/putih untuk hasil cetak yang rapi.</div>
                     <?php if ($isEdit && !empty($signature['signature_image'])): ?>
                         <div class="mt-2">

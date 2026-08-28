@@ -118,7 +118,7 @@ $offlineItems = $offlineItems ?? [];
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Foto Barang</label>
-                    <input type="file" name="photo_goods" class="form-control" accept=".jpg,.jpeg,.png">
+                    <input type="file" name="photo_goods" class="form-control" accept=".jpg,.jpeg,.png,.webp">
                     <?php if ($isEdit && !empty($receipt['photo_goods'])): ?>
                         <div class="form-text">
                             Foto saat ini: <a href="<?= BASE_URL ?>/<?= e($receipt['photo_goods']) ?>" target="_blank">lihat foto</a>
@@ -127,10 +127,10 @@ $offlineItems = $offlineItems ?? [];
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Upload Invoice <span class="text-muted small">(opsional, PDF/JPG/PNG)</span></label>
-                    <input type="file" name="invoice_file" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
+                    <input type="file" name="invoice_file" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.webp">
                     <?php if ($isEdit && !empty($receipt['invoice_file'])): ?>
                         <div class="form-text">
-                            Invoice saat ini: <a href="<?= BASE_URL ?>/<?= e($receipt['invoice_file']) ?>" target="_blank">lihat file</a>
+                            Invoice saat ini: <a href="<?= e(fileUrl($receipt['invoice_file'])) ?>" target="_blank">lihat file</a>
                         </div>
                     <?php endif; ?>
                 </div>
@@ -140,7 +140,7 @@ $offlineItems = $offlineItems ?? [];
                 </div>
                 <div class="col-12">
                     <label class="form-label">Upload Foto Surat Jalan (bisa lebih dari 1)</label>
-                    <input type="file" name="delivery_documents[]" class="form-control" accept=".jpg,.jpeg,.png,.pdf" multiple>
+                    <input type="file" name="delivery_documents[]" class="form-control" accept=".jpg,.jpeg,.png,.webp,.pdf" multiple>
                     <?php if ($isEdit && !empty($documents)): ?>
                         <div class="form-text">
                             Dokumen tersimpan:

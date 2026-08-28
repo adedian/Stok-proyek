@@ -61,16 +61,16 @@ $itemsLocked = $itemsLocked ?? false;
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Bukti Pembelian</label>
-                    <input type="file" name="proof_file" class="form-control" accept=".jpg,.jpeg,.png,.pdf">
+                    <input type="file" name="proof_file" class="form-control" accept=".jpg,.jpeg,.png,.webp,.pdf">
                     <?php if ($isEdit && !empty($purchase['proof_file'])): ?>
                         <div class="form-text">
-                            Saat ini: <a href="<?= BASE_URL ?>/<?= e($purchase['proof_file']) ?>" target="_blank">lihat bukti</a>
+                            Saat ini: <a href="<?= e(fileUrl($purchase['proof_file'])) ?>" target="_blank">lihat bukti</a>
                         </div>
                     <?php endif; ?>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Foto Barang</label>
-                    <input type="file" name="photo_file" class="form-control" accept=".jpg,.jpeg,.png">
+                    <input type="file" name="photo_file" class="form-control" accept=".jpg,.jpeg,.png,.webp">
                     <?php if ($isEdit && !empty($purchase['photo_file'])): ?>
                         <div class="form-text">
                             Saat ini: <a href="<?= BASE_URL ?>/<?= e($purchase['photo_file']) ?>" target="_blank">lihat foto</a>

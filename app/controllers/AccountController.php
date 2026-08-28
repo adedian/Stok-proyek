@@ -81,7 +81,7 @@ class AccountController extends Controller
         }
 
         try {
-            $photoPath = handleFileUpload('profile_photo', 'profile_photos', ['jpg', 'jpeg', 'png'], 2);
+            $photoPath = handleFileUpload('profile_photo', 'profile_photos', ['jpg', 'jpeg', 'png', 'webp'], 2);
         } catch (RuntimeException $e) {
             setFlash('error', $e->getMessage());
             $this->redirect('account', 'index');

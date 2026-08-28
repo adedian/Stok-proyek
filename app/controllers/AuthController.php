@@ -47,6 +47,14 @@ class AuthController extends Controller
             $this->redirect('auth', 'login');
         }
 
+        // --- Throttling brute-force per IP (jendela 15 menit, ambang 8 kegagalan) ---
+        $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        if ($this->activityLog->countRecentFailedLogins($ip, 15) >= 8) {
+            $this->activityLog->log(null, 'auth', 'login_blocked', "IP {$ip} diblokir sementara: percobaan login berlebihan");
+            setFlash('error', 'Terlalu banyak percobaan login gagal. Silakan coba lagi dalam 15 menit.');
+            $this->redirect('auth', 'login');
+        }
+
         $user = $this->userModel->findByUsername($username);
 
         // Pesan error digeneralisir (tidak bocorkan "username salah" vs "password salah")

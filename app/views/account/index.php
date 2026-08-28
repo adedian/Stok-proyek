@@ -77,7 +77,7 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Foto Profil</label>
-                            <input type="file" name="profile_photo" class="form-control" accept=".jpg,.jpeg,.png">
+                            <input type="file" name="profile_photo" class="form-control" accept=".jpg,.jpeg,.png,.webp">
                             <?php if (!empty($user['profile_photo'])): ?>
                                 <div class="form-text">
                                     Foto saat ini: <a href="<?= BASE_URL ?>/<?= e($user['profile_photo']) ?>" target="_blank">lihat foto</a>

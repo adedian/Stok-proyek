@@ -103,7 +103,7 @@
                     <div class="col-md-4">
                         <div class="text-muted small">Invoice</div>
                         <?php if (!empty($receipt['invoice_file'])): ?>
-                            <a href="<?= BASE_URL ?>/<?= e($receipt['invoice_file']) ?>" target="_blank"><i class="bi bi-file-earmark-text"></i> Lihat Invoice</a>
+                            <a href="<?= e(fileUrl($receipt['invoice_file'])) ?>" target="_blank"><i class="bi bi-file-earmark-text"></i> Lihat Invoice</a>
                         <?php else: ?>
                             <span class="text-muted">-</span>
                         <?php endif; ?>

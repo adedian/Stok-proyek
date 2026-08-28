@@ -112,8 +112,8 @@ class OfflinePurchaseController extends Controller
         }
 
         try {
-            $proofFile = handleFileUpload('proof_file', 'bukti_pembelian', ['jpg', 'jpeg', 'png', 'pdf'], 5);
-            $photoFile = handleFileUpload('photo_file', 'foto_barang', ['jpg', 'jpeg', 'png'], 5);
+            $proofFile = handleFileUpload('proof_file', 'bukti_pembelian', ['jpg', 'jpeg', 'png', 'webp', 'pdf'], 5);
+            $photoFile = handleFileUpload('photo_file', 'foto_barang', ['jpg', 'jpeg', 'png', 'webp'], 5);
         } catch (RuntimeException $e) {
             setFlash('error', $e->getMessage());
             $this->redirect('offline_purchase', 'create');
@@ -206,8 +206,8 @@ class OfflinePurchaseController extends Controller
         }
 
         try {
-            $proofFile = handleFileUpload('proof_file', 'bukti_pembelian', ['jpg', 'jpeg', 'png', 'pdf'], 5);
-            $photoFile = handleFileUpload('photo_file', 'foto_barang', ['jpg', 'jpeg', 'png'], 5);
+            $proofFile = handleFileUpload('proof_file', 'bukti_pembelian', ['jpg', 'jpeg', 'png', 'webp', 'pdf'], 5);
+            $photoFile = handleFileUpload('photo_file', 'foto_barang', ['jpg', 'jpeg', 'png', 'webp'], 5);
         } catch (RuntimeException $e) {
             setFlash('error', $e->getMessage());
             $this->redirect('offline_purchase', 'edit', ['id' => $id]);

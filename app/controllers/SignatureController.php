@@ -66,7 +66,7 @@ class SignatureController extends Controller
         $errors = $this->validate($data);
 
         try {
-            $imagePath = handleFileUpload('signature_image', 'signatures', ['jpg', 'jpeg', 'png'], 2);
+            $imagePath = handleFileUpload('signature_image', 'signatures', ['jpg', 'jpeg', 'png', 'webp'], 2);
         } catch (RuntimeException $e) {
             $errors[] = $e->getMessage();
             $imagePath = null;
@@ -131,7 +131,7 @@ class SignatureController extends Controller
 
         $imagePath = null;
         try {
-            $imagePath = handleFileUpload('signature_image', 'signatures', ['jpg', 'jpeg', 'png'], 2);
+            $imagePath = handleFileUpload('signature_image', 'signatures', ['jpg', 'jpeg', 'png', 'webp'], 2);
         } catch (RuntimeException $e) {
             $errors[] = $e->getMessage();
         }

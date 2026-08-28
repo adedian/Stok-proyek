@@ -117,6 +117,66 @@ function assetUrl(string $relativePath): string
 }
 
 /**
+ * URL untuk menampilkan file upload. Folder SENSITIF (bukti pembayaran, invoice
+ * supplier, bukti pembelian offline) dialihkan lewat FileController yang
+ * mengecek login + role; folder lain (foto barang, logo, tanda tangan, foto
+ * profil, surat jalan) tetap dilayani langsung oleh web server seperti sebelumnya.
+ *
+ * $relPath = nilai yang tersimpan di DB, mis. 'uploads/payments/ab12...jpg'.
+ * Aman dipakai untuk semua path upload -- yang tidak diproteksi menghasilkan
+ * URL yang identik dengan cara lama (BASE_URL . '/' . path).
+ */
+function fileUrl(?string $relPath): string
+{
+    $relPath = ltrim((string) $relPath, '/');
+    if ($relPath === '') {
+        return '';
+    }
+
+    static $gated = ['payments', 'bukti_pembelian', 'invoice_penerimaan', 'invoice'];
+    if (preg_match('#^uploads/([a-z0-9_]+)/#', $relPath, $m) && in_array($m[1], $gated, true)) {
+        return BASE_URL . '/index.php?module=file&action=show&path=' . rawurlencode($relPath);
+    }
+    return BASE_URL . '/' . $relPath;
+}
+
+/**
+ * Kirim header keamanan HTTP ke SETIAP response. Dipanggil sekali di
+ * public/index.php sebelum routing. CSP sengaja mengizinkan 'unsafe-inline'
+ * dan cdn.jsdelivr.net karena aplikasi memakai <script>/style inline serta
+ * Bootstrap/SweetAlert2/Chart.js dari CDN itu -- selebihnya dikunci.
+ */
+function sendSecurityHeaders(): void
+{
+    if (headers_sent()) {
+        return;
+    }
+
+    header('X-Content-Type-Options: nosniff');
+    header('X-Frame-Options: SAMEORIGIN');
+    header('Referrer-Policy: strict-origin-when-cross-origin');
+    header('Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=(), usb=()');
+    header_remove('X-Powered-By');
+
+    $csp = "default-src 'self'; "
+        . "base-uri 'self'; "
+        . "object-src 'none'; "
+        . "frame-ancestors 'self'; "
+        . "form-action 'self'; "
+        . "img-src 'self' data: blob:; "
+        . "media-src 'self'; "
+        . "font-src 'self' data: https://cdn.jsdelivr.net; "
+        . "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        . "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        . "connect-src 'self'";
+    header('Content-Security-Policy: ' . $csp);
+
+    if (!empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off') {
+        header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+    }
+}
+
+/**
  * Generate & simpan CSRF token ke session
  */
 function csrfToken(): string
@@ -142,8 +202,11 @@ function verifyCsrf(): void
 {
     $token = $_POST['csrf_token'] ?? '';
     if (empty($token) || empty($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $token)) {
-        http_response_code(419);
-        die('Sesi form tidak valid atau kadaluarsa. Silakan muat ulang halaman.');
+        // 403: kode standar untuk request yang ditolak validasi keamanan.
+        // (419 non-standar dan disulap jadi "500" oleh sebagian SAPI/Apache.)
+        http_response_code(403);
+        header('Content-Type: text/plain; charset=UTF-8');
+        die('Sesi form tidak valid atau kadaluarsa. Silakan muat ulang halaman lalu coba lagi.');
     }
 }
 

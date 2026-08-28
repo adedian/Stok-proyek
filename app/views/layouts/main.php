@@ -2,7 +2,7 @@
 require ROOT_PATH . '/app/views/layouts/header.php';
 require ROOT_PATH . '/app/views/layouts/sidebar.php';
 ?>
-<div class="main-content flex-grow-1 p-4" style="background-color: #f4f6f9; min-height: 100vh;">
+<div class="main-content flex-grow-1 p-3 p-lg-4" style="background-color: #f4f6f9; min-height: 100vh;">
     <?php $flash = getFlash(); ?>
     <?php if ($flash): ?>
         <noscript>

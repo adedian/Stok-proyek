@@ -1,64 +1,714 @@
 /* ============================================================
-   Responsive -- breakpoint diuji: 1920 / 1440 / 1366 / 1024 / 768 / 430 / 390
-   Bootstrap breakpoint yang relevan: xl=1200, lg=992, md=768, sm=576
+   RESPONSIVE -- pusat aturan tampilan mobile/tablet.
+   File tunggal untuk seluruh perilaku responsive aplikasi
+   (jangan bikin file responsive lain -- tambahkan di sini).
+
+   Breakpoint (mengikuti Bootstrap 5):
+     lg  = 992px   -> di bawah ini sidebar jadi offcanvas (drawer)
+     md  = 768px   -> layout 1 kolom, toolbar & filter menumpuk
+     sm  = 576px   -> mode "mobile": tabel lebar -> kartu, tombol full-width
+
+   Target device: 360x800, 375x812, 390x844, 412x915 (portrait & landscape).
+   Desktop (>=992px) TIDAK terpengaruh file ini kecuali baris @media
+   (min-width) yang eksplisit di paling bawah.
    ============================================================ */
 
-/* Layar besar (1920/1440/1366): tetap seperti default, cuma batasi main-content
-   supaya tidak terlalu lebar & sulit dibaca di monitor lebar */
-@media (min-width: 1400px) {
+/* ============================================================
+   0. GUARD OVERFLOW HORIZONTAL GLOBAL
+   Halaman tidak boleh melebar melewati viewport. Kalau ada tabel
+   lebar, scroll HANYA di dalam .table-responsive-nya.
+   ============================================================ */
+@media (max-width: 991.98px) {
+    html,
+    body {
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
+    .d-flex > .main-content,
     .main-content {
-        padding: 32px 40px;
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .row {
+        --bs-gutter-x: .75rem;
+    }
+
+    img,
+    svg,
+    video,
+    canvas,
+    .img-fluid {
+        max-width: 100%;
+        height: auto;
+    }
+
+    /* Elemen yang gemar memaksa lebar */
+    pre,
+    code,
+    .text-break {
+        overflow-wrap: anywhere;
+        word-break: break-word;
     }
 }
 
-/* Tablet landscape / laptop kecil (1024) turun ke 992 breakpoint Bootstrap:
-   sidebar otomatis jadi offcanvas (class .offcanvas-lg bawaan Bootstrap) */
+/* ============================================================
+   1. TOPBAR
+   ============================================================ */
 @media (max-width: 991.98px) {
-    .main-content {
-        padding: 20px;
+    .navbar.app-topbar {
+        padding-top: .35rem;
+        padding-bottom: .35rem;
+        min-height: 52px;
+        gap: .5rem;
     }
-    .app-topbar .navbar-brand {
+
+    .app-topbar .d-flex.align-items-center.gap-3 {
+        gap: .5rem !important;
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .btn-sidebar-toggle {
+        font-size: 1.4rem;
+        padding: .2rem .35rem;
+        flex: none;
+    }
+
+    .topbar-icon-btn {
+        width: 34px;
+        height: 34px;
+        font-size: 1rem;
+    }
+
+    .app-user-avatar {
+        width: 30px;
+        height: 30px;
+        font-size: .72rem;
+    }
+}
+
+/* Di bawah md: breadcrumb hanya menampilkan NAMA HALAMAN (grup + pemisah
+   disembunyikan) -- jadi topbar mobile = [☰]  [Judul Halaman]  [🔔] [SA] */
+@media (max-width: 767.98px) {
+    .app-breadcrumb {
+        display: flex;
+        min-width: 0;
         font-size: .95rem;
     }
-    .kpi-value {
-        font-size: 1.4rem;
-    }
-}
 
-/* Tablet potrait (768) */
-@media (max-width: 767.98px) {
-    .main-content {
-        padding: 16px;
-    }
-    .page-header {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    .app-breadcrumb {
-        display: none; /* hemat ruang di layar sempit, judul halaman cukup lewat page-header */
-    }
-    .dashboard-date {
-        font-size: .74rem;
-        padding: .3rem .55rem;
-    }
-}
-
-/* Mobile (430 / 390) */
-@media (max-width: 480px) {
-    .main-content {
-        padding: 12px;
-    }
-    .app-topbar .navbar-brand .brand-full,
-    .app-topbar .navbar-brand .brand-short {
+    .app-breadcrumb .crumb-group,
+    .app-breadcrumb .crumb-sep {
         display: none;
     }
-    .app-user-avatar + span .d-block {
-        display: none !important; /* sembunyikan nama, sisakan avatar+role saja */
+
+    .app-breadcrumb .crumb-current {
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 60vw;
     }
-    .kpi-card {
-        padding: .9rem 1rem;
-    }
+
+    /* Dropdown notifikasi & profil: jangan sampai keluar layar */
     .topbar-dropdown-menu {
-        min-width: 90vw;
+        min-width: min(92vw, 340px) !important;
+        max-width: 92vw;
+    }
+}
+
+/* ============================================================
+   2. SIDEBAR (offcanvas .offcanvas-lg sudah ditangani Bootstrap)
+   ============================================================ */
+@media (max-width: 991.98px) {
+    #appSidebar.offcanvas-lg {
+        max-width: 84vw;
+    }
+
+    .sidebar .offcanvas-body {
+        padding: 1rem !important;
+    }
+
+    /* Target sentuh menu lebih lega di layar sentuh */
+    .sidebar .nav-link {
+        padding: .7rem .85rem !important;
+        font-size: .95rem;
+    }
+
+    .sidebar .nav-link i {
+        font-size: 1.05rem;
+    }
+
+    .sidebar-group-label {
+        padding-top: 1rem;
+    }
+}
+
+/* ============================================================
+   3. KONTEN & TIPOGRAFI
+   ============================================================ */
+@media (max-width: 767.98px) {
+    /* padding .main-content sudah diatur util Bootstrap p-3 p-lg-4 di main.php */
+    .main-content h4 {
+        font-size: 1.15rem;
+        line-height: 1.3;
+    }
+
+    .main-content h5 {
+        font-size: 1.02rem;
+    }
+
+    .main-content .lead,
+    .main-content p.text-muted {
+        font-size: .9rem;
+    }
+
+    .app-footer {
+        padding: 12px 16px;
+        font-size: 11.5px;
+        line-height: 1.5;
+        word-break: break-word;
+    }
+}
+
+/* ============================================================
+   4. PAGE TOOLBAR (baris "Judul + Subjudul + Tombol Aksi")
+   Pola markup di ~60 view: <div class="d-flex justify-content-between
+   align-items-center mb-3"> ... </div> sebagai anak langsung .main-content,
+   atau <div class="page-header ...">. Di mobile ditumpuk: judul satu baris
+   penuh, grup tombol pindah ke bawah selebar layar.
+   ============================================================ */
+@media (max-width: 767.98px) {
+    .main-content > .d-flex.justify-content-between,
+    .main-content > .page-header,
+    .main-content > form > .d-flex.justify-content-between {
+        flex-wrap: wrap;
+        align-items: stretch !important;
+        gap: .6rem !important;
+        margin-bottom: 1rem !important;
+    }
+
+    /* Toolbar rata-kanan (mis. baris tombol Cetak/Export di Laporan) */
+    .main-content > .d-flex.justify-content-end,
+    .main-content .d-flex.justify-content-end.mb-3 {
+        flex-wrap: wrap;
+        justify-content: stretch !important;
+        gap: .5rem !important;
+    }
+
+    .main-content .d-flex.justify-content-end > .d-flex {
+        flex: 1 1 100%;
+        flex-wrap: wrap;
+        gap: .5rem !important;
+    }
+
+    /* Setiap grup tombol horizontal di dalam konten -> boleh turun baris */
+    .main-content .d-flex.gap-2 {
+        flex-wrap: wrap;
+    }
+
+    .main-content .d-flex.justify-content-end .btn,
+    .main-content .d-flex.gap-2 > .btn {
+        flex: 1 1 auto;
+        min-width: 7.5rem;
+        max-width: 100%;
+    }
+
+    .main-content > .d-flex.justify-content-between > :first-child,
+    .main-content > .page-header > :first-child {
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+
+    /* Blok aksi (anak terakhir): selebar layar */
+    .main-content > .d-flex.justify-content-between > :last-child:not(:first-child),
+    .main-content > .page-header > :last-child:not(:first-child) {
+        width: 100%;
+        display: flex;
+        flex-wrap: wrap;
+        gap: .5rem;
+    }
+
+    /* Tombol/anchor/form di dalam blok aksi berbagi baris secara merata */
+    .main-content > .d-flex.justify-content-between > :last-child:not(:first-child) > .btn,
+    .main-content > .d-flex.justify-content-between > :last-child:not(:first-child) > form,
+    .main-content > .d-flex.justify-content-between > :last-child:not(:first-child) > .btn-group,
+    .main-content > .page-header > :last-child:not(:first-child) > .btn {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .main-content > .d-flex.justify-content-between > :last-child:not(:first-child) > form > .btn {
+        width: 100%;
+    }
+
+    /* Kalau anak terakhir SENDIRI sebuah tombol (mis. "Daftar Laporan") */
+    .main-content > .d-flex.justify-content-between > .btn:last-child,
+    .main-content > .page-header > .btn:last-child {
+        width: 100%;
+    }
+
+    /* Badge tanggal dashboard jangan mepet */
+    .dashboard-date {
+        align-self: flex-start;
+        font-size: .78rem;
+        padding: .35rem .6rem;
+    }
+}
+
+/* ============================================================
+   5. TOMBOL -- proporsional & nyaman disentuh (bukan besar/kecil ekstrem)
+   ============================================================ */
+@media (max-width: 767.98px) {
+    .main-content .btn:not(.btn-sm):not(.btn-row-actions):not(.btn-close) {
+        padding: .5rem .8rem;
+        font-size: .9rem;
+    }
+
+    .main-content .btn.btn-sm {
+        padding: .4rem .6rem;
+        font-size: .82rem;
+    }
+
+    /* Target sentuh minimum ~40px tanpa membuat teks besar */
+    .main-content .btn:not(.btn-row-actions):not(.btn-close) {
+        min-height: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .35rem;
+    }
+
+    .btn-row-actions {
+        min-height: 36px;
+        min-width: 36px;
+    }
+
+    /* btn-group yang kepanjangan (mis. filter periode grafik) -> wrap */
+    .main-content .btn-group:not(.btn-group-sm) {
+        flex-wrap: wrap;
+    }
+
+    .chart-period-filter {
+        width: 100%;
+    }
+
+    .chart-period-filter .btn {
+        flex: 1 1 auto;
+    }
+}
+
+/* ============================================================
+   6. KARTU & FILTER FORM
+   ============================================================ */
+@media (max-width: 767.98px) {
+    .card > .card-body {
+        padding: 1rem;
+    }
+
+    .card > .card-body.p-0 {
+        padding: 0 !important;
+    }
+
+    /* Form filter: rapatkan jarak vertikal & label */
+    .card-body form.row.g-2,
+    .card-body form.row.g-3 {
+        --bs-gutter-y: .55rem;
+    }
+
+    .card-body form .form-label,
+    .card-body form .form-label.small {
+        margin-bottom: .15rem !important;
+        font-size: .78rem;
+    }
+
+    .card-body form.row [class*="col-"] {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+
+    /* Kolom tombol "Cari/Filter" di ujung form -> tombol full-width */
+    .card-body form.row [class*="col-"].d-flex {
+        gap: .5rem !important;
+    }
+
+    .card-body form.row [class*="col-"].d-flex > .btn {
+        flex: 1 1 auto;
+    }
+
+    /* checkbox "Cetak Semua Data" yang pakai mt-4 -> hilangkan offset */
+    .card-body form .form-check.mt-4 {
+        margin-top: .25rem !important;
+    }
+
+    /* Input & select cukup tinggi untuk jari, tapi tetap compact */
+    .form-control-sm,
+    .form-select-sm {
+        min-height: 38px;
+        font-size: .9rem;
+    }
+
+    .form-control,
+    .form-select {
+        min-height: 42px;
+    }
+}
+
+/* ============================================================
+   7. FORM ENTRI (Tambah/Edit) -- grid & tombol bawah
+   ============================================================ */
+@media (max-width: 767.98px) {
+    /* baris tombol simpan/batal di dasar form */
+    .main-content form > .d-flex.gap-2,
+    .main-content .form-actions {
+        flex-wrap: wrap;
+        gap: .5rem !important;
+    }
+
+    .main-content form > .d-flex.gap-2 > .btn,
+    .main-content form > .d-flex.gap-2 > a.btn {
+        flex: 1 1 45%;
+    }
+
+    /* input-group dengan tombol "+" (quick add) tetap sebaris */
+    .input-group > .btn {
+        flex: none;
+    }
+
+    /* label kolom form entri */
+    .main-content form .form-label {
+        margin-bottom: .2rem;
+    }
+}
+
+/* ============================================================
+   8. TABEL -> KARTU (mobile <576px)
+   Transformasi dilakukan responsive-tables.js: tabel read-only yang
+   TIDAK muat layar disembunyikan, diganti daftar .rt-cards. Tabel yang
+   masih muat / tabel input (ada <input> di body) TIDAK diubah, hanya
+   dirapatkan.
+   ============================================================ */
+@media (max-width: 767.98px) {
+    .table-responsive > .table {
+        font-size: .86rem;
+    }
+
+    .table-responsive > .table > :not(caption) > * > * {
+        padding: .5rem .55rem;
+    }
+
+    .table thead th {
+        font-size: .68rem;
+    }
+
+    /* Scrollbar tipis + petunjuk bahwa area bisa digeser */
+    .table-responsive {
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+    }
+}
+
+@media (max-width: 575.98px) {
+    /* Tabel yang sudah dijadikan kartu */
+    .rt-hide-table {
+        display: none !important;
+    }
+
+    .rt-cards {
+        display: flex;
+        flex-direction: column;
+        gap: .625rem;
+        margin: 0;
+    }
+
+    /* Kalau daftar kartu berada di dalam kartu ber-padding-0 (list.php), beri
+       jarak dari tepi supaya tidak mepet garis kartu. */
+    .card-body.p-0 > .rt-cards,
+    .card-body > .table-responsive + .rt-cards {
+        padding: .75rem;
+    }
+
+    .rt-cards[hidden] {
+        display: none !important;
+    }
+
+    .rt-card {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface);
+        box-shadow: var(--shadow-xs);
+        padding: .75rem .85rem;
+    }
+
+    .rt-card-title {
+        font-size: .95rem;
+        font-weight: 700;
+        color: var(--ink);
+        padding-bottom: .4rem;
+        margin-bottom: .35rem;
+        border-bottom: 1px solid var(--border-soft);
+        word-break: break-word;
+    }
+
+    .rt-card-row {
+        display: flex;
+        justify-content: space-between;
+        gap: .9rem;
+        padding: .22rem 0;
+        font-size: .83rem;
+        line-height: 1.35;
+    }
+
+    .rt-card-row .rt-label {
+        color: var(--ink-faint);
+        font-weight: 600;
+        flex: 0 0 40%;
+    }
+
+    .rt-card-row .rt-value {
+        flex: 1 1 auto;
+        text-align: right;
+        min-width: 0;
+        word-break: break-word;
+        color: var(--ink);
+    }
+
+    .rt-card-row .rt-value .badge {
+        white-space: normal;
+    }
+
+    .rt-card-actions {
+        margin-top: .6rem;
+        padding-top: .55rem;
+        border-top: 1px solid var(--border-soft);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: .5rem;
+    }
+
+    .rt-card-actions > .btn,
+    .rt-card-actions > form {
+        flex: 1 1 auto;
+    }
+
+    .rt-card-actions > form > .btn {
+        width: 100%;
+    }
+
+    .rt-card-actions .dropdown.row-actions {
+        flex: 0 0 auto;
+    }
+
+    .rt-card-actions .row-actions .btn-row-actions {
+        width: 40px;
+        height: 40px;
+    }
+
+    /* Checkbox pilih baris di kartu */
+    .rt-card-select {
+        display: flex;
+        align-items: center;
+        gap: .5rem;
+        font-size: .8rem;
+        color: var(--ink-faint);
+        margin-bottom: .4rem;
+    }
+
+    .rt-card-select .form-check-input {
+        width: 1.15rem;
+        height: 1.15rem;
+        margin: 0;
+    }
+}
+
+/* ============================================================
+   9. MODAL
+   ============================================================ */
+@media (max-width: 575.98px) {
+    .modal-dialog {
+        margin: .5rem;
+        max-width: calc(100% - 1rem);
+    }
+
+    .modal-content {
+        max-height: calc(100dvh - 1rem);
+    }
+
+    .modal-body {
+        padding: 1rem;
+        overflow-y: auto;
+    }
+
+    .modal-header,
+    .modal-footer {
+        padding: .8rem 1rem;
+    }
+
+    .modal-footer {
+        position: sticky;
+        bottom: 0;
+        background: var(--surface);
+        flex-wrap: wrap;
+        gap: .5rem;
+    }
+
+    .modal-footer > .btn {
+        flex: 1 1 auto;
+        margin: 0;
+    }
+
+    .modal-body .row [class*="col-"] {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+}
+
+/* ============================================================
+   10. DROPDOWN & SELECT
+   ============================================================ */
+@media (max-width: 575.98px) {
+    .dropdown-menu {
+        max-width: 92vw;
+    }
+
+    /* Dropdown aksi baris di dalam kartu: rata kanan, tidak keluar layar */
+    .rt-card .dropdown-menu,
+    .table-responsive .dropdown-menu {
+        position: absolute;
+    }
+
+    .row-actions .dropdown-menu {
+        min-width: 180px;
+    }
+
+    .row-actions .dropdown-item {
+        padding: .6rem .7rem;
+        font-size: .9rem;
+    }
+}
+
+/* ============================================================
+   11. DASHBOARD
+   ============================================================ */
+@media (max-width: 575.98px) {
+    .kpi-card {
+        padding: .85rem .9rem;
+    }
+
+    .kpi-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 1rem;
+        margin-bottom: .5rem;
+    }
+
+    .kpi-value {
+        font-size: 1.35rem;
+    }
+
+    .kpi-label {
+        font-size: .74rem;
+    }
+
+    #stockActivityChart {
+        max-height: 260px;
+    }
+
+    .alert-card {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .alert-card > .btn {
+        width: 100%;
+    }
+}
+
+/* ============================================================
+   12. UTILITAS RINGKAS UNTUK LAYAR KECIL
+   ============================================================ */
+@media (max-width: 575.98px) {
+    .d-sm-none-visually {
+        display: none !important;
+    }
+
+    /* Sembunyikan kolom "keterangan panjang" yang ditandai opsional */
+    .col-hide-sm {
+        display: none !important;
+    }
+}
+
+/* ============================================================
+   13. DESKTOP -- hanya penyesuaian lebar baca di monitor besar
+   (tidak menyentuh layout, aman untuk 1366/1440/1920)
+   ============================================================ */
+@media (min-width: 1600px) {
+    .main-content {
+        padding-left: 2.5rem;
+        padding-right: 2.5rem;
+    }
+}
+
+/* ============================================================
+   14b. PRATINJAU DOKUMEN CETAK DI LAYAR MOBILE
+   Halaman purchase_order/print.php dkk (wrapper *-print-page) = layout A4
+   lebar-tetap. Di HP TIDAK direflow -- dokumen tetap dirender di lebar A4
+   aslinya lalu DIPERKECIL utuh (CSS zoom) oleh responsive-tables.js
+   (scalePrintPreviews) supaya pratinjau PERSIS sama dengan hasil cetak,
+   hanya lebih kecil. @media print di-reset ke ukuran penuh.
+   ============================================================ */
+@media screen and (max-width: 767.98px) {
+    [class*="print-page"] {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+
+    /* Toolbar "Cetak / Kembali" di atas pratinjau boleh turun baris */
+    .main-content > .d-flex.justify-content-end.no-print {
+        flex-wrap: wrap;
+        gap: .5rem !important;
+    }
+}
+
+@media print {
+    /* Batalkan pengecilan pratinjau saat benar-benar dicetak dari HP */
+    [class*="print-page"] {
+        zoom: 1 !important;
+        width: auto !important;
+    }
+}
+
+/* ============================================================
+   15. PRINT -- transformasi kartu mobile TIDAK boleh ikut tercetak.
+   Saat mencetak, selalu pakai tabel asli (template cetak resmi
+   PO/Invoice/Surat Jalan/Laporan tidak terpengaruh file ini).
+   ============================================================ */
+@media print {
+    .rt-cards {
+        display: none !important;
+    }
+
+    .rt-hide-table {
+        display: block !important;
+    }
+}
+
+/* ============================================================
+   14. LANDSCAPE HP (tinggi <500px) -- rapatkan vertikal
+   ============================================================ */
+@media (max-width: 991.98px) and (max-height: 500px) and (orientation: landscape) {
+    .navbar.app-topbar {
+        min-height: 46px;
+    }
+
+    .main-content {
+        padding-top: .75rem;
+        padding-bottom: .75rem;
+    }
+
+    .modal-content {
+        max-height: calc(100dvh - .5rem);
     }
 }

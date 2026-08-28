@@ -11,5 +11,6 @@
     <script src="<?= assetUrl('/assets/js/layout.js') ?>"></script>
     <script src="<?= assetUrl('/assets/js/currency-input.js') ?>"></script>
     <script src="<?= assetUrl('/assets/js/checkbox-select-all.js') ?>"></script>
+    <script src="<?= assetUrl('/assets/js/responsive-tables.js') ?>"></script>
 </body>
 </html>

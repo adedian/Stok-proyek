@@ -111,10 +111,33 @@
         max-width: 60vw;
     }
 
-    /* Dropdown notifikasi & profil: jangan sampai keluar layar */
-    .topbar-dropdown-menu {
-        min-width: min(92vw, 340px) !important;
-        max-width: 92vw;
+    /* Dropdown notifikasi & profil: jadikan panel selebar layar tepat di
+       bawah topbar. Override total posisi Popper (inline transform/inset)
+       supaya TIDAK PERNAH keluar layar di HP. */
+    .app-topbar .dropdown-menu.topbar-dropdown-menu {
+        position: fixed !important;
+        top: 56px !important;
+        left: 8px !important;
+        right: 8px !important;
+        bottom: auto !important;
+        width: auto !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        max-height: calc(100dvh - 68px);
+        overflow-x: hidden;
+        overflow-y: auto;
+        margin: 0 !important;
+        transform: none !important;
+        z-index: 1045;
+    }
+
+    .app-topbar .topbar-dropdown-item {
+        padding: .8rem 1rem;
+    }
+
+    .app-topbar .topbar-dropdown-item .item-icon {
+        width: 36px;
+        height: 36px;
     }
 }
 

@@ -12,21 +12,21 @@
 
 <?php
     $alertCards = [];
-    if ($notifFlags['selisih_barang'] && !empty($stats['selisih_belum_validasi']) && hasRole([ROLE_SUPER_ADMIN, ROLE_GUDANG])) {
+    if ($notifFlags['selisih_barang'] && !empty($stats['selisih_belum_validasi']) && hasRole([ROLE_SUPER_ADMIN, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT])) {
         $alertCards[] = [
             'variant' => 'warning', 'icon' => 'bi-exclamation-triangle-fill', 'title' => 'Selisih Barang',
             'desc'    => (int) $stats['selisih_belum_validasi'] . ' item penerimaan barang dengan selisih belum divalidasi.',
             'url'     => BASE_URL . '/index.php?module=validation', 'cta' => 'Validasi Sekarang',
         ];
     }
-    if ($notifFlags['stok_minimum'] && !empty($belowMinStockItems) && hasRole([ROLE_SUPER_ADMIN, ROLE_GUDANG])) {
+    if ($notifFlags['stok_minimum'] && !empty($belowMinStockItems) && hasRole([ROLE_SUPER_ADMIN, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT])) {
         $alertCards[] = [
             'variant' => 'danger', 'icon' => 'bi-exclamation-octagon-fill', 'title' => 'Stok Minimum',
             'desc'    => count($belowMinStockItems) . ' barang dengan stok di bawah batas minimum.',
             'url'     => BASE_URL . '/index.php?module=master_data', 'cta' => 'Lihat Barang',
         ];
     }
-    if ($notifFlags['po_belum_diproses'] && !empty($stats['po_belum_diproses']) && hasRole([ROLE_SUPER_ADMIN, ROLE_FINANCE])) {
+    if ($notifFlags['po_belum_diproses'] && !empty($stats['po_belum_diproses']) && hasRole([ROLE_SUPER_ADMIN, ROLE_ACCOUNTING, ROLE_PURCHASE])) {
         $alertCards[] = [
             'variant' => 'info', 'icon' => 'bi-hourglass-split', 'title' => 'PO Belum Diproses',
             'desc'    => (int) $stats['po_belum_diproses'] . ' Purchase Order masih menunggu approval.',

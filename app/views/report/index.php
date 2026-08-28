@@ -10,6 +10,11 @@ $reports = [
     ['key' => 'offlinePurchase', 'label' => 'Pembelian Offline', 'icon' => 'bi-shop'],
     ['key' => 'activityLog', 'label' => 'Riwayat Aktivitas (Audit Log)', 'icon' => 'bi-clock-history'],
 ];
+
+// Revisi 9: PIC Project & Project Manager hanya Laporan Kartu Stok (Stok Barang).
+if (!hasRole([ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING])) {
+    $reports = array_values(array_filter($reports, fn($r) => $r['key'] === 'inventory'));
+}
 ?>
 <div class="mb-3">
     <h4 class="mb-0">Laporan</h4>

@@ -3,9 +3,11 @@
         <h4 class="mb-0">Penerimaan Barang</h4>
         <small class="text-muted">Daftar seluruh penerimaan barang dari supplier</small>
     </div>
+    <?php if (can('goods_receipt', 'create')): ?>
     <a href="<?= BASE_URL ?>/index.php?module=goods_receipt&action=create" class="btn btn-primary">
         <i class="bi bi-plus-circle"></i> Tambah Penerimaan
     </a>
+    <?php endif; ?>
 </div>
 
 <div class="card border-0 shadow-sm mb-3">
@@ -68,9 +70,11 @@
                                 <i class="bi bi-box-seam empty-icon"></i>
                                 <div class="empty-title">Belum ada penerimaan barang</div>
                                 <div class="empty-desc">Catat penerimaan barang dari supplier untuk PO yang sudah disetujui.</div>
+                                <?php if (can('goods_receipt', 'create')): ?>
                                 <a href="<?= BASE_URL ?>/index.php?module=goods_receipt&action=create" class="btn btn-sm btn-primary">
                                     <i class="bi bi-plus-circle"></i> Tambah Penerimaan
                                 </a>
+                                <?php endif; ?>
                             </div>
                         </td></tr>
                     <?php endif; ?>
@@ -112,13 +116,14 @@
                                                 <i class="bi bi-eye"></i> Detail
                                             </a>
                                         </li>
-                                        <?php if ($r['receipt_type'] !== 'pemakai'): ?>
+                                        <?php if ($r['receipt_type'] !== 'pemakai' && can('goods_receipt', 'edit')): ?>
                                         <li>
                                             <a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=goods_receipt&action=edit&id=<?= (int) $r['id'] ?>">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
                                         </li>
                                         <?php endif; ?>
+                                        <?php if (can('goods_receipt', 'delete')): ?>
                                         <li>
                                             <form method="POST" action="<?= BASE_URL ?>/index.php?module=goods_receipt&action=delete"
                                                   onsubmit="return confirm('Yakin ingin menghapus penerimaan <?= e($r['receipt_number']) ?>? Stok yang sudah masuk akan dikoreksi kembali.');">
@@ -129,6 +134,7 @@
                                                 </button>
                                             </form>
                                         </li>
+                                        <?php endif; ?>
                                     </ul>
                                 </div>
                             </td>

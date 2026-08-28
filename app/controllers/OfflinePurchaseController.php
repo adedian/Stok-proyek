@@ -82,6 +82,7 @@ class OfflinePurchaseController extends Controller
 
     public function create()
     {
+        Middleware::requirePermission('offline_purchase', 'create');
         $this->view('offline_purchase/form', [
             'pageTitle'      => 'Tambah Pembelian Offline',
             'mode'           => 'create',
@@ -98,6 +99,7 @@ class OfflinePurchaseController extends Controller
 
     public function store()
     {
+        Middleware::requirePermission('offline_purchase', 'create');
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('offline_purchase', 'create');
         }
@@ -159,6 +161,7 @@ class OfflinePurchaseController extends Controller
 
     public function edit()
     {
+        Middleware::requirePermission('offline_purchase', 'edit');
         $id = (int) ($_GET['id'] ?? 0);
         $purchase = $this->purchaseModel->findWithRelations($id);
 
@@ -184,6 +187,7 @@ class OfflinePurchaseController extends Controller
 
     public function update()
     {
+        Middleware::requirePermission('offline_purchase', 'edit');
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('offline_purchase', 'index');
         }

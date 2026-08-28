@@ -36,7 +36,7 @@ class UserController extends Controller
             'pageTitle' => 'Tambah User',
             'mode'      => 'create',
             'user'      => null,
-            'roles'     => $this->roleModel->all('role_name ASC'),
+            'roles'     => $this->roleModel->assignableList(),
         ]);
     }
 
@@ -89,7 +89,7 @@ class UserController extends Controller
             'pageTitle' => 'Edit User',
             'mode'      => 'edit',
             'user'      => $user,
-            'roles'     => $this->roleModel->all('role_name ASC'),
+            'roles'     => $this->roleModel->assignableList(),
         ]);
     }
 
@@ -203,6 +203,13 @@ class UserController extends Controller
 
         if ($data['role_id'] <= 0) {
             $errors[] = 'Role wajib dipilih.';
+        } else {
+            // Revisi 9: cegah assign ke role yang sudah dinonaktifkan
+            // (finance/gudang) walau id-nya diselundupkan lewat POST.
+            $assignableIds = array_map(static fn($r) => (int) $r['id'], $this->roleModel->assignableList());
+            if (!in_array((int) $data['role_id'], $assignableIds, true)) {
+                $errors[] = 'Role tidak valid / sudah tidak aktif.';
+            }
         }
         if ($data['full_name'] === '') {
             $errors[] = 'Nama lengkap wajib diisi.';

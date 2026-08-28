@@ -21,6 +21,8 @@ require_once ROOT_PATH . '/app/models/Unit.php';
 require_once ROOT_PATH . '/app/models/PaymentMethod.php';
 require_once ROOT_PATH . '/app/models/DeliveryNote.php';
 require_once ROOT_PATH . '/app/models/CollectionReceipt.php';
+require_once ROOT_PATH . '/app/models/CashTransaction.php';
+require_once ROOT_PATH . '/app/models/CashCategory.php';
 
 /**
  * TrashController
@@ -134,6 +136,16 @@ class TrashController extends Controller
                 'model' => new CollectionReceipt(),
                 'display' => fn(array $r) => $r['receipt_number'] ?? '-',
             ],
+            'cash' => [
+                'label' => 'Kas',
+                'model' => new CashTransaction(),
+                'display' => fn(array $r) => trim(($r['no_bukti'] ?? '') . ' - ' . ($r['uraian'] ?? ''), ' -'),
+            ],
+            'cash_category' => [
+                'label' => 'Kategori Kas',
+                'model' => new CashCategory(),
+                'display' => fn(array $r) => $r['category_name'] ?? '-',
+            ],
         ];
     }
 
@@ -202,6 +214,53 @@ class TrashController extends Controller
         );
         setFlash('success', 'Data berhasil dipulihkan.');
         $this->redirect('trash', 'index');
+    }
+
+    /**
+     * Hapus permanen SEMUA isi Tempat Sampah (opsional dibatasi module_filter).
+     * Baris yang masih dipakai transaksi lain (FK constraint) dilewati dan
+     * dihitung terpisah -- tidak menggagalkan yang lain.
+     */
+    public function forceDeleteAll()
+    {
+        Middleware::requirePermission('trash', 'force_delete');
+        $this->requirePost();
+
+        $moduleFilter = trim($_POST['module_filter'] ?? '');
+        $deleted = 0;
+        $skipped = 0;
+
+        foreach ($this->modules as $key => $cfg) {
+            if ($moduleFilter !== '' && $moduleFilter !== $key) {
+                continue;
+            }
+            foreach ($cfg['model']->trashedList() as $r) {
+                try {
+                    $cfg['model']->forceDeleteById((int) $r['id']);
+                    $deleted++;
+                } catch (PDOException $e) {
+                    $skipped++;
+                }
+            }
+        }
+
+        $this->activityLog->log(
+            currentUserId(),
+            'trash',
+            'force_delete',
+            "Kosongkan Tempat Sampah" . ($moduleFilter !== '' ? " (modul: {$moduleFilter})" : '')
+                . " -- {$deleted} dihapus permanen, {$skipped} dilewati (masih dipakai)"
+        );
+
+        if ($deleted === 0 && $skipped === 0) {
+            setFlash('error', 'Tidak ada data untuk dihapus.');
+        } elseif ($skipped === 0) {
+            setFlash('success', "{$deleted} data berhasil dihapus permanen.");
+        } else {
+            setFlash('success', "{$deleted} data dihapus permanen. {$skipped} data dilewati karena masih dipakai transaksi lain.");
+        }
+
+        $this->redirect('trash', 'index', $moduleFilter !== '' ? ['module_filter' => $moduleFilter] : []);
     }
 
     public function forceDelete()

@@ -12,6 +12,7 @@ function appMenus(): array
         ['label' => 'Dashboard', 'module' => 'dashboard', 'icon' => 'bi-speedometer2', 'roles' => permissionRoles('dashboard', 'view'), 'active' => true, 'group' => null],
         ['label' => 'Purchase Order', 'module' => 'purchase_order', 'icon' => 'bi-cart-check', 'roles' => permissionRoles('purchase_order', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Pembayaran', 'module' => 'payment', 'icon' => 'bi-credit-card', 'roles' => permissionRoles('payment', 'view'), 'active' => true, 'group' => 'Transaksi'],
+        ['label' => 'Kas', 'module' => 'cash', 'icon' => 'bi-cash-coin', 'roles' => permissionRoles('cash', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Penerimaan Barang', 'module' => 'goods_receipt', 'icon' => 'bi-box-seam', 'roles' => permissionRoles('goods_receipt', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Validasi Barang', 'module' => 'validation', 'icon' => 'bi-check2-square', 'roles' => permissionRoles('validation', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Pengeluaran Barang', 'module' => 'stock_out', 'icon' => 'bi-box-arrow-up', 'roles' => permissionRoles('stock_out', 'view'), 'active' => true, 'group' => 'Transaksi'],
@@ -58,11 +59,28 @@ function menuLabelForModule(string $module): ?string
  */
 function roleSubtitle(?string $roleSlug): string
 {
-    $map = [
-        ROLE_SUPER_ADMIN     => 'Administrator',
-        ROLE_FINANCE         => 'Finance',
-        ROLE_GUDANG          => 'Warehouse',
-        ROLE_PROJECT_MANAGER => 'Project Manager',
-    ];
+    $map = roleLabelMap();
+    if ($roleSlug === ROLE_SUPER_ADMIN) {
+        return 'Administrator';
+    }
     return $map[$roleSlug] ?? '';
+}
+
+/**
+ * Peta role_slug => label tampilan. Sumber tunggal dipakai topbar & tabel
+ * matrix Permission di Pengaturan Sistem. Slug lama (finance/gudang) tetap
+ * ada supaya data historis tetap terbaca kalau muncul.
+ */
+function roleLabelMap(): array
+{
+    return [
+        ROLE_SUPER_ADMIN     => 'Super Admin',
+        ROLE_PURCHASE        => 'Purchase',
+        ROLE_ACCOUNTING      => 'Accounting',
+        ROLE_PIC_PROJECT     => 'PIC Project',
+        ROLE_ADMIN_PROJECT   => 'Admin Project',
+        ROLE_PROJECT_MANAGER => 'Project Manager',
+        ROLE_FINANCE         => 'Finance (nonaktif)',
+        ROLE_GUDANG          => 'Gudang (nonaktif)',
+    ];
 }

@@ -44,9 +44,20 @@ ini_set('error_log', LOG_PATH);
 
 // Daftar role yang valid (harus sinkron dengan tabel `roles`)
 define('ROLE_SUPER_ADMIN', 'super_admin');
+define('ROLE_PROJECT_MANAGER', 'project_manager');
+
+// Role baru Revisi 9 (2026-08-28) -- menggantikan Finance/Gudang.
+define('ROLE_PURCHASE', 'purchase');
+define('ROLE_ACCOUNTING', 'accounting');
+define('ROLE_PIC_PROJECT', 'pic_project');
+define('ROLE_ADMIN_PROJECT', 'admin_project');
+
+// DEPRECATED (Revisi 9): role 'finance' & 'gudang' tidak lagi ditawarkan
+// sebagai pilihan (lihat Role::assignableList()). Konstanta DIPERTAHANKAN
+// karena baris role-nya masih ada di DB untuk histori dan sejumlah cek
+// UI lama sudah di-remap ke role baru. Jangan dipakai untuk aturan baru.
 define('ROLE_FINANCE', 'finance');
 define('ROLE_GUDANG', 'gudang');
-define('ROLE_PROJECT_MANAGER', 'project_manager');
 
 // Backup Database (Pengaturan Sistem) -- path default instalasi XAMPP.
 // Satu-satunya tempat di sistem yang menjalankan shell command, dibatasi Super Admin saja.

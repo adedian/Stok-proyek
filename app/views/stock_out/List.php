@@ -7,9 +7,11 @@
         <a href="<?= BASE_URL ?>/index.php?module=delivery_note" class="btn btn-outline-secondary">
             <i class="bi bi-truck"></i> Riwayat Surat Jalan
         </a>
+        <?php if (can('stock_out', 'create')): ?>
         <a href="<?= BASE_URL ?>/index.php?module=stock_out&action=create" class="btn btn-primary">
             <i class="bi bi-plus-circle"></i> Tambah Pengeluaran
         </a>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -96,9 +98,11 @@
                                 <i class="bi bi-box-arrow-up empty-icon"></i>
                                 <div class="empty-title">Belum ada pengeluaran barang</div>
                                 <div class="empty-desc">Catat barang yang keluar dari gudang menuju project.</div>
+                                <?php if (can('stock_out', 'create')): ?>
                                 <a href="<?= BASE_URL ?>/index.php?module=stock_out&action=create" class="btn btn-sm btn-primary">
                                     <i class="bi bi-plus-circle"></i> Tambah Pengeluaran
                                 </a>
+                                <?php endif; ?>
                             </div>
                         </td></tr>
                     <?php endif; ?>
@@ -147,16 +151,20 @@
                                 <?php endif; ?>
                             </td>
                             <td class="text-center">
+                                <?php if (can('stock_out', 'edit') || can('stock_out', 'delete')): ?>
                                 <div class="dropdown row-actions">
                                     <button type="button" class="btn btn-row-actions" data-bs-toggle="dropdown" aria-expanded="false" title="Aksi">
                                         <i class="bi bi-three-dots-vertical"></i>
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end">
+                                        <?php if (can('stock_out', 'edit')): ?>
                                         <li>
                                             <a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=stock_out&action=edit&id=<?= (int) $so['id'] ?>">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
                                         </li>
+                                        <?php endif; ?>
+                                        <?php if (can('stock_out', 'delete')): ?>
                                         <li>
                                             <form method="POST" action="<?= BASE_URL ?>/index.php?module=stock_out&action=delete"
                                                   onsubmit="return confirm('Yakin ingin menghapus pengeluaran barang ini? Stok akan dikembalikan.');">
@@ -167,8 +175,12 @@
                                                 </button>
                                             </form>
                                         </li>
+                                        <?php endif; ?>
                                     </ul>
                                 </div>
+                                <?php else: ?>
+                                    <span class="text-muted">&mdash;</span>
+                                <?php endif; ?>
                             </td>
                         </tr>
                     <?php endforeach; ?>

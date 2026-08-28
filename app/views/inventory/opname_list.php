@@ -7,7 +7,7 @@
         <a href="<?= BASE_URL ?>/index.php?module=inventory" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Kartu Stok
         </a>
-        <?php if (hasRole([ROLE_SUPER_ADMIN, ROLE_GUDANG])): ?>
+        <?php if (can('inventory', 'create')): ?>
             <a href="<?= BASE_URL ?>/index.php?module=inventory&action=opnameCreate" class="btn btn-primary">
                 <i class="bi bi-plus-circle"></i> Tambah Opname
             </a>
@@ -81,7 +81,7 @@
                             <div class="empty-state">
                                 <i class="bi bi-clipboard-check empty-icon"></i>
                                 <div class="empty-title">Belum ada stok opname</div>
-                                <?php if (hasRole([ROLE_SUPER_ADMIN, ROLE_GUDANG])): ?>
+                                <?php if (can('inventory', 'create')): ?>
                                     <div class="empty-desc">Lakukan perhitungan fisik stok untuk membandingkan dengan catatan sistem.</div>
                                     <a href="<?= BASE_URL ?>/index.php?module=inventory&action=opnameCreate" class="btn btn-sm btn-primary">
                                         <i class="bi bi-plus-circle"></i> Tambah Opname
@@ -112,7 +112,7 @@
                                                 <i class="bi bi-eye"></i> Detail
                                             </a>
                                         </li>
-                                        <?php if ($o['status'] === 'draft' && hasRole([ROLE_SUPER_ADMIN, ROLE_GUDANG])): ?>
+                                        <?php if ($o['status'] === 'draft' && can('inventory', 'delete')): ?>
                                             <li>
                                                 <form method="POST" action="<?= BASE_URL ?>/index.php?module=inventory&action=opnameDelete"
                                                       class="js-confirm-delete" data-message="Hapus data opname draft <?= e($o['opname_number']) ?>? Seluruh item hitung fisiknya juga akan terhapus.">
@@ -123,7 +123,7 @@
                                                     </button>
                                                 </form>
                                             </li>
-                                        <?php elseif ($o['status'] === 'completed' && hasRole([ROLE_SUPER_ADMIN])): ?>
+                                        <?php elseif ($o['status'] === 'completed' && can('inventory', 'delete')): ?>
                                             <li>
                                                 <form method="POST" action="<?= BASE_URL ?>/index.php?module=inventory&action=opnameDelete"
                                                       class="js-confirm-delete" data-message="Hapus opname <?= e($o['opname_number']) ?> yang SUDAH SELESAI? Penyesuaian stok yang sudah diterapkan ke Stok Barang akan DIBATALKAN (dicatat sebagai transaksi pembalik). Tindakan ini tidak bisa dibatalkan.">

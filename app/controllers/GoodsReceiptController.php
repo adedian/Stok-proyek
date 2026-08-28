@@ -92,6 +92,7 @@ class GoodsReceiptController extends Controller
      */
     public function create()
     {
+        Middleware::requirePermission('goods_receipt', 'create');
         $poId = (int) ($_GET['po_id'] ?? 0);
         $offlinePurchaseId = (int) ($_GET['offline_purchase_id'] ?? 0);
         $selectedPo = $poId ? $this->poModel->findWithRelations($poId) : null;
@@ -121,6 +122,7 @@ class GoodsReceiptController extends Controller
 
     public function store()
     {
+        Middleware::requirePermission('goods_receipt', 'create');
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('goods_receipt', 'create');
         }
@@ -210,6 +212,7 @@ class GoodsReceiptController extends Controller
 
     public function edit()
     {
+        Middleware::requirePermission('goods_receipt', 'edit');
         $id = (int) ($_GET['id'] ?? 0);
         $receipt = $this->receiptModel->findWithRelations($id);
 
@@ -279,6 +282,7 @@ class GoodsReceiptController extends Controller
 
     public function update()
     {
+        Middleware::requirePermission('goods_receipt', 'edit');
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('goods_receipt', 'index');
         }
@@ -398,6 +402,7 @@ class GoodsReceiptController extends Controller
 
     public function delete()
     {
+        Middleware::requirePermission('goods_receipt', 'delete');
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('goods_receipt', 'index');
         }

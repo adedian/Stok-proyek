@@ -328,6 +328,83 @@ function streamStockDetailExcel(array $groups, string $companyName, string $peri
 }
 
 /**
+ * ============================================================
+ * EXPORT EXCEL LAPORAN KAS (Revisi 9) -- format buku kas sesuai contoh user:
+ * Tgl | No Bukti | Uraian | Qty | Satuan | Masuk | Keluar | Saldo Akhir,
+ * dengan baris "Saldo Awal" di atas dan "Saldo Akhir" di bawah.
+ *
+ * @param array $ledger Hasil CashTransaction::reportLedger():
+ *              ['saldo_awal'=>float, 'saldo_akhir'=>float, 'rows'=>[
+ *                 ['trx_date','no_bukti','uraian','qty','satuan','masuk','keluar','saldo'], ...]]
+ * ============================================================
+ */
+function streamCashReportExcel(array $ledger, string $companyName, string $periodText, string $filename): void
+{
+    $spreadsheet = new Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+    $sheet->setTitle('Laporan Kas');
+
+    $lastColLetter = 'H'; // 8 kolom
+    $headerRow = _stockExcelTitleBlock($sheet, 'Laporan Kas', $companyName, $periodText, $lastColLetter);
+
+    $labels = ['A' => 'Tgl', 'B' => 'No Bukti', 'C' => 'Uraian', 'D' => 'Qty', 'E' => 'Satuan', 'F' => 'Masuk', 'G' => 'Keluar', 'H' => 'Saldo Akhir'];
+    foreach ($labels as $col => $label) {
+        $sheet->setCellValue($col . $headerRow, $label);
+    }
+    foreach (['A' => 12, 'B' => 16, 'C' => 40, 'D' => 10, 'E' => 15, 'F' => 16, 'G' => 16, 'H' => 18] as $c => $w) {
+        $sheet->getColumnDimension($c)->setWidth($w);
+    }
+    $sheet->getStyle("A{$headerRow}:{$lastColLetter}{$headerRow}")->getFont()->setBold(true);
+    $sheet->getStyle("A{$headerRow}:{$lastColLetter}{$headerRow}")->getAlignment()
+        ->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
+
+    $money = '#,##0';
+    $row = $headerRow + 1;
+
+    // Saldo Awal
+    $sheet->setCellValue('A' . $row, 'Saldo Awal');
+    $sheet->mergeCells("A{$row}:G{$row}");
+    $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+    $sheet->setCellValue('H' . $row, (float) $ledger['saldo_awal']);
+    $sheet->getStyle('H' . $row)->getNumberFormat()->setFormatCode($money);
+    $sheet->getStyle("A{$row}:H{$row}")->getFont()->setBold(true);
+    $row++;
+
+    foreach ($ledger['rows'] as $r) {
+        $sheet->setCellValue('A' . $row, $r['trx_date'] !== '' ? date('j-M-y', strtotime($r['trx_date'])) : '');
+        $sheet->setCellValue('B' . $row, $r['no_bukti']);
+        $sheet->setCellValue('C' . $row, $r['uraian']);
+        $sheet->setCellValue('D' . $row, (float) $r['qty']);
+        $sheet->setCellValue('E' . $row, (float) $r['satuan']);
+        if ((float) $r['masuk'] > 0) {
+            $sheet->setCellValue('F' . $row, (float) $r['masuk']);
+        }
+        if ((float) $r['keluar'] > 0) {
+            $sheet->setCellValue('G' . $row, (float) $r['keluar']);
+        }
+        $sheet->setCellValue('H' . $row, (float) $r['saldo']);
+        $sheet->getStyle("D{$row}")->getNumberFormat()->setFormatCode('#,##0.##');
+        $sheet->getStyle("E{$row}:H{$row}")->getNumberFormat()->setFormatCode($money);
+        $row++;
+    }
+
+    // Saldo Akhir
+    $sheet->setCellValue('A' . $row, 'Saldo Akhir');
+    $sheet->mergeCells("A{$row}:G{$row}");
+    $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+    $sheet->setCellValue('H' . $row, (float) $ledger['saldo_akhir']);
+    $sheet->getStyle('H' . $row)->getNumberFormat()->setFormatCode($money);
+    $sheet->getStyle("A{$row}:H{$row}")->getFont()->setBold(true);
+
+    $lastDataRow = $row;
+    $sheet->getStyle("A{$headerRow}:{$lastColLetter}{$lastDataRow}")
+        ->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+    _stockExcelNotes($sheet, $lastDataRow + 3, $lastColLetter);
+
+    _stockExcelStream($spreadsheet, $filename);
+}
+
+/**
  * Excel REKAP Stok -- cerminan app/views/report/_stock_recap_print.php:
  * satu baris per barang, ringkasan Saldo Awal / In (total masuk) / Out (total
  * keluar) / Saldo Akhir (masing-masing Qty + Satuan).

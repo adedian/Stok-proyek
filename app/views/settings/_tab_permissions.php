@@ -1,21 +1,29 @@
 <?php
-$roleLabels = [
-    ROLE_SUPER_ADMIN     => 'Super Admin',
-    ROLE_FINANCE         => 'Finance',
-    ROLE_GUDANG          => 'Gudang',
-    ROLE_PROJECT_MANAGER => 'Project Manager',
+// Hanya tampilkan kolom role yang AKTIF dipakai sistem role baru (Revisi 9).
+$activeRoleSlugs = [
+    ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING,
+    ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT, ROLE_PROJECT_MANAGER,
 ];
+$labelMap = roleLabelMap();
+$roleLabels = [];
+foreach ($activeRoleSlugs as $slug) {
+    $roleLabels[$slug] = $labelMap[$slug] ?? $slug;
+}
 $moduleLabels = [
-    'dashboard' => 'Dashboard', 'purchase_order' => 'Purchase Order', 'payment' => 'Pembayaran',
+    'dashboard' => 'Dashboard', 'account' => 'Akun Saya', 'purchase_order' => 'Purchase Order', 'payment' => 'Pembayaran',
     'goods_receipt' => 'Penerimaan Barang', 'validation' => 'Validasi Barang', 'stock_out' => 'Pengeluaran Barang',
     'inventory' => 'Stok & Opname', 'offline_purchase' => 'Pembelian Offline',
-    'report' => 'Laporan', 'user' => 'User Management', 'master_data' => 'Master Data',
-    'supplier' => 'Supplier', 'project' => 'Project', 'item' => 'Barang', 'item_category' => 'Kategori Barang',
-    'unit' => 'Satuan', 'warehouse' => 'Gudang', 'settings' => 'Pengaturan Sistem',
+    'sales_invoice' => 'Invoice Keluar', 'delivery_note' => 'Surat Jalan', 'collection_receipt' => 'Tanda Terima',
+    'cash' => 'Kas', 'cash_category' => 'Kategori Kas', 'user_pic' => 'PIC Mapping',
+    'report' => 'Laporan', 'user' => 'User Management', 'master_data' => 'Master Data', 'master_kode' => 'Master Kode',
+    'supplier' => 'Supplier', 'client' => 'Client', 'project' => 'Project', 'item' => 'Barang', 'item_category' => 'Kategori Barang',
+    'unit' => 'Satuan', 'warehouse' => 'Gudang', 'payment_method' => 'Metode Pembayaran', 'signature' => 'Tanda Tangan',
+    'dp_percentage' => 'Persentase DP', 'settings' => 'Pengaturan Sistem', 'trash' => 'Tempat Sampah',
 ];
 $actionLabels = [
     'view' => 'View', 'create' => 'Create', 'edit' => 'Edit', 'delete' => 'Delete',
     'approve' => 'Approve', 'validate' => 'Validate', 'quick_add' => 'Quick Add', 'complete' => 'Complete',
+    'restore' => 'Restore', 'force_delete' => 'Hapus Permanen', 'delete_stock' => 'Hapus Kartu Stok',
 ];
 ?>
 <div class="alert alert-light border small mb-3">

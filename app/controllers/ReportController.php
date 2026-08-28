@@ -25,6 +25,38 @@ class ReportController extends Controller
     public function __construct()
     {
         Middleware::requirePermission('report', 'view');
+        $this->guardReportScope();
+    }
+
+    /**
+     * Revisi 9: PIC Project & Project Manager hanya boleh Laporan Kartu Stok
+     * (Stok Barang). Selain Super Admin/Purchase/Accounting, action laporan
+     * lain (PO, Pembayaran, Invoice, Audit Trail, dst) ditolak server-side --
+     * bukan sekadar disembunyikan di menu.
+     */
+    private function guardReportScope(): void
+    {
+        $role = currentUserRole();
+        if (in_array($role, [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING], true)) {
+            return;
+        }
+
+        $action = $_GET['action'] ?? 'index';
+        $stockOnly = [
+            'index', 'inventory',
+            'printStockDetail', 'printStockRecap',
+            'exportStockDetail', 'exportStockRecap',
+        ];
+        $genericExport = ['exportExcel', 'exportPdf'];
+
+        if (in_array($action, $stockOnly, true)) {
+            return;
+        }
+        if (in_array($action, $genericExport, true) && ($_GET['type'] ?? '') === 'inventory') {
+            return;
+        }
+
+        denyAccess('Laporan di luar cakupan role (hanya Laporan Kartu Stok yang diizinkan)');
     }
 
     public function index()

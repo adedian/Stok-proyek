@@ -54,6 +54,7 @@ class StockOutController extends Controller
 
     public function create()
     {
+        Middleware::requirePermission('stock_out', 'create');
         $projectId = (int) ($_GET['project_id'] ?? 0);
         $salesInvoiceId = (int) ($_GET['sales_invoice_id'] ?? 0);
 
@@ -80,6 +81,7 @@ class StockOutController extends Controller
 
     public function store()
     {
+        Middleware::requirePermission('stock_out', 'create');
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('stock_out', 'create');
         }
@@ -152,6 +154,7 @@ class StockOutController extends Controller
 
     public function edit()
     {
+        Middleware::requirePermission('stock_out', 'edit');
         $id = (int) ($_GET['id'] ?? 0);
         $stockOut = $this->stockOutModel->findWithRelations($id);
 
@@ -175,6 +178,7 @@ class StockOutController extends Controller
 
     public function update()
     {
+        Middleware::requirePermission('stock_out', 'edit');
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('stock_out', 'index');
         }
@@ -259,6 +263,7 @@ class StockOutController extends Controller
 
     public function delete()
     {
+        Middleware::requirePermission('stock_out', 'delete');
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('stock_out', 'index');
         }

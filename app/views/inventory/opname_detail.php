@@ -13,7 +13,7 @@
         <a href="<?= BASE_URL ?>/index.php?module=inventory&action=opnameIndex" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Kembali
         </a>
-        <?php if ($opname['status'] === 'draft' && hasRole([ROLE_SUPER_ADMIN, ROLE_GUDANG])): ?>
+        <?php if ($opname['status'] === 'draft' && can('inventory', 'complete')): ?>
             <form method="POST" action="<?= BASE_URL ?>/index.php?module=inventory&action=opnameComplete" class="d-inline"
                   onsubmit="return confirm('Selesaikan opname ini? Stok sistem akan disesuaikan otomatis mengikuti hasil hitung fisik dan TIDAK bisa dibatalkan.');">
                 <?= csrfField() ?>
@@ -22,6 +22,7 @@
                     <i class="bi bi-check2-circle"></i> Selesaikan & Sesuaikan Stok
                 </button>
             </form>
+            <?php if (can('inventory', 'delete')): ?>
             <form method="POST" action="<?= BASE_URL ?>/index.php?module=inventory&action=opnameDelete" class="d-inline"
                   onsubmit="return confirm('Hapus data opname draft ini?');">
                 <?= csrfField() ?>
@@ -30,7 +31,8 @@
                     <i class="bi bi-trash"></i>
                 </button>
             </form>
-        <?php elseif ($opname['status'] === 'completed' && hasRole([ROLE_SUPER_ADMIN])): ?>
+            <?php endif; ?>
+        <?php elseif ($opname['status'] === 'completed' && can('inventory', 'delete')): ?>
             <form method="POST" action="<?= BASE_URL ?>/index.php?module=inventory&action=opnameDelete" class="d-inline"
                   onsubmit="return confirm('Hapus opname yang SUDAH SELESAI ini? Penyesuaian stok yang sudah diterapkan ke Stok Barang akan DIBATALKAN (dicatat sebagai transaksi pembalik). Tindakan ini tidak bisa dibatalkan.');">
                 <?= csrfField() ?>

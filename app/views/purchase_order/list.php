@@ -3,9 +3,11 @@
         <h4 class="mb-0">Purchase Order</h4>
         <small class="text-muted">Daftar seluruh Purchase Order</small>
     </div>
+    <?php if (can('purchase_order', 'create')): ?>
     <a href="<?= BASE_URL ?>/index.php?module=purchase_order&action=create" class="btn btn-primary">
         <i class="bi bi-plus-circle"></i> Tambah PO
     </a>
+    <?php endif; ?>
 </div>
 
 <div class="card border-0 shadow-sm mb-3">
@@ -87,9 +89,11 @@
                                     <i class="bi bi-cart-x empty-icon"></i>
                                     <div class="empty-title">Belum ada Purchase Order</div>
                                     <div class="empty-desc">Buat PO pertama untuk mulai memesan barang ke supplier.</div>
+                                    <?php if (can('purchase_order', 'create')): ?>
                                     <a href="<?= BASE_URL ?>/index.php?module=purchase_order&action=create" class="btn btn-sm btn-primary">
                                         <i class="bi bi-plus-circle"></i> Tambah PO
                                     </a>
+                                    <?php endif; ?>
                                 </div>
                             </td>
                         </tr>
@@ -123,12 +127,14 @@
                                                 <i class="bi bi-eye"></i> Detail
                                             </a>
                                         </li>
+                                        <?php if (can('purchase_order', 'edit')): ?>
                                         <li>
                                             <a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=purchase_order&action=edit&id=<?= (int) $po['id'] ?>">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
                                         </li>
-                                        <?php if (hasRole([ROLE_SUPER_ADMIN, ROLE_FINANCE])): ?>
+                                        <?php endif; ?>
+                                        <?php if (can('purchase_order', 'delete')): ?>
                                             <li>
                                                 <form method="POST" action="<?= BASE_URL ?>/index.php?module=purchase_order&action=delete"
                                                       onsubmit="return confirm('Yakin ingin menghapus PO <?= e($po['po_number']) ?>?');">

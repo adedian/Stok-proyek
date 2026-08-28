@@ -153,7 +153,7 @@ class DashboardStat
         $settingModel = new SystemSetting();
         $items = [];
 
-        if ($settingModel->getBool('notify_selisih_barang', true) && hasRole([ROLE_SUPER_ADMIN, ROLE_GUDANG])) {
+        if ($settingModel->getBool('notify_selisih_barang', true) && hasRole([ROLE_SUPER_ADMIN, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT])) {
             $count = $this->barangSelisihBelumValidasi();
             if ($count > 0) {
                 $items[] = [
@@ -165,7 +165,7 @@ class DashboardStat
             }
         }
 
-        if ($settingModel->getBool('notify_stok_minimum', true) && hasRole([ROLE_SUPER_ADMIN, ROLE_GUDANG])) {
+        if ($settingModel->getBool('notify_stok_minimum', true) && hasRole([ROLE_SUPER_ADMIN, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT])) {
             $count = (new Item())->belowMinStockCount();
             if ($count > 0) {
                 $items[] = [
@@ -177,7 +177,7 @@ class DashboardStat
             }
         }
 
-        if ($settingModel->getBool('notify_po_belum_diproses', true) && hasRole([ROLE_SUPER_ADMIN, ROLE_FINANCE])) {
+        if ($settingModel->getBool('notify_po_belum_diproses', true) && hasRole([ROLE_SUPER_ADMIN, ROLE_ACCOUNTING, ROLE_PURCHASE])) {
             $count = $this->poBelumDiproses();
             if ($count > 0) {
                 $items[] = [

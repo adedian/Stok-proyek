@@ -68,6 +68,7 @@ class PaymentController extends Controller
      */
     public function create()
     {
+        Middleware::requirePermission('payment', 'create');
         $poId = (int) ($_GET['po_id'] ?? 0);
         $selectedPo = $poId ? $this->poModel->findWithRelations($poId) : null;
 
@@ -92,6 +93,7 @@ class PaymentController extends Controller
 
     public function store()
     {
+        Middleware::requirePermission('payment', 'create');
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('payment', 'create');
         }
@@ -144,6 +146,7 @@ class PaymentController extends Controller
 
     public function edit()
     {
+        Middleware::requirePermission('payment', 'edit');
         $id = (int) ($_GET['id'] ?? 0);
         $payment = $this->paymentModel->findWithRelations($id);
 
@@ -170,6 +173,7 @@ class PaymentController extends Controller
 
     public function update()
     {
+        Middleware::requirePermission('payment', 'edit');
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('payment', 'index');
         }
@@ -233,6 +237,7 @@ class PaymentController extends Controller
 
     public function delete()
     {
+        Middleware::requirePermission('payment', 'delete');
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('payment', 'index');
         }

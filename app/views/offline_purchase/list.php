@@ -3,9 +3,11 @@
         <h4 class="mb-0">Pembelian Offline</h4>
         <small class="text-muted">Pembelian manual di luar Purchase Order</small>
     </div>
+    <?php if (can('offline_purchase', 'create')): ?>
     <a href="<?= BASE_URL ?>/index.php?module=offline_purchase&action=create" class="btn btn-primary">
         <i class="bi bi-plus-circle"></i> Tambah Pembelian
     </a>
+    <?php endif; ?>
 </div>
 
 <div class="card border-0 shadow-sm mb-3">
@@ -72,9 +74,11 @@
                                 <i class="bi bi-shop empty-icon"></i>
                                 <div class="empty-title">Belum ada pembelian offline</div>
                                 <div class="empty-desc">Catat pembelian barang di luar mekanisme Purchase Order di sini.</div>
+                                <?php if (can('offline_purchase', 'create')): ?>
                                 <a href="<?= BASE_URL ?>/index.php?module=offline_purchase&action=create" class="btn btn-sm btn-primary">
                                     <i class="bi bi-plus-circle"></i> Tambah Pembelian
                                 </a>
+                                <?php endif; ?>
                             </div>
                         </td></tr>
                     <?php endif; ?>
@@ -121,12 +125,14 @@
                                                 <i class="bi bi-eye"></i> Detail
                                             </a>
                                         </li>
+                                        <?php if (can('offline_purchase', 'edit')): ?>
                                         <li>
                                             <a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=offline_purchase&action=edit&id=<?= (int) $p['id'] ?>">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
                                         </li>
-                                        <?php if ($p['status'] === 'belum_diterima' && hasRole([ROLE_SUPER_ADMIN, ROLE_FINANCE])): ?>
+                                        <?php endif; ?>
+                                        <?php if ($p['status'] === 'belum_diterima' && can('offline_purchase', 'delete')): ?>
                                             <li>
                                                 <form method="POST" action="<?= BASE_URL ?>/index.php?module=offline_purchase&action=delete"
                                                       onsubmit="return confirm('Yakin ingin menghapus pembelian offline ini?');">

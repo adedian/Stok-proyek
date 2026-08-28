@@ -38,6 +38,9 @@ class Router
         'collection_receipt' => 'CollectionReceiptController',
         'dp_percentage'      => 'DpPercentageController',
         'trash'              => 'TrashController',
+        'cash'               => 'CashController',
+        'cash_category'      => 'CashCategoryController',
+        'user_pic'           => 'UserPicController',
     ];
 
     public function dispatch(): void

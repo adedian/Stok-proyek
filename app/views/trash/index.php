@@ -1,8 +1,19 @@
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
         <h4 class="mb-0">Tempat Sampah</h4>
         <small class="text-muted">Data yang sudah dihapus dari seluruh modul -- bisa dipulihkan atau dihapus permanen</small>
     </div>
+    <?php if (!empty($rows)): ?>
+        <form method="POST" action="<?= BASE_URL ?>/index.php?module=trash&action=forceDeleteAll"
+              class="js-confirm-delete"
+              data-message="Hapus PERMANEN <?= count($rows) ?> data<?= $moduleFilter !== '' ? ' pada modul ' . e($moduleOptions[$moduleFilter] ?? $moduleFilter) : '' ?>? Data yang masih dipakai transaksi lain akan dilewati. Tindakan ini TIDAK BISA dibatalkan.">
+            <?= csrfField() ?>
+            <input type="hidden" name="module_filter" value="<?= e($moduleFilter) ?>">
+            <button type="submit" class="btn btn-outline-danger">
+                <i class="bi bi-trash3-fill"></i> Hapus Semua<?= $moduleFilter !== '' ? ' (modul ini)' : '' ?>
+            </button>
+        </form>
+    <?php endif; ?>
 </div>
 
 <div class="card border-0 shadow-sm mb-3">

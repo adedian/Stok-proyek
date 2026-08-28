@@ -67,3 +67,26 @@ function canQuickAdd(string $module): bool
 {
     return can($module, 'quick_add');
 }
+
+/**
+ * Tolak akses server-side dengan 403 + catat ke activity log. Dipakai untuk
+ * pembatasan yang LEBIH HALUS dari matrix module/action -- mis. row-level
+ * (user hanya boleh baris Kas milik PIC terkaitnya) atau scope laporan.
+ * Selalu berhenti (exit) setelah dipanggil.
+ */
+function denyAccess(string $reason = 'Akses ditolak'): void
+{
+    $module = $_GET['module'] ?? '-';
+    $action = $_GET['action'] ?? '-';
+    if (class_exists('ActivityLog')) {
+        (new ActivityLog())->log(
+            currentUserId(),
+            $module,
+            'access_denied',
+            "{$reason} (module={$module}&action={$action}, role=" . (currentUserRole() ?? '-') . ')'
+        );
+    }
+    http_response_code(403);
+    require ROOT_PATH . '/app/views/errors/403.php';
+    exit;
+}

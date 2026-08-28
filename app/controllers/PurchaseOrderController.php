@@ -306,12 +306,12 @@ class PurchaseOrderController extends Controller
      */
     public function delete()
     {
+        Middleware::requirePermission('purchase_order', 'delete');
+
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('purchase_order', 'index');
         }
         verifyCsrf();
-
-        Middleware::requirePermission('purchase_order', 'delete');
 
         $id = (int) ($_POST['id'] ?? 0);
         $po = $this->poModel->find($id);

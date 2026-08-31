@@ -24,20 +24,19 @@ class CashTransaction extends Model
      * Kredit stok dari baris rincian Kas yang kategorinya ber-affects_stock=1
      * dan SUDAH tersimpan. Idempotent via kolom cash_transaction_items.stock_posted_at.
      * Bucket ('kantor' / 'proyek') diambil dari cash_categories.stock_scope tiap
-     * baris; baris scope 'proyek' pakai project_id header.
+     * baris; baris scope 'proyek' pakai project_id BARIS itu.
      * Dipanggil di dalam transaction (store / update / restore Trash).
      * @return int jumlah baris yang menambah stok
      */
     public function applyStockCredit(int $trxId): int
     {
         $header = $this->db->fetchOne(
-            "SELECT trx_date, project_id FROM cash_transactions WHERE id = :id",
+            "SELECT trx_date FROM cash_transactions WHERE id = :id",
             ['id' => $trxId]
         );
         if (!$header) {
             return 0;
         }
-        $projectId = $header['project_id'] !== null ? (int) $header['project_id'] : null;
 
         $inv = new Inventory();
         $n = 0;
@@ -46,10 +45,11 @@ class CashTransaction extends Model
                 continue;
             }
             $scope = $row['stock_scope'] === 'kantor' ? 'kantor' : 'proyek';
+            $projectId = ($scope === 'kantor' || $row['project_id'] === null) ? null : (int) $row['project_id'];
             $inv->creditStock(
                 $row['uraian'],
                 (string) ($row['unit'] ?? ''),
-                $scope === 'kantor' ? null : $projectId,
+                $projectId,
                 (float) $row['qty'],
                 'kas',
                 $trxId,
@@ -73,22 +73,17 @@ class CashTransaction extends Model
      */
     public function applyStockReverse(int $trxId): void
     {
-        $header = $this->db->fetchOne(
-            "SELECT project_id FROM cash_transactions WHERE id = :id",
-            ['id' => $trxId]
-        );
-        $projectId = $header && $header['project_id'] !== null ? (int) $header['project_id'] : null;
-
         $inv = new Inventory();
         foreach ((new CashTransactionItem())->stockRowsByTransaction($trxId) as $row) {
             if (empty($row['stock_posted_at']) || (float) $row['qty'] <= 0) {
                 continue;
             }
             $scope = $row['stock_scope'] === 'kantor' ? 'kantor' : 'proyek';
+            $projectId = ($scope === 'kantor' || $row['project_id'] === null) ? null : (int) $row['project_id'];
             $inv->reverseCredit(
                 $row['uraian'],
                 (string) ($row['unit'] ?? ''),
-                $scope === 'kantor' ? null : $projectId,
+                $projectId,
                 (float) $row['qty'],
                 'kas',
                 $trxId,
@@ -116,10 +111,9 @@ class CashTransaction extends Model
     public function findWithRelations(int $id)
     {
         return $this->db->fetchOne(
-            "SELECT c.*, usr.full_name AS created_by_name, p.project_name
+            "SELECT c.*, usr.full_name AS created_by_name
                FROM cash_transactions c
                LEFT JOIN users usr ON usr.id = c.created_by
-               LEFT JOIN projects p ON p.id = c.project_id
               WHERE c.id = :id AND c.deleted_at IS NULL",
             ['id' => $id]
         );

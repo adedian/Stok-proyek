@@ -3,7 +3,10 @@ require_once ROOT_PATH . '/core/Model.php';
 
 /**
  * Rincian item satu transaksi Kas.
- * {cash_category_id, uraian, unit, qty, satuan(=harga satuan Rp), jumlah=qty*satuan}.
+ * {cash_category_id, project_id, supplier_name, uraian, unit, qty,
+ *  satuan(=harga satuan Rp), jumlah=qty*satuan}.
+ * project_id diisi hanya untuk baris ber-kategori stok scope 'proyek';
+ * supplier_name opsional untuk baris yang masuk stok.
  *
  * Kategori diambil per baris dari Master Kategori Kas (cash_categories). Kategori
  * ber-`affects_stock`=1 membuat baris ini otomatis menambah stok saat transaksi
@@ -21,9 +24,10 @@ class CashTransactionItem extends Model
     public function byTransaction(int $trxId): array
     {
         return $this->db->fetchAll(
-            "SELECT cti.*, cc.category_name, cc.affects_stock, cc.stock_scope
+            "SELECT cti.*, cc.category_name, cc.affects_stock, cc.stock_scope, p.project_name
                FROM cash_transaction_items cti
                LEFT JOIN cash_categories cc ON cc.id = cti.cash_category_id
+               LEFT JOIN projects p ON p.id = cti.project_id
               WHERE cti.cash_transaction_id = :id
            ORDER BY cti.id ASC",
             ['id' => $trxId]

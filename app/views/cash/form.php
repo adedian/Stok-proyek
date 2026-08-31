@@ -5,7 +5,7 @@ $isEdit = $mode === 'edit';
 $actionUrl = $isEdit ? 'update' : 'store';
 $val = static fn(string $k, $d = '') => e($cash[$k] ?? $d);
 $curPic = $cash['pic'] ?? '';
-// Partial baris memakai $cashCategories / $units.
+// Partial baris memakai $cashCategories / $units / $projects.
 $cashCategories = $categories;
 ?>
 <style>
@@ -115,28 +115,6 @@ $cashCategories = $categories;
                         <option value="keluar" <?= ($cash['mutasi'] ?? '') === 'keluar' ? 'selected' : '' ?>>Keluar</option>
                     </select>
                 </div>
-
-                <div class="col-md-6">
-                    <label class="form-label">Project</label>
-                    <select name="project_id" id="cash_project" class="form-select">
-                        <option value="">-- Pilih Project --</option>
-                        <?php foreach ($projects as $p): ?>
-                            <option value="<?= (int) $p['id'] ?>"
-                                <?= (int) ($cash['project_id'] ?? 0) === (int) $p['id'] ? 'selected' : '' ?>>
-                                <?= e($p['project_name']) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                    <div class="form-text" id="projectHint">
-                        Wajib diisi bila ada baris ber-kategori stok proyek (mis. Material Projek / Inventory Teknik).
-                    </div>
-                </div>
-
-                <div class="col-md-6">
-                    <label class="form-label">Supplier <span class="text-muted small">(opsional)</span></label>
-                    <input type="text" name="supplier_name" class="form-control"
-                           value="<?= e($cash['supplier_name'] ?? '') ?>" placeholder="mis. Toko Listrik Jaya">
-                </div>
             </div>
         </div>
     </div>
@@ -150,9 +128,10 @@ $cashCategories = $categories;
                 </button>
             </div>
             <p class="text-muted small mb-2">
-                Kategori dipilih per baris. Baris ber-kategori <strong>Material Projek</strong>,
+                Kategori, Project, dan Supplier dipilih per baris. Baris ber-kategori <strong>Material Projek</strong>,
                 <strong>Inventory Kantor</strong>, atau <strong>Inventory Teknik</strong> otomatis menambah stok
-                saat disimpan (satuan wajib). Baris <strong>Biaya Operasional</strong> tidak menyentuh stok.
+                saat disimpan (Satuan wajib; Project wajib untuk Material Projek / Inventory Teknik).
+                Baris <strong>Biaya Operasional</strong> tidak menyentuh stok.
             </p>
             <div class="table-responsive">
                 <table class="table table-sm align-middle" id="itemTable">
@@ -160,6 +139,8 @@ $cashCategories = $categories;
                         <tr>
                             <th>Uraian</th>
                             <th>Kategori</th>
+                            <th>Project</th>
+                            <th>Supplier</th>
                             <th>Satuan</th>
                             <th>Qty</th>
                             <th>Harga Satuan (Rp)</th>
@@ -178,7 +159,7 @@ $cashCategories = $categories;
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td colspan="5" class="text-end fw-bold">Total Nominal</td>
+                            <td colspan="7" class="text-end fw-bold">Total Nominal</td>
                             <td class="text-end fw-bold" id="grandTotal">Rp 0.00</td>
                             <td></td>
                         </tr>
@@ -201,8 +182,6 @@ $cashCategories = $categories;
     const tableBody = document.getElementById('itemTableBody');
     const btnAddItem = document.getElementById('btnAddItem');
     const grandTotalEl = document.getElementById('grandTotal');
-    const projectSelect = document.getElementById('cash_project');
-    const projectHint = document.getElementById('projectHint');
     let rowIndex = tableBody.querySelectorAll('.item-row').length;
 
     function formatRupiah(num) {
@@ -221,38 +200,30 @@ $cashCategories = $categories;
         grandTotalEl.textContent = formatRupiah(total);
     }
 
-    // Kategori baris menentukan: baris masuk stok? -> kolom Satuan aktif & wajib.
+    // Aktifkan/matikan satu field stok + placeholder "—" pendampingnya.
+    function setField(field, na, on, req) {
+        if (!field) return;
+        field.disabled = !on;
+        field.required = !!(on && req);
+        field.classList.toggle('d-none', !on);
+        if (!on) field.value = '';
+        if (na) na.classList.toggle('d-none', on);
+    }
+
+    // Kategori baris menentukan kolom stok mana yang aktif:
+    //  affects_stock -> Satuan (wajib) + Supplier (opsional)
+    //  scope 'proyek' -> Project (wajib)
     function applyRowCategory(row) {
         const sel = row.querySelector('.category-select');
         const opt = sel.options[sel.selectedIndex];
         const isStock = !!(opt && opt.dataset.affectsStock === '1');
-        const unitSel = row.querySelector('.unit-select');
-        const na = row.querySelector('.unit-na');
-        const hint = row.querySelector('.cat-hint');
+        const isProyek = isStock && opt.dataset.scope === 'proyek';
+        setField(row.querySelector('.unit-select'),     row.querySelector('.unit-na'), isStock, true);
+        setField(row.querySelector('.supplier-input'),  row.querySelector('.sup-na'),  isStock, false);
+        setField(row.querySelector('.project-select'),  row.querySelector('.proj-na'), isProyek, true);
         row.classList.toggle('stock-row', isStock);
-        unitSel.disabled = !isStock;
-        unitSel.required = isStock;
-        unitSel.classList.toggle('d-none', !isStock);
-        if (!isStock) unitSel.value = '';
-        if (na) na.classList.toggle('d-none', isStock);
+        const hint = row.querySelector('.cat-hint');
         if (hint) hint.classList.toggle('d-none', !isStock);
-    }
-
-    // Project wajib bila ada baris ber-kategori stok scope 'proyek'.
-    function syncProjectRequirement() {
-        let need = false;
-        tableBody.querySelectorAll('.category-select').forEach(function (sel) {
-            const opt = sel.options[sel.selectedIndex];
-            if (opt && opt.dataset.affectsStock === '1' && opt.dataset.scope === 'proyek') need = true;
-        });
-        projectSelect.required = need;
-        projectSelect.classList.toggle('border-warning', need && !projectSelect.value);
-        if (projectHint) projectHint.classList.toggle('text-warning', need);
-    }
-
-    function refreshRow(row) {
-        applyRowCategory(row);
-        syncProjectRequirement();
     }
 
     tableBody.addEventListener('input', function (e) {
@@ -262,7 +233,7 @@ $cashCategories = $categories;
     });
     tableBody.addEventListener('change', function (e) {
         if (e.target.classList.contains('category-select')) {
-            refreshRow(e.target.closest('.item-row'));
+            applyRowCategory(e.target.closest('.item-row'));
         }
     });
     tableBody.addEventListener('click', function (e) {
@@ -274,12 +245,8 @@ $cashCategories = $categories;
             }
             removeBtn.closest('.item-row').remove();
             recalcAll();
-            syncProjectRequirement();
         }
     });
-    if (projectSelect) {
-        projectSelect.addEventListener('change', syncProjectRequirement);
-    }
     btnAddItem.addEventListener('click', function () {
         rowIndex++;
         fetch('<?= BASE_URL ?>/index.php?module=cash&action=ajaxItemRow&index=' + rowIndex)
@@ -288,14 +255,12 @@ $cashCategories = $categories;
                 tableBody.insertAdjacentHTML('beforeend', data.html);
                 const newRow = tableBody.querySelector('.item-row:last-child');
                 if (newRow) applyRowCategory(newRow);
-                syncProjectRequirement();
                 recalcAll();
             })
             .catch(function () { alert('Gagal menambahkan baris. Silakan coba lagi.'); });
     });
 
     tableBody.querySelectorAll('.item-row').forEach(applyRowCategory);
-    syncProjectRequirement();
     recalcAll();
 })();
 </script>

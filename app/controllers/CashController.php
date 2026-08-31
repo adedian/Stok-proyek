@@ -359,8 +359,6 @@ class CashController extends Controller
                 'division'      => $this->resolveDivision($data['pic']),
                 'no_bukti'      => $data['no_bukti'],
                 'mutasi'        => $data['mutasi'],
-                'project_id'    => $data['project_id'] ?: null,
-                'supplier_name' => $data['supplier_name'] ?: null,
                 'total_amount'  => $this->sumItems($items),
                 'created_by'    => currentUserId(),
             ]);
@@ -459,8 +457,6 @@ class CashController extends Controller
                 'division'      => $this->resolveDivision($data['pic']),
                 'no_bukti'      => $data['no_bukti'],
                 'mutasi'        => $data['mutasi'],
-                'project_id'    => $data['project_id'] ?: null,
-                'supplier_name' => $data['supplier_name'] ?: null,
                 'total_amount'  => $this->sumItems($items),
             ]);
             $this->itemModel->deleteByTransaction($id);
@@ -532,6 +528,7 @@ class CashController extends Controller
         $item = null;
         $cashCategories = $this->categoryModel->activeList();
         $units = $this->unitModel->activeList();
+        $projects = $this->projectModel->activeList();
         ob_start();
         require ROOT_PATH . '/app/views/cash/_item_row.php';
         $html = ob_get_clean();
@@ -622,29 +619,30 @@ class CashController extends Controller
     private function collectInput(): array
     {
         return [
-            'trx_date'      => trim($_POST['trx_date'] ?? ''),
-            'pic'           => trim($_POST['pic'] ?? ''),
-            'no_bukti'      => trim($_POST['no_bukti'] ?? ''),
-            'mutasi'        => ($_POST['mutasi'] ?? '') === 'masuk' ? 'masuk'
+            'trx_date' => trim($_POST['trx_date'] ?? ''),
+            'pic'      => trim($_POST['pic'] ?? ''),
+            'no_bukti' => trim($_POST['no_bukti'] ?? ''),
+            'mutasi'   => ($_POST['mutasi'] ?? '') === 'masuk' ? 'masuk'
                 : (($_POST['mutasi'] ?? '') === 'keluar' ? 'keluar' : ''),
-            'project_id'    => (int) ($_POST['project_id'] ?? 0),
-            'supplier_name' => trim($_POST['supplier_name'] ?? ''),
         ];
     }
 
     /**
-     * Array baris rincian bersih dari POST: {uraian, cash_category_id, unit,
-     * qty, satuan(=harga satuan Rp), jumlah}. Kategori tiap baris dari Master
-     * Kategori Kas; kategori ber-affects_stock membuat baris masuk stok
-     * (satuan wajib), "Biaya Operasional" tidak.
+     * Array baris rincian bersih dari POST: {uraian, cash_category_id,
+     * project_id, supplier_name, unit, qty, satuan(=harga satuan Rp), jumlah}.
+     * Kategori tiap baris dari Master Kategori Kas; kategori ber-affects_stock
+     * membuat baris masuk stok (satuan wajib), "Biaya Operasional" tidak.
+     * project_id hanya untuk baris scope 'proyek'; supplier untuk baris stok.
      */
     private function collectItems(): array
     {
-        $uraian = $_POST['item_uraian'] ?? [];
-        $qty    = $_POST['item_qty'] ?? [];
-        $satuan = $_POST['item_satuan'] ?? [];
-        $catIds = $_POST['item_cash_category_id'] ?? [];
-        $units  = $_POST['item_unit'] ?? [];
+        $uraian    = $_POST['item_uraian'] ?? [];
+        $qty       = $_POST['item_qty'] ?? [];
+        $satuan    = $_POST['item_satuan'] ?? [];
+        $catIds    = $_POST['item_cash_category_id'] ?? [];
+        $units     = $_POST['item_unit'] ?? [];
+        $projects  = $_POST['item_project_id'] ?? [];
+        $suppliers = $_POST['item_supplier_name'] ?? [];
         $out = [];
         for ($i = 0; $i < count($uraian); $i++) {
             $u   = trim((string) ($uraian[$i] ?? ''));
@@ -660,6 +658,8 @@ class CashController extends Controller
                 'satuan'           => $s,
                 'jumlah'           => round($q * $s, 2),
                 'cash_category_id' => $cid,
+                'project_id'       => !empty($projects[$i]) ? (int) $projects[$i] : null,
+                'supplier_name'    => trim((string) ($suppliers[$i] ?? '')) ?: null,
                 'unit'             => trim((string) ($units[$i] ?? '')) ?: null,
             ];
         }
@@ -674,15 +674,19 @@ class CashController extends Controller
     private function saveItems(int $trxId, array $items): void
     {
         foreach ($items as $it) {
-            // Satuan hanya relevan untuk baris ber-kategori stok -- baris non-stok
-            // (mis. Biaya Operasional) disimpan tanpa satuan.
-            $cat  = $it['cash_category_id'] ? ($this->categoryModel->find((int) $it['cash_category_id']) ?: null) : null;
-            $unit = ($cat && (int) $cat['affects_stock'] === 1) ? ($it['unit'] ?? null) : null;
+            // Kolom stok (satuan / project / supplier) hanya relevan untuk baris
+            // ber-kategori stok. Baris non-stok (mis. Biaya Operasional) disimpan
+            // bersih tanpa kolom-kolom itu.
+            $cat     = $it['cash_category_id'] ? ($this->categoryModel->find((int) $it['cash_category_id']) ?: null) : null;
+            $isStock = $cat && (int) $cat['affects_stock'] === 1;
+            $isProyek = $isStock && ($cat['stock_scope'] ?? null) === 'proyek';
             $this->itemModel->create([
                 'cash_transaction_id' => $trxId,
                 'cash_category_id'    => $it['cash_category_id'] ?? null,
+                'project_id'          => $isProyek ? ($it['project_id'] ?? null) : null,
+                'supplier_name'       => $isStock ? ($it['supplier_name'] ?? null) : null,
                 'uraian'              => $it['uraian'],
-                'unit'               => $unit,
+                'unit'               => $isStock ? ($it['unit'] ?? null) : null,
                 'qty'                => $it['qty'],
                 'satuan'             => $it['satuan'],
                 'jumlah'             => $it['jumlah'],
@@ -716,7 +720,6 @@ class CashController extends Controller
         }
 
         $catMap = $this->categoryModel->mapById();
-        $needProject = false;
 
         if (empty($items)) {
             $errors[] = 'Minimal 1 baris rincian (Uraian, Kategori, Qty, Harga) wajib diisi.';
@@ -744,14 +747,12 @@ class CashController extends Controller
                         $errors[] = "Baris {$n}: Satuan wajib untuk kategori '{$cat['category_name']}'.";
                     }
                     if (($cat['stock_scope'] ?? null) === 'proyek') {
-                        $needProject = true;
+                        if ((int) ($it['project_id'] ?? 0) <= 0 || !$this->projectModel->find((int) $it['project_id'])) {
+                            $errors[] = "Baris {$n}: Project wajib dipilih untuk kategori '{$cat['category_name']}'.";
+                        }
                     }
                 }
             }
-        }
-
-        if ($needProject && ((int) ($d['project_id'] ?? 0) <= 0 || !$this->projectModel->find((int) $d['project_id']))) {
-            $errors[] = 'Project wajib dipilih karena ada baris ber-kategori stok proyek (mis. Material Projek / Inventory Teknik).';
         }
 
         return $errors;

@@ -17,6 +17,22 @@ class CashCategory extends Model
         );
     }
 
+    /**
+     * Kategori aktif dipetakan per id -- dipakai CashController untuk memvalidasi
+     * kategori tiap baris rincian & menentukan apakah baris itu masuk stok
+     * (affects_stock) dan bucket mana (stock_scope: 'kantor' / 'proyek').
+     *
+     * @return array<int,array{id:int,category_name:string,affects_stock:int,stock_scope:?string}>
+     */
+    public function mapById(): array
+    {
+        $out = [];
+        foreach ($this->activeList() as $row) {
+            $out[(int) $row['id']] = $row;
+        }
+        return $out;
+    }
+
     public function nameExists(string $name, ?int $excludeId = null): bool
     {
         $sql = "SELECT id FROM cash_categories WHERE category_name = :name AND deleted_at IS NULL";

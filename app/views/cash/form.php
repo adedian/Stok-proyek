@@ -1,9 +1,12 @@
 <?php
-/** @var string $mode @var array|null $cash @var array $items @var array $categories @var array $picOptions */
+/** @var string $mode @var array|null $cash @var array $items @var array $categories @var array $picOptions
+ *  @var array $projects @var array $units */
 $isEdit = $mode === 'edit';
 $actionUrl = $isEdit ? 'update' : 'store';
 $val = static fn(string $k, $d = '') => e($cash[$k] ?? $d);
 $curPic = $cash['pic'] ?? '';
+// Partial baris memakai $cashCategories / $units.
+$cashCategories = $categories;
 ?>
 <style>
 /* Rincian item Kas: di layar sempit (<768px) tiap baris jadi kartu bertumpuk,
@@ -59,16 +62,6 @@ $curPic = $cash['pic'] ?? '';
         padding-top: .6rem;
     }
 }
-
-/* Kolom khusus mode "Pembelian Barang (masuk stok)" -- hanya tampil saat
-   tabel ber-class .stock-mode. Tidak menyentuh style modul lain. */
-#itemTable .stock-col { display: none; }
-#itemTable.stock-mode .stock-col { display: table-cell; }
-@media (max-width: 767.98px) {
-    #itemTable.stock-mode .stock-col { display: block; }
-}
-#stockPurchaseBox { display: none; }
-#stockPurchaseBox.show { display: block; }
 </style>
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h4 class="mb-0"><?= $isEdit ? 'Edit' : 'Tambah' ?> Kas</h4>
@@ -123,51 +116,26 @@ $curPic = $cash['pic'] ?? '';
                     </select>
                 </div>
 
-                <div class="col-md-4">
-                    <label class="form-label">Kategori <span class="text-danger">*</span></label>
-                    <select name="category_id" class="form-select" required>
-                        <option value="">-- Pilih Kategori --</option>
-                        <?php foreach ($categories as $c): ?>
-                            <option value="<?= (int) $c['id'] ?>"
-                                <?= (int) ($cash['category_id'] ?? 0) === (int) $c['id'] ? 'selected' : '' ?>>
-                                <?= e($c['category_name']) ?>
+                <div class="col-md-6">
+                    <label class="form-label">Project</label>
+                    <select name="project_id" id="cash_project" class="form-select">
+                        <option value="">-- Pilih Project --</option>
+                        <?php foreach ($projects as $p): ?>
+                            <option value="<?= (int) $p['id'] ?>"
+                                <?= (int) ($cash['project_id'] ?? 0) === (int) $p['id'] ? 'selected' : '' ?>>
+                                <?= e($p['project_name']) ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
-                </div>
-
-                <div class="col-12">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" role="switch"
-                               name="affects_stock" id="affectsStock" value="1"
-                               <?= (int) ($cash['affects_stock'] ?? 0) === 1 ? 'checked' : '' ?>>
-                        <label class="form-check-label" for="affectsStock">
-                            <strong>Pembelian Barang (masuk stok)</strong>
-                            <span class="text-muted small">&mdash; tiap baris yang dipilih dari master Barang otomatis menambah stok saat disimpan (tanpa lewat Validasi Barang).</span>
-                        </label>
+                    <div class="form-text" id="projectHint">
+                        Wajib diisi bila ada baris ber-kategori stok proyek (mis. Material Projek / Inventory Teknik).
                     </div>
                 </div>
 
-                <div class="col-12" id="stockPurchaseBox">
-                    <div class="row g-3 border rounded p-2 bg-light mx-0">
-                        <div class="col-md-6">
-                            <label class="form-label">Project <span class="text-muted small">(wajib untuk barang stok proyek/lampu)</span></label>
-                            <select name="project_id" class="form-select">
-                                <option value="">-- Pilih Project --</option>
-                                <?php foreach ($projects as $p): ?>
-                                    <option value="<?= (int) $p['id'] ?>"
-                                        <?= (int) ($cash['project_id'] ?? 0) === (int) $p['id'] ? 'selected' : '' ?>>
-                                        <?= e($p['project_name']) ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Supplier <span class="text-muted small">(opsional)</span></label>
-                            <input type="text" name="supplier_name" class="form-control"
-                                   value="<?= e($cash['supplier_name'] ?? '') ?>" placeholder="mis. Toko Listrik Jaya">
-                        </div>
-                    </div>
+                <div class="col-md-6">
+                    <label class="form-label">Supplier <span class="text-muted small">(opsional)</span></label>
+                    <input type="text" name="supplier_name" class="form-control"
+                           value="<?= e($cash['supplier_name'] ?? '') ?>" placeholder="mis. Toko Listrik Jaya">
                 </div>
             </div>
         </div>
@@ -181,15 +149,19 @@ $curPic = $cash['pic'] ?? '';
                     <i class="bi bi-plus-circle"></i> Tambah Baris
                 </button>
             </div>
+            <p class="text-muted small mb-2">
+                Kategori dipilih per baris. Baris ber-kategori <strong>Material Projek</strong>,
+                <strong>Inventory Kantor</strong>, atau <strong>Inventory Teknik</strong> otomatis menambah stok
+                saat disimpan (satuan wajib). Baris <strong>Biaya Operasional</strong> tidak menyentuh stok.
+            </p>
             <div class="table-responsive">
                 <table class="table table-sm align-middle" id="itemTable">
                     <thead class="table-light">
                         <tr>
-                            <th class="stock-col">Barang</th>
                             <th>Uraian</th>
-                            <th class="stock-col">Kategori</th>
+                            <th>Kategori</th>
+                            <th>Satuan</th>
                             <th>Qty</th>
-                            <th class="stock-col">Satuan</th>
                             <th>Harga Satuan (Rp)</th>
                             <th class="text-end">Jumlah</th>
                             <th></th>
@@ -206,7 +178,7 @@ $curPic = $cash['pic'] ?? '';
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td colspan="6" class="text-end fw-bold">Total Nominal</td>
+                            <td colspan="5" class="text-end fw-bold">Total Nominal</td>
                             <td class="text-end fw-bold" id="grandTotal">Rp 0.00</td>
                             <td></td>
                         </tr>
@@ -226,13 +198,11 @@ $curPic = $cash['pic'] ?? '';
 
 <script>
 (function () {
-    const form = document.getElementById('cashForm');
     const tableBody = document.getElementById('itemTableBody');
-    const table = document.getElementById('itemTable');
     const btnAddItem = document.getElementById('btnAddItem');
     const grandTotalEl = document.getElementById('grandTotal');
-    const toggle = document.getElementById('affectsStock');
-    const stockBox = document.getElementById('stockPurchaseBox');
+    const projectSelect = document.getElementById('cash_project');
+    const projectHint = document.getElementById('projectHint');
     let rowIndex = tableBody.querySelectorAll('.item-row').length;
 
     function formatRupiah(num) {
@@ -251,48 +221,39 @@ $curPic = $cash['pic'] ?? '';
         grandTotalEl.textContent = formatRupiah(total);
     }
 
-    // --- Mode "Pembelian Barang (masuk stok)" ---
-    function applyStockMode() {
-        const on = toggle.checked;
-        table.classList.toggle('stock-mode', on);
-        stockBox.classList.toggle('show', on);
-        tableBody.querySelectorAll('.item-row').forEach(function (row) {
-            const uraian = row.querySelector('.uraian-input');
-            const bSelect = row.querySelector('.barang-select');
-            // Di mode stok: uraian dikunci mengikuti Barang. Di mode biasa: bebas.
-            uraian.readOnly = on && !!(bSelect && bSelect.value === '');
-            if (!on) {
-                // keluar mode stok -> kosongkan tautan Barang, uraian jadi bebas
-                uraian.readOnly = false;
-            }
-        });
-    }
-    function fillFromBarang(row) {
-        const sel = row.querySelector('.barang-select');
+    // Kategori baris menentukan: baris masuk stok? -> kolom Satuan aktif & wajib.
+    function applyRowCategory(row) {
+        const sel = row.querySelector('.category-select');
         const opt = sel.options[sel.selectedIndex];
-        const idInput = row.querySelector('.item-id-input');
-        const uraian = row.querySelector('.uraian-input');
-        const catDisp = row.querySelector('.category-display');
-        const catId = row.querySelector('.category-id-input');
-        const unitDisp = row.querySelector('.unit-display');
-        const unitInput = row.querySelector('.unit-input');
-        if (opt && opt.value) {
-            idInput.value = opt.value;
-            uraian.value = opt.dataset.name || '';
-            uraian.readOnly = true;
-            catDisp.value = opt.dataset.catName || '';
-            catId.value = opt.dataset.catId && opt.dataset.catId !== '0' ? opt.dataset.catId : '';
-            unitDisp.value = opt.dataset.unit || '';
-            unitInput.value = opt.dataset.unit || '';
-        } else {
-            idInput.value = '';
-            catDisp.value = ''; catId.value = '';
-            unitDisp.value = ''; unitInput.value = '';
-            uraian.readOnly = false;
-        }
+        const isStock = !!(opt && opt.dataset.affectsStock === '1');
+        const unitSel = row.querySelector('.unit-select');
+        const na = row.querySelector('.unit-na');
+        const hint = row.querySelector('.cat-hint');
+        row.classList.toggle('stock-row', isStock);
+        unitSel.disabled = !isStock;
+        unitSel.required = isStock;
+        unitSel.classList.toggle('d-none', !isStock);
+        if (!isStock) unitSel.value = '';
+        if (na) na.classList.toggle('d-none', isStock);
+        if (hint) hint.classList.toggle('d-none', !isStock);
     }
 
-    toggle.addEventListener('change', applyStockMode);
+    // Project wajib bila ada baris ber-kategori stok scope 'proyek'.
+    function syncProjectRequirement() {
+        let need = false;
+        tableBody.querySelectorAll('.category-select').forEach(function (sel) {
+            const opt = sel.options[sel.selectedIndex];
+            if (opt && opt.dataset.affectsStock === '1' && opt.dataset.scope === 'proyek') need = true;
+        });
+        projectSelect.required = need;
+        projectSelect.classList.toggle('border-warning', need && !projectSelect.value);
+        if (projectHint) projectHint.classList.toggle('text-warning', need);
+    }
+
+    function refreshRow(row) {
+        applyRowCategory(row);
+        syncProjectRequirement();
+    }
 
     tableBody.addEventListener('input', function (e) {
         if (e.target.classList.contains('qty-input') || e.target.classList.contains('price-input')) {
@@ -300,8 +261,8 @@ $curPic = $cash['pic'] ?? '';
         }
     });
     tableBody.addEventListener('change', function (e) {
-        if (e.target.classList.contains('barang-select')) {
-            fillFromBarang(e.target.closest('.item-row'));
+        if (e.target.classList.contains('category-select')) {
+            refreshRow(e.target.closest('.item-row'));
         }
     });
     tableBody.addEventListener('click', function (e) {
@@ -313,27 +274,28 @@ $curPic = $cash['pic'] ?? '';
             }
             removeBtn.closest('.item-row').remove();
             recalcAll();
+            syncProjectRequirement();
         }
     });
+    if (projectSelect) {
+        projectSelect.addEventListener('change', syncProjectRequirement);
+    }
     btnAddItem.addEventListener('click', function () {
         rowIndex++;
         fetch('<?= BASE_URL ?>/index.php?module=cash&action=ajaxItemRow&index=' + rowIndex)
             .then(function (res) { return res.json(); })
             .then(function (data) {
                 tableBody.insertAdjacentHTML('beforeend', data.html);
+                const newRow = tableBody.querySelector('.item-row:last-child');
+                if (newRow) applyRowCategory(newRow);
+                syncProjectRequirement();
                 recalcAll();
             })
             .catch(function () { alert('Gagal menambahkan baris. Silakan coba lagi.'); });
     });
 
-    // Saat submit di mode non-stok: pastikan tautan Barang tidak ikut terkirim.
-    form.addEventListener('submit', function () {
-        if (!toggle.checked) {
-            tableBody.querySelectorAll('.item-id-input, .category-id-input, .unit-input').forEach(function (i) { i.value = ''; });
-        }
-    });
-
-    applyStockMode();
+    tableBody.querySelectorAll('.item-row').forEach(applyRowCategory);
+    syncProjectRequirement();
     recalcAll();
 })();
 </script>

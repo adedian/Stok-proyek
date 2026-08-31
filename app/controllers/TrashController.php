@@ -210,11 +210,13 @@ class TrashController extends Controller
             $pdo->beginTransaction();
             $cfg['model']->restoreById($id);
 
-            // Kas "Pembelian Barang": stok dikembalikan saat masuk Tempat Sampah,
-            // jadi saat DIPULIHKAN stok harus dikreditkan lagi (idempotent via
-            // cash_transaction_items.stock_posted_at).
-            if ($module === 'cash' && (int) ($row['affects_stock'] ?? 0) === 1) {
-                $cfg['model']->applyStockCredit($id);
+            // Kas dengan baris ber-kategori stok: stok dikembalikan saat masuk
+            // Tempat Sampah, jadi saat DIPULIHKAN stok dikreditkan lagi
+            // (idempotent via cash_transaction_items.stock_posted_at). No-op
+            // kalau transaksi ini tidak menyentuh stok.
+            $stockCredited = 0;
+            if ($module === 'cash') {
+                $stockCredited = $cfg['model']->applyStockCredit($id);
             }
 
             $this->activityLog->log(
@@ -222,7 +224,7 @@ class TrashController extends Controller
                 $module,
                 'restore',
                 "{$cfg['label']} '" . ($cfg['display'])($row) . "' dipulihkan dari Tempat Sampah"
-                    . ($module === 'cash' && (int) ($row['affects_stock'] ?? 0) === 1 ? ' (stok dikreditkan ulang)' : '')
+                    . ($stockCredited > 0 ? ' (stok dikreditkan ulang)' : '')
             );
             $pdo->commit();
         } catch (Throwable $e) {

@@ -18,45 +18,38 @@ class CashTransaction extends Model
     protected string $table = 'cash_transactions';
     protected bool $softDelete = true;
 
-    // ===================== INTEGRASI STOK (Kas "Pembelian Barang") =====================
-
-    private function stockScope(?string $stockType): string
-    {
-        return $stockType === 'inventory_kantor' ? 'kantor' : 'proyek';
-    }
+    // ===================== INTEGRASI STOK (kategori baris ber-affects_stock) =====================
 
     /**
-     * Kredit stok dari baris item Kas ber-item_id yang SUDAH tersimpan.
-     * Idempotent via kolom cash_transaction_items.stock_posted_at.
+     * Kredit stok dari baris rincian Kas yang kategorinya ber-affects_stock=1
+     * dan SUDAH tersimpan. Idempotent via kolom cash_transaction_items.stock_posted_at.
+     * Bucket ('kantor' / 'proyek') diambil dari cash_categories.stock_scope tiap
+     * baris; baris scope 'proyek' pakai project_id header.
      * Dipanggil di dalam transaction (store / update / restore Trash).
      * @return int jumlah baris yang menambah stok
      */
     public function applyStockCredit(int $trxId): int
     {
         $header = $this->db->fetchOne(
-            "SELECT trx_date, project_id, affects_stock FROM cash_transactions WHERE id = :id",
+            "SELECT trx_date, project_id FROM cash_transactions WHERE id = :id",
             ['id' => $trxId]
         );
-        if (!$header || (int) $header['affects_stock'] !== 1) {
+        if (!$header) {
             return 0;
         }
+        $projectId = $header['project_id'] !== null ? (int) $header['project_id'] : null;
 
-        $inv  = new Inventory();
-        $item = new Item();
+        $inv = new Inventory();
         $n = 0;
         foreach ((new CashTransactionItem())->stockRowsByTransaction($trxId) as $row) {
             if (!empty($row['stock_posted_at']) || (float) $row['qty'] <= 0) {
                 continue;
             }
-            $barang = $item->find((int) $row['item_id']);
-            if (!$barang) {
-                continue;
-            }
-            $scope = $this->stockScope($barang['stock_type'] ?? null);
+            $scope = $row['stock_scope'] === 'kantor' ? 'kantor' : 'proyek';
             $inv->creditStock(
-                $row['uraian'] !== '' ? $row['uraian'] : $barang['item_name'],
+                $row['uraian'],
                 (string) ($row['unit'] ?? ''),
-                $scope === 'kantor' ? null : ($header['project_id'] !== null ? (int) $header['project_id'] : null),
+                $scope === 'kantor' ? null : $projectId,
                 (float) $row['qty'],
                 'kas',
                 $trxId,
@@ -75,7 +68,8 @@ class CashTransaction extends Model
 
     /**
      * Balikkan semua kredit stok transaksi Kas ini (baris yang stock_posted_at
-     * terisi). Dipanggil sebelum update / soft-delete.
+     * terisi). Dipanggil sebelum update / soft-delete. No-op kalau tidak ada
+     * baris ber-kategori stok.
      */
     public function applyStockReverse(int $trxId): void
     {
@@ -85,16 +79,14 @@ class CashTransaction extends Model
         );
         $projectId = $header && $header['project_id'] !== null ? (int) $header['project_id'] : null;
 
-        $inv  = new Inventory();
-        $item = new Item();
+        $inv = new Inventory();
         foreach ((new CashTransactionItem())->stockRowsByTransaction($trxId) as $row) {
             if (empty($row['stock_posted_at']) || (float) $row['qty'] <= 0) {
                 continue;
             }
-            $barang = $item->find((int) $row['item_id']);
-            $scope = $this->stockScope($barang['stock_type'] ?? null);
+            $scope = $row['stock_scope'] === 'kantor' ? 'kantor' : 'proyek';
             $inv->reverseCredit(
-                $row['uraian'] !== '' ? $row['uraian'] : ($barang['item_name'] ?? $row['uraian']),
+                $row['uraian'],
                 (string) ($row['unit'] ?? ''),
                 $scope === 'kantor' ? null : $projectId,
                 (float) $row['qty'],
@@ -124,9 +116,8 @@ class CashTransaction extends Model
     public function findWithRelations(int $id)
     {
         return $this->db->fetchOne(
-            "SELECT c.*, cat.category_name, usr.full_name AS created_by_name, p.project_name
+            "SELECT c.*, usr.full_name AS created_by_name, p.project_name
                FROM cash_transactions c
-               JOIN cash_categories cat ON cat.id = c.category_id
                LEFT JOIN users usr ON usr.id = c.created_by
                LEFT JOIN projects p ON p.id = c.project_id
               WHERE c.id = :id AND c.deleted_at IS NULL",
@@ -137,9 +128,14 @@ class CashTransaction extends Model
     public function listFiltered(array $filters, ?array $scopePics, ?array $divisionScope = null): array
     {
         [$where, $params] = $this->buildWhere($filters, $scopePics, $divisionScope);
-        $sql = "SELECT c.*, cat.category_name, usr.full_name AS created_by_name
+        // Kategori sekarang per baris rincian -> tampilkan gabungan kategori
+        // unik transaksi ini di kolom "Kategori" daftar Kas.
+        $sql = "SELECT c.*, usr.full_name AS created_by_name,
+                       (SELECT GROUP_CONCAT(DISTINCT cc.category_name ORDER BY cc.category_name SEPARATOR ', ')
+                          FROM cash_transaction_items cti
+                          JOIN cash_categories cc ON cc.id = cti.cash_category_id
+                         WHERE cti.cash_transaction_id = c.id) AS category_name
                   FROM cash_transactions c
-                  JOIN cash_categories cat ON cat.id = c.category_id
                   LEFT JOIN users usr ON usr.id = c.created_by
                  {$where}
               ORDER BY c.trx_date DESC, c.id DESC";
@@ -213,9 +209,8 @@ class CashTransaction extends Model
     {
         [$where, $params] = $this->buildWhere($filters, $scopePics, $divisionScope);
         $trx = $this->db->fetchAll(
-            "SELECT c.id, c.trx_date, c.no_bukti, c.mutasi, cat.category_name
+            "SELECT c.id, c.trx_date, c.no_bukti, c.mutasi
                FROM cash_transactions c
-               JOIN cash_categories cat ON cat.id = c.category_id
               {$where}
            ORDER BY c.trx_date ASC, c.id ASC",
             $params
@@ -237,7 +232,7 @@ class CashTransaction extends Model
                 $rows[] = [
                     'trx_date'  => $first ? $t['trx_date'] : '',
                     'no_bukti'  => $first ? $t['no_bukti'] : '',
-                    'kategori'  => $first ? $t['category_name'] : '',
+                    'kategori'  => $it['category_name'] ?? '',
                     'uraian'    => $it['uraian'],
                     'qty'       => (float) $it['qty'],
                     'satuan'    => (float) $it['satuan'],
@@ -348,7 +343,9 @@ class CashTransaction extends Model
             $params['pic'] = '%' . $filters['pic'] . '%';
         }
         if (!empty($filters['category_id'])) {
-            $sql .= " AND c.category_id = :category_id";
+            $sql .= " AND EXISTS (SELECT 1 FROM cash_transaction_items cti
+                                   WHERE cti.cash_transaction_id = c.id
+                                     AND cti.cash_category_id = :category_id)";
             $params['category_id'] = (int) $filters['category_id'];
         }
         if (!empty($filters['mutasi']) && in_array($filters['mutasi'], ['masuk', 'keluar'], true)) {

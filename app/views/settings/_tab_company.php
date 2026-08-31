@@ -9,7 +9,7 @@
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Logo Perusahaan</label>
-                    <input type="file" name="company_logo" class="form-control" accept=".jpg,.jpeg,.png">
+                    <input type="file" name="company_logo" class="form-control" accept=".jpg,.jpeg,.png,.webp">
                     <?php if (!empty($company['company_logo'])): ?>
                         <div class="form-text">
                             Logo saat ini: <a href="<?= BASE_URL ?>/<?= e($company['company_logo']) ?>" target="_blank">lihat logo</a>

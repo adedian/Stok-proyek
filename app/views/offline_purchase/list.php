@@ -101,7 +101,7 @@
                             </td>
                             <td class="text-center">
                                 <?php if (!empty($p['proof_file'])): ?>
-                                    <a href="<?= BASE_URL ?>/<?= e($p['proof_file']) ?>" target="_blank" title="Bukti pembelian">
+                                    <a href="<?= e(fileUrl($p['proof_file'])) ?>" target="_blank" title="Bukti pembelian">
                                         <i class="bi bi-receipt"></i>
                                     </a>
                                 <?php endif; ?>

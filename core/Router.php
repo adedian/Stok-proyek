@@ -41,6 +41,7 @@ class Router
         'cash'               => 'CashController',
         'cash_category'      => 'CashCategoryController',
         'user_pic'           => 'UserPicController',
+        'file'               => 'FileController',
     ];
 
     public function dispatch(): void

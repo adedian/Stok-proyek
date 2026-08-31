@@ -61,6 +61,23 @@ class ActivityLog extends Model
     }
 
     /**
+     * Jumlah percobaan login GAGAL dari satu IP dalam $minutes menit terakhir.
+     * Dipakai AuthController untuk throttling brute-force sederhana -- tanpa
+     * tabel baru, tanpa mengunci akun permanen (jendela otomatis kedaluwarsa).
+     */
+    public function countRecentFailedLogins(string $ip, int $minutes = 15): int
+    {
+        $since = date('Y-m-d H:i:s', time() - ($minutes * 60));
+        $row = $this->db->fetchOne(
+            "SELECT COUNT(*) AS c FROM activity_logs
+             WHERE module = 'auth' AND action = 'login_failed'
+               AND ip_address = :ip AND created_at >= :since",
+            ['ip' => $ip, 'since' => $since]
+        );
+        return (int) ($row['c'] ?? 0);
+    }
+
+    /**
      * Daftar module unik yang pernah tercatat -- dipakai untuk dropdown filter.
      */
     public function distinctModules(): array

@@ -100,11 +100,11 @@ $selectedPoId = $selectedPo['id'] ?? ($payment['purchase_order_id'] ?? '');
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Bukti Transfer <?= $isEdit ? '(kosongkan jika tidak ganti)' : '' ?></label>
-                    <input type="file" name="proof_file" class="form-control" accept=".jpg,.jpeg,.png,.pdf">
+                    <input type="file" name="proof_file" class="form-control" accept=".jpg,.jpeg,.png,.webp,.pdf">
                     <?php if ($isEdit && !empty($payment['proof_file'])): ?>
                         <div class="form-text">
                             File saat ini:
-                            <a href="<?= BASE_URL ?>/<?= e($payment['proof_file']) ?>" target="_blank">lihat bukti</a>
+                            <a href="<?= e(fileUrl($payment['proof_file'])) ?>" target="_blank">lihat bukti</a>
                         </div>
                     <?php endif; ?>
                 </div>

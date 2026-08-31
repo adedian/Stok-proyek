@@ -137,13 +137,13 @@ class GoodsReceiptController extends Controller
         }
 
         try {
-            $photoGoods = handleFileUpload('photo_goods', 'foto_barang', ['jpg', 'jpeg', 'png'], 5);
+            $photoGoods = handleFileUpload('photo_goods', 'foto_barang', ['jpg', 'jpeg', 'png', 'webp'], 5);
             // Upload Invoice pada Penerimaan Barang -- extension+MIME+size+secure
             // filename semua sudah divalidasi di handleFileUpload() (lihat
             // upload_helper.php). Dilakukan SEBELUM beginTransaction(): kalau upload
             // gagal, penerimaan tidak boleh tersimpan setengah (tidak ada row yang
             // sempat dibuat sama sekali).
-            $invoiceFile = handleFileUpload('invoice_file', 'invoice_penerimaan', ['pdf', 'jpg', 'jpeg', 'png'], 5);
+            $invoiceFile = handleFileUpload('invoice_file', 'invoice_penerimaan', ['pdf', 'jpg', 'jpeg', 'png', 'webp'], 5);
         } catch (RuntimeException $e) {
             setFlash('error', $e->getMessage());
             $this->redirect('goods_receipt', 'create', ['po_id' => $data['purchase_order_id']]);
@@ -317,8 +317,8 @@ class GoodsReceiptController extends Controller
         }
 
         try {
-            $photoGoods = handleFileUpload('photo_goods', 'foto_barang', ['jpg', 'jpeg', 'png'], 5);
-            $invoiceFile = handleFileUpload('invoice_file', 'invoice_penerimaan', ['pdf', 'jpg', 'jpeg', 'png'], 5);
+            $photoGoods = handleFileUpload('photo_goods', 'foto_barang', ['jpg', 'jpeg', 'png', 'webp'], 5);
+            $invoiceFile = handleFileUpload('invoice_file', 'invoice_penerimaan', ['pdf', 'jpg', 'jpeg', 'png', 'webp'], 5);
         } catch (RuntimeException $e) {
             setFlash('error', $e->getMessage());
             $this->redirect('goods_receipt', 'edit', ['id' => $id]);
@@ -874,7 +874,7 @@ class GoodsReceiptController extends Controller
             $_FILES['delivery_documents_single'] = $singleFile;
 
             try {
-                $path = handleFileUpload('delivery_documents_single', 'surat_jalan', ['jpg', 'jpeg', 'png', 'pdf'], 5);
+                $path = handleFileUpload('delivery_documents_single', 'surat_jalan', ['jpg', 'jpeg', 'png', 'webp', 'pdf'], 5);
                 if ($path) {
                     $this->documentModel->create([
                         'goods_receipt_id' => $receiptId,

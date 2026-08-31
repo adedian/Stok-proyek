@@ -1,7 +1,31 @@
-# Cegah listing folder uploads & akses langsung ke file .php di luar index.php (opsional, tergantung kebutuhan)
-Options -Indexes
+# =========================================================================
+#  Root project -- hardening akses langsung.
+#  Aplikasi HANYA dilayani dari sub-folder public/ (public/index.php).
+#  Folder lain (config, core, app, database, logs, storage, vendor) TIDAK
+#  boleh diakses lewat browser -- masing-masing juga punya .htaccess sendiri
+#  "Require all denied" sebagai lapisan kedua.
+# =========================================================================
+
+Options -Indexes -MultiViews
 
 <IfModule mod_headers.c>
     Header set X-Content-Type-Options "nosniff"
     Header set X-Frame-Options "SAMEORIGIN"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header unset X-Powered-By
+</IfModule>
+
+# --- Blokir semua dotfile & folder .git (source code + history) ---
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule (^|/)\.(?!well-known/)[^/]* - [F,L]
+</IfModule>
+
+<IfModule mod_authz_core.c>
+    <FilesMatch "(?i)\.(sql|log|lock|bak|old|orig|save|swp|dist|inc|ini|sh|bash|twig|tpl|env|md)$">
+        Require all denied
+    </FilesMatch>
+    <FilesMatch "(?i)^(composer\.(json|lock)|package(-lock)?\.json|\.gitignore|\.gitattributes|Dockerfile|\.env.*|\.htpasswd)$">
+        Require all denied
+    </FilesMatch>
 </IfModule>

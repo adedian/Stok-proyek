@@ -184,7 +184,7 @@ class SettingsController extends Controller
         }
 
         try {
-            $logo = handleFileUpload('company_logo', 'company', ['jpg', 'jpeg', 'png'], 2);
+            $logo = handleFileUpload('company_logo', 'company', ['jpg', 'jpeg', 'png', 'webp'], 2);
             if ($logo !== null) {
                 $this->settingModel->set('company_logo', $logo, 'company', currentUserId());
             }

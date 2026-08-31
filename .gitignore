@@ -2,7 +2,9 @@
 /vendor/
 /logs/*
 !/logs/.gitkeep
+!/logs/.htaccess
 /storage/backups/*
 !/storage/backups/.gitkeep
 /public/uploads/*
 !/public/uploads/.gitkeep
+!/public/uploads/.htaccess

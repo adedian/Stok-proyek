@@ -108,7 +108,7 @@ class PaymentController extends Controller
         }
 
         try {
-            $proofFile = handleFileUpload('proof_file', 'payments', ['jpg', 'jpeg', 'png', 'pdf'], 5);
+            $proofFile = handleFileUpload('proof_file', 'payments', ['jpg', 'jpeg', 'png', 'webp', 'pdf'], 5);
         } catch (RuntimeException $e) {
             setFlash('error', $e->getMessage());
             $this->redirect('payment', 'create', ['po_id' => $data['purchase_order_id']]);
@@ -196,7 +196,7 @@ class PaymentController extends Controller
         }
 
         try {
-            $proofFile = handleFileUpload('proof_file', 'payments', ['jpg', 'jpeg', 'png', 'pdf'], 5);
+            $proofFile = handleFileUpload('proof_file', 'payments', ['jpg', 'jpeg', 'png', 'webp', 'pdf'], 5);
         } catch (RuntimeException $e) {
             setFlash('error', $e->getMessage());
             $this->redirect('payment', 'edit', ['id' => $id]);

@@ -1,5 +1,8 @@
 <?php
 require_once ROOT_PATH . '/core/Model.php';
+require_once ROOT_PATH . '/app/models/CashTransactionItem.php';
+require_once ROOT_PATH . '/app/models/Item.php';
+require_once ROOT_PATH . '/app/models/Inventory.php';
 
 /**
  * Transaksi Kas (Revisi 9) -- header kas masuk / kas keluar.
@@ -15,6 +18,98 @@ class CashTransaction extends Model
     protected string $table = 'cash_transactions';
     protected bool $softDelete = true;
 
+    // ===================== INTEGRASI STOK (Kas "Pembelian Barang") =====================
+
+    private function stockScope(?string $stockType): string
+    {
+        return $stockType === 'inventory_kantor' ? 'kantor' : 'proyek';
+    }
+
+    /**
+     * Kredit stok dari baris item Kas ber-item_id yang SUDAH tersimpan.
+     * Idempotent via kolom cash_transaction_items.stock_posted_at.
+     * Dipanggil di dalam transaction (store / update / restore Trash).
+     * @return int jumlah baris yang menambah stok
+     */
+    public function applyStockCredit(int $trxId): int
+    {
+        $header = $this->db->fetchOne(
+            "SELECT trx_date, project_id, affects_stock FROM cash_transactions WHERE id = :id",
+            ['id' => $trxId]
+        );
+        if (!$header || (int) $header['affects_stock'] !== 1) {
+            return 0;
+        }
+
+        $inv  = new Inventory();
+        $item = new Item();
+        $n = 0;
+        foreach ((new CashTransactionItem())->stockRowsByTransaction($trxId) as $row) {
+            if (!empty($row['stock_posted_at']) || (float) $row['qty'] <= 0) {
+                continue;
+            }
+            $barang = $item->find((int) $row['item_id']);
+            if (!$barang) {
+                continue;
+            }
+            $scope = $this->stockScope($barang['stock_type'] ?? null);
+            $inv->creditStock(
+                $row['uraian'] !== '' ? $row['uraian'] : $barang['item_name'],
+                (string) ($row['unit'] ?? ''),
+                $scope === 'kantor' ? null : ($header['project_id'] !== null ? (int) $header['project_id'] : null),
+                (float) $row['qty'],
+                'kas',
+                $trxId,
+                (string) $header['trx_date'],
+                currentUserId(),
+                $scope
+            );
+            $this->db->query(
+                "UPDATE cash_transaction_items SET stock_posted_at = NOW() WHERE id = :id",
+                ['id' => (int) $row['id']]
+            );
+            $n++;
+        }
+        return $n;
+    }
+
+    /**
+     * Balikkan semua kredit stok transaksi Kas ini (baris yang stock_posted_at
+     * terisi). Dipanggil sebelum update / soft-delete.
+     */
+    public function applyStockReverse(int $trxId): void
+    {
+        $header = $this->db->fetchOne(
+            "SELECT project_id FROM cash_transactions WHERE id = :id",
+            ['id' => $trxId]
+        );
+        $projectId = $header && $header['project_id'] !== null ? (int) $header['project_id'] : null;
+
+        $inv  = new Inventory();
+        $item = new Item();
+        foreach ((new CashTransactionItem())->stockRowsByTransaction($trxId) as $row) {
+            if (empty($row['stock_posted_at']) || (float) $row['qty'] <= 0) {
+                continue;
+            }
+            $barang = $item->find((int) $row['item_id']);
+            $scope = $this->stockScope($barang['stock_type'] ?? null);
+            $inv->reverseCredit(
+                $row['uraian'] !== '' ? $row['uraian'] : ($barang['item_name'] ?? $row['uraian']),
+                (string) ($row['unit'] ?? ''),
+                $scope === 'kantor' ? null : $projectId,
+                (float) $row['qty'],
+                'kas',
+                $trxId,
+                currentUserId(),
+                $scope
+            );
+            $this->db->query(
+                "UPDATE cash_transaction_items SET stock_posted_at = NULL WHERE id = :id",
+                ['id' => (int) $row['id']]
+            );
+        }
+    }
+
     public function noBuktiExists(string $noBukti, ?int $excludeId = null): bool
     {
         $sql = "SELECT id FROM cash_transactions WHERE no_bukti = :nb AND deleted_at IS NULL";
@@ -29,10 +124,11 @@ class CashTransaction extends Model
     public function findWithRelations(int $id)
     {
         return $this->db->fetchOne(
-            "SELECT c.*, cat.category_name, usr.full_name AS created_by_name
+            "SELECT c.*, cat.category_name, usr.full_name AS created_by_name, p.project_name
                FROM cash_transactions c
                JOIN cash_categories cat ON cat.id = c.category_id
                LEFT JOIN users usr ON usr.id = c.created_by
+               LEFT JOIN projects p ON p.id = c.project_id
               WHERE c.id = :id AND c.deleted_at IS NULL",
             ['id' => $id]
         );

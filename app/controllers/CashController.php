@@ -8,6 +8,10 @@ require_once ROOT_PATH . '/app/models/UserPicAssignment.php';
 require_once ROOT_PATH . '/app/models/User.php';
 require_once ROOT_PATH . '/app/models/SystemSetting.php';
 require_once ROOT_PATH . '/app/models/ActivityLog.php';
+require_once ROOT_PATH . '/app/models/Item.php';
+require_once ROOT_PATH . '/app/models/ItemCategory.php';
+require_once ROOT_PATH . '/app/models/Project.php';
+require_once ROOT_PATH . '/app/models/Inventory.php';
 
 /**
  * Modul Kas (Revisi 9) -- catatan kas masuk & kas keluar.
@@ -29,6 +33,10 @@ class CashController extends Controller
     private CashCategory $categoryModel;
     private UserPicAssignment $picModel;
     private ActivityLog $activityLog;
+    private Item $barangModel;
+    private ItemCategory $barangCategoryModel;
+    private Project $projectModel;
+    private Inventory $inventoryModel;
 
     /** Action yang MEMBANGUN gerbang auth Kas -- boleh diakses tanpa auth Kas. */
     private const KAS_GATE_ACTIONS = ['kasLogin', 'kasAuthenticate', 'kasLogout', 'kasSetupPic', 'kasStorePic'];
@@ -42,6 +50,10 @@ class CashController extends Controller
         $this->categoryModel = new CashCategory();
         $this->picModel      = new UserPicAssignment();
         $this->activityLog   = new ActivityLog();
+        $this->barangModel         = new Item();
+        $this->barangCategoryModel = new ItemCategory();
+        $this->projectModel        = new Project();
+        $this->inventoryModel      = new Inventory();
 
         $this->enforceKasAuth();
     }
@@ -313,12 +325,15 @@ class CashController extends Controller
         Middleware::requirePermission('cash', 'create');
 
         $this->view('cash/form', [
-            'pageTitle'  => 'Tambah Kas',
-            'mode'       => 'create',
-            'cash'       => null,
-            'items'      => [],
-            'categories' => $this->categoryModel->activeList(),
-            'picOptions' => $this->picFieldOptions(),
+            'pageTitle'      => 'Tambah Kas',
+            'mode'           => 'create',
+            'cash'           => null,
+            'items'          => [],
+            'categories'     => $this->categoryModel->activeList(),
+            'picOptions'     => $this->picFieldOptions(),
+            'projects'       => $this->projectModel->activeList(),
+            'itemCatalog'    => $this->barangModel->activeList(),
+            'itemCategories' => $this->barangCategoryModel->activeList(),
         ]);
     }
 
@@ -346,27 +361,36 @@ class CashController extends Controller
             $pdo->beginTransaction();
 
             $trxId = $this->cashModel->create([
-                'trx_date'     => $data['trx_date'],
-                'pic'          => $data['pic'],
-                'division'     => $this->resolveDivision($data['pic']),
-                'no_bukti'     => $data['no_bukti'],
-                'category_id'  => $data['category_id'],
-                'mutasi'       => $data['mutasi'],
-                'total_amount' => $this->sumItems($items),
-                'created_by'   => currentUserId(),
+                'trx_date'      => $data['trx_date'],
+                'pic'           => $data['pic'],
+                'division'      => $this->resolveDivision($data['pic']),
+                'no_bukti'      => $data['no_bukti'],
+                'category_id'   => $data['category_id'],
+                'mutasi'        => $data['mutasi'],
+                'affects_stock' => $data['affects_stock'],
+                'project_id'    => $data['affects_stock'] ? ($data['project_id'] ?: null) : null,
+                'supplier_name' => $data['affects_stock'] ? ($data['supplier_name'] ?: null) : null,
+                'total_amount'  => $this->sumItems($items),
+                'created_by'    => currentUserId(),
             ]);
             $this->saveItems($trxId, $items);
+
+            $stockNote = '';
+            if ($data['affects_stock']) {
+                $n = $this->cashModel->applyStockCredit($trxId);
+                $stockNote = " ({$n} baris menambah stok)";
+            }
 
             $this->activityLog->log(
                 currentUserId(),
                 'cash',
                 'create',
                 "Kas {$data['mutasi']} '{$data['no_bukti']}' (PIC {$data['pic']}) dibuat, "
-                    . count($items) . ' item, total ' . formatRupiah($this->sumItems($items))
+                    . count($items) . ' item, total ' . formatRupiah($this->sumItems($items)) . $stockNote
             );
 
             $pdo->commit();
-            setFlash('success', 'Transaksi Kas berhasil disimpan.');
+            setFlash('success', 'Transaksi Kas berhasil disimpan.' . ($data['affects_stock'] ? ' Stok barang otomatis bertambah.' : ''));
             $this->redirect('cash', 'index');
         } catch (Throwable $e) {
             $pdo->rollBack();
@@ -392,12 +416,15 @@ class CashController extends Controller
         $this->activityLog->log(currentUserId(), 'cash', 'view', "Membuka transaksi Kas #{$id} ('{$row['no_bukti']}')");
 
         $this->view('cash/form', [
-            'pageTitle'  => 'Edit Kas',
-            'mode'       => 'edit',
-            'cash'       => $row,
-            'items'      => $this->itemModel->byTransaction($id),
-            'categories' => $this->categoryModel->activeList(),
-            'picOptions' => $this->picFieldOptions($row['pic']),
+            'pageTitle'      => 'Edit Kas',
+            'mode'           => 'edit',
+            'cash'           => $row,
+            'items'          => $this->itemModel->byTransaction($id),
+            'categories'     => $this->categoryModel->activeList(),
+            'picOptions'     => $this->picFieldOptions($row['pic']),
+            'projects'       => $this->projectModel->activeList(),
+            'itemCatalog'    => $this->barangModel->activeList(),
+            'itemCategories' => $this->barangCategoryModel->activeList(),
         ]);
     }
 
@@ -433,19 +460,34 @@ class CashController extends Controller
         try {
             $pdo->beginTransaction();
 
+            // Balikkan dulu SEMUA kredit stok dari versi lama transaksi ini
+            // (item/qty/project bisa saja berubah) -- baris stock_posted_at
+            // yang terisi dikembalikan; aman kalau dulu tidak mempengaruhi stok.
+            if ((int) $existing['affects_stock'] === 1) {
+                $this->cashModel->applyStockReverse($id);
+            }
+
             $this->cashModel->updateById($id, [
-                'trx_date'     => $data['trx_date'],
-                'pic'          => $data['pic'],
-                'division'     => $this->resolveDivision($data['pic']),
-                'no_bukti'     => $data['no_bukti'],
-                'category_id'  => $data['category_id'],
-                'mutasi'       => $data['mutasi'],
-                'total_amount' => $this->sumItems($items),
+                'trx_date'      => $data['trx_date'],
+                'pic'           => $data['pic'],
+                'division'      => $this->resolveDivision($data['pic']),
+                'no_bukti'      => $data['no_bukti'],
+                'category_id'   => $data['category_id'],
+                'mutasi'        => $data['mutasi'],
+                'affects_stock' => $data['affects_stock'],
+                'project_id'    => $data['affects_stock'] ? ($data['project_id'] ?: null) : null,
+                'supplier_name' => $data['affects_stock'] ? ($data['supplier_name'] ?: null) : null,
+                'total_amount'  => $this->sumItems($items),
             ]);
             $this->itemModel->deleteByTransaction($id);
             $this->saveItems($id, $items);
 
-            $this->activityLog->log(currentUserId(), 'cash', 'update', "Kas #{$id} ('{$data['no_bukti']}') diperbarui");
+            if ($data['affects_stock']) {
+                $this->cashModel->applyStockCredit($id);
+            }
+
+            $this->activityLog->log(currentUserId(), 'cash', 'update', "Kas #{$id} ('{$data['no_bukti']}') diperbarui"
+                . ($data['affects_stock'] ? ' (stok disesuaikan ulang)' : ''));
 
             $pdo->commit();
             setFlash('success', 'Transaksi Kas berhasil diperbarui.');
@@ -477,8 +519,26 @@ class CashController extends Controller
         $this->assertCanTouch($row);
         assertPeriodOpen('cash', $row['trx_date'], 'cash', 'index');
 
-        $this->cashModel->deleteById($id);
-        $this->activityLog->log(currentUserId(), 'cash', 'delete', "Kas #{$id} ('{$row['no_bukti']}') dihapus ke Tempat Sampah");
+        $pdo = getPDO();
+        try {
+            $pdo->beginTransaction();
+            // Kas pembelian barang -> balikkan stok yang pernah ditambahkan
+            // sebelum transaksi masuk Tempat Sampah. Di-credit lagi kalau di-restore.
+            if ((int) $row['affects_stock'] === 1) {
+                $this->cashModel->applyStockReverse($id);
+            }
+            $this->cashModel->deleteById($id);
+            $this->activityLog->log(currentUserId(), 'cash', 'delete',
+                "Kas #{$id} ('{$row['no_bukti']}') dihapus ke Tempat Sampah"
+                . ((int) $row['affects_stock'] === 1 ? ' (stok dikembalikan)' : ''));
+            $pdo->commit();
+        } catch (Throwable $e) {
+            $pdo->rollBack();
+            error_log('Cash delete error: ' . $e->getMessage());
+            setFlash('error', 'Gagal menghapus transaksi Kas.');
+            $this->redirect('cash', 'index');
+        }
+
         setFlash('success', 'Transaksi Kas dipindahkan ke Tempat Sampah.');
         $this->redirect('cash', 'index');
     }
@@ -490,6 +550,7 @@ class CashController extends Controller
         Middleware::requirePermission('cash', 'create');
         $index = (int) ($_GET['index'] ?? 0);
         $item = null;
+        $itemCatalog = $this->barangModel->activeList();
         ob_start();
         require ROOT_PATH . '/app/views/cash/_item_row.php';
         $html = ob_get_clean();
@@ -579,33 +640,59 @@ class CashController extends Controller
 
     private function collectInput(): array
     {
+        $affectsStock = !empty($_POST['affects_stock']) ? 1 : 0;
         return [
-            'trx_date'    => trim($_POST['trx_date'] ?? ''),
-            'pic'         => trim($_POST['pic'] ?? ''),
-            'no_bukti'    => trim($_POST['no_bukti'] ?? ''),
-            'category_id' => (int) ($_POST['category_id'] ?? 0),
-            'mutasi'      => ($_POST['mutasi'] ?? '') === 'masuk' ? 'masuk'
+            'trx_date'      => trim($_POST['trx_date'] ?? ''),
+            'pic'           => trim($_POST['pic'] ?? ''),
+            'no_bukti'      => trim($_POST['no_bukti'] ?? ''),
+            'category_id'   => (int) ($_POST['category_id'] ?? 0),
+            'mutasi'        => ($_POST['mutasi'] ?? '') === 'masuk' ? 'masuk'
                 : (($_POST['mutasi'] ?? '') === 'keluar' ? 'keluar' : ''),
+            'affects_stock' => $affectsStock,
+            'project_id'    => $affectsStock ? (int) ($_POST['project_id'] ?? 0) : 0,
+            'supplier_name' => $affectsStock ? trim($_POST['supplier_name'] ?? '') : '',
         ];
     }
 
-    /** Array baris item bersih dari POST (uraian[]/qty[]/satuan[]). */
+    /**
+     * Array baris item bersih dari POST. Selalu: uraian/qty/satuan(=harga)/jumlah.
+     * Mode "Pembelian Barang" menambah: item_id/category_id/unit per baris
+     * (dari dropdown master Barang). Baris tanpa item_id = uraian bebas biasa.
+     */
     private function collectItems(): array
     {
-        $uraian = $_POST['item_uraian'] ?? [];
-        $qty    = $_POST['item_qty'] ?? [];
-        $satuan = $_POST['item_satuan'] ?? [];
+        $uraian   = $_POST['item_uraian'] ?? [];
+        $qty      = $_POST['item_qty'] ?? [];
+        $satuan   = $_POST['item_satuan'] ?? [];
+        $itemIds  = $_POST['item_id'] ?? [];
+        $catIds   = $_POST['item_category_id'] ?? [];
+        $units    = $_POST['item_unit'] ?? [];
         $out = [];
         for ($i = 0; $i < count($uraian); $i++) {
             $u = trim((string) ($uraian[$i] ?? ''));
             $q = (float) ($qty[$i] ?? 0);
             $s = parseCurrencyInput($satuan[$i] ?? 0);
-            if ($u === '' && $q <= 0 && $s <= 0) {
+            $iid = !empty($itemIds[$i]) ? (int) $itemIds[$i] : null;
+            if ($u === '' && $q <= 0 && $s <= 0 && $iid === null) {
                 continue; // baris kosong -> abaikan
             }
-            $out[] = ['uraian' => $u, 'qty' => $q, 'satuan' => $s, 'jumlah' => round($q * $s, 2)];
+            $out[] = [
+                'uraian'      => $u,
+                'qty'         => $q,
+                'satuan'      => $s,
+                'jumlah'      => round($q * $s, 2),
+                'item_id'     => $iid,
+                'category_id' => !empty($catIds[$i]) ? (int) $catIds[$i] : null,
+                'unit'        => trim((string) ($units[$i] ?? '')) ?: null,
+            ];
         }
         return $out;
+    }
+
+    /** Scope inventory ('proyek'|'kantor') dari stock_type Barang. */
+    private function kasStockScope(?string $stockType): string
+    {
+        return $stockType === 'inventory_kantor' ? 'kantor' : 'proyek';
     }
 
     private function sumItems(array $items): float
@@ -618,10 +705,13 @@ class CashController extends Controller
         foreach ($items as $it) {
             $this->itemModel->create([
                 'cash_transaction_id' => $trxId,
-                'uraian' => $it['uraian'],
-                'qty'    => $it['qty'],
-                'satuan' => $it['satuan'],
-                'jumlah' => $it['jumlah'],
+                'item_id'     => $it['item_id'] ?? null,
+                'category_id' => $it['category_id'] ?? null,
+                'uraian'      => $it['uraian'],
+                'unit'        => $it['unit'] ?? null,
+                'qty'         => $it['qty'],
+                'satuan'      => $it['satuan'],
+                'jumlah'      => $it['jumlah'],
             ]);
         }
     }
@@ -669,6 +759,40 @@ class CashController extends Controller
                 if ($it['satuan'] < 0) {
                     $errors[] = "Baris {$n}: Satuan tidak valid.";
                 }
+            }
+        }
+
+        // ===== Mode "Pembelian Barang (masuk stok)" =====
+        if (!empty($d['affects_stock'])) {
+            $barangRows = array_values(array_filter($items, static fn($it) => !empty($it['item_id'])));
+            if (empty($barangRows)) {
+                $errors[] = 'Pembelian Barang: minimal 1 baris harus dipilih dari master Barang.';
+            }
+
+            $needProject = false;
+            foreach ($items as $i => $it) {
+                if (empty($it['item_id'])) {
+                    continue;
+                }
+                $n = $i + 1;
+                $barang = $this->barangModel->find((int) $it['item_id']);
+                if (!$barang) {
+                    $errors[] = "Baris {$n}: Barang tidak valid.";
+                    continue;
+                }
+                if (empty($it['category_id']) || !$this->barangCategoryModel->find((int) $it['category_id'])) {
+                    $errors[] = "Baris {$n}: Kategori barang wajib.";
+                }
+                if (empty($it['unit'])) {
+                    $errors[] = "Baris {$n}: Satuan barang wajib.";
+                }
+                if ($this->kasStockScope($barang['stock_type'] ?? null) === 'proyek') {
+                    $needProject = true;
+                }
+            }
+
+            if ($needProject && ((int) ($d['project_id'] ?? 0) <= 0 || !$this->projectModel->find((int) $d['project_id']))) {
+                $errors[] = 'Project wajib dipilih untuk pembelian barang stok proyek/lampu.';
             }
         }
 

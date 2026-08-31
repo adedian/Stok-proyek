@@ -14,7 +14,21 @@ class CashTransactionItem extends Model
     public function byTransaction(int $trxId): array
     {
         return $this->db->fetchAll(
-            "SELECT * FROM cash_transaction_items WHERE cash_transaction_id = :id ORDER BY id ASC",
+            "SELECT cti.*, ic.category_name
+               FROM cash_transaction_items cti
+               LEFT JOIN item_categories ic ON ic.id = cti.category_id
+              WHERE cti.cash_transaction_id = :id
+           ORDER BY cti.id ASC",
+            ['id' => $trxId]
+        );
+    }
+
+    /** Baris item Kas yang terkait Barang (untuk kredit/reverse stok). */
+    public function stockRowsByTransaction(int $trxId): array
+    {
+        return $this->db->fetchAll(
+            "SELECT * FROM cash_transaction_items
+              WHERE cash_transaction_id = :id AND item_id IS NOT NULL",
             ['id' => $trxId]
         );
     }

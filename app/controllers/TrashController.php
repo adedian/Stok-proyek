@@ -205,13 +205,33 @@ class TrashController extends Controller
             $this->redirect('trash', 'index');
         }
 
-        $cfg['model']->restoreById($id);
-        $this->activityLog->log(
-            currentUserId(),
-            $module,
-            'restore',
-            "{$cfg['label']} '" . ($cfg['display'])($row) . "' dipulihkan dari Tempat Sampah"
-        );
+        $pdo = getPDO();
+        try {
+            $pdo->beginTransaction();
+            $cfg['model']->restoreById($id);
+
+            // Kas "Pembelian Barang": stok dikembalikan saat masuk Tempat Sampah,
+            // jadi saat DIPULIHKAN stok harus dikreditkan lagi (idempotent via
+            // cash_transaction_items.stock_posted_at).
+            if ($module === 'cash' && (int) ($row['affects_stock'] ?? 0) === 1) {
+                $cfg['model']->applyStockCredit($id);
+            }
+
+            $this->activityLog->log(
+                currentUserId(),
+                $module,
+                'restore',
+                "{$cfg['label']} '" . ($cfg['display'])($row) . "' dipulihkan dari Tempat Sampah"
+                    . ($module === 'cash' && (int) ($row['affects_stock'] ?? 0) === 1 ? ' (stok dikreditkan ulang)' : '')
+            );
+            $pdo->commit();
+        } catch (Throwable $e) {
+            $pdo->rollBack();
+            error_log('Trash restore error: ' . $e->getMessage());
+            setFlash('error', 'Gagal memulihkan data.');
+            $this->redirect('trash', 'index');
+        }
+
         setFlash('success', 'Data berhasil dipulihkan.');
         $this->redirect('trash', 'index');
     }

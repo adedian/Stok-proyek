@@ -34,10 +34,13 @@ class MasterKodeController extends Controller
     {
         $groups = [];
         foreach ($this->codeConfig->entityOptions() as $type => $label) {
+            $configs = $this->codeConfig->configsForEntity($type);
             $groups[] = [
-                'type'   => $type,
-                'label'  => $label,
-                'config' => $this->codeConfig->getConfig($type),
+                'type'        => $type,
+                'label'       => $label,
+                'prefixCount' => count($configs),
+                'prefixes'    => array_column($configs, 'prefix'),
+                'masterCode'  => $this->codeConfig->masterCodeForEntity($type),
             ];
         }
 
@@ -85,7 +88,8 @@ class MasterKodeController extends Controller
             'pageTitle'  => 'Master Kode - ' . $meta['label'],
             'entityType' => $type,
             'entityMeta' => $meta,
-            'config'     => $this->codeConfig->getConfig($type),
+            'configs'    => $this->codeConfig->configsForEntity($type),
+            'masterCode' => $this->codeConfig->masterCodeForEntity($type),
             'rows'       => $rows,
             'filters'    => $filters,
             'pagination' => $pg,
@@ -93,43 +97,105 @@ class MasterKodeController extends Controller
         ]);
     }
 
-    public function saveConfig()
+    /** Validasi kelompok dari POST; redirect kalau tidak dikenal. */
+    private function requireEntity(): array
     {
-        Middleware::requirePermission('master_kode', 'edit');
-
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->redirect('master_kode', 'index');
-        }
-        verifyCsrf();
-
         $type = trim($_POST['entity_type'] ?? '');
         $meta = $this->codeConfig->entityMeta($type);
-
         if (!$meta) {
             setFlash('error', 'Kelompok Master Kode tidak dikenal.');
             $this->redirect('master_kode', 'index');
         }
+        return [$type, $meta];
+    }
 
-        $prefix = trim($_POST['prefix'] ?? '');
-        $digitLength = (int) ($_POST['digit_length'] ?? 4);
-
-        if ($prefix === '' || !preg_match('/^[A-Za-z0-9]+$/', $prefix)) {
-            setFlash('error', 'Prefix wajib diisi dan hanya boleh huruf/angka (tanpa spasi atau simbol).');
-            $this->redirect('master_kode', 'group', ['type' => $type]);
+    private function guardPost(): void
+    {
+        Middleware::requirePermission('master_kode', 'edit');
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('master_kode', 'index');
         }
-        if ($digitLength < 1 || $digitLength > 10) {
-            setFlash('error', 'Jumlah digit nomor harus antara 1-10.');
-            $this->redirect('master_kode', 'group', ['type' => $type]);
-        }
+        verifyCsrf();
+    }
 
-        $this->codeConfig->saveConfig($type, $prefix, $digitLength, currentUserId());
-        $this->activityLog->log(
-            currentUserId(),
-            'master_kode',
-            'update',
-            "Konfigurasi kode {$meta['label']} diubah: prefix={$prefix}, digit={$digitLength}"
+    /** Set Master Code (kode akhir) untuk seluruh prefix kelompok ini. */
+    public function saveMasterCode()
+    {
+        $this->guardPost();
+        [$type, $meta] = $this->requireEntity();
+
+        $res = $this->codeConfig->setMasterCode($type, $_POST['master_code'] ?? '');
+        if (!$res['ok']) {
+            setFlash('error', $res['error']);
+        } else {
+            $this->activityLog->log(currentUserId(), 'master_kode', 'update',
+                "Master Code {$meta['label']} diset: " . strtoupper(trim($_POST['master_code'] ?? '')));
+            setFlash('success', 'Master Code berhasil disimpan.');
+        }
+        $this->redirect('master_kode', 'group', ['type' => $type]);
+    }
+
+    /** Tambah prefix baru. */
+    public function addPrefix()
+    {
+        $this->guardPost();
+        [$type, $meta] = $this->requireEntity();
+
+        $res = $this->codeConfig->addPrefix(
+            $type,
+            $_POST['prefix'] ?? '',
+            (int) ($_POST['digit_length'] ?? 4),
+            currentUserId()
         );
-        setFlash('success', 'Konfigurasi kode berhasil disimpan.');
+        if (!$res['ok']) {
+            setFlash('error', $res['error']);
+            if (stripos($res['error'], 'sudah digunakan') !== false) {
+                $this->activityLog->log(currentUserId(), 'master_kode', 'prefix_duplicate_rejected',
+                    "Prefix duplikat ditolak ({$meta['label']}): " . strtoupper(trim($_POST['prefix'] ?? '')));
+            }
+        } else {
+            $this->activityLog->log(currentUserId(), 'master_kode', 'create',
+                "Prefix baru {$meta['label']}: " . strtoupper(trim($_POST['prefix'] ?? '')));
+            setFlash('success', 'Prefix berhasil ditambahkan.');
+        }
+        $this->redirect('master_kode', 'group', ['type' => $type]);
+    }
+
+    /** Ubah prefix / digit satu baris. */
+    public function updatePrefix()
+    {
+        $this->guardPost();
+        [$type, $meta] = $this->requireEntity();
+
+        $res = $this->codeConfig->updatePrefixConfig(
+            (int) ($_POST['id'] ?? 0),
+            $_POST['prefix'] ?? '',
+            (int) ($_POST['digit_length'] ?? 4)
+        );
+        if (!$res['ok']) {
+            setFlash('error', $res['error']);
+        } else {
+            $this->activityLog->log(currentUserId(), 'master_kode', 'update',
+                "Prefix {$meta['label']} diubah: " . strtoupper(trim($_POST['prefix'] ?? '')));
+            setFlash('success', 'Prefix berhasil diperbarui.');
+        }
+        $this->redirect('master_kode', 'group', ['type' => $type]);
+    }
+
+    /** Hapus prefix (hanya kalau belum pernah dipakai). */
+    public function deletePrefix()
+    {
+        $this->guardPost();
+        [$type, $meta] = $this->requireEntity();
+
+        $res = $this->codeConfig->deletePrefixConfig((int) ($_POST['id'] ?? 0));
+        if (!$res['ok']) {
+            setFlash('error', $res['error']);
+        } else {
+            $this->activityLog->log(currentUserId(), 'master_kode', 'delete',
+                "Prefix {$meta['label']} dihapus (id " . (int) ($_POST['id'] ?? 0) . ")");
+            setFlash('success', 'Prefix dihapus.');
+        }
         $this->redirect('master_kode', 'group', ['type' => $type]);
     }
 

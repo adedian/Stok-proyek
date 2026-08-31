@@ -88,6 +88,10 @@ class ClientController extends Controller
             'mode'       => 'create',
             'client'     => null,
             'codeConfig' => $this->codeConfig->getConfig('client'),
+            'codePrefixes'   => $this->codeConfig->configsForEntity('client'),
+            'codeMasterCode' => $this->codeConfig->masterCodeForEntity('client'),
+            'codeEntityType' => 'client',
+            'codeEntityLabel' => 'Client',
         ]);
     }
 
@@ -108,7 +112,8 @@ class ClientController extends Controller
             $this->redirect('client', 'create');
         }
 
-        $clientCode = $this->codeConfig->nextCode('client');
+        $codePrefix = trim($_POST['code_prefix'] ?? '');
+        $clientCode = $this->codeConfig->nextCode('client', $codePrefix !== '' ? $codePrefix : null);
         if ($clientCode === null) {
             setFlash('error', 'Prefix kode Client belum dikonfigurasi. Silakan konfigurasi melalui Master Kode > Client.');
             $this->redirect('client', 'create');
@@ -221,7 +226,8 @@ class ClientController extends Controller
             $this->json(['errors' => $errors], 422);
         }
 
-        $clientCode = $this->codeConfig->nextCode('client');
+        $codePrefix = trim($_POST['code_prefix'] ?? '');
+        $clientCode = $this->codeConfig->nextCode('client', $codePrefix !== '' ? $codePrefix : null);
         if ($clientCode === null) {
             $this->json(['errors' => ['Prefix kode Client belum dikonfigurasi. Silakan konfigurasi melalui Master Kode > Client.']], 422);
         }

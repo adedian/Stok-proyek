@@ -84,10 +84,14 @@ class SupplierController extends Controller
         Middleware::requirePermission('supplier', 'create');
 
         $this->view('supplier/form', [
-            'pageTitle' => 'Tambah Supplier',
-            'mode'      => 'create',
-            'supplier'  => null,
-            'codeConfig' => $this->codeConfig->getConfig('supplier'),
+            'pageTitle'      => 'Tambah Supplier',
+            'mode'           => 'create',
+            'supplier'       => null,
+            'codeConfig'     => $this->codeConfig->getConfig('supplier'),
+            'codePrefixes'   => $this->codeConfig->configsForEntity('supplier'),
+            'codeMasterCode' => $this->codeConfig->masterCodeForEntity('supplier'),
+            'codeEntityType' => 'supplier',
+            'codeEntityLabel' => 'Supplier',
         ]);
     }
 
@@ -108,7 +112,8 @@ class SupplierController extends Controller
             $this->redirect('supplier', 'create');
         }
 
-        $supplierCode = $this->codeConfig->nextCode('supplier');
+        $codePrefix = trim($_POST['code_prefix'] ?? '');
+        $supplierCode = $this->codeConfig->nextCode('supplier', $codePrefix !== '' ? $codePrefix : null);
         if ($supplierCode === null) {
             setFlash('error', 'Prefix kode Supplier belum dikonfigurasi. Silakan konfigurasi melalui Master Kode > Supplier.');
             $this->redirect('supplier', 'create');
@@ -222,7 +227,8 @@ class SupplierController extends Controller
             $this->json(['errors' => $errors], 422);
         }
 
-        $supplierCode = $this->codeConfig->nextCode('supplier');
+        $codePrefix = trim($_POST['code_prefix'] ?? '');
+        $supplierCode = $this->codeConfig->nextCode('supplier', $codePrefix !== '' ? $codePrefix : null);
         if ($supplierCode === null) {
             $this->json(['errors' => ['Prefix kode Supplier belum dikonfigurasi. Silakan konfigurasi melalui Master Kode > Supplier.']], 422);
         }

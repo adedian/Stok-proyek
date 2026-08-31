@@ -61,6 +61,10 @@ class WarehouseController extends Controller
             'mode'      => 'create',
             'warehouse' => null,
             'codeConfig' => $this->codeConfig->getConfig('warehouse'),
+            'codePrefixes'   => $this->codeConfig->configsForEntity('warehouse'),
+            'codeMasterCode' => $this->codeConfig->masterCodeForEntity('warehouse'),
+            'codeEntityType' => 'warehouse',
+            'codeEntityLabel' => 'Gudang',
         ]);
     }
 
@@ -80,7 +84,8 @@ class WarehouseController extends Controller
             $this->redirect('warehouse', 'create');
         }
 
-        $warehouseCode = $this->codeConfig->nextCode('warehouse');
+        $codePrefix = trim($_POST['code_prefix'] ?? '');
+        $warehouseCode = $this->codeConfig->nextCode('warehouse', $codePrefix !== '' ? $codePrefix : null);
         if ($warehouseCode === null) {
             setFlash('error', 'Prefix kode Gudang belum dikonfigurasi. Silakan konfigurasi melalui Master Kode > Gudang.');
             $this->redirect('warehouse', 'create');
@@ -190,7 +195,8 @@ class WarehouseController extends Controller
             $this->json(['errors' => $errors], 422);
         }
 
-        $warehouseCode = $this->codeConfig->nextCode('warehouse');
+        $codePrefix = trim($_POST['code_prefix'] ?? '');
+        $warehouseCode = $this->codeConfig->nextCode('warehouse', $codePrefix !== '' ? $codePrefix : null);
         if ($warehouseCode === null) {
             $this->json(['errors' => ['Prefix kode Gudang belum dikonfigurasi. Silakan konfigurasi melalui Master Kode > Gudang.']], 422);
         }

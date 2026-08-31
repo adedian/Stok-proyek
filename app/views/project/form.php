@@ -14,14 +14,13 @@ $actionUrl = $isEdit ? 'update' : 'store';
     </a>
 </div>
 
-<?php if (!$isEdit): ?>
-    <div class="mb-3">
-        <?php $codeEntityType = 'project'; $codeEntityLabel = 'Project'; require ROOT_PATH . '/app/views/partials/code_preview.php'; ?>
-    </div>
-<?php endif; ?>
-
 <form method="POST" action="<?= BASE_URL ?>/index.php?module=project&action=<?= $actionUrl ?>">
     <?= csrfField() ?>
+    <?php if (!$isEdit): ?>
+        <div class="card border-0 shadow-sm mb-3"><div class="card-body">
+            <?php $codeEntityType = 'project'; $codeEntityLabel = 'Project'; require ROOT_PATH . '/app/views/partials/code_preview.php'; ?>
+        </div></div>
+    <?php endif; ?>
     <?php if ($isEdit): ?>
         <input type="hidden" name="id" value="<?= (int) $project['id'] ?>">
     <?php endif; ?>

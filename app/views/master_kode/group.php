@@ -1,20 +1,25 @@
 <?php
 /**
- * Master Kode > {Kelompok}: konfigurasi prefix + daftar kode kelompok ini SAJA.
- * $rows dibaca langsung dari model entity asli (Item/Supplier/dst) -- bukan
- * tabel/list gabungan, sesuai arsitektur di app/models/CodeConfig.php.
+ * Master Kode > {Kelompok}: Master Code + daftar prefix (multi) + daftar kode.
+ * Format kode: PREFIX.NOMOR.MASTERCODE (mis. ME.0001.ITM).
+ * $configs   : array baris code_configs untuk kelompok ini
+ * $masterCode: string
+ * $rows      : data entity (Item/Supplier/dst) untuk daftar kode
  */
-$formatPreview = $config
-    ? $config['prefix'] . '-' . str_pad((string) $config['next_number'], (int) $config['digit_length'], '0', STR_PAD_LEFT)
-    : '-';
+function mkPreview(array $c, string $mc): string
+{
+    $num = str_pad((string) $c['next_number'], (int) $c['digit_length'], '0', STR_PAD_LEFT);
+    $mc = trim((string) ($c['master_code'] ?? $mc));
+    return $c['prefix'] . '.' . $num . ($mc !== '' ? '.' . $mc : '');
+}
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h4 class="mb-0">Master Kode &raquo; <?= e($entityMeta['label']) ?></h4>
         <small class="text-muted">
-            Data <?= e($entityMeta['label']) ?> tetap dikelola di
-            <a href="<?= BASE_URL ?>/<?= e($entityMeta['module']) ?>">Master <?= e($entityMeta['label']) ?></a> --
-            di sini hanya mengatur pola kodenya.
+            Data <?= e($entityMeta['label']) ?> dikelola di
+            <a href="<?= BASE_URL ?>/<?= e($entityMeta['module']) ?>">Master <?= e($entityMeta['label']) ?></a> &mdash;
+            di sini hanya pola kode: <code>PREFIX.NOMOR.MASTERCODE</code>.
         </small>
     </div>
     <a href="<?= BASE_URL ?>/master_kode" class="btn btn-outline-secondary">
@@ -22,59 +27,108 @@ $formatPreview = $config
     </a>
 </div>
 
+<div class="row g-3 mb-4">
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="mb-3">Master Code (kode akhir)</h6>
+                <form method="POST" action="<?= BASE_URL ?>/master_kode/saveMasterCode" class="row g-2 align-items-end">
+                    <?= csrfField() ?>
+                    <input type="hidden" name="entity_type" value="<?= e($entityType) ?>">
+                    <div class="col-8">
+                        <label class="form-label small mb-1">Kode</label>
+                        <input type="text" name="master_code" class="form-control text-uppercase"
+                               value="<?= e($masterCode) ?>" maxlength="10" placeholder="mis. ITM" required>
+                    </div>
+                    <div class="col-4">
+                        <button type="submit" class="btn btn-primary w-100"><i class="bi bi-save"></i></button>
+                    </div>
+                    <div class="col-12"><div class="form-text">Berlaku untuk semua prefix kelompok ini.</div></div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="mb-3">Tambah Prefix</h6>
+                <form method="POST" action="<?= BASE_URL ?>/master_kode/addPrefix" class="row g-2 align-items-end">
+                    <?= csrfField() ?>
+                    <input type="hidden" name="entity_type" value="<?= e($entityType) ?>">
+                    <div class="col-sm-4">
+                        <label class="form-label small mb-1">Prefix</label>
+                        <input type="text" name="prefix" class="form-control text-uppercase" maxlength="20" required placeholder="mis. ME">
+                    </div>
+                    <div class="col-sm-4">
+                        <label class="form-label small mb-1">Jumlah Digit</label>
+                        <input type="number" name="digit_length" class="form-control" value="4" min="1" max="10" required>
+                    </div>
+                    <div class="col-sm-4">
+                        <button type="submit" class="btn btn-primary w-100"><i class="bi bi-plus-lg"></i> Tambah</button>
+                    </div>
+                </form>
+                <div class="form-text mt-2">
+                    Prefix yang sama tidak boleh dobel di kelompok ini. Prefix sama boleh dipakai di kelompok lain.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-body">
-        <h6 class="mb-3">Konfigurasi Prefix</h6>
-        <?php if (!$config): ?>
-            <div class="alert alert-warning py-2">
-                <i class="bi bi-exclamation-triangle"></i>
-                Kelompok ini belum dikonfigurasi -- form Tambah <?= e($entityMeta['label']) ?> akan ditolak sampai prefix diatur di sini.
-            </div>
+        <h6 class="mb-3">Daftar Prefix</h6>
+        <?php if (empty($configs)): ?>
+            <div class="text-muted small">Belum ada prefix. Tambahkan di atas &mdash; form Tambah <?= e($entityMeta['label']) ?> akan ditolak sampai ada minimal 1 prefix.</div>
         <?php endif; ?>
-        <form method="POST" action="<?= BASE_URL ?>/index.php?module=master_kode&action=saveConfig" class="row g-3 align-items-end">
-            <?= csrfField() ?>
-            <input type="hidden" name="entity_type" value="<?= e($entityType) ?>">
-            <div class="col-md-3">
-                <label class="form-label">Prefix</label>
-                <input type="text" name="prefix" class="form-control text-uppercase" value="<?= e($config['prefix'] ?? '') ?>" maxlength="20" required placeholder="mis. BRG">
+        <?php foreach ($configs as $c): ?>
+            <div class="d-flex flex-wrap align-items-end gap-2 py-2 border-bottom">
+                <form method="POST" action="<?= BASE_URL ?>/master_kode/updatePrefix" class="d-flex flex-wrap align-items-end gap-2 flex-grow-1">
+                    <?= csrfField() ?>
+                    <input type="hidden" name="entity_type" value="<?= e($entityType) ?>">
+                    <input type="hidden" name="id" value="<?= (int) $c['id'] ?>">
+                    <div>
+                        <label class="form-label small mb-0">Prefix</label>
+                        <input type="text" name="prefix" class="form-control form-control-sm text-uppercase" style="width: 120px;"
+                               value="<?= e($c['prefix']) ?>" maxlength="20" required>
+                    </div>
+                    <div>
+                        <label class="form-label small mb-0">Digit</label>
+                        <input type="number" name="digit_length" class="form-control form-control-sm" style="width: 90px;"
+                               value="<?= (int) $c['digit_length'] ?>" min="1" max="10" required>
+                    </div>
+                    <div class="text-muted small">
+                        Nomor berikutnya: <strong><?= (int) $c['next_number'] ?></strong><br>
+                        Contoh: <code><?= e(mkPreview($c, $masterCode)) ?></code>
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-save"></i> Simpan</button>
+                </form>
+                <?php if ((int) $c['next_number'] <= 1): ?>
+                    <form method="POST" action="<?= BASE_URL ?>/master_kode/deletePrefix"
+                          onsubmit="return confirm('Hapus prefix <?= e($c['prefix']) ?>?');">
+                        <?= csrfField() ?>
+                        <input type="hidden" name="entity_type" value="<?= e($entityType) ?>">
+                        <input type="hidden" name="id" value="<?= (int) $c['id'] ?>">
+                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Hapus prefix"><i class="bi bi-trash"></i></button>
+                    </form>
+                <?php endif; ?>
             </div>
-            <div class="col-md-3">
-                <label class="form-label">Jumlah Digit Nomor</label>
-                <input type="number" name="digit_length" class="form-control" value="<?= (int) ($config['digit_length'] ?? 4) ?>" min="1" max="10" required>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Nomor Berikutnya</label>
-                <input type="text" class="form-control" value="<?= $config ? (int) $config['next_number'] : '-' ?>" disabled>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Format</label>
-                <input type="text" class="form-control fw-bold" value="<?= e($formatPreview) ?>" disabled>
-            </div>
-            <div class="col-12">
-                <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-save"></i> Simpan Pengaturan
-                </button>
-            </div>
-        </form>
+        <?php endforeach; ?>
     </div>
 </div>
 
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-        <form method="GET" action="<?= BASE_URL ?>/master_kode" class="row g-2 align-items-end">
-            <input type="hidden" name="action" value="group">
+        <form method="GET" action="<?= BASE_URL ?>/master_kode/group" class="row g-2 align-items-end">
             <input type="hidden" name="type" value="<?= e($entityType) ?>">
             <div class="col-md-5">
                 <label class="form-label small text-muted mb-1">Cari (Kode / Nama)</label>
-                <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword']) ?>" placeholder="mis. SUP-0001, sup 01">
+                <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword']) ?>" placeholder="mis. ME.0001, sup 01">
             </div>
             <div class="col-md-2 d-flex gap-2">
-                <button type="submit" class="btn btn-sm btn-outline-primary w-100">
-                    <i class="bi bi-search"></i> Cari
-                </button>
-                <a href="<?= BASE_URL ?>/master_kode/group?type=<?= e($entityType) ?>" class="btn btn-sm btn-outline-secondary">
-                    <i class="bi bi-x-circle"></i>
-                </a>
+                <button type="submit" class="btn btn-sm btn-outline-primary w-100"><i class="bi bi-search"></i> Cari</button>
+                <a href="<?= BASE_URL ?>/master_kode/group?type=<?= e($entityType) ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-circle"></i></a>
             </div>
         </form>
     </div>
@@ -85,10 +139,7 @@ $formatPreview = $config
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
-                    <tr>
-                        <th>Kode</th>
-                        <th>Nama</th>
-                    </tr>
+                    <tr><th>Kode</th><th>Nama</th></tr>
                 </thead>
                 <tbody>
                     <?php if (empty($rows)): ?>
@@ -96,7 +147,7 @@ $formatPreview = $config
                             <div class="empty-state">
                                 <i class="bi bi-upc-scan empty-icon"></i>
                                 <div class="empty-title">Belum ada data</div>
-                                <div class="empty-desc mb-0">Belum ada <?= e($entityMeta['label']) ?> yang cocok dengan pencarian ini.</div>
+                                <div class="empty-desc mb-0">Belum ada <?= e($entityMeta['label']) ?> yang cocok.</div>
                             </div>
                         </td></tr>
                     <?php endif; ?>

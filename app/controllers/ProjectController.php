@@ -90,6 +90,10 @@ class ProjectController extends Controller
             'mode'      => 'create',
             'project'   => null,
             'codeConfig' => $this->codeConfig->getConfig('project'),
+            'codePrefixes'   => $this->codeConfig->configsForEntity('project'),
+            'codeMasterCode' => $this->codeConfig->masterCodeForEntity('project'),
+            'codeEntityType' => 'project',
+            'codeEntityLabel' => 'Project',
         ]);
     }
 
@@ -110,7 +114,8 @@ class ProjectController extends Controller
             $this->redirect('project', 'create');
         }
 
-        $projectCode = $this->codeConfig->nextCode('project');
+        $codePrefix = trim($_POST['code_prefix'] ?? '');
+        $projectCode = $this->codeConfig->nextCode('project', $codePrefix !== '' ? $codePrefix : null);
         if ($projectCode === null) {
             setFlash('error', 'Prefix kode Project belum dikonfigurasi. Silakan konfigurasi melalui Master Kode > Project.');
             $this->redirect('project', 'create');
@@ -251,7 +256,8 @@ class ProjectController extends Controller
             $this->json(['errors' => $errors], 422);
         }
 
-        $projectCode = $this->codeConfig->nextCode('project');
+        $codePrefix = trim($_POST['code_prefix'] ?? '');
+        $projectCode = $this->codeConfig->nextCode('project', $codePrefix !== '' ? $codePrefix : null);
         if ($projectCode === null) {
             $this->json(['errors' => ['Prefix kode Project belum dikonfigurasi. Silakan konfigurasi melalui Master Kode > Project.']], 422);
         }

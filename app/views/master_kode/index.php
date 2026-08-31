@@ -33,10 +33,12 @@ $icons = [
                     <div class="fs-2 text-primary"><i class="bi <?= e($icons[$g['type']] ?? 'bi-upc-scan') ?>"></i></div>
                     <div>
                         <div class="fw-semibold text-dark fs-5"><?= e($g['label']) ?></div>
-                        <?php if ($g['config']): ?>
-                            <span class="badge bg-success">Prefix: <?= e($g['config']['prefix']) ?></span>
+                        <?php if (($g['prefixCount'] ?? 0) > 0): ?>
+                            <span class="badge bg-success"><?= (int) $g['prefixCount'] ?> prefix</span>
+                            <span class="badge bg-light text-dark border">.<?= e($g['masterCode'] ?: '-') ?></span>
+                            <div class="small text-muted mt-1"><?= e(implode(', ', array_slice($g['prefixes'], 0, 4))) ?><?= count($g['prefixes']) > 4 ? '…' : '' ?></div>
                         <?php else: ?>
-                            <span class="badge bg-warning text-dark">Belum dikonfigurasi</span>
+                            <span class="badge bg-warning text-dark">Belum ada prefix</span>
                         <?php endif; ?>
                     </div>
                 </div>

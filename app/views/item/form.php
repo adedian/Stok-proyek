@@ -14,18 +14,27 @@ $actionUrl = $isEdit ? 'update' : 'store';
     </a>
 </div>
 
-<?php if (!$isEdit): ?>
-    <?php foreach ($stockTypeLabels as $st => $stLabel): ?>
-        <div class="mb-3 js-code-preview" data-stock-type="<?= e($st) ?>" style="display: none;">
-            <?php $codeConfig = $codeConfigs[$st]; $codeEntityType = 'item_' . $st; $codeEntityLabel = 'Barang - ' . $stLabel; require ROOT_PATH . '/app/views/partials/code_preview.php'; ?>
-        </div>
-    <?php endforeach; ?>
-<?php endif; ?>
-
 <form method="POST" action="<?= BASE_URL ?>/index.php?module=item&action=<?= $actionUrl ?>">
     <?= csrfField() ?>
     <?php if ($isEdit): ?>
         <input type="hidden" name="id" value="<?= (int) $item['id'] ?>">
+    <?php endif; ?>
+
+    <?php if (!$isEdit): $__prefixesByType = $codePrefixes; $__masterByType = $codeMasterCodes; ?>
+        <?php foreach ($stockTypeLabels as $st => $stLabel): ?>
+            <div class="card border-0 shadow-sm mb-3 js-code-preview" data-stock-type="<?= e($st) ?>" style="display: none;">
+                <div class="card-body">
+                    <?php
+                    $codePrefixes   = $__prefixesByType[$st] ?? [];
+                    $codeMasterCode = $__masterByType[$st] ?? '';
+                    $codeEntityType = 'item_' . $st;
+                    $codeEntityLabel = 'Barang - ' . $stLabel;
+                    $codePrefixFieldId = 'codePrefix_' . $st;
+                    require ROOT_PATH . '/app/views/partials/code_preview.php';
+                    ?>
+                </div>
+            </div>
+        <?php endforeach; ?>
     <?php endif; ?>
 
     <div class="card border-0 shadow-sm mb-3">
@@ -114,7 +123,11 @@ $actionUrl = $isEdit ? 'update' : 'store';
     function applyStockTypeState() {
         var current = select.value;
         document.querySelectorAll('.js-code-preview').forEach(function (el) {
-            el.style.display = el.dataset.stockType === current ? '' : 'none';
+            var show = el.dataset.stockType === current;
+            el.style.display = show ? '' : 'none';
+            // Hanya prefix kelompok yang aktif yang boleh ikut submit.
+            var pf = el.querySelector('select[name="code_prefix"]');
+            if (pf) pf.disabled = !show;
         });
         submitBtn.disabled = !configured[current];
     }

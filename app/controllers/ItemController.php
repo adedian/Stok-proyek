@@ -110,8 +110,12 @@ class ItemController extends Controller
         Middleware::requirePermission('item', 'create');
 
         $codeConfigs = [];
+        $codePrefixes = [];
+        $codeMasterCodes = [];
         foreach (self::STOCK_TYPE_CODE_ENTITY as $stockType => $entityType) {
-            $codeConfigs[$stockType] = $this->codeConfig->getConfig($entityType);
+            $codeConfigs[$stockType]     = $this->codeConfig->getConfig($entityType);
+            $codePrefixes[$stockType]    = $this->codeConfig->configsForEntity($entityType);
+            $codeMasterCodes[$stockType] = $this->codeConfig->masterCodeForEntity($entityType);
         }
 
         $this->view('item/form', [
@@ -122,6 +126,8 @@ class ItemController extends Controller
             'units'           => $this->unitModel->activeList(),
             'stockTypeLabels' => self::STOCK_TYPE_LABELS,
             'codeConfigs'     => $codeConfigs,
+            'codePrefixes'    => $codePrefixes,
+            'codeMasterCodes' => $codeMasterCodes,
         ]);
     }
 
@@ -143,7 +149,8 @@ class ItemController extends Controller
         }
 
         $codeEntityType = self::STOCK_TYPE_CODE_ENTITY[$data['stock_type']];
-        $itemCode = $this->codeConfig->nextCode($codeEntityType);
+        $codePrefix = trim($_POST['code_prefix'] ?? '');
+        $itemCode = $this->codeConfig->nextCode($codeEntityType, $codePrefix !== '' ? $codePrefix : null);
         if ($itemCode === null) {
             $label = self::STOCK_TYPE_LABELS[$data['stock_type']];
             setFlash('error', "Prefix kode Barang - {$label} belum dikonfigurasi. Silakan konfigurasi melalui Master Kode > Barang - {$label}.");
@@ -258,7 +265,8 @@ class ItemController extends Controller
         }
 
         $codeEntityType = self::STOCK_TYPE_CODE_ENTITY[$data['stock_type']];
-        $itemCode = $this->codeConfig->nextCode($codeEntityType);
+        $codePrefix = trim($_POST['code_prefix'] ?? '');
+        $itemCode = $this->codeConfig->nextCode($codeEntityType, $codePrefix !== '' ? $codePrefix : null);
         if ($itemCode === null) {
             $label = self::STOCK_TYPE_LABELS[$data['stock_type']];
             $this->json(['errors' => ["Prefix kode Barang - {$label} belum dikonfigurasi. Silakan konfigurasi melalui Master Kode > Barang - {$label}."]], 422);

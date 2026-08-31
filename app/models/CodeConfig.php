@@ -2,57 +2,54 @@
 require_once ROOT_PATH . '/core/Model.php';
 
 /**
- * CodeConfig
- * Master Kode v2: menyimpan POLA kode (prefix/digit_length/counter) per kelompok
- * entity -- BUKAN daftar kode itu sendiri. Kode aktual TETAP di items.item_code /
- * suppliers.supplier_code / clients.client_code / warehouses.warehouse_code /
- * projects.project_code masing-masing (single source of truth di tabel master,
- * lihat entityMeta()). Form Tambah Barang/Supplier/Client/Gudang/Project memanggil
- * nextCode() untuk generate kode -- user tidak pernah mengetik nomor manual.
+ * CodeConfig -- Master Kode v3 (multi-prefix).
+ *
+ * Menyimpan POLA kode per (entity_type, prefix). SATU entity bisa punya BANYAK
+ * prefix, masing-masing counter sendiri. `master_code` = kode akhir per entity
+ * (ITM/SUP/CLI/WH/PRJ), diatur admin di Master Kode.
+ *
+ * Format kode: PREFIX.NOMOR.MASTERCODE  (mis. ME.0001.ITM)
+ *
+ * Kode aktual tetap di items.item_code / suppliers.supplier_code / dst
+ * (single source of truth). Kode LAMA format PREFIX-NNNNN tetap valid --
+ * nextCode() cek collision langsung ke tabel entity apa pun formatnya.
  */
 class CodeConfig extends Model
 {
     protected string $table = 'code_configs';
 
-    /**
-     * Satu-satunya tempat nama tabel/kolom fisik entity dipetakan dari $entityType --
-     * whitelist ini mencegah SQL injection lewat nama tabel/kolom dinamis dan jadi
-     * acuan bersama untuk MasterKodeController (listing per kelompok) & controller
-     * masing-masing entity (generate kode saat create).
-     */
+    /** master_code default per entity (dipakai saat menambah prefix pertama). */
     private array $entities = [
-        // Barang dipecah 3 kelompok kode (Revisi 7 #23-33) -- masing-masing prefix/
-        // sequence SENDIRI-SENDIRI, tapi tetap satu tabel/kolom kode fisik (items.item_code)
-        // supaya keunikan kode tetap GLOBAL (dipakai lintas PO/Inventory/Validasi/Laporan) --
-        // nextCode() sudah cek collision langsung ke items.item_code apa pun kelompoknya,
-        // jadi dua kelompok kebetulan menghasilkan kode yang sama otomatis dihindari.
         'item_stok_proyek' => [
             'table' => 'items', 'code_col' => 'item_code', 'name_col' => 'item_name',
             'label' => 'Barang - Stok Proyek', 'module' => 'item', 'stock_type' => 'stok_proyek',
+            'master_code' => 'ITM',
         ],
         'item_stok_lampu' => [
             'table' => 'items', 'code_col' => 'item_code', 'name_col' => 'item_name',
             'label' => 'Barang - Stok Lampu', 'module' => 'item', 'stock_type' => 'stok_lampu',
+            'master_code' => 'ITM',
         ],
         'item_inventory_kantor' => [
             'table' => 'items', 'code_col' => 'item_code', 'name_col' => 'item_name',
             'label' => 'Barang - Inventory Kantor', 'module' => 'item', 'stock_type' => 'inventory_kantor',
+            'master_code' => 'ITM',
         ],
         'supplier' => [
             'table' => 'suppliers', 'code_col' => 'supplier_code', 'name_col' => 'supplier_name',
-            'label' => 'Supplier', 'module' => 'supplier',
+            'label' => 'Supplier', 'module' => 'supplier', 'master_code' => 'SUP',
         ],
         'client' => [
             'table' => 'clients', 'code_col' => 'client_code', 'name_col' => 'client_name',
-            'label' => 'Client', 'module' => 'client',
+            'label' => 'Client', 'module' => 'client', 'master_code' => 'CLI',
         ],
         'warehouse' => [
             'table' => 'warehouses', 'code_col' => 'warehouse_code', 'name_col' => 'warehouse_name',
-            'label' => 'Gudang', 'module' => 'warehouse',
+            'label' => 'Gudang', 'module' => 'warehouse', 'master_code' => 'WH',
         ],
         'project' => [
             'table' => 'projects', 'code_col' => 'project_code', 'name_col' => 'project_name',
-            'label' => 'Project', 'module' => 'project',
+            'label' => 'Project', 'module' => 'project', 'master_code' => 'PRJ',
         ],
     ];
 
@@ -70,89 +67,174 @@ class CodeConfig extends Model
         return $out;
     }
 
+    /** Semua baris prefix untuk satu entity (urut prefix). */
+    public function configsForEntity(string $entityType): array
+    {
+        return $this->db->fetchAll(
+            "SELECT * FROM code_configs WHERE entity_type = :t ORDER BY prefix ASC",
+            ['t' => $entityType]
+        );
+    }
+
+    /** Baris prefix pertama (backward-compat "sudah dikonfigurasi?"). NULL kalau belum ada. */
     public function getConfig(string $entityType): ?array
     {
         return $this->db->fetchOne(
-            "SELECT * FROM code_configs WHERE entity_type = :t",
+            "SELECT * FROM code_configs WHERE entity_type = :t ORDER BY prefix ASC LIMIT 1",
             ['t' => $entityType]
         ) ?: null;
     }
 
-    /**
-     * Preview format kode dari config saat ini, mis. "BRG-0001" -- HANYA untuk
-     * ditampilkan di form (bukan kode final, karena next_number bisa berubah kalau
-     * ada request lain lolos duluan). Kode final tetap dari nextCode().
-     */
-    public function previewFormat(array $config): string
+    public function getConfigByPrefix(string $entityType, string $prefix): ?array
     {
-        return $config['prefix'] . '-' . str_pad((string) $config['next_number'], (int) $config['digit_length'], '0', STR_PAD_LEFT);
+        return $this->db->fetchOne(
+            "SELECT * FROM code_configs WHERE entity_type = :t AND prefix = :p",
+            ['t' => $entityType, 'p' => strtoupper(trim($prefix))]
+        ) ?: null;
     }
 
-    public function saveConfig(string $entityType, string $prefix, int $digitLength, ?int $userId): bool
+    /** master_code aktif untuk entity (dari baris config; fallback ke default). */
+    public function masterCodeForEntity(string $entityType): string
+    {
+        $row = $this->db->fetchOne(
+            "SELECT master_code FROM code_configs WHERE entity_type = :t AND master_code <> '' ORDER BY prefix ASC LIMIT 1",
+            ['t' => $entityType]
+        );
+        if ($row && $row['master_code'] !== '') {
+            return $row['master_code'];
+        }
+        return $this->entities[$entityType]['master_code'] ?? '';
+    }
+
+    public function prefixExists(string $entityType, string $prefix, ?int $excludeId = null): bool
+    {
+        $sql = "SELECT id FROM code_configs WHERE entity_type = :t AND prefix = :p";
+        $params = ['t' => $entityType, 'p' => strtoupper(trim($prefix))];
+        if ($excludeId) {
+            $sql .= " AND id <> :ex";
+            $params['ex'] = $excludeId;
+        }
+        return (bool) $this->db->fetchOne($sql, $params);
+    }
+
+    /** Tambah prefix baru untuk entity. Return ['ok'=>bool,'error'=>string]. */
+    public function addPrefix(string $entityType, string $prefix, int $digitLength, ?int $userId): array
     {
         if (!$this->entityMeta($entityType)) {
-            return false;
+            return ['ok' => false, 'error' => 'Kelompok tidak dikenal.'];
         }
         $prefix = strtoupper(trim($prefix));
-        if ($prefix === '') {
-            return false;
+        if ($prefix === '' || !preg_match('/^[A-Z0-9]+$/', $prefix)) {
+            return ['ok' => false, 'error' => 'Prefix hanya boleh huruf/angka (tanpa spasi/simbol).'];
+        }
+        if ($this->prefixExists($entityType, $prefix)) {
+            return ['ok' => false, 'error' => "Prefix {$prefix} sudah digunakan pada kategori ini."];
         }
         $digitLength = max(1, min(10, $digitLength));
+        $this->db->insert('code_configs', [
+            'entity_type'  => $entityType,
+            'prefix'       => $prefix,
+            'master_code'  => $this->masterCodeForEntity($entityType),
+            'digit_length' => $digitLength,
+            'next_number'  => 1,
+            'status'       => 'active',
+            'created_by'   => $userId,
+        ]);
+        return ['ok' => true, 'error' => ''];
+    }
 
-        $existing = $this->getConfig($entityType);
-        if ($existing) {
-            $this->db->update(
-                'code_configs',
-                ['prefix' => $prefix, 'digit_length' => $digitLength, 'updated_at' => date('Y-m-d H:i:s')],
-                'entity_type = :t',
-                ['t' => $entityType]
-            );
-        } else {
-            $this->db->insert('code_configs', [
-                'entity_type'  => $entityType,
-                'prefix'       => $prefix,
-                'digit_length' => $digitLength,
-                'next_number'  => 1,
-                'status'       => 'active',
-                'created_by'   => $userId,
-            ]);
+    /** Ubah prefix / digit satu baris. Return ['ok'=>bool,'error'=>string]. */
+    public function updatePrefixConfig(int $id, string $prefix, int $digitLength): array
+    {
+        $row = $this->find($id);
+        if (!$row) {
+            return ['ok' => false, 'error' => 'Baris konfigurasi tidak ditemukan.'];
         }
-        return true;
+        $prefix = strtoupper(trim($prefix));
+        if ($prefix === '' || !preg_match('/^[A-Z0-9]+$/', $prefix)) {
+            return ['ok' => false, 'error' => 'Prefix hanya boleh huruf/angka.'];
+        }
+        if ($this->prefixExists($row['entity_type'], $prefix, $id)) {
+            return ['ok' => false, 'error' => "Prefix {$prefix} sudah digunakan pada kategori ini."];
+        }
+        $this->db->update(
+            'code_configs',
+            ['prefix' => $prefix, 'digit_length' => max(1, min(10, $digitLength)), 'updated_at' => date('Y-m-d H:i:s')],
+            'id = :id',
+            ['id' => $id]
+        );
+        return ['ok' => true, 'error' => ''];
+    }
+
+    /** Hapus baris prefix -- hanya kalau belum pernah dipakai (next_number = 1). */
+    public function deletePrefixConfig(int $id): array
+    {
+        $row = $this->find($id);
+        if (!$row) {
+            return ['ok' => false, 'error' => 'Baris tidak ditemukan.'];
+        }
+        if ((int) $row['next_number'] > 1) {
+            return ['ok' => false, 'error' => 'Prefix ini sudah pernah menghasilkan kode, tidak bisa dihapus.'];
+        }
+        $this->db->query("DELETE FROM code_configs WHERE id = :id", ['id' => $id]);
+        return ['ok' => true, 'error' => ''];
+    }
+
+    /** Set master_code untuk SEMUA prefix milik satu entity. */
+    public function setMasterCode(string $entityType, string $masterCode): array
+    {
+        if (!$this->entityMeta($entityType)) {
+            return ['ok' => false, 'error' => 'Kelompok tidak dikenal.'];
+        }
+        $masterCode = strtoupper(trim($masterCode));
+        if ($masterCode === '' || !preg_match('/^[A-Z0-9]{1,10}$/', $masterCode)) {
+            return ['ok' => false, 'error' => 'Master Code hanya boleh 1-10 huruf/angka.'];
+        }
+        $this->db->query(
+            "UPDATE code_configs SET master_code = :mc, updated_at = NOW() WHERE entity_type = :t",
+            ['mc' => $masterCode, 't' => $entityType]
+        );
+        return ['ok' => true, 'error' => ''];
+    }
+
+    /** Preview format kode dari sebuah baris config (bukan kode final). */
+    public function previewFormat(array $config): string
+    {
+        $num = str_pad((string) $config['next_number'], (int) $config['digit_length'], '0', STR_PAD_LEFT);
+        $mc  = trim((string) ($config['master_code'] ?? ''));
+        return $config['prefix'] . '.' . $num . ($mc !== '' ? '.' . $mc : '');
     }
 
     /**
-     * Generate kode berikutnya untuk $entityType secara ATOMIC (transaction + row
-     * lock "FOR UPDATE" pada baris config-nya) -- aman kalau dua user submit form
-     * Tambah Barang/Supplier/dst bersamaan, BUKAN naive MAX(code)+1 yang bisa
-     * menghasilkan kode duplicate pada request paralel.
+     * Generate kode berikutnya untuk (entity_type, prefix) secara ATOMIC.
+     * $prefix null -> pakai prefix pertama entity (dipakai quick-add yang
+     * tidak punya pilihan prefix). Return null kalau kelompok/prefix belum
+     * dikonfigurasi -- caller WAJIB menolak penyimpanan.
      *
-     * Return null kalau kelompok ini belum dikonfigurasi (prefix belum diatur) atau
-     * nonaktif -- caller WAJIB menolak penyimpanan (lihat instruksi "jika prefix
-     * belum diatur, jangan membuat kode sembarangan"), jangan fallback ke apapun.
-     *
-     * Ada pengecekan collision tambahan langsung ke tabel entity asli (bukan cuma
-     * counter) sebagai lapisan kedua kalau ada kode lama yang kebetulan bentrok
-     * dengan hasil counter (mis. data lama hasil input manual/seed sebelum fitur ini).
+     * Format: PREFIX.NOMOR.MASTERCODE. Ada collision check ke tabel entity
+     * (menangkap kode lama format apa pun yang kebetulan bentrok).
      */
-    public function nextCode(string $entityType): ?string
+    public function nextCode(string $entityType, ?string $prefix = null): ?string
     {
         $meta = $this->entityMeta($entityType);
         if (!$meta) {
             return null;
         }
 
-        // Nesting-safe: kalau caller sudah membuka transaction sendiri, ikut
-        // transaction itu (PDO tidak mendukung nested transaction). Commit/rollback
-        // diserahkan ke caller; di sini cukup TIDAK menyentuh transaction sama sekali.
         $manageTx = !$this->db->inTransaction();
         if ($manageTx) {
             $this->db->beginTransaction();
         }
         try {
-            $config = $this->db->fetchOne(
-                "SELECT * FROM code_configs WHERE entity_type = :t AND status = 'active' FOR UPDATE",
-                ['t' => $entityType]
-            );
+            $sql = "SELECT * FROM code_configs WHERE entity_type = :t AND status = 'active'";
+            $params = ['t' => $entityType];
+            if ($prefix !== null) {
+                $sql .= " AND prefix = :p";
+                $params['p'] = strtoupper(trim($prefix));
+            }
+            $sql .= " ORDER BY prefix ASC LIMIT 1 FOR UPDATE";
+
+            $config = $this->db->fetchOne($sql, $params);
             if (!$config) {
                 if ($manageTx) {
                     $this->db->rollBack();
@@ -160,10 +242,15 @@ class CodeConfig extends Model
                 return null;
             }
 
+            $mc = trim((string) ($config['master_code'] ?? ''));
+            $mcSuffix = $mc !== '' ? '.' . $mc : '';
+
             $number = (int) $config['next_number'];
             $code = null;
-            for ($attempt = 0; $attempt < 50; $attempt++) {
-                $candidate = $config['prefix'] . '-' . str_pad((string) $number, (int) $config['digit_length'], '0', STR_PAD_LEFT);
+            for ($attempt = 0; $attempt < 100; $attempt++) {
+                $candidate = $config['prefix'] . '.'
+                    . str_pad((string) $number, (int) $config['digit_length'], '0', STR_PAD_LEFT)
+                    . $mcSuffix;
                 $collides = $this->db->fetchOne(
                     "SELECT id FROM {$meta['table']} WHERE {$meta['code_col']} = :code",
                     ['code' => $candidate]
@@ -183,8 +270,8 @@ class CodeConfig extends Model
             }
 
             $this->db->query(
-                "UPDATE code_configs SET next_number = :next WHERE entity_type = :t",
-                ['next' => $number + 1, 't' => $entityType]
+                "UPDATE code_configs SET next_number = :next WHERE id = :id",
+                ['next' => $number + 1, 'id' => (int) $config['id']]
             );
             if ($manageTx) {
                 $this->db->commit();

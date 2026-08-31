@@ -124,6 +124,9 @@
                                                 <i class="bi bi-eye"></i> Detail
                                             </a>
                                         </li>
+                                        <?php if (isPeriodClosed('offline_purchase', $p['purchase_date'])): ?>
+                                        <li><span class="dropdown-item-text text-muted small"><i class="bi bi-lock-fill"></i> Periode ditutup</span></li>
+                                        <?php else: ?>
                                         <?php if (can('offline_purchase', 'edit')): ?>
                                         <li>
                                             <a class="dropdown-item" href="<?= BASE_URL ?>/offline_purchase/edit/<?= (int) $p['id'] ?>">
@@ -142,6 +145,7 @@
                                                     </button>
                                                 </form>
                                             </li>
+                                        <?php endif; ?>
                                         <?php endif; ?>
                                     </ul>
                                 </div>

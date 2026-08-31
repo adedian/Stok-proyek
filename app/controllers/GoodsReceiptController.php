@@ -136,6 +136,8 @@ class GoodsReceiptController extends Controller
             $this->redirect('goods_receipt', 'create', ['po_id' => $data['purchase_order_id']]);
         }
 
+        assertPeriodOpen('goods_receipt', $data['receipt_date'], 'goods_receipt', 'create', ['po_id' => $data['purchase_order_id']]);
+
         try {
             $photoGoods = handleFileUpload('photo_goods', 'foto_barang', ['jpg', 'jpeg', 'png', 'webp'], 5);
             // Upload Invoice pada Penerimaan Barang -- extension+MIME+size+secure
@@ -316,6 +318,9 @@ class GoodsReceiptController extends Controller
             $this->redirect('goods_receipt', 'edit', ['id' => $id]);
         }
 
+        assertPeriodOpen('goods_receipt', $existing['receipt_date'], 'goods_receipt', 'edit', ['id' => $id]);
+        assertPeriodOpen('goods_receipt', $data['receipt_date'], 'goods_receipt', 'edit', ['id' => $id]);
+
         try {
             $photoGoods = handleFileUpload('photo_goods', 'foto_barang', ['jpg', 'jpeg', 'png', 'webp'], 5);
             $invoiceFile = handleFileUpload('invoice_file', 'invoice_penerimaan', ['pdf', 'jpg', 'jpeg', 'png', 'webp'], 5);
@@ -415,6 +420,8 @@ class GoodsReceiptController extends Controller
             setFlash('error', 'Data penerimaan barang tidak ditemukan.');
             $this->redirect('goods_receipt', 'index');
         }
+
+        assertPeriodOpen('goods_receipt', $receipt['receipt_date'], 'goods_receipt', 'index');
 
         $pdo = getPDO();
         try {

@@ -111,7 +111,9 @@
                                                 <i class="bi bi-eye"></i> Detail
                                             </a>
                                         </li>
-                                        <?php if ($o['status'] === 'draft' && can('inventory', 'delete')): ?>
+                                        <?php if (isPeriodClosed('stock_opname', $o['opname_date'])): ?>
+                                        <li><span class="dropdown-item-text text-muted small"><i class="bi bi-lock-fill"></i> Periode ditutup</span></li>
+                                        <?php elseif ($o['status'] === 'draft' && can('inventory', 'delete')): ?>
                                             <li>
                                                 <form method="POST" action="<?= BASE_URL ?>/index.php?module=inventory&action=opnameDelete"
                                                       class="js-confirm-delete" data-message="Hapus data opname draft <?= e($o['opname_number']) ?>? Seluruh item hitung fisiknya juga akan terhapus.">

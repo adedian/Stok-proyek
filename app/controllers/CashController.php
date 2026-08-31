@@ -339,6 +339,8 @@ class CashController extends Controller
             $this->redirect('cash', 'create');
         }
 
+        assertPeriodOpen('cash', $data['trx_date'], 'cash', 'create');
+
         $pdo = getPDO();
         try {
             $pdo->beginTransaction();
@@ -424,6 +426,9 @@ class CashController extends Controller
             $this->redirect('cash', 'edit', ['id' => $id]);
         }
 
+        assertPeriodOpen('cash', $existing['trx_date'], 'cash', 'edit', ['id' => $id]);
+        assertPeriodOpen('cash', $data['trx_date'], 'cash', 'edit', ['id' => $id]);
+
         $pdo = getPDO();
         try {
             $pdo->beginTransaction();
@@ -470,6 +475,7 @@ class CashController extends Controller
             $this->redirect('cash', 'index');
         }
         $this->assertCanTouch($row);
+        assertPeriodOpen('cash', $row['trx_date'], 'cash', 'index');
 
         $this->cashModel->deleteById($id);
         $this->activityLog->log(currentUserId(), 'cash', 'delete', "Kas #{$id} ('{$row['no_bukti']}') dihapus ke Tempat Sampah");

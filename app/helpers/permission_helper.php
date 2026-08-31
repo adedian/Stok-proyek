@@ -19,7 +19,7 @@
  * Modul yang izinnya TIDAK BISA diubah lewat UI dan TIDAK BISA di-override
  * per-user -- selalu dibaca dari config/permissions.php (Super Admin only).
  */
-const PERMISSION_LOCKED_MODULES = ['settings', 'user', 'trash'];
+const PERMISSION_LOCKED_MODULES = ['settings', 'user', 'trash', 'period_lock'];
 
 /** Role yang izinnya bisa diedit di matrix (super_admin selalu full-access). */
 function permissionEditableRoleSlugs(): array
@@ -77,13 +77,13 @@ function permissionLabelMaps(): array
             'supplier' => 'Supplier', 'client' => 'Client', 'project' => 'Project', 'item' => 'Barang',
             'item_category' => 'Kategori Barang', 'unit' => 'Satuan', 'warehouse' => 'Gudang',
             'payment_method' => 'Metode Pembayaran', 'signature' => 'Tanda Tangan', 'dp_percentage' => 'Persentase DP',
-            'settings' => 'Pengaturan Sistem', 'trash' => 'Tempat Sampah',
+            'settings' => 'Pengaturan Sistem', 'trash' => 'Tempat Sampah', 'period_lock' => 'Tutup Bulan',
         ],
         'actions' => [
             'view' => 'Lihat', 'create' => 'Tambah', 'edit' => 'Ubah', 'delete' => 'Hapus',
             'approve' => 'Approve', 'validate' => 'Validasi', 'quick_add' => 'Quick Add', 'complete' => 'Selesaikan',
             'restore' => 'Restore', 'force_delete' => 'Hapus Permanen', 'delete_stock' => 'Hapus Kartu Stok',
-            'view_balance' => 'Lihat Saldo',
+            'view_balance' => 'Lihat Saldo', 'close' => 'Tutup Periode', 'reopen' => 'Buka Kembali',
         ],
     ];
 }

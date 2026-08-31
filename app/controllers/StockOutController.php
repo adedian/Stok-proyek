@@ -95,6 +95,8 @@ class StockOutController extends Controller
             $this->redirect('stock_out', 'create', ['project_id' => $data['project_id'], 'sales_invoice_id' => $data['sales_invoice_id']]);
         }
 
+        assertPeriodOpen('stock_out', $data['out_date'], 'stock_out', 'create', ['project_id' => $data['project_id']]);
+
         $pdo = getPDO();
         try {
             $pdo->beginTransaction();
@@ -200,6 +202,9 @@ class StockOutController extends Controller
             $this->redirect('stock_out', 'edit', ['id' => $id]);
         }
 
+        assertPeriodOpen('stock_out', $existing['out_date'], 'stock_out', 'edit', ['id' => $id]);
+        assertPeriodOpen('stock_out', $data['out_date'], 'stock_out', 'edit', ['id' => $id]);
+
         $pdo = getPDO();
         try {
             $pdo->beginTransaction();
@@ -276,6 +281,8 @@ class StockOutController extends Controller
             setFlash('error', 'Data pengeluaran barang tidak ditemukan.');
             $this->redirect('stock_out', 'index');
         }
+
+        assertPeriodOpen('stock_out', $existing['out_date'], 'stock_out', 'index');
 
         $pdo = getPDO();
         try {

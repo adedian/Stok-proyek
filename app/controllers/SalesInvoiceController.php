@@ -109,6 +109,8 @@ class SalesInvoiceController extends Controller
             $this->redirect('sales_invoice', 'create');
         }
 
+        assertPeriodOpen('sales_invoice', $data['invoice_date'], 'sales_invoice', 'create');
+
         // Generate nomor SEBELUM beginTransaction() -- DocumentNumber::next() punya
         // transaction atomic sendiri (SELECT...FOR UPDATE pada counter), tidak bisa
         // dinested di dalam transaction PDO lain (PDO MySQL tidak dukung nested
@@ -219,6 +221,9 @@ class SalesInvoiceController extends Controller
             $this->redirect('sales_invoice', 'edit', ['id' => $id]);
         }
 
+        assertPeriodOpen('sales_invoice', $existing['invoice_date'], 'sales_invoice', 'edit', ['id' => $id]);
+        assertPeriodOpen('sales_invoice', $data['invoice_date'], 'sales_invoice', 'edit', ['id' => $id]);
+
         // Jenis Invoice (project/lampu) TIDAK BOLEH berubah lewat edit -- nomor
         // yang sudah tersimpan sudah "mengunci" kodenya (INV.HME vs FKT.HME), jadi
         // apapun yang dikirim browser diabaikan & selalu dipertahankan dari data
@@ -286,6 +291,8 @@ class SalesInvoiceController extends Controller
             setFlash('error', 'Invoice ini sudah dipakai di sebuah Tanda Terima, tidak bisa dihapus.');
             $this->redirect('sales_invoice', 'detail', ['id' => $id]);
         }
+
+        assertPeriodOpen('sales_invoice', $invoice['invoice_date'], 'sales_invoice', 'index');
 
         $this->invoiceModel->deleteById($id);
         $this->activityLog->log(currentUserId(), 'sales_invoice', 'delete', "Invoice Keluar {$invoice['invoice_number']} dihapus");

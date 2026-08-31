@@ -180,6 +180,8 @@ class InventoryController extends Controller
             $this->redirect('inventory', 'opnameCreate', ['stock_scope' => $stockScope, 'project_id' => $projectId]);
         }
 
+        assertPeriodOpen('stock_opname', $opnameDate, 'inventory', 'opnameCreate', ['stock_scope' => $stockScope, 'project_id' => $projectId]);
+
         $pdo = getPDO();
         try {
             $pdo->beginTransaction();
@@ -282,6 +284,8 @@ class InventoryController extends Controller
             $this->redirect('inventory', 'opnameDetail', ['id' => $id]);
         }
 
+        assertPeriodOpen('stock_opname', $opname['opname_date'], 'inventory', 'opnameDetail', ['id' => $id]);
+
         $pdo = getPDO();
         try {
             $pdo->beginTransaction();
@@ -345,6 +349,8 @@ class InventoryController extends Controller
             setFlash('error', 'Data stok opname tidak ditemukan.');
             $this->redirect('inventory', 'opnameIndex');
         }
+
+        assertPeriodOpen('stock_opname', $opname['opname_date'], 'inventory', 'opnameDetail', ['id' => $id]);
 
         if ($opname['status'] === 'completed') {
             Middleware::requirePermission('inventory', 'delete_stock');

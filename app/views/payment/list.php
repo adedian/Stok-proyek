@@ -169,6 +169,9 @@
                                         <i class="bi bi-three-dots-vertical"></i>
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end">
+                                        <?php if (isPeriodClosed('payment', $pay['payment_date'])): ?>
+                                        <li><span class="dropdown-item-text text-muted small"><i class="bi bi-lock-fill"></i> Periode ditutup</span></li>
+                                        <?php else: ?>
                                         <li>
                                             <a class="dropdown-item" href="<?= BASE_URL ?>/payment/edit/<?= (int) $pay['id'] ?>">
                                                 <i class="bi bi-pencil"></i> Edit
@@ -184,6 +187,7 @@
                                                 </button>
                                             </form>
                                         </li>
+                                        <?php endif; ?>
                                     </ul>
                                 </div>
                             </td>

@@ -148,6 +148,8 @@ class PurchaseOrderController extends Controller
             $this->redirect('purchase_order', 'create');
         }
 
+        assertPeriodOpen('purchase_order', $data['po_date'], 'purchase_order', 'create');
+
         $pdo = getPDO();
         try {
             $pdo->beginTransaction();
@@ -244,6 +246,10 @@ class PurchaseOrderController extends Controller
             $this->redirect('purchase_order', 'edit', ['id' => $id]);
         }
 
+        // Tolak kalau tanggal LAMA atau BARU berada di periode yang sudah ditutup.
+        assertPeriodOpen('purchase_order', $existing['po_date'], 'purchase_order', 'edit', ['id' => $id]);
+        assertPeriodOpen('purchase_order', $data['po_date'], 'purchase_order', 'edit', ['id' => $id]);
+
         // PO yang item-nya sudah punya penerimaan barang TIDAK BOLEH item-nya
         // dihapus/diganti -- FK fk_gri_poi akan menolak DELETE-nya (goods_receipt_items
         // masih menunjuk ke baris itu). Kalau sudah ada penerimaan, kunci daftar item:
@@ -317,6 +323,7 @@ class PurchaseOrderController extends Controller
         $po = $this->poModel->find($id);
 
         if ($po) {
+            assertPeriodOpen('purchase_order', $po['po_date'], 'purchase_order', 'index');
             $this->poModel->deleteById($id);
             $this->historyModel->log($id, 'deleted', 'Purchase Order dihapus (soft delete)', currentUserId());
             setFlash('success', 'Purchase Order berhasil dihapus.');

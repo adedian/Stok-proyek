@@ -93,6 +93,14 @@ return [
         'view' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_PROJECT_MANAGER],
     ],
 
+    // Tutup Bulan (Laporan -> Tutup Bulan) -- SUPER ADMIN ONLY, terkunci
+    // (lihat PERMISSION_LOCKED_MODULES). Role lain tidak boleh menutup/membuka periode.
+    'period_lock' => [
+        'view'   => [ROLE_SUPER_ADMIN],
+        'close'  => [ROLE_SUPER_ADMIN],
+        'reopen' => [ROLE_SUPER_ADMIN],
+    ],
+
     // Manajemen user -- khusus Super Admin. Tidak ada 'delete'.
     'user' => [
         'view'   => [ROLE_SUPER_ADMIN],

@@ -19,6 +19,11 @@ $reports = [
 if (!hasRole([ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING])) {
     $reports = array_values(array_filter($reports, fn($r) => $r['key'] === 'inventory'));
 }
+
+// Tutup Bulan -- kartu khusus (Super Admin), menautkan ke modul period_lock.
+if (can('period_lock', 'view')) {
+    $reports[] = ['key' => 'periodLock', 'label' => 'Tutup Bulan', 'icon' => 'bi-lock', 'url' => route('period_lock')];
+}
 ?>
 <div class="mb-3">
     <h4 class="mb-0">Laporan</h4>

@@ -182,7 +182,12 @@ $kasPicName = $kasPicName ?? null;
                             <td class="text-end fw-semibold"><?= formatRupiah($r['total_amount']) ?></td>
                             <td><?= e($r['created_by_name'] ?? '-') ?></td>
                             <td class="text-center no-print">
-                                <?php if (can('cash', 'edit') || can('cash', 'delete')): ?>
+                                <?php $rowLocked = isPeriodClosed('cash', $r['trx_date']); ?>
+                                <?php if ($rowLocked): ?>
+                                    <span class="badge bg-secondary" title="Periode ditutup -- transaksi terkunci">
+                                        <i class="bi bi-lock-fill"></i> Terkunci
+                                    </span>
+                                <?php elseif (can('cash', 'edit') || can('cash', 'delete')): ?>
                                 <div class="dropdown row-actions">
                                     <button type="button" class="btn btn-row-actions" data-bs-toggle="dropdown" aria-expanded="false" title="Aksi">
                                         <i class="bi bi-three-dots-vertical"></i>

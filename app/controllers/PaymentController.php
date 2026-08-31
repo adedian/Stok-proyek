@@ -107,6 +107,8 @@ class PaymentController extends Controller
             $this->redirect('payment', 'create', $data['purchase_order_id'] ? ['po_id' => $data['purchase_order_id']] : []);
         }
 
+        assertPeriodOpen('payment', $data['payment_date'], 'payment', 'create');
+
         try {
             $proofFile = handleFileUpload('proof_file', 'payments', ['jpg', 'jpeg', 'png', 'webp', 'pdf'], 5);
         } catch (RuntimeException $e) {
@@ -195,6 +197,9 @@ class PaymentController extends Controller
             $this->redirect('payment', 'edit', ['id' => $id]);
         }
 
+        assertPeriodOpen('payment', $existing['payment_date'], 'payment', 'edit', ['id' => $id]);
+        assertPeriodOpen('payment', $data['payment_date'], 'payment', 'edit', ['id' => $id]);
+
         try {
             $proofFile = handleFileUpload('proof_file', 'payments', ['jpg', 'jpeg', 'png', 'webp', 'pdf'], 5);
         } catch (RuntimeException $e) {
@@ -247,6 +252,7 @@ class PaymentController extends Controller
         $payment = $this->paymentModel->find($id);
 
         if ($payment) {
+            assertPeriodOpen('payment', $payment['payment_date'], 'payment', 'index');
             $this->paymentModel->deleteById($id);
             $this->historyModel->log(
                 $payment['purchase_order_id'],

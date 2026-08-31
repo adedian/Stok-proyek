@@ -113,6 +113,8 @@ class OfflinePurchaseController extends Controller
             $this->redirect('offline_purchase', 'create');
         }
 
+        assertPeriodOpen('offline_purchase', $data['purchase_date'], 'offline_purchase', 'create');
+
         try {
             $proofFile = handleFileUpload('proof_file', 'bukti_pembelian', ['jpg', 'jpeg', 'png', 'webp', 'pdf'], 5);
             $photoFile = handleFileUpload('photo_file', 'foto_barang', ['jpg', 'jpeg', 'png', 'webp'], 5);
@@ -209,6 +211,9 @@ class OfflinePurchaseController extends Controller
             $this->redirect('offline_purchase', 'edit', ['id' => $id]);
         }
 
+        assertPeriodOpen('offline_purchase', $existing['purchase_date'], 'offline_purchase', 'edit', ['id' => $id]);
+        assertPeriodOpen('offline_purchase', $data['purchase_date'], 'offline_purchase', 'edit', ['id' => $id]);
+
         try {
             $proofFile = handleFileUpload('proof_file', 'bukti_pembelian', ['jpg', 'jpeg', 'png', 'webp', 'pdf'], 5);
             $photoFile = handleFileUpload('photo_file', 'foto_barang', ['jpg', 'jpeg', 'png', 'webp'], 5);
@@ -290,6 +295,8 @@ class OfflinePurchaseController extends Controller
             setFlash('error', 'Pembelian offline ini sudah punya penerimaan barang dan tidak bisa dihapus.');
             $this->redirect('offline_purchase', 'detail', ['id' => $id]);
         }
+
+        assertPeriodOpen('offline_purchase', $purchase['purchase_date'], 'offline_purchase', 'index');
 
         $this->purchaseModel->deleteById($id);
         $this->activityLog->log(

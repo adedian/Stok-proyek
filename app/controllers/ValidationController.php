@@ -89,6 +89,9 @@ class ValidationController extends Controller
             $this->redirect('validation', 'index');
         }
 
+        // Validasi mengubah stok -> ikut kunci periode 'validation' (tanggal = tgl penerimaan).
+        assertPeriodOpen('validation', (string) ($item['receipt_date'] ?? ''), 'validation', 'index');
+
         $pdo = getPDO();
         try {
             $pdo->beginTransaction();

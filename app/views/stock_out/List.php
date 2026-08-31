@@ -156,6 +156,9 @@
                                         <i class="bi bi-three-dots-vertical"></i>
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end">
+                                        <?php if (isPeriodClosed('stock_out', $so['out_date'])): ?>
+                                        <li><span class="dropdown-item-text text-muted small"><i class="bi bi-lock-fill"></i> Periode ditutup</span></li>
+                                        <?php else: ?>
                                         <?php if (can('stock_out', 'edit')): ?>
                                         <li>
                                             <a class="dropdown-item" href="<?= BASE_URL ?>/stock_out/edit/<?= (int) $so['id'] ?>">
@@ -174,6 +177,7 @@
                                                 </button>
                                             </form>
                                         </li>
+                                        <?php endif; ?>
                                         <?php endif; ?>
                                     </ul>
                                 </div>

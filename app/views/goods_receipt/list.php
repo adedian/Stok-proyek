@@ -115,6 +115,9 @@
                                                 <i class="bi bi-eye"></i> Detail
                                             </a>
                                         </li>
+                                        <?php if (isPeriodClosed('goods_receipt', $r['receipt_date'])): ?>
+                                        <li><span class="dropdown-item-text text-muted small"><i class="bi bi-lock-fill"></i> Periode ditutup</span></li>
+                                        <?php else: ?>
                                         <?php if ($r['receipt_type'] !== 'pemakai' && can('goods_receipt', 'edit')): ?>
                                         <li>
                                             <a class="dropdown-item" href="<?= BASE_URL ?>/goods_receipt/edit/<?= (int) $r['id'] ?>">
@@ -133,6 +136,7 @@
                                                 </button>
                                             </form>
                                         </li>
+                                        <?php endif; ?>
                                         <?php endif; ?>
                                     </ul>
                                 </div>

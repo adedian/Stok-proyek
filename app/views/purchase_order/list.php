@@ -126,6 +126,9 @@
                                                 <i class="bi bi-eye"></i> Detail
                                             </a>
                                         </li>
+                                        <?php if (isPeriodClosed('purchase_order', $po['po_date'])): ?>
+                                        <li><span class="dropdown-item-text text-muted small"><i class="bi bi-lock-fill"></i> Periode ditutup</span></li>
+                                        <?php else: ?>
                                         <?php if (can('purchase_order', 'edit')): ?>
                                         <li>
                                             <a class="dropdown-item" href="<?= BASE_URL ?>/purchase_order/edit/<?= (int) $po['id'] ?>">
@@ -144,6 +147,7 @@
                                                     </button>
                                                 </form>
                                             </li>
+                                        <?php endif; ?>
                                         <?php endif; ?>
                                     </ul>
                                 </div>

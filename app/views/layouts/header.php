@@ -63,7 +63,7 @@
         </span>
         <nav class="app-breadcrumb" aria-label="breadcrumb">
             <?php if ($topbarGroup): ?>
-                <span><?= e($topbarGroup) ?></span>
+                <span class="crumb-group"><?= e($topbarGroup) ?></span>
                 <span class="crumb-sep">/</span>
             <?php endif; ?>
             <span class="crumb-current"><?= e($topbarPageLabel) ?></span>

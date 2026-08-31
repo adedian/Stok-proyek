@@ -5,11 +5,11 @@
     </div>
     <div class="d-flex gap-2">
         <a href="<?= BASE_URL ?>/index.php?module=delivery_note" class="btn btn-outline-secondary">
-            <i class="bi bi-truck"></i> Riwayat Surat Jalan
+            <i class="bi bi-truck"></i> <span class="d-sm-none">Riwayat</span><span class="d-none d-sm-inline">Riwayat Surat Jalan</span>
         </a>
         <?php if (can('stock_out', 'create')): ?>
         <a href="<?= BASE_URL ?>/index.php?module=stock_out&action=create" class="btn btn-primary">
-            <i class="bi bi-plus-circle"></i> Tambah Pengeluaran
+            <i class="bi bi-plus-circle"></i> <span class="d-sm-none">Tambah</span><span class="d-none d-sm-inline">Tambah Pengeluaran</span>
         </a>
         <?php endif; ?>
     </div>
@@ -44,7 +44,7 @@
             </div>
             <div class="col-md-1 d-flex gap-2">
                 <button type="submit" class="btn btn-sm btn-outline-primary w-100">
-                    <i class="bi bi-search"></i>
+                    <i class="bi bi-search"></i> <span class="d-md-none">Cari</span>
                 </button>
             </div>
         </form>

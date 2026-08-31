@@ -5,6 +5,61 @@ $actionUrl = $isEdit ? 'update' : 'store';
 $val = static fn(string $k, $d = '') => e($cash[$k] ?? $d);
 $curPic = $cash['pic'] ?? '';
 ?>
+<style>
+/* Rincian item Kas: di layar sempit (<768px) tiap baris jadi kartu bertumpuk,
+   bukan tabel yang meluber ke samping. Hanya menyasar #itemTable form ini --
+   tidak menyentuh CSS/tabel modul lain. */
+@media (max-width: 767.98px) {
+    .rincian-head { align-items: flex-start !important; }
+    .rincian-head > #btnAddItem { flex: 1 1 100%; }
+
+    #itemTable { border: 0; }
+    #itemTable thead { display: none; }
+    #itemTable tbody, #itemTable tfoot,
+    #itemTable tr.item-row, #itemTable tfoot tr { display: block; width: 100%; }
+
+    #itemTable tr.item-row {
+        position: relative;
+        border: 1px solid #dee2e6;
+        border-radius: .5rem;
+        padding: .6rem .75rem .75rem;
+        margin-bottom: .625rem;
+        background: #fff;
+    }
+    #itemTable tr.item-row > td {
+        display: block;
+        width: 100% !important;
+        border: 0;
+        padding: .4rem 0 0;
+        text-align: left !important;
+    }
+    #itemTable tr.item-row > td::before {
+        content: attr(data-label);
+        display: block;
+        font-size: .7rem;
+        font-weight: 600;
+        letter-spacing: .02em;
+        text-transform: uppercase;
+        color: #6c757d;
+        margin-bottom: .15rem;
+    }
+    #itemTable tr.item-row > td.subtotal-cell { font-weight: 600; }
+    #itemTable tr.item-row > td.cell-remove { padding-top: .6rem; }
+    #itemTable tr.item-row > td.cell-remove::before { content: none; }
+    #itemTable tr.item-row > td.cell-remove .btn-remove-row { width: 100%; }
+
+    #itemTable tfoot td { display: block; border: 0; padding: 0; text-align: left !important; }
+    #itemTable tfoot td:empty { display: none; }
+    #itemTable tfoot tr {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        border-top: 2px solid #dee2e6;
+        margin-top: .25rem;
+        padding-top: .6rem;
+    }
+}
+</style>
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h4 class="mb-0"><?= $isEdit ? 'Edit' : 'Tambah' ?> Kas</h4>
     <a href="<?= BASE_URL ?>/index.php?module=cash" class="btn btn-outline-secondary">
@@ -76,7 +131,7 @@ $curPic = $cash['pic'] ?? '';
 
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2 rincian-head">
                 <h6 class="mb-0">Rincian (Uraian / Qty / Satuan)</h6>
                 <button type="button" id="btnAddItem" class="btn btn-sm btn-outline-primary">
                     <i class="bi bi-plus-circle"></i> Tambah Barang

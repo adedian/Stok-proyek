@@ -63,4 +63,115 @@ class UserPicAssignment extends Model
             ['uid' => $userId, 'pn' => $picName]
         );
     }
+
+    // ===================== Second-level auth Kas =====================
+
+    /** Ada PIC (apa pun) untuk user ini? */
+    public function hasAnyPic(int $userId): bool
+    {
+        return (bool) $this->db->fetchOne(
+            "SELECT id FROM user_pic_assignments WHERE user_id = :uid LIMIT 1",
+            ['uid' => $userId]
+        );
+    }
+
+    /** Ada PIC AKTIF + sudah ber-password (siap dipakai login Kas)? */
+    public function hasLoginablePic(int $userId): bool
+    {
+        return (bool) $this->db->fetchOne(
+            "SELECT id FROM user_pic_assignments
+              WHERE user_id = :uid AND is_active = 1 AND pic_password IS NOT NULL AND pic_password <> ''
+              LIMIT 1",
+            ['uid' => $userId]
+        );
+    }
+
+    /** Nama PIC aktif + ber-password milik user -- untuk dropdown form login Kas. */
+    public function loginablePicNames(int $userId): array
+    {
+        $rows = $this->db->fetchAll(
+            "SELECT pic_name FROM user_pic_assignments
+              WHERE user_id = :uid AND is_active = 1 AND pic_password IS NOT NULL AND pic_password <> ''
+           ORDER BY pic_name ASC",
+            ['uid' => $userId]
+        );
+        return array_column($rows, 'pic_name');
+    }
+
+    /**
+     * Kandidat login Kas: cocokkan nama PIC ATAU username PIC, dalam lingkup
+     * mapping milik user tsb, harus aktif & ber-password. NULL kalau tak ada.
+     */
+    public function findLoginCandidate(int $userId, string $nameOrUsername): ?array
+    {
+        $row = $this->db->fetchOne(
+            "SELECT * FROM user_pic_assignments
+              WHERE user_id = :uid AND is_active = 1
+                AND pic_password IS NOT NULL AND pic_password <> ''
+                AND (pic_name = :n1 OR pic_username = :n2)
+              LIMIT 1",
+            ['uid' => $userId, 'n1' => $nameOrUsername, 'n2' => $nameOrUsername]
+        );
+        return $row ?: null;
+    }
+
+    /** Username PIC sudah dipakai baris lain? (username global-unik) */
+    public function picUsernameExists(string $username, ?int $excludeId = null): bool
+    {
+        $sql = "SELECT id FROM user_pic_assignments WHERE pic_username = :u";
+        $params = ['u' => $username];
+        if ($excludeId) {
+            $sql .= " AND id <> :ex";
+            $params['ex'] = $excludeId;
+        }
+        return (bool) $this->db->fetchOne($sql, $params);
+    }
+
+    public function rowByUserAndName(int $userId, string $picName): ?array
+    {
+        $row = $this->db->fetchOne(
+            "SELECT * FROM user_pic_assignments WHERE user_id = :uid AND pic_name = :pn LIMIT 1",
+            ['uid' => $userId, 'pn' => $picName]
+        );
+        return $row ?: null;
+    }
+
+    /**
+     * role_slug pemilik (akun) sebuah nama PIC -- dipakai menentukan `division`
+     * transaksi Kas saat dibuat. NULL kalau nama PIC belum di-mapping ke user.
+     */
+    public function ownerRoleSlugForPic(string $picName): ?string
+    {
+        $row = $this->db->fetchOne(
+            "SELECT r.role_slug
+               FROM user_pic_assignments a
+               JOIN users u ON u.id = a.user_id
+               JOIN roles r ON r.id = u.role_id
+              WHERE a.pic_name = :p
+           ORDER BY a.id ASC LIMIT 1",
+            ['p' => $picName]
+        );
+        return $row['role_slug'] ?? null;
+    }
+
+    public function setCredential(int $id, ?string $username, string $passwordHash, bool $isActive): int
+    {
+        return $this->updateById($id, [
+            'pic_username' => ($username !== null && $username !== '') ? $username : null,
+            'pic_password' => $passwordHash,
+            'is_active'    => $isActive ? 1 : 0,
+        ]);
+    }
+
+    /** Semua mapping + kredensial + user, untuk halaman PIC Mapping (Super Admin). */
+    public function listWithUserAndCredential(): array
+    {
+        return $this->db->fetchAll(
+            "SELECT a.*, u.full_name, u.username, r.role_name
+               FROM user_pic_assignments a
+               JOIN users u ON u.id = a.user_id
+               JOIN roles r ON r.id = u.role_id
+              ORDER BY u.full_name ASC, a.pic_name ASC"
+        );
+    }
 }

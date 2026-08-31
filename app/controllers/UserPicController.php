@@ -35,9 +35,63 @@ class UserPicController extends Controller
     {
         $this->view('user_pic/list', [
             'pageTitle'    => 'PIC Mapping',
-            'assignments'  => $this->picModel->listWithUser(),
+            'assignments'  => $this->picModel->listWithUserAndCredential(),
             'users'        => $this->userModel->activeList(),
         ]);
+    }
+
+    /**
+     * Set / reset kredensial login Kas (username + password/PIN + status aktif)
+     * untuk satu mapping PIC. KHUSUS Super Admin (gate user_pic.edit).
+     * Password disimpan ter-hash; plaintext tidak pernah disimpan/ditampilkan.
+     */
+    public function setCredential()
+    {
+        Middleware::requirePermission('user_pic', 'edit');
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('user_pic', 'index');
+        }
+        verifyCsrf();
+
+        $id       = (int) ($_POST['id'] ?? 0);
+        $row      = $this->picModel->find($id);
+        $username = trim($_POST['pic_username'] ?? '');
+        $pass     = (string) ($_POST['kas_password'] ?? '');
+        $passConf = (string) ($_POST['kas_password_confirm'] ?? '');
+        $isActive = ($_POST['is_active'] ?? '1') === '1';
+
+        $errors = [];
+        if (!$row) {
+            $errors[] = 'Mapping PIC tidak ditemukan.';
+        }
+        // Password wajib hanya kalau PIC ini belum punya password sama sekali.
+        $needPass = !$row || empty($row['pic_password']) || $pass !== '';
+        if ($needPass) {
+            if (mb_strlen($pass) < 6) {
+                $errors[] = 'Password Kas minimal 6 karakter.';
+            } elseif ($pass !== $passConf) {
+                $errors[] = 'Konfirmasi Password Kas tidak cocok.';
+            }
+        }
+        if ($username !== '' && $this->picModel->picUsernameExists($username, $id)) {
+            $errors[] = 'Username PIC sudah dipakai mapping lain.';
+        }
+
+        if (!empty($errors)) {
+            setFlash('error', implode(' ', $errors));
+            $this->redirect('user_pic', 'index');
+        }
+
+        $hash = ($pass !== '') ? password_hash($pass, PASSWORD_DEFAULT) : (string) $row['pic_password'];
+        $this->picModel->setCredential($id, $username ?: null, $hash, $isActive);
+        $this->activityLog->log(
+            currentUserId(),
+            'user_pic',
+            'pic_credential_set',
+            "Kredensial Kas PIC '{$row['pic_name']}' (user #{$row['user_id']}) di-set/reset; status=" . ($isActive ? 'aktif' : 'nonaktif')
+        );
+        setFlash('success', 'Kredensial Kas PIC diperbarui.');
+        $this->redirect('user_pic', 'index');
     }
 
     public function store()

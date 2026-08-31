@@ -168,6 +168,10 @@ return [
         'create' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT],
         'edit'   => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT],
         'delete' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT],
+        // Kartu saldo Kas (total & per-divisi) di halaman utama Kas -- SENGAJA
+        // hanya Super Admin & Accounting. Role lain melihat daftar transaksi
+        // (ter-scope PIC-nya) TANPA angka saldo.
+        'view_balance' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
     ],
 
     // Master Kategori Kas -- Accounting boleh kelola (view/create/edit) tapi

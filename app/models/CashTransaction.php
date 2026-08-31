@@ -38,9 +38,9 @@ class CashTransaction extends Model
         );
     }
 
-    public function listFiltered(array $filters, ?array $scopePics): array
+    public function listFiltered(array $filters, ?array $scopePics, ?array $divisionScope = null): array
     {
-        [$where, $params] = $this->buildWhere($filters, $scopePics);
+        [$where, $params] = $this->buildWhere($filters, $scopePics, $divisionScope);
         $sql = "SELECT c.*, cat.category_name, usr.full_name AS created_by_name
                   FROM cash_transactions c
                   JOIN cash_categories cat ON cat.id = c.category_id
@@ -50,9 +50,12 @@ class CashTransaction extends Model
         return $this->db->fetchAll($sql, $params);
     }
 
-    public function distinctPics(?array $scopePics): array
+    public function distinctPics(?array $scopePics, ?array $divisionScope = null): array
     {
         if ($scopePics !== null && count($scopePics) === 0) {
+            return [];
+        }
+        if ($divisionScope !== null && count($divisionScope) === 0) {
             return [];
         }
         $sql = "SELECT DISTINCT pic FROM cash_transactions WHERE deleted_at IS NULL AND pic <> ''";
@@ -65,6 +68,14 @@ class CashTransaction extends Model
             }
             $sql .= " AND pic IN (" . implode(',', $in) . ")";
         }
+        if ($divisionScope !== null) {
+            $in = [];
+            foreach (array_values($divisionScope) as $i => $d) {
+                $in[] = ":sd{$i}";
+                $params["sd{$i}"] = $d;
+            }
+            $sql .= " AND division IN (" . implode(',', $in) . ")";
+        }
         $sql .= " ORDER BY pic ASC";
         return array_column($this->db->fetchAll($sql, $params), 'pic');
     }
@@ -74,14 +85,14 @@ class CashTransaction extends Model
      * Kalau tidak ada filter date_from -> 0 (laporan buku kas dari awal).
      * Filter pic/kategori tetap dihormati supaya saldo awal konsisten dengan isi laporan.
      */
-    public function saldoAwal(array $filters, ?array $scopePics): float
+    public function saldoAwal(array $filters, ?array $scopePics, ?array $divisionScope = null): float
     {
         if (empty($filters['date_from'])) {
             return 0.0;
         }
         $f = $filters;
         unset($f['date_from'], $f['date_to']);
-        [$where, $params] = $this->buildWhere($f, $scopePics);
+        [$where, $params] = $this->buildWhere($f, $scopePics, $divisionScope);
         $params['df'] = $filters['date_from'];
         $row = $this->db->fetchOne(
             "SELECT
@@ -102,9 +113,9 @@ class CashTransaction extends Model
      *
      * @return array{saldo_awal: float, saldo_akhir: float, rows: array}
      */
-    public function reportLedger(array $filters, ?array $scopePics, float $saldoAwal): array
+    public function reportLedger(array $filters, ?array $scopePics, float $saldoAwal, ?array $divisionScope = null): array
     {
-        [$where, $params] = $this->buildWhere($filters, $scopePics);
+        [$where, $params] = $this->buildWhere($filters, $scopePics, $divisionScope);
         $trx = $this->db->fetchAll(
             "SELECT c.id, c.trx_date, c.no_bukti, c.mutasi, cat.category_name
                FROM cash_transactions c
@@ -145,7 +156,59 @@ class CashTransaction extends Model
         return ['saldo_awal' => $saldoAwal, 'saldo_akhir' => $saldo, 'rows' => $rows];
     }
 
-    private function buildWhere(array $filters, ?array $scopePics): array
+    /**
+     * Ringkasan saldo Kas per divisi + total keseluruhan, untuk kartu saldo
+     * di halaman utama Kas (hanya dirender untuk Super Admin / Accounting).
+     * saldo = opening_balance divisi + SUM(masuk) - SUM(keluar).
+     * $divisionScope membatasi divisi yang dihitung (null = semua).
+     *
+     * @return array{rows: array<int,array{division:string,label:string,masuk:float,keluar:float,saldo:float}>, total: float}
+     */
+    public function balanceByDivision(?array $scopePics, ?array $divisionScope = null): array
+    {
+        [$where, $params] = $this->buildWhere([], $scopePics, $divisionScope);
+        $agg = $this->db->fetchAll(
+            "SELECT c.division,
+                    COALESCE(SUM(CASE WHEN c.mutasi='masuk'  THEN c.total_amount ELSE 0 END),0) AS masuk,
+                    COALESCE(SUM(CASE WHEN c.mutasi='keluar' THEN c.total_amount ELSE 0 END),0) AS keluar
+               FROM cash_transactions c
+              {$where}
+           GROUP BY c.division",
+            $params
+        );
+
+        $opening = [];
+        foreach ($this->db->fetchAll("SELECT division, opening_balance FROM cash_opening_balances") as $o) {
+            $opening[$o['division']] = (float) $o['opening_balance'];
+        }
+
+        $labels = [
+            'project'    => 'Saldo Kas Project',
+            'accounting' => 'Saldo Kas Accounting',
+            'purchase'   => 'Saldo Kas Purchase',
+            'umum'       => 'Saldo Kas Umum',
+        ];
+
+        $rows = [];
+        $total = 0.0;
+        foreach ($agg as $r) {
+            $div = $r['division'];
+            $saldo = ($opening[$div] ?? 0.0) + (float) $r['masuk'] - (float) $r['keluar'];
+            $total += $saldo;
+            $rows[] = [
+                'division' => $div,
+                'label'    => $labels[$div] ?? ('Saldo Kas ' . ucfirst($div)),
+                'masuk'    => (float) $r['masuk'],
+                'keluar'   => (float) $r['keluar'],
+                'saldo'    => $saldo,
+            ];
+        }
+        usort($rows, fn($a, $b) => strcmp($a['label'], $b['label']));
+
+        return ['rows' => $rows, 'total' => $total];
+    }
+
+    private function buildWhere(array $filters, ?array $scopePics, ?array $divisionScope = null): array
     {
         $sql = "WHERE c.deleted_at IS NULL";
         $params = [];
@@ -160,6 +223,20 @@ class CashTransaction extends Model
                     $params["p{$i}"] = $p;
                 }
                 $sql .= " AND c.pic IN (" . implode(',', $in) . ")";
+            }
+        }
+
+        // Cakupan divisi (mis. Project Manager -> hanya 'project'). null = bebas.
+        if ($divisionScope !== null) {
+            if (count($divisionScope) === 0) {
+                $sql .= " AND 1 = 0";
+            } else {
+                $in = [];
+                foreach (array_values($divisionScope) as $i => $d) {
+                    $in[] = ":d{$i}";
+                    $params["d{$i}"] = $d;
+                }
+                $sql .= " AND c.division IN (" . implode(',', $in) . ")";
             }
         }
         if (!empty($filters['date_from'])) {

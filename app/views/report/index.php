@@ -2,6 +2,10 @@
 $reports = [
     ['key' => 'po', 'label' => 'Purchase Order', 'icon' => 'bi-cart-check'],
     ['key' => 'payment', 'label' => 'Pembayaran', 'icon' => 'bi-credit-card'],
+    // Laporan Kas (buku kas berjalan) tetap "milik" modul Kas -- punya view/PDF/Excel
+    // & scoping per-PIC sendiri di CashController -- jadi kartunya cuma menautkan
+    // ke sana, bukan lewat ReportController::buildReport() yang generik.
+    ['key' => 'cash', 'label' => 'Kas', 'icon' => 'bi-cash-coin', 'url' => BASE_URL . '/index.php?module=cash&action=report'],
     ['key' => 'goodsReceipt', 'label' => 'Penerimaan Barang', 'icon' => 'bi-box-seam'],
     ['key' => 'stockOut', 'label' => 'Pengeluaran Barang', 'icon' => 'bi-box-arrow-up'],
     ['key' => 'inventory', 'label' => 'Stok Barang', 'icon' => 'bi-clipboard-data'],
@@ -24,7 +28,7 @@ if (!hasRole([ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING])) {
 <div class="row g-3">
     <?php foreach ($reports as $r): ?>
         <div class="col-md-4">
-            <a href="<?= BASE_URL ?>/index.php?module=report&action=<?= e($r['key']) ?>"
+            <a href="<?= isset($r['url']) ? e($r['url']) : BASE_URL . '/index.php?module=report&action=' . e($r['key']) ?>"
                class="card border-0 shadow-sm text-decoration-none h-100">
                 <div class="card-body d-flex align-items-center gap-3">
                     <div class="fs-3 text-primary"><i class="bi <?= e($r['icon']) ?>"></i></div>

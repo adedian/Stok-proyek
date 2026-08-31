@@ -12,9 +12,11 @@
 <div class="alert alert-light border small">
     <i class="bi bi-info-circle"></i>
     Role <strong>Purchase</strong>, <strong>PIC Project</strong>, dan <strong>Admin Project</strong> hanya melihat
-    transaksi Kas dengan PIC yang terdaftar di sini untuk akun mereka. Role
+    transaksi Kas dengan PIC yang terdaftar di sini untuk akun mereka, dan wajib
+    <strong>verifikasi PIC + Password Kas</strong> saat membuka modul Kas. Role
     <strong>Super Admin</strong>, <strong>Accounting</strong>, dan <strong>Project Manager</strong> melihat seluruh Kas
-    tanpa perlu mapping.
+    tanpa verifikasi tambahan. Atur username &amp; password/PIN Kas tiap PIC lewat tombol
+    <i class="bi bi-key"></i> di bawah.
 </div>
 
 <?php if (can('user_pic', 'create')): ?>
@@ -52,12 +54,14 @@
                         <th>User</th>
                         <th>Role</th>
                         <th>PIC</th>
+                        <th>Username Kas</th>
+                        <th>Login Kas</th>
                         <th class="text-center no-print">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($assignments)): ?>
-                        <tr><td colspan="4" class="p-0">
+                        <tr><td colspan="6" class="p-0">
                             <div class="empty-state">
                                 <i class="bi bi-person-badge empty-icon"></i>
                                 <div class="empty-title">Belum ada mapping PIC</div>
@@ -66,11 +70,30 @@
                         </td></tr>
                     <?php endif; ?>
                     <?php foreach ($assignments as $a): ?>
+                        <?php
+                            $hasCred = !empty($a['pic_password']);
+                            $isActive = (int) ($a['is_active'] ?? 1) === 1;
+                        ?>
                         <tr>
                             <td><?= e($a['full_name']) ?> <span class="text-muted small">(<?= e($a['username']) ?>)</span></td>
                             <td><span class="badge bg-light text-dark border"><?= e($a['role_name']) ?></span></td>
                             <td><?= e($a['pic_name']) ?></td>
+                            <td><?= $a['pic_username'] !== null && $a['pic_username'] !== '' ? e($a['pic_username']) : '<span class="text-muted">&mdash;</span>' ?></td>
+                            <td>
+                                <?php if (!$hasCred): ?>
+                                    <span class="badge bg-light text-dark border">Belum di-set</span>
+                                <?php elseif ($isActive): ?>
+                                    <span class="badge text-bg-success">Aktif</span>
+                                <?php else: ?>
+                                    <span class="badge text-bg-secondary">Nonaktif</span>
+                                <?php endif; ?>
+                            </td>
                             <td class="text-center no-print">
+                                <?php if (can('user_pic', 'edit')): ?>
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#cred<?= (int) $a['id'] ?>" title="Set / reset password Kas">
+                                    <i class="bi bi-key"></i>
+                                </button>
+                                <?php endif; ?>
                                 <?php if (can('user_pic', 'delete')): ?>
                                 <form method="POST" action="<?= BASE_URL ?>/index.php?module=user_pic&action=delete"
                                       class="js-confirm-delete d-inline" data-message="Hapus mapping <?= e($a['username']) ?> &rarr; <?= e($a['pic_name']) ?>?">
@@ -81,6 +104,38 @@
                                 <?php endif; ?>
                             </td>
                         </tr>
+                        <?php if (can('user_pic', 'edit')): ?>
+                        <tr class="collapse no-print" id="cred<?= (int) $a['id'] ?>">
+                            <td colspan="6" class="bg-light">
+                                <form method="POST" action="<?= BASE_URL ?>/index.php?module=user_pic&action=setCredential" class="row g-2 align-items-end">
+                                    <?= csrfField() ?>
+                                    <input type="hidden" name="id" value="<?= (int) $a['id'] ?>">
+                                    <div class="col-md-3">
+                                        <label class="form-label small text-muted mb-1">Username Kas (opsional)</label>
+                                        <input type="text" name="pic_username" class="form-control form-control-sm" value="<?= e($a['pic_username'] ?? '') ?>">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small text-muted mb-1">Password Kas <?= $hasCred ? '(kosongkan = tetap)' : '(wajib)' ?></label>
+                                        <input type="password" name="kas_password" class="form-control form-control-sm" minlength="6" autocomplete="new-password" <?= $hasCred ? '' : 'required' ?>>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small text-muted mb-1">Konfirmasi Password</label>
+                                        <input type="password" name="kas_password_confirm" class="form-control form-control-sm" minlength="6" autocomplete="new-password">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label small text-muted mb-1">Status</label>
+                                        <select name="is_active" class="form-select form-select-sm">
+                                            <option value="1" <?= $isActive ? 'selected' : '' ?>>Aktif</option>
+                                            <option value="0" <?= !$isActive ? 'selected' : '' ?>>Nonaktif</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-1">
+                                        <button type="submit" class="btn btn-sm btn-primary w-100"><i class="bi bi-save"></i></button>
+                                    </div>
+                                </form>
+                            </td>
+                        </tr>
+                        <?php endif; ?>
                     <?php endforeach; ?>
                 </tbody>
             </table>

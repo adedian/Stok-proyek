@@ -1,4 +1,10 @@
-<?php /** @var array $rows @var array $filters @var array $categories @var array $picOptions @var bool $scoped @var array $summary */ ?>
+<?php
+/** @var array $rows @var array $filters @var array $categories @var array $picOptions @var bool $scoped @var array $summary
+ *  @var array|null $balances @var bool $kasExempt @var string|null $kasPicName */
+$balances   = $balances ?? null;
+$kasExempt  = $kasExempt ?? true;
+$kasPicName = $kasPicName ?? null;
+?>
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
         <h4 class="mb-0">Kas</h4>
@@ -7,10 +13,16 @@
             <?php if ($scoped): ?><span class="badge bg-light text-dark border ms-1">PIC terkait Anda</span><?php endif; ?>
         </small>
     </div>
-    <div class="d-flex gap-2">
-        <a href="<?= BASE_URL ?>/index.php?module=cash&action=report" class="btn btn-outline-secondary">
-            <i class="bi bi-journal-text"></i> Laporan Kas
-        </a>
+    <div class="d-flex gap-2 align-items-center">
+        <?php if (!$kasExempt && $kasPicName !== null): ?>
+            <span class="text-muted small">
+                <i class="bi bi-shield-check"></i> Sesi Kas: <strong><?= e($kasPicName) ?></strong>
+            </span>
+            <form method="POST" action="<?= BASE_URL ?>/index.php?module=cash&action=kasLogout" class="d-inline">
+                <?= csrfField() ?>
+                <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-box-arrow-right"></i> Keluar Kas</button>
+            </form>
+        <?php endif; ?>
         <?php if (can('cash', 'create')): ?>
             <a href="<?= BASE_URL ?>/index.php?module=cash&action=create" class="btn btn-primary">
                 <i class="bi bi-plus-circle"></i> Tambah Kas
@@ -19,32 +31,56 @@
     </div>
 </div>
 
-<div class="row g-2 mb-3">
-    <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body py-2">
-                <div class="text-muted small">Total Kas Masuk</div>
-                <div class="fs-5 fw-bold text-success"><?= formatRupiah($summary['masuk']) ?></div>
+<?php if ($balances !== null): ?>
+    <?php /* Kartu saldo -- hanya Super Admin & Accounting (cash.view_balance). */ ?>
+    <div class="row g-2 mb-3">
+        <div class="col-12 col-md-3">
+            <div class="card border-0 shadow-sm h-100 bg-primary text-white">
+                <div class="card-body py-2">
+                    <div class="small opacity-75">Total Saldo Kas</div>
+                    <div class="fs-5 fw-bold"><?= formatRupiah($balances['total']) ?></div>
+                </div>
+            </div>
+        </div>
+        <?php foreach ($balances['rows'] as $b): ?>
+            <div class="col-6 col-md-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body py-2">
+                        <div class="text-muted small"><?= e($b['label']) ?></div>
+                        <div class="fs-6 fw-bold <?= $b['saldo'] < 0 ? 'text-danger' : '' ?>"><?= formatRupiah($b['saldo']) ?></div>
+                    </div>
+                </div>
+            </div>
+        <?php endforeach; ?>
+    </div>
+
+    <div class="row g-2 mb-3">
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body py-2">
+                    <div class="text-muted small">Total Kas Masuk (filter)</div>
+                    <div class="fs-6 fw-bold text-success"><?= formatRupiah($summary['masuk']) ?></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body py-2">
+                    <div class="text-muted small">Total Kas Keluar (filter)</div>
+                    <div class="fs-6 fw-bold text-danger"><?= formatRupiah($summary['keluar']) ?></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body py-2">
+                    <div class="text-muted small">Selisih Filter (Masuk &minus; Keluar)</div>
+                    <div class="fs-6 fw-bold"><?= formatRupiah($summary['masuk'] - $summary['keluar']) ?></div>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body py-2">
-                <div class="text-muted small">Total Kas Keluar</div>
-                <div class="fs-5 fw-bold text-danger"><?= formatRupiah($summary['keluar']) ?></div>
-            </div>
-        </div>
-    </div>
-    <div class="col-12 col-md-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body py-2">
-                <div class="text-muted small">Selisih (Masuk &minus; Keluar)</div>
-                <div class="fs-5 fw-bold"><?= formatRupiah($summary['masuk'] - $summary['keluar']) ?></div>
-            </div>
-        </div>
-    </div>
-</div>
+<?php endif; ?>
 
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">

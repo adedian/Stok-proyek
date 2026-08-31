@@ -1,5 +1,7 @@
 <?php
-$currentModule = $_GET['module'] ?? 'dashboard';
+// $activeModuleOverride: halaman yang di-serve controller lain tapi secara menu
+// "milik" modul lain (mis. Laporan Kas di CashController -> highlight "Laporan").
+$currentModule = $activeModuleOverride ?? ($_GET['module'] ?? 'dashboard');
 $menus = appMenus();
 ?>
 <div class="offcanvas-lg offcanvas-start sidebar bg-white border-end" tabindex="-1" id="appSidebar" aria-labelledby="appSidebarLabel">

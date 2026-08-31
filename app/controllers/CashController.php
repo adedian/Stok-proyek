@@ -30,6 +30,9 @@ class CashController extends Controller
     private UserPicAssignment $picModel;
     private ActivityLog $activityLog;
 
+    /** Action yang MEMBANGUN gerbang auth Kas -- boleh diakses tanpa auth Kas. */
+    private const KAS_GATE_ACTIONS = ['kasLogin', 'kasAuthenticate', 'kasLogout', 'kasSetupPic', 'kasStorePic'];
+
     public function __construct()
     {
         Middleware::requirePermission('cash', 'view');
@@ -39,29 +42,222 @@ class CashController extends Controller
         $this->categoryModel = new CashCategory();
         $this->picModel      = new UserPicAssignment();
         $this->activityLog   = new ActivityLog();
+
+        $this->enforceKasAuth();
+    }
+
+    /**
+     * SECOND-LEVEL AUTH: login aplikasi TIDAK cukup untuk membuka data Kas.
+     * Role exempt (super_admin/accounting/project_manager) lolos langsung.
+     * Role lain wajib verifikasi PIC + Password Kas dulu; kalau belum punya
+     * PIC ber-kredensial -> diarahkan membuat PIC.
+     */
+    private function enforceKasAuth(): void
+    {
+        $action = $_GET['action'] ?? 'index';
+
+        if (kasIsExemptRole(currentUserRole())) {
+            return;
+        }
+
+        if (kasCheckTimeout()) {
+            setFlash('error', 'Sesi Kas berakhir karena tidak aktif. Silakan verifikasi PIC Kas kembali. (Login aplikasi Anda tetap aktif.)');
+        }
+
+        if (in_array($action, self::KAS_GATE_ACTIONS, true)) {
+            return;
+        }
+
+        if (!kasAuthenticated()) {
+            if (!$this->picModel->hasLoginablePic((int) currentUserId())) {
+                $this->redirect('cash', 'kasSetupPic');
+            }
+            $this->redirect('cash', 'kasLogin');
+        }
+
+        kasTouch();
+    }
+
+    // ===================== SECOND-LEVEL AUTH KAS =====================
+
+    public function kasLogin(): void
+    {
+        if (kasIsExemptRole(currentUserRole()) || kasAuthenticated()) {
+            $this->redirect('cash', 'index');
+        }
+        if (!$this->picModel->hasLoginablePic((int) currentUserId())) {
+            $this->redirect('cash', 'kasSetupPic');
+        }
+
+        $this->view('cash/kas_login', [
+            'pageTitle'   => 'Verifikasi Kas',
+            'picNames'    => $this->picModel->loginablePicNames((int) currentUserId()),
+            'lockedUntil' => kasLoginLockedUntil(),
+            'failsLeft'   => kasFailsRemaining(),
+        ]);
+    }
+
+    public function kasAuthenticate(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('cash', 'kasLogin');
+        }
+        verifyCsrf();
+        if (kasIsExemptRole(currentUserRole())) {
+            $this->redirect('cash', 'index');
+        }
+        if (kasLoginLockedUntil() !== null) {
+            setFlash('error', 'Terlalu banyak percobaan gagal. Silakan coba lagi nanti.');
+            $this->redirect('cash', 'kasLogin');
+        }
+
+        $uid      = (int) currentUserId();
+        $picInput = trim($_POST['pic_name'] ?? '');
+        $password = (string) ($_POST['kas_password'] ?? '');
+
+        $row = $picInput !== '' ? $this->picModel->findLoginCandidate($uid, $picInput) : null;
+
+        if (!$row || !password_verify($password, (string) $row['pic_password'])) {
+            kasRegisterFailedLogin();
+            $this->activityLog->log($uid, 'cash', 'kas_login_failed', "Verifikasi Kas GAGAL untuk PIC '{$picInput}'");
+            setFlash('error', 'Nama PIC atau Password Kas salah.' . (kasFailsRemaining() > 0 ? ' Sisa percobaan: ' . kasFailsRemaining() . '.' : ''));
+            $this->redirect('cash', 'kasLogin');
+        }
+
+        kasClearFailedLogin();
+        session_regenerate_id(true);
+        $_SESSION['kas_auth'] = [
+            'ok'            => true,
+            'pic_id'        => (int) $row['id'],
+            'pic_name'      => $row['pic_name'],
+            'account_id'    => $uid,
+            'login_time'    => time(),
+            'last_activity' => time(),
+        ];
+        $this->activityLog->log($uid, 'cash', 'kas_login', "Verifikasi Kas BERHASIL sebagai PIC '{$row['pic_name']}'");
+        setFlash('success', 'Verifikasi Kas berhasil. Anda masuk sebagai PIC ' . $row['pic_name'] . '.');
+        $this->redirect('cash', 'index');
+    }
+
+    public function kasLogout(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('cash', 'index');
+        }
+        verifyCsrf();
+        $pic = kasPicName() ?? '-';
+        unset($_SESSION['kas_auth']);
+        $this->activityLog->log((int) currentUserId(), 'cash', 'kas_logout', "Keluar sesi Kas (PIC '{$pic}')");
+        setFlash('success', 'Anda keluar dari sesi Kas. Login aplikasi tetap aktif.');
+        $this->redirect('cash', 'kasLogin');
+    }
+
+    public function kasSetupPic(): void
+    {
+        if (kasIsExemptRole(currentUserRole())) {
+            $this->redirect('cash', 'index');
+        }
+        if ($this->picModel->hasLoginablePic((int) currentUserId())) {
+            $this->redirect('cash', 'kasLogin');
+        }
+        $this->view('cash/kas_setup', [
+            'pageTitle'     => 'PIC Kas Belum Terdaftar',
+            'existingNames' => $this->picModel->picNamesForUser((int) currentUserId()),
+        ]);
+    }
+
+    public function kasStorePic(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('cash', 'kasSetupPic');
+        }
+        verifyCsrf();
+        if (kasIsExemptRole(currentUserRole())) {
+            $this->redirect('cash', 'index');
+        }
+
+        $uid      = (int) currentUserId();
+        $picName  = trim($_POST['pic_name'] ?? '');
+        $picUser  = trim($_POST['pic_username'] ?? '');
+        $pass     = (string) ($_POST['kas_password'] ?? '');
+        $passConf = (string) ($_POST['kas_password_confirm'] ?? '');
+
+        $errors = [];
+        if ($picName === '') {
+            $errors[] = 'Nama PIC wajib diisi.';
+        }
+        if (mb_strlen($pass) < 6) {
+            $errors[] = 'Password Kas minimal 6 karakter.';
+        }
+        if ($pass !== $passConf) {
+            $errors[] = 'Konfirmasi Password Kas tidak cocok.';
+        }
+        if ($picUser !== '' && $this->picModel->picUsernameExists($picUser)) {
+            $errors[] = 'Username PIC sudah dipakai. Pilih yang lain.';
+        }
+
+        if (!empty($errors)) {
+            setFlash('error', implode(' ', $errors));
+            $this->redirect('cash', 'kasSetupPic');
+        }
+
+        $hash = password_hash($pass, PASSWORD_DEFAULT);
+        $existing = $this->picModel->rowByUserAndName($uid, $picName);
+
+        if ($existing) {
+            $this->picModel->setCredential((int) $existing['id'], $picUser ?: null, $hash, true);
+        } else {
+            $this->picModel->create([
+                'user_id'      => $uid,
+                'pic_name'     => $picName,
+                'pic_username' => $picUser ?: null,
+                'pic_password' => $hash,
+                'is_active'    => 1,
+                'created_by'   => $uid,
+            ]);
+        }
+
+        $this->activityLog->log($uid, 'user_pic', 'pic_created', "PIC Kas '{$picName}' dibuat/di-set kredensialnya oleh akun sendiri");
+        setFlash('success', 'PIC Kas berhasil dibuat. Silakan verifikasi untuk masuk.');
+        $this->redirect('cash', 'kasLogin');
     }
 
     // ===================== LIST =====================
 
     public function index(): void
     {
-        $filters = $this->collectFilters();
-        $scope = $this->scopePics();
-        $rows  = $this->cashModel->listFiltered($filters, $scope);
+        $filters  = $this->collectFilters();
+        $scope    = $this->scopePics();
+        $divScope = kasDivisionScope();
+        $rows     = $this->cashModel->listFiltered($filters, $scope, $divScope);
 
         $summary = ['masuk' => 0.0, 'keluar' => 0.0];
         foreach ($rows as $r) {
             $summary[$r['mutasi']] += (float) $r['total_amount'];
         }
 
+        // Kartu saldo -- SENGAJA hanya Super Admin / Accounting (cash.view_balance).
+        $balances = null;
+        if (can('cash', 'view_balance')) {
+            $balances = $this->cashModel->balanceByDivision($scope, $divScope);
+            $stamp = date('Y-m-d');
+            if (($_SESSION['kas_balance_logged'] ?? '') !== $stamp) {
+                $_SESSION['kas_balance_logged'] = $stamp;
+                $this->activityLog->log((int) currentUserId(), 'cash', 'kas_view_balance', 'Melihat kartu saldo Kas');
+            }
+        }
+
         $this->view('cash/list', [
-            'pageTitle'  => 'Kas',
-            'rows'       => $rows,
-            'filters'    => $filters,
-            'categories' => $this->categoryModel->activeList(),
-            'picOptions' => $scope === null ? $this->cashModel->distinctPics(null) : $scope,
-            'scoped'     => $scope !== null,
-            'summary'    => $summary,
+            'pageTitle'   => 'Kas',
+            'rows'        => $rows,
+            'filters'     => $filters,
+            'categories'  => $this->categoryModel->activeList(),
+            'picOptions'  => $scope === null ? $this->cashModel->distinctPics(null, $divScope) : $scope,
+            'scoped'      => $scope !== null,
+            'summary'     => $summary,
+            'balances'    => $balances,
+            'kasExempt'   => kasIsExemptRole(currentUserRole()),
+            'kasPicName'  => kasIsExemptRole(currentUserRole()) ? null : kasPicName(),
         ]);
     }
 
@@ -71,15 +267,20 @@ class CashController extends Controller
     {
         $filters = $this->collectFilters();
         $scope   = $this->scopePics();
-        $saldoAwal = $this->cashModel->saldoAwal($filters, $scope);
-        $ledger  = $this->cashModel->reportLedger($filters, $scope, $saldoAwal);
+        $divScope = kasDivisionScope();
+        $saldoAwal = $this->cashModel->saldoAwal($filters, $scope, $divScope);
+        $ledger  = $this->cashModel->reportLedger($filters, $scope, $saldoAwal, $divScope);
 
         $this->view('cash/report', [
             'pageTitle'  => 'Laporan Kas',
+            // Halaman ini sekarang diakses dari menu "Laporan" -- highlight sidebar
+            // & breadcrumb ikut modul report, walau controller-nya tetap CashController
+            // (biar scoping per-PIC + view/PDF/Excel Kas tidak perlu digandakan).
+            'activeModuleOverride' => 'report',
             'ledger'     => $ledger,
             'filters'    => $filters,
             'categories' => $this->categoryModel->activeList(),
-            'picOptions' => $scope === null ? $this->cashModel->distinctPics(null) : $scope,
+            'picOptions' => $scope === null ? $this->cashModel->distinctPics(null, $divScope) : $scope,
         ]);
     }
 
@@ -145,6 +346,7 @@ class CashController extends Controller
             $trxId = $this->cashModel->create([
                 'trx_date'     => $data['trx_date'],
                 'pic'          => $data['pic'],
+                'division'     => $this->resolveDivision($data['pic']),
                 'no_bukti'     => $data['no_bukti'],
                 'category_id'  => $data['category_id'],
                 'mutasi'       => $data['mutasi'],
@@ -185,6 +387,7 @@ class CashController extends Controller
             $this->redirect('cash', 'index');
         }
         $this->assertCanTouch($row);
+        $this->activityLog->log(currentUserId(), 'cash', 'view', "Membuka transaksi Kas #{$id} ('{$row['no_bukti']}')");
 
         $this->view('cash/form', [
             'pageTitle'  => 'Edit Kas',
@@ -228,6 +431,7 @@ class CashController extends Controller
             $this->cashModel->updateById($id, [
                 'trx_date'     => $data['trx_date'],
                 'pic'          => $data['pic'],
+                'division'     => $this->resolveDivision($data['pic']),
                 'no_bukti'     => $data['no_bukti'],
                 'category_id'  => $data['category_id'],
                 'mutasi'       => $data['mutasi'],
@@ -304,8 +508,9 @@ class CashController extends Controller
     {
         $filters = $this->collectFilters();
         $scope   = $this->scopePics();
-        $saldoAwal = $this->cashModel->saldoAwal($filters, $scope);
-        $ledger  = $this->cashModel->reportLedger($filters, $scope, $saldoAwal);
+        $divScope = kasDivisionScope();
+        $saldoAwal = $this->cashModel->saldoAwal($filters, $scope, $divScope);
+        $ledger  = $this->cashModel->reportLedger($filters, $scope, $saldoAwal, $divScope);
 
         $company = (new SystemSetting())->getGroup('company');
         $companyName = $company['company_name'] ?: 'Perusahaan';
@@ -317,23 +522,40 @@ class CashController extends Controller
         return [$ledger, ['company' => $companyName, 'period' => $period]];
     }
 
-    /** null = lihat semua; array = daftar PIC terkait (bisa kosong). */
+    /**
+     * null = lihat semua PIC (super_admin/accounting/project_manager).
+     * array = tepat 1 nama PIC yang barusan diverifikasi lewat login Kas
+     * (purchase/pic_project/admin_project). [] = belum verifikasi (gate cegah).
+     */
     private function scopePics(): ?array
     {
-        $role = currentUserRole();
-        if (in_array($role, [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING, ROLE_PROJECT_MANAGER], true)) {
-            return null;
-        }
-        return $this->picModel->picNamesForUser((int) currentUserId());
+        return kasScopePicNames();
     }
 
-    /** Pilihan dropdown PIC di form. Role ber-scope: hanya PIC terkaitnya.
+    /**
+     * Divisi transaksi Kas (snapshot) -- diambil dari akun pemilik nama PIC
+     * yang dipilih; fallback ke divisi role pembuat.
+     */
+    private function resolveDivision(string $picName): string
+    {
+        $slug = $this->picModel->ownerRoleSlugForPic($picName);
+        return kasDivisionForRole($slug ?? currentUserRole());
+    }
+
+    /** Pilihan dropdown PIC di form. Role ber-PIC: dikunci ke PIC sesi Kas.
      *  Role lihat-semua: semua PIC di master mapping. $current dipertahankan
      *  supaya data lama tetap terpilih walau tidak lagi di daftar. */
     private function picFieldOptions(?string $current = null): array
     {
-        $scope = $this->scopePics();
-        $opts = $scope !== null ? $scope : $this->picModel->allPicNames();
+        if (!kasIsExemptRole(currentUserRole())) {
+            $name = kasPicName();
+            $opts = $name ? [$name] : [];
+            if ($current !== null && $current !== '' && !in_array($current, $opts, true)) {
+                $opts[] = $current;
+            }
+            return $opts;
+        }
+        $opts = $this->picModel->allPicNames();
         if ($current !== null && $current !== '' && !in_array($current, $opts, true)) {
             $opts[] = $current;
         }

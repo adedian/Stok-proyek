@@ -16,7 +16,7 @@ $qtyFmt = static fn($v) => rtrim(rtrim(number_format((float) $v, 2, ',', '.'), '
         <small class="text-muted">Buku kas &mdash; Saldo Awal, mutasi masuk/keluar, dan saldo berjalan</small>
     </div>
     <div class="d-flex gap-2">
-        <a href="<?= BASE_URL ?>/index.php?module=cash" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Kembali</a>
+        <a href="<?= BASE_URL ?>/index.php?module=report" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Kembali</a>
         <button type="button" class="btn btn-outline-dark" onclick="window.print()"><i class="bi bi-printer"></i> Cetak</button>
         <a href="<?= BASE_URL ?>/index.php?module=cash&action=printReport<?= $qs ? '&' . e($qs) : '' ?>" class="btn btn-outline-danger" target="_blank"><i class="bi bi-file-earmark-pdf"></i> PDF</a>
         <a href="<?= BASE_URL ?>/index.php?module=cash&action=exportReport<?= $qs ? '&' . e($qs) : '' ?>" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i> Excel</a>

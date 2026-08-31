@@ -38,7 +38,9 @@
 </script>
 <?php
     require_once ROOT_PATH . '/app/models/DashboardStat.php';
-    $topbarCurrentModule = $_GET['module'] ?? 'dashboard';
+    // $activeModuleOverride: lihat catatan di sidebar.php -- breadcrumb ikut modul
+    // "pemilik" menu, bukan modul controller yang me-render halaman ini.
+    $topbarCurrentModule = $activeModuleOverride ?? ($_GET['module'] ?? 'dashboard');
     $topbarGroup = menuGroupForModule($topbarCurrentModule);
     $topbarPageLabel = $pageTitle ?? (menuLabelForModule($topbarCurrentModule) ?? 'Dashboard');
     $topbarAlerts = isLoggedIn() ? (new DashboardStat())->topbarSummary() : [];

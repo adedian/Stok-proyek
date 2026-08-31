@@ -4,20 +4,23 @@ require_once ROOT_PATH . '/core/Middleware.php';
 require_once ROOT_PATH . '/app/models/User.php';
 require_once ROOT_PATH . '/app/models/Role.php';
 require_once ROOT_PATH . '/app/models/ActivityLog.php';
+require_once ROOT_PATH . '/app/models/UserPermission.php';
 
 class UserController extends Controller
 {
     private User $userModel;
     private Role $roleModel;
     private ActivityLog $activityLog;
+    private UserPermission $userPermModel;
 
     public function __construct()
     {
         Middleware::requirePermission('user', 'view');
 
-        $this->userModel   = new User();
-        $this->roleModel   = new Role();
-        $this->activityLog = new ActivityLog();
+        $this->userModel     = new User();
+        $this->roleModel     = new Role();
+        $this->activityLog   = new ActivityLog();
+        $this->userPermModel = new UserPermission();
     }
 
     public function index()
@@ -32,12 +35,12 @@ class UserController extends Controller
     {
         Middleware::requirePermission('user', 'create');
 
-        $this->view('user/form', [
+        $this->view('user/form', array_merge([
             'pageTitle' => 'Tambah User',
             'mode'      => 'create',
             'user'      => null,
             'roles'     => $this->roleModel->assignableList(),
-        ]);
+        ], $this->permissionPanelData(null)));
     }
 
     public function store()
@@ -57,7 +60,7 @@ class UserController extends Controller
             $this->redirect('user', 'create');
         }
 
-        $this->userModel->create([
+        $newId = $this->userModel->create([
             'role_id'    => $data['role_id'],
             'full_name'  => $data['full_name'],
             'username'   => $data['username'],
@@ -66,6 +69,8 @@ class UserController extends Controller
             'status'     => 'active',
             'created_by' => currentUserId(),
         ]);
+
+        $this->savePermissionOverrides($newId, (int) $data['role_id']);
 
         $this->activityLog->log(currentUserId(), 'user', 'create', "User '{$data['username']}' dibuat");
 
@@ -85,12 +90,12 @@ class UserController extends Controller
             $this->redirect('user', 'index');
         }
 
-        $this->view('user/form', [
+        $this->view('user/form', array_merge([
             'pageTitle' => 'Edit User',
             'mode'      => 'edit',
             'user'      => $user,
             'roles'     => $this->roleModel->assignableList(),
-        ]);
+        ], $this->permissionPanelData((int) $user['id'])));
     }
 
     public function update()
@@ -129,6 +134,8 @@ class UserController extends Controller
         }
 
         $this->userModel->updateById($id, $updateData);
+
+        $this->savePermissionOverrides($id, (int) $data['role_id']);
 
         $this->activityLog->log(currentUserId(), 'user', 'update', "User '{$data['username']}' diperbarui");
 
@@ -232,5 +239,90 @@ class UserController extends Controller
         }
 
         return $errors;
+    }
+
+    // ================= Panel Hak Akses (override per-user) =================
+
+    /**
+     * Data untuk panel "Hak Akses" di form. Katalog TANPA modul terkunci
+     * (settings/user/trash tidak bisa di-override), default izin tiap role
+     * (untuk JS pre-fill), dan override user yang sedang diedit.
+     */
+    private function permissionPanelData(?int $userId): array
+    {
+        $labels = permissionLabelMaps();
+
+        $catalog = [];
+        foreach (permissionActionCatalog() as $module => $actions) {
+            if (!permissionIsLockedModule($module)) {
+                $catalog[$module] = $actions;
+            }
+        }
+
+        // Default izin per-role: [role_slug => [ "module.action" => bool ]].
+        // super_admin diikutkan (semua true) supaya JS bisa menonaktifkan panel
+        // kalau role user = Super Admin.
+        $roleMatrix = [];
+        $roleSlugs = array_merge([ROLE_SUPER_ADMIN], permissionEditableRoleSlugs());
+        foreach ($roleSlugs as $slug) {
+            foreach ($catalog as $module => $actions) {
+                foreach ($actions as $action) {
+                    $roleMatrix[$slug]["{$module}.{$action}"] = roleAllows($slug, $module, $action);
+                }
+            }
+        }
+
+        $roleSlugById = [];
+        foreach ($this->roleModel->assignableList() as $r) {
+            $roleSlugById[(int) $r['id']] = $r['role_slug'];
+        }
+
+        return [
+            'permCatalog'    => $catalog,
+            'permLabels'     => $labels,
+            'permRoleMatrix' => $roleMatrix,
+            'permRoleSlugById' => $roleSlugById,
+            'permOverrides'  => $userId ? $this->userPermModel->mapForUser($userId) : [],
+        ];
+    }
+
+    /**
+     * Simpan override hak akses user dari POST form.
+     *   customize_permissions kosong  -> hapus semua override (user murni ikut role).
+     *   customize_permissions = 1     -> simpan SELISIH antara centang admin dan
+     *                                    default role yang dipilih.
+     * Modul terkunci & role Super Admin diabaikan (tidak perlu override).
+     */
+    private function savePermissionOverrides(int $userId, int $roleId): void
+    {
+        $roleSlug = $this->roleModel->slugById($roleId);
+
+        if (!$roleSlug || $roleSlug === ROLE_SUPER_ADMIN || empty($_POST['customize_permissions'])) {
+            $this->userPermModel->clearForUser($userId);
+            return;
+        }
+
+        $posted = $_POST['uperm'] ?? [];
+        $overrides = [];
+
+        foreach (permissionActionCatalog() as $module => $actions) {
+            if (permissionIsLockedModule($module)) {
+                continue;
+            }
+            foreach ($actions as $action) {
+                $key = "{$module}.{$action}";
+                $effective = !empty($posted[$key]);
+                $base = roleAllows($roleSlug, $module, $action);
+                if ($effective !== $base) {
+                    $overrides[$key] = $effective ? 'allow' : 'deny';
+                }
+            }
+        }
+
+        try {
+            $this->userPermModel->replaceForUser($userId, $overrides, currentUserId());
+        } catch (Throwable $e) {
+            error_log('savePermissionOverrides gagal: ' . $e->getMessage());
+        }
     }
 }

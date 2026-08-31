@@ -5,6 +5,7 @@ require_once ROOT_PATH . '/app/models/SystemSetting.php';
 require_once ROOT_PATH . '/app/models/BackupHistory.php';
 require_once ROOT_PATH . '/app/models/CompanyBankAccount.php';
 require_once ROOT_PATH . '/app/models/ActivityLog.php';
+require_once ROOT_PATH . '/app/models/RolePermission.php';
 
 class SettingsController extends Controller
 {
@@ -34,7 +35,6 @@ class SettingsController extends Controller
             'numbering'        => $this->settingModel->getGroup('numbering'),
             'sessionSettings'  => $this->settingModel->getGroup('session'),
             'notification'     => $this->settingModel->getGroup('notification'),
-            'permissionMatrix' => require ROOT_PATH . '/config/permissions.php',
             'backups'          => $this->backupModel->recent(20),
             'bankAccounts'     => $this->bankAccountModel->all(),
         ]);
@@ -256,6 +256,50 @@ class SettingsController extends Controller
         $this->activityLog->log(currentUserId(), 'settings', 'update', 'Pengaturan notifikasi diperbarui');
         setFlash('success', 'Pengaturan notifikasi berhasil disimpan.');
         $this->redirect('settings', 'index', ['tab' => 'notification']);
+    }
+
+    /**
+     * Simpan matrix Hak Akses per-role (tab "Hak Akses").
+     * POST: perm[<role_slug>][<module>.<action>] = 1  (checkbox tercentang saja).
+     * Modul terkunci (settings/user/trash) & role di luar daftar editable
+     * diabaikan total -- fail closed.
+     */
+    public function savePermissions()
+    {
+        Middleware::requirePermission('settings', 'edit');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('settings', 'index', ['tab' => 'permissions']);
+        }
+        verifyCsrf();
+
+        $posted = $_POST['perm'] ?? [];
+        $editableRoles = permissionEditableRoleSlugs();
+
+        // Katalog TANPA modul terkunci -- batas apa yang boleh ditulis ke DB.
+        $catalog = [];
+        foreach (permissionActionCatalog() as $module => $actions) {
+            if (!permissionIsLockedModule($module)) {
+                $catalog[$module] = $actions;
+            }
+        }
+
+        $grid = [];
+        foreach ($editableRoles as $slug) {
+            $grid[$slug] = is_array($posted[$slug] ?? null) ? $posted[$slug] : [];
+        }
+
+        try {
+            (new RolePermission())->replaceForRoles($grid, $catalog, currentUserId());
+        } catch (Throwable $e) {
+            error_log('savePermissions gagal: ' . $e->getMessage());
+            setFlash('error', 'Gagal menyimpan hak akses. Silakan coba lagi.');
+            $this->redirect('settings', 'index', ['tab' => 'permissions']);
+        }
+
+        $this->activityLog->log(currentUserId(), 'settings', 'update', 'Matrix Hak Akses per-role diperbarui');
+        setFlash('success', 'Hak akses berhasil disimpan. Perubahan berlaku saat user membuka halaman berikutnya.');
+        $this->redirect('settings', 'index', ['tab' => 'permissions']);
     }
 
     /**

@@ -18,4 +18,10 @@ class Role extends Model
               ORDER BY role_name ASC"
         );
     }
+
+    public function slugById(int $id): ?string
+    {
+        $row = $this->db->fetchOne("SELECT role_slug FROM roles WHERE id = :id", ['id' => $id]);
+        return $row['role_slug'] ?? null;
+    }
 }

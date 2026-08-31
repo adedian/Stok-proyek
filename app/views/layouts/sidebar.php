@@ -21,8 +21,9 @@ $menus = appMenus();
             <?php $lastGroup = null; ?>
             <?php foreach ($menus as $menu): ?>
                 <?php
-                    if ($menu['roles'] !== null && !hasRole($menu['roles'])) {
-                        continue; // sembunyikan menu yang tidak sesuai role
+                    // can() = matrix role yang bisa diedit admin + override per-user.
+                    if (!can($menu['module'], 'view')) {
+                        continue; // sembunyikan menu yang usernya tidak berhak buka
                     }
                     $isCurrent = $currentModule === $menu['module'];
                 ?>

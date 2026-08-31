@@ -65,12 +65,31 @@ class Middleware
     }
 
     /**
-     * Cara utama proteksi module+action, baca daftar role dari
-     * config/permissions.php (satu sumber kebenaran untuk seluruh sistem).
+     * Cara utama proteksi module+action. Memakai can() supaya SEMUA lapisan
+     * ikut dipertimbangkan: Super Admin, modul terkunci, matrix role yang
+     * bisa diedit admin (role_permissions), DAN override per-user
+     * (user_permissions). Gerbang server-side ini identik dengan cek can()
+     * yang menyembunyikan tombol di view.
      * Contoh: Middleware::requirePermission('purchase_order', 'create');
      */
     public static function requirePermission(string $module, string $action): void
     {
-        self::requireRole(permissionRoles($module, $action));
+        self::requireAuth();
+
+        if (!can($module, $action)) {
+            $userRole = $_SESSION['role_slug'] ?? '-';
+            $reqModule = $_GET['module'] ?? $module;
+            $reqAction = $_GET['action'] ?? $action;
+            (new ActivityLog())->log(
+                currentUserId(),
+                $reqModule,
+                'access_denied',
+                "Akses ditolak: role '{$userRole}' mencoba {$module}.{$action} (module={$reqModule}&action={$reqAction})"
+            );
+
+            http_response_code(403);
+            require ROOT_PATH . '/app/views/errors/403.php';
+            exit;
+        }
     }
 }

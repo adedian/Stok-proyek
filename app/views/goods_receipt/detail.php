@@ -4,17 +4,17 @@
         <small class="text-muted">Detail Penerimaan Barang</small>
     </div>
     <div class="d-flex gap-2">
-        <a href="<?= BASE_URL ?>/index.php?module=goods_receipt&action=print&id=<?= (int) $receipt['id'] ?>"
+        <a href="<?= BASE_URL ?>/goods_receipt/print/<?= (int) $receipt['id'] ?>"
            class="btn btn-outline-dark" target="_blank">
             <i class="bi bi-printer"></i> Cetak
         </a>
         <?php if ($receipt['receipt_type'] !== 'pemakai' && can('goods_receipt', 'edit')): ?>
-        <a href="<?= BASE_URL ?>/index.php?module=goods_receipt&action=edit&id=<?= (int) $receipt['id'] ?>"
+        <a href="<?= BASE_URL ?>/goods_receipt/edit/<?= (int) $receipt['id'] ?>"
            class="btn btn-outline-primary">
             <i class="bi bi-pencil"></i> Edit
         </a>
         <?php endif; ?>
-        <a href="<?= BASE_URL ?>/index.php?module=goods_receipt" class="btn btn-outline-secondary">
+        <a href="<?= BASE_URL ?>/goods_receipt" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Kembali
         </a>
     </div>
@@ -53,7 +53,7 @@
                         <div class="col-md-4">
                             <div class="text-muted small">No. Pembelian Offline</div>
                             <div class="fw-semibold">
-                                <a href="<?= BASE_URL ?>/index.php?module=offline_purchase&action=detail&id=<?= (int) $receipt['offline_purchase_id'] ?>">
+                                <a href="<?= BASE_URL ?>/offline_purchase/detail/<?= (int) $receipt['offline_purchase_id'] ?>">
                                     <?= e($receipt['po_number']) ?>
                                 </a>
                             </div>

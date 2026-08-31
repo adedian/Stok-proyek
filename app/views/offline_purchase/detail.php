@@ -4,10 +4,10 @@
         <small class="text-muted">Detail Pembelian Offline</small>
     </div>
     <div class="d-flex gap-2">
-        <a href="<?= BASE_URL ?>/index.php?module=offline_purchase&action=edit&id=<?= (int) $purchase['id'] ?>" class="btn btn-outline-primary">
+        <a href="<?= BASE_URL ?>/offline_purchase/edit/<?= (int) $purchase['id'] ?>" class="btn btn-outline-primary">
             <i class="bi bi-pencil"></i> Edit
         </a>
-        <a href="<?= BASE_URL ?>/index.php?module=offline_purchase" class="btn btn-outline-secondary">
+        <a href="<?= BASE_URL ?>/offline_purchase" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Kembali
         </a>
     </div>
@@ -107,7 +107,7 @@
                         <?php foreach ($receipts as $r): ?>
                             <li class="list-group-item d-flex justify-content-between align-items-center px-0">
                                 <div>
-                                    <a href="<?= BASE_URL ?>/index.php?module=goods_receipt&action=detail&id=<?= (int) $r['id'] ?>">
+                                    <a href="<?= BASE_URL ?>/goods_receipt/detail/<?= (int) $r['id'] ?>">
                                         <?= e($r['receipt_number']) ?>
                                     </a>
                                     <span class="text-muted small ms-2"><?= formatTanggal($r['receipt_date']) ?> &middot; Diterima oleh <?= e($r['received_by_name'] ?? '-') ?></span>
@@ -117,7 +117,7 @@
                     </ul>
                 <?php endif; ?>
                 <?php if (in_array($purchase['status'], ['belum_diterima', 'diterima_sebagian'], true)): ?>
-                    <a href="<?= BASE_URL ?>/index.php?module=goods_receipt&action=create&offline_purchase_id=<?= (int) $purchase['id'] ?>" class="btn btn-sm btn-primary mt-3">
+                    <a href="<?= BASE_URL ?>/goods_receipt/create?offline_purchase_id=<?= (int) $purchase['id'] ?>" class="btn btn-sm btn-primary mt-3">
                         <i class="bi bi-plus-circle"></i> Catat Penerimaan Barang
                     </a>
                 <?php endif; ?>

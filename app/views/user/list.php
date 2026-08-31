@@ -3,7 +3,7 @@
         <h4 class="mb-0">User Management</h4>
         <small class="text-muted">Kelola akun & role pengguna sistem</small>
     </div>
-    <a href="<?= BASE_URL ?>/index.php?module=user&action=create" class="btn btn-primary">
+    <a href="<?= BASE_URL ?>/user/create" class="btn btn-primary">
         <i class="bi bi-plus-circle"></i> Tambah User
     </a>
 </div>
@@ -29,7 +29,7 @@
                                 <i class="bi bi-people empty-icon"></i>
                                 <div class="empty-title">Belum ada user</div>
                                 <div class="empty-desc">Tambahkan akun user untuk anggota tim yang perlu mengakses sistem.</div>
-                                <a href="<?= BASE_URL ?>/index.php?module=user&action=create" class="btn btn-sm btn-primary">
+                                <a href="<?= BASE_URL ?>/user/create" class="btn btn-sm btn-primary">
                                     <i class="bi bi-plus-circle"></i> Tambah User
                                 </a>
                             </div>
@@ -58,7 +58,7 @@
                                         </button>
                                         <ul class="dropdown-menu dropdown-menu-end">
                                             <li>
-                                                <a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=user&action=edit&id=<?= (int) $u['id'] ?>">
+                                                <a class="dropdown-item" href="<?= BASE_URL ?>/user/edit/<?= (int) $u['id'] ?>">
                                                     <i class="bi bi-pencil"></i> Edit
                                                 </a>
                                             </li>

@@ -22,7 +22,7 @@ $mins   = $locked ? (int) ceil(($lockedUntil - time()) / 60) : 0;
                         Terlalu banyak percobaan gagal. Coba lagi dalam
                         <strong><?= $mins < 1 ? 1 : $mins ?> menit</strong>.
                     </div>
-                    <a href="<?= BASE_URL ?>/index.php?module=dashboard" class="btn btn-outline-secondary w-100">
+                    <a href="<?= BASE_URL ?>/dashboard" class="btn btn-outline-secondary w-100">
                         <i class="bi bi-arrow-left"></i> Kembali ke Dashboard
                     </a>
                 <?php else: ?>

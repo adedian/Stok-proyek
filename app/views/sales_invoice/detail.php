@@ -4,16 +4,16 @@
         <small class="text-muted">Detail Invoice Keluar</small>
     </div>
     <div class="d-flex gap-2">
-        <a href="<?= BASE_URL ?>/index.php?module=sales_invoice&action=print&ids=<?= (int) $invoice['id'] ?>"
+        <a href="<?= BASE_URL ?>/sales_invoice/print?ids=<?= (int) $invoice['id'] ?>"
            class="btn btn-outline-dark" target="_blank">
             <i class="bi bi-printer"></i> Cetak Invoice
         </a>
         <?php if (can('sales_invoice', 'edit')): ?>
-            <a href="<?= BASE_URL ?>/index.php?module=sales_invoice&action=edit&id=<?= (int) $invoice['id'] ?>" class="btn btn-outline-primary">
+            <a href="<?= BASE_URL ?>/sales_invoice/edit/<?= (int) $invoice['id'] ?>" class="btn btn-outline-primary">
                 <i class="bi bi-pencil"></i> Edit
             </a>
         <?php endif; ?>
-        <a href="<?= BASE_URL ?>/index.php?module=sales_invoice" class="btn btn-outline-secondary">
+        <a href="<?= BASE_URL ?>/sales_invoice" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Kembali
         </a>
     </div>

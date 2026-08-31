@@ -2,7 +2,7 @@
 function paymentMethodSortLink(string $col, string $label, string $sort, string $dir): string
 {
     $nextDir = ($sort === $col && $dir === 'asc') ? 'desc' : 'asc';
-    $url = BASE_URL . '/index.php?module=payment_method&sort=' . urlencode($col) . '&dir=' . $nextDir;
+    $url = route('payment_method', 'index', ['sort' => $col, 'dir' => $nextDir]);
     return '<a href="' . e($url) . '" class="text-dark text-decoration-none">' . e($label) . sortIndicator($col, $sort, $dir) . '</a>';
 }
 ?>
@@ -12,10 +12,10 @@ function paymentMethodSortLink(string $col, string $label, string $sort, string 
         <small class="text-muted">Master data metode pembayaran</small>
     </div>
     <div class="d-flex gap-2">
-        <a href="<?= BASE_URL ?>/index.php?module=master_data" class="btn btn-outline-secondary">
+        <a href="<?= BASE_URL ?>/master_data" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Master Data
         </a>
-        <a href="<?= BASE_URL ?>/index.php?module=payment_method&action=create" class="btn btn-primary">
+        <a href="<?= BASE_URL ?>/payment_method/create" class="btn btn-primary">
             <i class="bi bi-plus-circle"></i> Tambah Metode
         </a>
     </div>
@@ -23,8 +23,7 @@ function paymentMethodSortLink(string $col, string $label, string $sort, string 
 
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-        <form method="GET" action="<?= BASE_URL ?>/index.php" class="row g-2 align-items-end">
-            <input type="hidden" name="module" value="payment_method">
+        <form method="GET" action="<?= BASE_URL ?>/payment_method" class="row g-2 align-items-end">
             <div class="col-md-6">
                 <label class="form-label small text-muted mb-1">Cari Metode</label>
                 <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword']) ?>">
@@ -33,7 +32,7 @@ function paymentMethodSortLink(string $col, string $label, string $sort, string 
                 <button type="submit" class="btn btn-sm btn-outline-primary w-100">
                     <i class="bi bi-search"></i> Filter
                 </button>
-                <a href="<?= BASE_URL ?>/index.php?module=payment_method" class="btn btn-sm btn-outline-secondary">
+                <a href="<?= BASE_URL ?>/payment_method" class="btn btn-sm btn-outline-secondary">
                     <i class="bi bi-x-circle"></i>
                 </a>
             </div>
@@ -63,7 +62,7 @@ function paymentMethodSortLink(string $col, string $label, string $sort, string 
                                 <i class="bi bi-credit-card-2-front empty-icon"></i>
                                 <div class="empty-title">Belum ada metode pembayaran</div>
                                 <div class="empty-desc">Tambahkan metode (Transfer Bank, Tunai, dst) untuk dipakai di form pembayaran.</div>
-                                <a href="<?= BASE_URL ?>/index.php?module=payment_method&action=create" class="btn btn-sm btn-primary">
+                                <a href="<?= BASE_URL ?>/payment_method/create" class="btn btn-sm btn-primary">
                                     <i class="bi bi-plus-circle"></i> Tambah Metode
                                 </a>
                             </div>
@@ -79,7 +78,7 @@ function paymentMethodSortLink(string $col, string $label, string $sort, string 
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end">
                                         <li>
-                                            <a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=payment_method&action=edit&id=<?= (int) $m['id'] ?>">
+                                            <a class="dropdown-item" href="<?= BASE_URL ?>/payment_method/edit/<?= (int) $m['id'] ?>">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
                                         </li>

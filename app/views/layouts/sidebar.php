@@ -10,7 +10,7 @@ $menus = appMenus();
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#appSidebar" aria-label="Tutup"></button>
     </div>
     <div class="offcanvas-body d-flex flex-column p-3 pt-lg-3">
-        <a href="<?= BASE_URL ?>/index.php?module=dashboard" class="sidebar-brand text-decoration-none d-none d-lg-flex">
+        <a href="<?= BASE_URL ?>/dashboard" class="sidebar-brand text-decoration-none d-none d-lg-flex">
             <span class="sidebar-brand-icon"><img src="<?= assetUrl('/assets/img/logo-hme.png') ?>" alt="Logo HME"></span>
             <span class="sidebar-brand-text">
                 <span class="title d-block">STOK PROYEK</span>
@@ -35,7 +35,7 @@ $menus = appMenus();
                 <?php endif; ?>
                 <li class="nav-item">
                     <?php if ($menu['active']): ?>
-                        <a href="<?= BASE_URL ?>/index.php?module=<?= e($menu['module']) ?>"
+                        <a href="<?= BASE_URL ?>/<?= e($menu['module']) ?>"
                            class="nav-link <?= $isCurrent ? 'active' : 'text-dark' ?>"
                            title="<?= e($menu['label']) ?>">
                             <i class="bi <?= e($menu['icon']) ?>"></i> <span class="menu-label"><?= e($menu['label']) ?></span>

@@ -18,7 +18,7 @@ $tabs = [
     <?php foreach ($tabs as $key => $label): ?>
         <li class="nav-item">
             <a class="nav-link <?= $activeTab === $key ? 'active' : '' ?>"
-               href="<?= BASE_URL ?>/index.php?module=settings&tab=<?= e($key) ?>">
+               href="<?= BASE_URL ?>/settings?tab=<?= e($key) ?>">
                 <?= e($label) ?>
             </a>
         </li>

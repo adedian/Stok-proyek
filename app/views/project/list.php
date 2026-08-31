@@ -2,7 +2,7 @@
 function projectSortLink(string $col, string $label, string $sort, string $dir): string
 {
     $nextDir = ($sort === $col && $dir === 'asc') ? 'desc' : 'asc';
-    $url = BASE_URL . '/index.php?module=project&sort=' . urlencode($col) . '&dir=' . $nextDir;
+    $url = route('project', 'index', ['sort' => $col, 'dir' => $nextDir]);
     return '<a href="' . e($url) . '" class="text-dark text-decoration-none">' . e($label) . sortIndicator($col, $sort, $dir) . '</a>';
 }
 ?>
@@ -12,10 +12,10 @@ function projectSortLink(string $col, string $label, string $sort, string $dir):
         <small class="text-muted">Master data project</small>
     </div>
     <div class="d-flex gap-2">
-        <a href="<?= BASE_URL ?>/index.php?module=master_data" class="btn btn-outline-secondary">
+        <a href="<?= BASE_URL ?>/master_data" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Master Data
         </a>
-        <a href="<?= BASE_URL ?>/index.php?module=project&action=create" class="btn btn-primary">
+        <a href="<?= BASE_URL ?>/project/create" class="btn btn-primary">
             <i class="bi bi-plus-circle"></i> Tambah Project
         </a>
     </div>
@@ -23,8 +23,7 @@ function projectSortLink(string $col, string $label, string $sort, string $dir):
 
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-        <form method="GET" action="<?= BASE_URL ?>/index.php" class="row g-2 align-items-end">
-            <input type="hidden" name="module" value="project">
+        <form method="GET" action="<?= BASE_URL ?>/project" class="row g-2 align-items-end">
             <div class="col-md-5">
                 <label class="form-label small text-muted mb-1">Cari (Nama / Kode / Lokasi)</label>
                 <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword']) ?>">
@@ -42,7 +41,7 @@ function projectSortLink(string $col, string $label, string $sort, string $dir):
                 <button type="submit" class="btn btn-sm btn-outline-primary w-100">
                     <i class="bi bi-search"></i> Filter
                 </button>
-                <a href="<?= BASE_URL ?>/index.php?module=project" class="btn btn-sm btn-outline-secondary">
+                <a href="<?= BASE_URL ?>/project" class="btn btn-sm btn-outline-secondary">
                     <i class="bi bi-x-circle"></i>
                 </a>
             </div>
@@ -79,7 +78,7 @@ function projectSortLink(string $col, string $label, string $sort, string $dir):
                                 <i class="bi bi-diagram-3 empty-icon"></i>
                                 <div class="empty-title">Belum ada project</div>
                                 <div class="empty-desc">Tambahkan project untuk mulai mengelola PO & stok per lokasi.</div>
-                                <a href="<?= BASE_URL ?>/index.php?module=project&action=create" class="btn btn-sm btn-primary">
+                                <a href="<?= BASE_URL ?>/project/create" class="btn btn-sm btn-primary">
                                     <i class="bi bi-plus-circle"></i> Tambah Project
                                 </a>
                             </div>
@@ -101,7 +100,7 @@ function projectSortLink(string $col, string $label, string $sort, string $dir):
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end">
                                         <li>
-                                            <a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=project&action=edit&id=<?= (int) $p['id'] ?>">
+                                            <a class="dropdown-item" href="<?= BASE_URL ?>/project/edit/<?= (int) $p['id'] ?>">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
                                         </li>

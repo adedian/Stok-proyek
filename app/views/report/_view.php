@@ -10,16 +10,14 @@
             </div>
         <?php endif; ?>
     </div>
-    <a href="<?= BASE_URL ?>/index.php?module=report" class="btn btn-outline-secondary no-print">
+    <a href="<?= BASE_URL ?>/report" class="btn btn-outline-secondary no-print">
         <i class="bi bi-arrow-left"></i> Daftar Laporan
     </a>
 </div>
 
 <div class="card border-0 shadow-sm mb-3 no-print">
     <div class="card-body">
-        <form method="GET" action="<?= BASE_URL ?>/index.php" class="row g-2 align-items-end">
-            <input type="hidden" name="module" value="report">
-            <input type="hidden" name="action" value="<?= e($reportKey) ?>">
+        <form method="GET" action="<?= BASE_URL ?>/report/<?= e($reportKey) ?>" class="row g-2 align-items-end">
 
             <?php if (!empty($filterForm['date'])): ?>
                 <div class="col-md-2">
@@ -127,7 +125,7 @@
                 <button type="submit" class="btn btn-sm btn-outline-primary w-100">
                     <i class="bi bi-search"></i> Filter
                 </button>
-                <a href="<?= BASE_URL ?>/index.php?module=report&action=<?= e($reportKey) ?>" class="btn btn-sm btn-outline-secondary">
+                <a href="<?= BASE_URL ?>/report/<?= e($reportKey) ?>" class="btn btn-sm btn-outline-secondary">
                     <i class="bi bi-x-circle"></i>
                 </a>
             </div>

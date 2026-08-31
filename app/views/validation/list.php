@@ -5,18 +5,18 @@
     </div>
     <div class="d-flex gap-2">
         <?php if (empty($isProblemView)): ?>
-            <a href="<?= BASE_URL ?>/index.php?module=validation&action=problem" class="btn btn-outline-warning">
+            <a href="<?= BASE_URL ?>/validation/problem" class="btn btn-outline-warning">
                 <i class="bi bi-exclamation-triangle"></i> Validasi Belum Sesuai
             </a>
         <?php else: ?>
-            <a href="<?= BASE_URL ?>/index.php?module=validation" class="btn btn-outline-secondary">
+            <a href="<?= BASE_URL ?>/validation" class="btn btn-outline-secondary">
                 <i class="bi bi-list-check"></i> Semua Validasi
             </a>
         <?php endif; ?>
-        <a href="<?= BASE_URL ?>/index.php?module=validation&action=approved" class="btn btn-outline-success">
+        <a href="<?= BASE_URL ?>/validation/approved" class="btn btn-outline-success">
             <i class="bi bi-check2-circle"></i> Validasi Sesuai
         </a>
-        <a href="<?= BASE_URL ?>/index.php?module=validation&action=report" class="btn btn-outline-secondary">
+        <a href="<?= BASE_URL ?>/validation/report" class="btn btn-outline-secondary">
             <i class="bi bi-file-earmark-bar-graph"></i> Laporan Selisih
         </a>
     </div>
@@ -40,8 +40,7 @@
 
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-        <form method="GET" action="<?= BASE_URL ?>/index.php" class="row g-2 align-items-end">
-            <input type="hidden" name="module" value="validation">
+        <form method="GET" action="<?= BASE_URL ?>/validation" class="row g-2 align-items-end">
             <?php if (!empty($isProblemView)): ?>
                 <input type="hidden" name="action" value="problem">
             <?php endif; ?>

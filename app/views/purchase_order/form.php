@@ -7,7 +7,7 @@ $actionUrl = $isEdit ? 'update' : 'store';
         <h4 class="mb-0"><?= $isEdit ? 'Edit' : 'Tambah' ?> Purchase Order</h4>
         <small class="text-muted">No. PO: <strong><?= e($poNumber) ?></strong> (otomatis)</small>
     </div>
-    <a href="<?= BASE_URL ?>/index.php?module=purchase_order" class="btn btn-outline-secondary">
+    <a href="<?= BASE_URL ?>/purchase_order" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Kembali
     </a>
 </div>
@@ -107,7 +107,7 @@ $actionUrl = $isEdit ? 'update' : 'store';
                     </select>
                     <div class="form-text">
                         Otomatis dipasang di dokumen cetak PO. Kelola daftarnya di
-                        <a href="<?= BASE_URL ?>/index.php?module=signature" target="_blank">Master Data &raquo; Tanda Tangan</a>.
+                        <a href="<?= BASE_URL ?>/signature" target="_blank">Master Data &raquo; Tanda Tangan</a>.
                     </div>
                 </div>
                 <div class="col-md-4">
@@ -196,7 +196,7 @@ $actionUrl = $isEdit ? 'update' : 'store';
         <button type="submit" class="btn btn-primary">
             <i class="bi bi-save"></i> Simpan
         </button>
-        <a href="<?= BASE_URL ?>/index.php?module=purchase_order" class="btn btn-light border">Batal</a>
+        <a href="<?= BASE_URL ?>/purchase_order" class="btn btn-light border">Batal</a>
     </div>
 </form>
 

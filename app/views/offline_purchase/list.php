@@ -4,7 +4,7 @@
         <small class="text-muted">Pembelian manual di luar Purchase Order</small>
     </div>
     <?php if (can('offline_purchase', 'create')): ?>
-    <a href="<?= BASE_URL ?>/index.php?module=offline_purchase&action=create" class="btn btn-primary">
+    <a href="<?= BASE_URL ?>/offline_purchase/create" class="btn btn-primary">
         <i class="bi bi-plus-circle"></i> Tambah Pembelian
     </a>
     <?php endif; ?>
@@ -12,8 +12,7 @@
 
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-        <form method="GET" action="<?= BASE_URL ?>/index.php" class="row g-2 align-items-end">
-            <input type="hidden" name="module" value="offline_purchase">
+        <form method="GET" action="<?= BASE_URL ?>/offline_purchase" class="row g-2 align-items-end">
             <div class="col-md-4">
                 <label class="form-label small text-muted mb-1">Cari (No. Pembelian / Barang / Supplier)</label>
                 <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword']) ?>">
@@ -42,7 +41,7 @@
                 <button type="submit" class="btn btn-sm btn-outline-primary w-100">
                     <i class="bi bi-search"></i> Filter
                 </button>
-                <a href="<?= BASE_URL ?>/index.php?module=offline_purchase" class="btn btn-sm btn-outline-secondary">
+                <a href="<?= BASE_URL ?>/offline_purchase" class="btn btn-sm btn-outline-secondary">
                     <i class="bi bi-x-circle"></i>
                 </a>
             </div>
@@ -75,7 +74,7 @@
                                 <div class="empty-title">Belum ada pembelian offline</div>
                                 <div class="empty-desc">Catat pembelian barang di luar mekanisme Purchase Order di sini.</div>
                                 <?php if (can('offline_purchase', 'create')): ?>
-                                <a href="<?= BASE_URL ?>/index.php?module=offline_purchase&action=create" class="btn btn-sm btn-primary">
+                                <a href="<?= BASE_URL ?>/offline_purchase/create" class="btn btn-sm btn-primary">
                                     <i class="bi bi-plus-circle"></i> Tambah Pembelian
                                 </a>
                                 <?php endif; ?>
@@ -85,7 +84,7 @@
                     <?php foreach ($purchases as $p): ?>
                         <tr>
                             <td class="fw-semibold">
-                                <a href="<?= BASE_URL ?>/index.php?module=offline_purchase&action=detail&id=<?= (int) $p['id'] ?>">
+                                <a href="<?= BASE_URL ?>/offline_purchase/detail/<?= (int) $p['id'] ?>">
                                     <?= e($p['purchase_number']) ?>
                                 </a>
                             </td>
@@ -121,13 +120,13 @@
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end">
                                         <li>
-                                            <a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=offline_purchase&action=detail&id=<?= (int) $p['id'] ?>">
+                                            <a class="dropdown-item" href="<?= BASE_URL ?>/offline_purchase/detail/<?= (int) $p['id'] ?>">
                                                 <i class="bi bi-eye"></i> Detail
                                             </a>
                                         </li>
                                         <?php if (can('offline_purchase', 'edit')): ?>
                                         <li>
-                                            <a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=offline_purchase&action=edit&id=<?= (int) $p['id'] ?>">
+                                            <a class="dropdown-item" href="<?= BASE_URL ?>/offline_purchase/edit/<?= (int) $p['id'] ?>">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
                                         </li>

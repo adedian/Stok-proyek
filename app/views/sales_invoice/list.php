@@ -4,7 +4,7 @@
         <small class="text-muted">Invoice HME ke client</small>
     </div>
     <?php if (can('sales_invoice', 'create')): ?>
-        <a href="<?= BASE_URL ?>/index.php?module=sales_invoice&action=create" class="btn btn-primary">
+        <a href="<?= BASE_URL ?>/sales_invoice/create" class="btn btn-primary">
             <i class="bi bi-plus-circle"></i> Tambah Invoice
         </a>
     <?php endif; ?>
@@ -12,8 +12,7 @@
 
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-        <form method="GET" action="<?= BASE_URL ?>/index.php" class="row g-2 align-items-end">
-            <input type="hidden" name="module" value="sales_invoice">
+        <form method="GET" action="<?= BASE_URL ?>/sales_invoice" class="row g-2 align-items-end">
             <div class="col-md-3">
                 <label class="form-label small text-muted mb-1">Cari (No. Invoice / Client)</label>
                 <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword']) ?>">
@@ -57,7 +56,7 @@
                 <button type="submit" class="btn btn-sm btn-outline-primary w-100">
                     <i class="bi bi-search"></i> Filter
                 </button>
-                <a href="<?= BASE_URL ?>/index.php?module=sales_invoice" class="btn btn-sm btn-outline-secondary">
+                <a href="<?= BASE_URL ?>/sales_invoice" class="btn btn-sm btn-outline-secondary">
                     <i class="bi bi-x-circle"></i>
                 </a>
             </div>
@@ -144,18 +143,18 @@
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end">
                                         <li>
-                                            <a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=sales_invoice&action=detail&id=<?= (int) $inv['id'] ?>">
+                                            <a class="dropdown-item" href="<?= BASE_URL ?>/sales_invoice/detail/<?= (int) $inv['id'] ?>">
                                                 <i class="bi bi-eye"></i> Detail
                                             </a>
                                         </li>
                                         <li>
-                                            <a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=sales_invoice&action=print&ids=<?= (int) $inv['id'] ?>" target="_blank">
+                                            <a class="dropdown-item" href="<?= BASE_URL ?>/sales_invoice/print?ids=<?= (int) $inv['id'] ?>" target="_blank">
                                                 <i class="bi bi-printer"></i> Cetak
                                             </a>
                                         </li>
                                         <?php if (can('sales_invoice', 'edit')): ?>
                                             <li>
-                                                <a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=sales_invoice&action=edit&id=<?= (int) $inv['id'] ?>">
+                                                <a class="dropdown-item" href="<?= BASE_URL ?>/sales_invoice/edit/<?= (int) $inv['id'] ?>">
                                                     <i class="bi bi-pencil"></i> Edit
                                                 </a>
                                             </li>

@@ -3,7 +3,7 @@
         <h4 class="mb-0">Tambah Stok Opname</h4>
         <small class="text-muted">No. Opname: <?= e($opnameNumber) ?></small>
     </div>
-    <a href="<?= BASE_URL ?>/index.php?module=inventory&action=opnameIndex" class="btn btn-outline-secondary">
+    <a href="<?= BASE_URL ?>/inventory/opnameIndex" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Kembali
     </a>
 </div>
@@ -95,7 +95,7 @@
         <button type="submit" class="btn btn-primary">
             <i class="bi bi-save"></i> Simpan sebagai Draft
         </button>
-        <a href="<?= BASE_URL ?>/index.php?module=inventory&action=opnameIndex" class="btn btn-light border">Batal</a>
+        <a href="<?= BASE_URL ?>/inventory/opnameIndex" class="btn btn-light border">Batal</a>
     </div>
 </form>
 

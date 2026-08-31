@@ -87,7 +87,7 @@
                     </div>
                 <?php else: ?>
                     <?php foreach ($topbarAlerts as $alert): ?>
-                        <a href="<?= BASE_URL ?>/index.php?module=<?= e($alert['module']) ?>" class="topbar-dropdown-item">
+                        <a href="<?= BASE_URL ?>/<?= e($alert['module']) ?>" class="topbar-dropdown-item">
                             <span class="item-icon bg-<?= e($alert['variant']) ?>-subtle text-<?= e($alert['variant']) ?>">
                                 <i class="bi <?= e($alert['icon']) ?>"></i>
                             </span>
@@ -119,10 +119,10 @@
                         <span class="d-block small text-muted"><?= e(roleSubtitle(currentUserRole())) ?></span>
                     </span>
                 </div>
-                <a class="dropdown-item px-3 py-2" href="<?= BASE_URL ?>/index.php?module=account">
+                <a class="dropdown-item px-3 py-2" href="<?= BASE_URL ?>/account">
                     <i class="bi bi-person me-2"></i> Profile
                 </a>
-                <a class="dropdown-item px-3 py-2" href="<?= BASE_URL ?>/index.php?module=account">
+                <a class="dropdown-item px-3 py-2" href="<?= BASE_URL ?>/account">
                     <i class="bi bi-gear me-2"></i> Pengaturan Akun
                 </a>
                 <div class="dropdown-divider"></div>
@@ -139,7 +139,7 @@
         if (!logoutLink) { return; }
         logoutLink.addEventListener('click', function (e) {
             e.preventDefault();
-            var url = '<?= BASE_URL ?>/index.php?module=auth&action=logout';
+            var url = '<?= route('auth', 'logout') ?>';
             if (window.confirmAction) {
                 confirmAction('Yakin ingin logout?', 'Ya, logout').then(function (ok) {
                     if (ok) { window.location.href = url; }

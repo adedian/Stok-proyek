@@ -52,7 +52,9 @@ function checkSessionTimeout()
         if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity'] > SESSION_TIMEOUT)) {
             session_unset();
             session_destroy();
-            header('Location: ' . BASE_URL . '/index.php?module=auth&action=login&expired=1');
+            // route() belum ter-load di titik ini (functions.php di-include setelah
+            // session.php) -- susun URL bersih manual.
+            header('Location: ' . BASE_URL . '/auth/login?expired=1');
             exit;
         }
         $_SESSION['last_activity'] = time();

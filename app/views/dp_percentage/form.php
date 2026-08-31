@@ -6,7 +6,7 @@ $actionUrl = $isEdit ? 'update' : 'store';
     <div>
         <h4 class="mb-0"><?= $isEdit ? 'Edit' : 'Tambah' ?> Persentase DP</h4>
     </div>
-    <a href="<?= BASE_URL ?>/index.php?module=dp_percentage" class="btn btn-outline-secondary">
+    <a href="<?= BASE_URL ?>/dp_percentage" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Kembali
     </a>
 </div>
@@ -37,6 +37,6 @@ $actionUrl = $isEdit ? 'update' : 'store';
 
     <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Simpan</button>
-        <a href="<?= BASE_URL ?>/index.php?module=dp_percentage" class="btn btn-light border">Batal</a>
+        <a href="<?= BASE_URL ?>/dp_percentage" class="btn btn-light border">Batal</a>
     </div>
 </form>

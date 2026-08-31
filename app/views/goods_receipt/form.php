@@ -12,7 +12,7 @@ $offlineItems = $offlineItems ?? [];
         <h4 class="mb-0"><?= $isEdit ? 'Edit' : 'Tambah' ?> Penerimaan Barang</h4>
         <small class="text-muted">No. Penerimaan: <strong><?= e($receiptNumber) ?></strong> (otomatis)</small>
     </div>
-    <a href="<?= BASE_URL ?>/index.php?module=goods_receipt" class="btn btn-outline-secondary">
+    <a href="<?= BASE_URL ?>/goods_receipt" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Kembali
     </a>
 </div>
@@ -322,7 +322,7 @@ $offlineItems = $offlineItems ?? [];
         <button type="submit" class="btn btn-primary">
             <i class="bi bi-save"></i> Simpan
         </button>
-        <a href="<?= BASE_URL ?>/index.php?module=goods_receipt" class="btn btn-light border">Batal</a>
+        <a href="<?= BASE_URL ?>/goods_receipt" class="btn btn-light border">Batal</a>
     </div>
 </form>
 

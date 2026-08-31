@@ -3,15 +3,14 @@
         <h4 class="mb-0">Laporan Selisih Barang</h4>
         <small class="text-muted">Semua item dengan status kurang / lebih / barang lain</small>
     </div>
-    <a href="<?= BASE_URL ?>/index.php?module=validation" class="btn btn-outline-secondary">
+    <a href="<?= BASE_URL ?>/validation" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Kembali
     </a>
 </div>
 
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-        <form method="GET" action="<?= BASE_URL ?>/index.php" class="row g-2 align-items-end">
-            <input type="hidden" name="module" value="validation">
+        <form method="GET" action="<?= BASE_URL ?>/validation" class="row g-2 align-items-end">
             <input type="hidden" name="action" value="report">
             <div class="col-md-3">
                 <label class="form-label small text-muted mb-1">Project</label>

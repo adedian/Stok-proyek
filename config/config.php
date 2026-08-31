@@ -19,9 +19,24 @@ define('APP_NAME', 'Sistem Kontrol Stok Proyek');
 // (localhost ATAU alamat IP LAN, mis. http://192.168.100.125/stok-proyek/public)
 // supaya aplikasi tetap jalan diakses dari komputer lain di jaringan yang sama
 // tanpa perlu ubah config per-komputer.
+//
+// APP_BASE_PATH = bagian path tempat aplikasi "duduk", dihitung otomatis dari
+// lokasi front controller:
+//   - diakses via sub-folder  -> "/stok-proyek/public"
+//   - DocumentRoot = folder public/ (mis. stok.hexamultienergi.com) -> ""
+// Dipakai Router untuk memotong prefix path, dan route()/BASE_URL untuk
+// menyusun URL bersih tanpa "index.php?module=".
+if (PHP_SAPI === 'cli') {
+    $appBasePath = '';
+} else {
+    $scriptDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/index.php'));
+    $appBasePath = ($scriptDir === '/' || $scriptDir === '.') ? '' : rtrim($scriptDir, '/');
+}
+define('APP_BASE_PATH', $appBasePath);
+
 $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
 $host   = $_SERVER['HTTP_HOST'] ?? 'localhost';
-define('BASE_URL', $scheme . '://' . $host . '/stok-proyek/public');
+define('BASE_URL', $scheme . '://' . $host . APP_BASE_PATH);
 
 // Lingkungan ditentukan otomatis dari host: akses lewat localhost/127.0.0.1
 // dianggap 'development' (developer sedang menguji, error tampil penuh).

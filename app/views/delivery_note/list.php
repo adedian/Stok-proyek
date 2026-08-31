@@ -3,15 +3,14 @@
         <h4 class="mb-0">Riwayat Surat Jalan</h4>
         <small class="text-muted">Dibuat dari baris Pengeluaran Barang yang dikelompokkan</small>
     </div>
-    <a href="<?= BASE_URL ?>/index.php?module=stock_out" class="btn btn-outline-secondary">
+    <a href="<?= BASE_URL ?>/stock_out" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Pengeluaran Barang
     </a>
 </div>
 
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-        <form method="GET" action="<?= BASE_URL ?>/index.php" class="row g-2 align-items-end">
-            <input type="hidden" name="module" value="delivery_note">
+        <form method="GET" action="<?= BASE_URL ?>/delivery_note" class="row g-2 align-items-end">
             <div class="col-md-4">
                 <label class="form-label small text-muted mb-1">Cari (No. Surat Jalan / Tujuan)</label>
                 <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword']) ?>">
@@ -87,7 +86,7 @@
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end">
                                         <li>
-                                            <a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=delivery_note&action=print&id=<?= (int) $n['id'] ?>" target="_blank">
+                                            <a class="dropdown-item" href="<?= BASE_URL ?>/delivery_note/print/<?= (int) $n['id'] ?>" target="_blank">
                                                 <i class="bi bi-printer"></i> Cetak
                                             </a>
                                         </li>

@@ -24,7 +24,7 @@ $kasPicName = $kasPicName ?? null;
             </form>
         <?php endif; ?>
         <?php if (can('cash', 'create')): ?>
-            <a href="<?= BASE_URL ?>/index.php?module=cash&action=create" class="btn btn-primary">
+            <a href="<?= BASE_URL ?>/cash/create" class="btn btn-primary">
                 <i class="bi bi-plus-circle"></i> Tambah Kas
             </a>
         <?php endif; ?>
@@ -84,8 +84,7 @@ $kasPicName = $kasPicName ?? null;
 
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-        <form method="GET" action="<?= BASE_URL ?>/index.php" class="row g-2 align-items-end">
-            <input type="hidden" name="module" value="cash">
+        <form method="GET" action="<?= BASE_URL ?>/cash" class="row g-2 align-items-end">
             <div class="col-6 col-md-2">
                 <label class="form-label small text-muted mb-1">Dari Tanggal</label>
                 <input type="date" name="date_from" class="form-control form-control-sm" value="<?= e($filters['date_from']) ?>">
@@ -128,7 +127,7 @@ $kasPicName = $kasPicName ?? null;
             </div>
             <div class="col-12 col-md-1 d-flex gap-2">
                 <button type="submit" class="btn btn-sm btn-outline-primary w-100"><i class="bi bi-search"></i></button>
-                <a href="<?= BASE_URL ?>/index.php?module=cash" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-circle"></i></a>
+                <a href="<?= BASE_URL ?>/cash" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-circle"></i></a>
             </div>
         </form>
     </div>
@@ -159,7 +158,7 @@ $kasPicName = $kasPicName ?? null;
                                 <div class="empty-title">Belum ada transaksi Kas</div>
                                 <div class="empty-desc">Catat kas masuk atau kas keluar untuk mulai.</div>
                                 <?php if (can('cash', 'create')): ?>
-                                    <a href="<?= BASE_URL ?>/index.php?module=cash&action=create" class="btn btn-sm btn-primary">
+                                    <a href="<?= BASE_URL ?>/cash/create" class="btn btn-sm btn-primary">
                                         <i class="bi bi-plus-circle"></i> Tambah Kas
                                     </a>
                                 <?php endif; ?>
@@ -191,7 +190,7 @@ $kasPicName = $kasPicName ?? null;
                                     <ul class="dropdown-menu dropdown-menu-end">
                                         <?php if (can('cash', 'edit')): ?>
                                         <li>
-                                            <a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=cash&action=edit&id=<?= (int) $r['id'] ?>">
+                                            <a class="dropdown-item" href="<?= BASE_URL ?>/cash/edit/<?= (int) $r['id'] ?>">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
                                         </li>

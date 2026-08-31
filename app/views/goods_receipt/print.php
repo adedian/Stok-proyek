@@ -98,7 +98,7 @@
     <button type="button" class="btn btn-dark btn-sm" onclick="window.print()">
         <i class="bi bi-printer"></i> Cetak
     </button>
-    <a href="<?= BASE_URL ?>/index.php?module=goods_receipt&action=detail&id=<?= (int) $receipt['id'] ?>" class="btn btn-outline-secondary btn-sm">
+    <a href="<?= BASE_URL ?>/goods_receipt/detail/<?= (int) $receipt['id'] ?>" class="btn btn-outline-secondary btn-sm">
         <i class="bi bi-arrow-left"></i> Kembali
     </a>
 </div>

@@ -16,7 +16,7 @@ $qtyFmt = static fn($v) => rtrim(rtrim(number_format((float) $v, 2, ',', '.'), '
         <small class="text-muted">Buku kas &mdash; Saldo Awal, mutasi masuk/keluar, dan saldo berjalan</small>
     </div>
     <div class="d-flex gap-2">
-        <a href="<?= BASE_URL ?>/index.php?module=report" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Kembali</a>
+        <a href="<?= BASE_URL ?>/report" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Kembali</a>
         <button type="button" class="btn btn-outline-dark" onclick="window.print()"><i class="bi bi-printer"></i> Cetak</button>
         <a href="<?= BASE_URL ?>/index.php?module=cash&action=printReport<?= $qs ? '&' . e($qs) : '' ?>" class="btn btn-outline-danger" target="_blank"><i class="bi bi-file-earmark-pdf"></i> PDF</a>
         <a href="<?= BASE_URL ?>/index.php?module=cash&action=exportReport<?= $qs ? '&' . e($qs) : '' ?>" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i> Excel</a>
@@ -25,8 +25,7 @@ $qtyFmt = static fn($v) => rtrim(rtrim(number_format((float) $v, 2, ',', '.'), '
 
 <div class="card border-0 shadow-sm mb-3 no-print">
     <div class="card-body">
-        <form method="GET" action="<?= BASE_URL ?>/index.php" class="row g-2 align-items-end">
-            <input type="hidden" name="module" value="cash">
+        <form method="GET" action="<?= BASE_URL ?>/cash" class="row g-2 align-items-end">
             <input type="hidden" name="action" value="report">
             <div class="col-6 col-md-2">
                 <label class="form-label small text-muted mb-1">Dari Tanggal</label>
@@ -68,7 +67,7 @@ $qtyFmt = static fn($v) => rtrim(rtrim(number_format((float) $v, 2, ',', '.'), '
             </div>
             <div class="col-12 col-md-1 d-flex gap-2">
                 <button type="submit" class="btn btn-sm btn-outline-primary w-100"><i class="bi bi-search"></i></button>
-                <a href="<?= BASE_URL ?>/index.php?module=cash&action=report" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-circle"></i></a>
+                <a href="<?= BASE_URL ?>/cash/report" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-circle"></i></a>
             </div>
         </form>
     </div>

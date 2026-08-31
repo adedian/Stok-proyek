@@ -13,7 +13,7 @@ class Middleware
     public static function requireAuth(): void
     {
         if (empty($_SESSION['user_id'])) {
-            header('Location: ' . BASE_URL . '/index.php?module=auth&action=login');
+            header('Location: ' . route('auth', 'login'));
             exit;
         }
         checkSessionTimeout();

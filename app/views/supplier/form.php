@@ -9,7 +9,7 @@ $actionUrl = $isEdit ? 'update' : 'store';
             <small class="text-muted">Kode: <strong><?= e($supplier['supplier_code']) ?></strong></small>
         <?php endif; ?>
     </div>
-    <a href="<?= BASE_URL ?>/index.php?module=supplier" class="btn btn-outline-secondary">
+    <a href="<?= BASE_URL ?>/supplier" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Kembali
     </a>
 </div>
@@ -72,6 +72,6 @@ $actionUrl = $isEdit ? 'update' : 'store';
         <button type="submit" class="btn btn-primary" <?= (!$isEdit && $codeConfig === null) ? 'disabled' : '' ?>>
             <i class="bi bi-save"></i> Simpan
         </button>
-        <a href="<?= BASE_URL ?>/index.php?module=supplier" class="btn btn-light border">Batal</a>
+        <a href="<?= BASE_URL ?>/supplier" class="btn btn-light border">Batal</a>
     </div>
 </form>

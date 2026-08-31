@@ -17,7 +17,7 @@ if (empty($items)) {
             <?php endif; ?>
         </small>
     </div>
-    <a href="<?= BASE_URL ?>/index.php?module=sales_invoice" class="btn btn-outline-secondary">
+    <a href="<?= BASE_URL ?>/sales_invoice" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Kembali
     </a>
 </div>
@@ -260,7 +260,7 @@ if (empty($items)) {
         <button type="submit" class="btn btn-primary">
             <i class="bi bi-save"></i> Simpan
         </button>
-        <a href="<?= BASE_URL ?>/index.php?module=sales_invoice" class="btn btn-light border">Batal</a>
+        <a href="<?= BASE_URL ?>/sales_invoice" class="btn btn-light border">Batal</a>
     </div>
 </form>
 

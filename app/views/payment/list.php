@@ -4,10 +4,10 @@
         <small class="text-muted">Daftar seluruh pembayaran ke supplier</small>
     </div>
     <div class="d-flex gap-2">
-        <a href="<?= BASE_URL ?>/index.php?module=payment&action=summary" class="btn btn-outline-secondary">
+        <a href="<?= BASE_URL ?>/payment/summary" class="btn btn-outline-secondary">
             <i class="bi bi-pie-chart"></i> Rekap PO
         </a>
-        <a href="<?= BASE_URL ?>/index.php?module=payment&action=create" class="btn btn-primary">
+        <a href="<?= BASE_URL ?>/payment/create" class="btn btn-primary">
             <i class="bi bi-plus-circle"></i> Tambah Pembayaran
         </a>
     </div>
@@ -58,8 +58,7 @@
 
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-        <form method="GET" action="<?= BASE_URL ?>/index.php" class="row g-2 align-items-end">
-            <input type="hidden" name="module" value="payment">
+        <form method="GET" action="<?= BASE_URL ?>/payment" class="row g-2 align-items-end">
             <div class="col-md-5">
                 <label class="form-label small text-muted mb-1">Cari (No. Pembayaran / No. PO / Supplier)</label>
                 <input type="text" name="keyword" class="form-control form-control-sm"
@@ -80,7 +79,7 @@
                 <button type="submit" class="btn btn-sm btn-outline-primary w-100">
                     <i class="bi bi-search"></i> Filter
                 </button>
-                <a href="<?= BASE_URL ?>/index.php?module=payment" class="btn btn-sm btn-outline-secondary">
+                <a href="<?= BASE_URL ?>/payment" class="btn btn-sm btn-outline-secondary">
                     <i class="bi bi-x-circle"></i>
                 </a>
             </div>
@@ -117,7 +116,7 @@
                                     <i class="bi bi-credit-card empty-icon"></i>
                                     <div class="empty-title">Belum ada pembayaran</div>
                                     <div class="empty-desc">Catat pembayaran termin ke supplier untuk PO yang berjalan.</div>
-                                    <a href="<?= BASE_URL ?>/index.php?module=payment&action=create" class="btn btn-sm btn-primary">
+                                    <a href="<?= BASE_URL ?>/payment/create" class="btn btn-sm btn-primary">
                                         <i class="bi bi-plus-circle"></i> Tambah Pembayaran
                                     </a>
                                 </div>
@@ -171,7 +170,7 @@
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end">
                                         <li>
-                                            <a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=payment&action=edit&id=<?= (int) $pay['id'] ?>">
+                                            <a class="dropdown-item" href="<?= BASE_URL ?>/payment/edit/<?= (int) $pay['id'] ?>">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
                                         </li>

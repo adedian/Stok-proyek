@@ -4,10 +4,10 @@
         <small class="text-muted">Pilihan persentase DP untuk Invoice Keluar</small>
     </div>
     <div class="d-flex gap-2">
-        <a href="<?= BASE_URL ?>/index.php?module=master_data" class="btn btn-outline-secondary">
+        <a href="<?= BASE_URL ?>/master_data" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Master Data
         </a>
-        <a href="<?= BASE_URL ?>/index.php?module=dp_percentage&action=create" class="btn btn-primary">
+        <a href="<?= BASE_URL ?>/dp_percentage/create" class="btn btn-primary">
             <i class="bi bi-plus-circle"></i> Tambah Persentase
         </a>
     </div>
@@ -32,7 +32,7 @@
                                 <i class="bi bi-percent empty-icon"></i>
                                 <div class="empty-title">Belum ada persentase DP</div>
                                 <div class="empty-desc">Tambahkan pilihan persentase supaya bisa dipakai di Invoice Keluar.</div>
-                                <a href="<?= BASE_URL ?>/index.php?module=dp_percentage&action=create" class="btn btn-sm btn-primary">
+                                <a href="<?= BASE_URL ?>/dp_percentage/create" class="btn btn-sm btn-primary">
                                     <i class="bi bi-plus-circle"></i> Tambah Persentase
                                 </a>
                             </div>
@@ -54,7 +54,7 @@
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end">
                                         <li>
-                                            <a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=dp_percentage&action=edit&id=<?= (int) $r['id'] ?>">
+                                            <a class="dropdown-item" href="<?= BASE_URL ?>/dp_percentage/edit/<?= (int) $r['id'] ?>">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
                                         </li>

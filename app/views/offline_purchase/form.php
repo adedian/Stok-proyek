@@ -8,7 +8,7 @@ $itemsLocked = $itemsLocked ?? false;
         <h4 class="mb-0"><?= $isEdit ? 'Edit' : 'Tambah' ?> Pembelian Offline</h4>
         <small class="text-muted">No. Pembelian: <strong><?= e($purchaseNumber) ?></strong> (otomatis) &middot; Pembelian manual di luar Purchase Order</small>
     </div>
-    <a href="<?= BASE_URL ?>/index.php?module=offline_purchase" class="btn btn-outline-secondary">
+    <a href="<?= BASE_URL ?>/offline_purchase" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Kembali
     </a>
 </div>
@@ -143,7 +143,7 @@ $itemsLocked = $itemsLocked ?? false;
         <button type="submit" class="btn btn-primary">
             <i class="bi bi-save"></i> Simpan
         </button>
-        <a href="<?= BASE_URL ?>/index.php?module=offline_purchase" class="btn btn-light border">Batal</a>
+        <a href="<?= BASE_URL ?>/offline_purchase" class="btn btn-light border">Batal</a>
     </div>
 </form>
 

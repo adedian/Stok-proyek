@@ -7,8 +7,7 @@
 
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-        <form method="GET" action="<?= BASE_URL ?>/index.php" class="row g-2 align-items-end">
-            <input type="hidden" name="module" value="collection_receipt">
+        <form method="GET" action="<?= BASE_URL ?>/collection_receipt" class="row g-2 align-items-end">
             <div class="col-md-4">
                 <label class="form-label small text-muted mb-1">Cari (No. Tanda Terima / Client)</label>
                 <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword']) ?>">
@@ -84,13 +83,13 @@
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end">
                                         <li>
-                                            <a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=collection_receipt&action=print&id=<?= (int) $r['id'] ?>" target="_blank">
+                                            <a class="dropdown-item" href="<?= BASE_URL ?>/collection_receipt/print/<?= (int) $r['id'] ?>" target="_blank">
                                                 <i class="bi bi-printer"></i> Cetak
                                             </a>
                                         </li>
                                         <?php if (can('collection_receipt', 'edit')): ?>
                                             <li>
-                                                <a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=collection_receipt&action=edit&id=<?= (int) $r['id'] ?>">
+                                                <a class="dropdown-item" href="<?= BASE_URL ?>/collection_receipt/edit/<?= (int) $r['id'] ?>">
                                                     <i class="bi bi-pencil"></i> Edit
                                                 </a>
                                             </li>

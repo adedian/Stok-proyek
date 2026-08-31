@@ -12,7 +12,7 @@ $selectedPoId = $selectedPo['id'] ?? ($payment['purchase_order_id'] ?? '');
             <?= $paymentNumber ? '(otomatis)' : '' ?>
         </small>
     </div>
-    <a href="<?= BASE_URL ?>/index.php?module=payment" class="btn btn-outline-secondary">
+    <a href="<?= BASE_URL ?>/payment" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Kembali
     </a>
 </div>
@@ -118,7 +118,7 @@ $selectedPoId = $selectedPo['id'] ?? ($payment['purchase_order_id'] ?? '');
                 <button type="submit" class="btn btn-primary">
                     <i class="bi bi-save"></i> Simpan
                 </button>
-                <a href="<?= BASE_URL ?>/index.php?module=payment" class="btn btn-light border">Batal</a>
+                <a href="<?= BASE_URL ?>/payment" class="btn btn-light border">Batal</a>
             </div>
         </form>
     </div>

@@ -4,7 +4,7 @@
         <small class="text-muted">Daftar seluruh penerimaan barang dari supplier</small>
     </div>
     <?php if (can('goods_receipt', 'create')): ?>
-    <a href="<?= BASE_URL ?>/index.php?module=goods_receipt&action=create" class="btn btn-primary">
+    <a href="<?= BASE_URL ?>/goods_receipt/create" class="btn btn-primary">
         <i class="bi bi-plus-circle"></i> Tambah Penerimaan
     </a>
     <?php endif; ?>
@@ -12,8 +12,7 @@
 
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-        <form method="GET" action="<?= BASE_URL ?>/index.php" class="row g-2 align-items-end">
-            <input type="hidden" name="module" value="goods_receipt">
+        <form method="GET" action="<?= BASE_URL ?>/goods_receipt" class="row g-2 align-items-end">
             <div class="col-md-4">
                 <label class="form-label small text-muted mb-1">Cari (No. Penerimaan / No. PO / Supplier)</label>
                 <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword']) ?>">
@@ -38,7 +37,7 @@
                 <button type="submit" class="btn btn-sm btn-outline-primary w-100">
                     <i class="bi bi-search"></i> Filter
                 </button>
-                <a href="<?= BASE_URL ?>/index.php?module=goods_receipt" class="btn btn-sm btn-outline-secondary">
+                <a href="<?= BASE_URL ?>/goods_receipt" class="btn btn-sm btn-outline-secondary">
                     <i class="bi bi-x-circle"></i>
                 </a>
             </div>
@@ -71,7 +70,7 @@
                                 <div class="empty-title">Belum ada penerimaan barang</div>
                                 <div class="empty-desc">Catat penerimaan barang dari supplier untuk PO yang sudah disetujui.</div>
                                 <?php if (can('goods_receipt', 'create')): ?>
-                                <a href="<?= BASE_URL ?>/index.php?module=goods_receipt&action=create" class="btn btn-sm btn-primary">
+                                <a href="<?= BASE_URL ?>/goods_receipt/create" class="btn btn-sm btn-primary">
                                     <i class="bi bi-plus-circle"></i> Tambah Penerimaan
                                 </a>
                                 <?php endif; ?>
@@ -112,13 +111,13 @@
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end">
                                         <li>
-                                            <a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=goods_receipt&action=detail&id=<?= (int) $r['id'] ?>">
+                                            <a class="dropdown-item" href="<?= BASE_URL ?>/goods_receipt/detail/<?= (int) $r['id'] ?>">
                                                 <i class="bi bi-eye"></i> Detail
                                             </a>
                                         </li>
                                         <?php if ($r['receipt_type'] !== 'pemakai' && can('goods_receipt', 'edit')): ?>
                                         <li>
-                                            <a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=goods_receipt&action=edit&id=<?= (int) $r['id'] ?>">
+                                            <a class="dropdown-item" href="<?= BASE_URL ?>/goods_receipt/edit/<?= (int) $r['id'] ?>">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
                                         </li>

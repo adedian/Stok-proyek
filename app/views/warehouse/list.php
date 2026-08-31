@@ -2,7 +2,7 @@
 function warehouseSortLink(string $col, string $label, string $sort, string $dir): string
 {
     $nextDir = ($sort === $col && $dir === 'asc') ? 'desc' : 'asc';
-    $url = BASE_URL . '/index.php?module=warehouse&sort=' . urlencode($col) . '&dir=' . $nextDir;
+    $url = route('warehouse', 'index', ['sort' => $col, 'dir' => $nextDir]);
     return '<a href="' . e($url) . '" class="text-dark text-decoration-none">' . e($label) . sortIndicator($col, $sort, $dir) . '</a>';
 }
 ?>
@@ -12,10 +12,10 @@ function warehouseSortLink(string $col, string $label, string $sort, string $dir
         <small class="text-muted">Master data gudang</small>
     </div>
     <div class="d-flex gap-2">
-        <a href="<?= BASE_URL ?>/index.php?module=master_data" class="btn btn-outline-secondary">
+        <a href="<?= BASE_URL ?>/master_data" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Master Data
         </a>
-        <a href="<?= BASE_URL ?>/index.php?module=warehouse&action=create" class="btn btn-primary">
+        <a href="<?= BASE_URL ?>/warehouse/create" class="btn btn-primary">
             <i class="bi bi-plus-circle"></i> Tambah Gudang
         </a>
     </div>
@@ -23,8 +23,7 @@ function warehouseSortLink(string $col, string $label, string $sort, string $dir
 
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-        <form method="GET" action="<?= BASE_URL ?>/index.php" class="row g-2 align-items-end">
-            <input type="hidden" name="module" value="warehouse">
+        <form method="GET" action="<?= BASE_URL ?>/warehouse" class="row g-2 align-items-end">
             <div class="col-md-5">
                 <label class="form-label small text-muted mb-1">Cari (Nama / Kode)</label>
                 <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword']) ?>">
@@ -41,7 +40,7 @@ function warehouseSortLink(string $col, string $label, string $sort, string $dir
                 <button type="submit" class="btn btn-sm btn-outline-primary w-100">
                     <i class="bi bi-search"></i> Filter
                 </button>
-                <a href="<?= BASE_URL ?>/index.php?module=warehouse" class="btn btn-sm btn-outline-secondary">
+                <a href="<?= BASE_URL ?>/warehouse" class="btn btn-sm btn-outline-secondary">
                     <i class="bi bi-x-circle"></i>
                 </a>
             </div>
@@ -75,7 +74,7 @@ function warehouseSortLink(string $col, string $label, string $sort, string $dir
                                 <i class="bi bi-building empty-icon"></i>
                                 <div class="empty-title">Belum ada gudang</div>
                                 <div class="empty-desc">Tambahkan gudang untuk mengelola lokasi penyimpanan stok.</div>
-                                <a href="<?= BASE_URL ?>/index.php?module=warehouse&action=create" class="btn btn-sm btn-primary">
+                                <a href="<?= BASE_URL ?>/warehouse/create" class="btn btn-sm btn-primary">
                                     <i class="bi bi-plus-circle"></i> Tambah Gudang
                                 </a>
                             </div>
@@ -99,7 +98,7 @@ function warehouseSortLink(string $col, string $label, string $sort, string $dir
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end">
                                         <li>
-                                            <a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=warehouse&action=edit&id=<?= (int) $w['id'] ?>">
+                                            <a class="dropdown-item" href="<?= BASE_URL ?>/warehouse/edit/<?= (int) $w['id'] ?>">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
                                         </li>

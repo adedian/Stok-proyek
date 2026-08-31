@@ -39,7 +39,7 @@
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <a href="<?= BASE_URL ?>/index.php?module=settings&action=backupDownload&id=<?= (int) $b['id'] ?>"
+                                        <a href="<?= BASE_URL ?>/settings/backupDownload/<?= (int) $b['id'] ?>"
                                            class="btn btn-sm btn-outline-secondary" title="Download">
                                             <i class="bi bi-download"></i>
                                         </a>

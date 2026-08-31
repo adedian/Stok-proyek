@@ -2,7 +2,7 @@
 function itemSortLink(string $col, string $label, string $sort, string $dir): string
 {
     $nextDir = ($sort === $col && $dir === 'asc') ? 'desc' : 'asc';
-    $url = BASE_URL . '/index.php?module=item&sort=' . urlencode($col) . '&dir=' . $nextDir;
+    $url = route('item', 'index', ['sort' => $col, 'dir' => $nextDir]);
     return '<a href="' . e($url) . '" class="text-dark text-decoration-none">' . e($label) . sortIndicator($col, $sort, $dir) . '</a>';
 }
 ?>
@@ -12,10 +12,10 @@ function itemSortLink(string $col, string $label, string $sort, string $dir): st
         <small class="text-muted">Katalog master barang</small>
     </div>
     <div class="d-flex gap-2">
-        <a href="<?= BASE_URL ?>/index.php?module=master_data" class="btn btn-outline-secondary">
+        <a href="<?= BASE_URL ?>/master_data" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Master Data
         </a>
-        <a href="<?= BASE_URL ?>/index.php?module=item&action=create" class="btn btn-primary">
+        <a href="<?= BASE_URL ?>/item/create" class="btn btn-primary">
             <i class="bi bi-plus-circle"></i> Tambah Barang
         </a>
     </div>
@@ -23,8 +23,7 @@ function itemSortLink(string $col, string $label, string $sort, string $dir): st
 
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-        <form method="GET" action="<?= BASE_URL ?>/index.php" class="row g-2 align-items-end">
-            <input type="hidden" name="module" value="item">
+        <form method="GET" action="<?= BASE_URL ?>/item" class="row g-2 align-items-end">
             <div class="col-md-4">
                 <label class="form-label small text-muted mb-1">Cari (Nama / Kode)</label>
                 <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword']) ?>">
@@ -98,7 +97,7 @@ function itemSortLink(string $col, string $label, string $sort, string $dir): st
                                 <i class="bi bi-box empty-icon"></i>
                                 <div class="empty-title">Belum ada barang</div>
                                 <div class="empty-desc">Tambahkan barang ke katalog master untuk dipakai di PO & stok.</div>
-                                <a href="<?= BASE_URL ?>/index.php?module=item&action=create" class="btn btn-sm btn-primary">
+                                <a href="<?= BASE_URL ?>/item/create" class="btn btn-sm btn-primary">
                                     <i class="bi bi-plus-circle"></i> Tambah Barang
                                 </a>
                             </div>
@@ -132,7 +131,7 @@ function itemSortLink(string $col, string $label, string $sort, string $dir): st
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end">
                                         <li>
-                                            <a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=item&action=edit&id=<?= (int) $i['id'] ?>">
+                                            <a class="dropdown-item" href="<?= BASE_URL ?>/item/edit/<?= (int) $i['id'] ?>">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
                                         </li>

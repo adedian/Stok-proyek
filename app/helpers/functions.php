@@ -135,9 +135,42 @@ function fileUrl(?string $relPath): string
 
     static $gated = ['payments', 'bukti_pembelian', 'invoice_penerimaan', 'invoice'];
     if (preg_match('#^uploads/([a-z0-9_]+)/#', $relPath, $m) && in_array($m[1], $gated, true)) {
-        return BASE_URL . '/index.php?module=file&action=show&path=' . rawurlencode($relPath);
+        return route('file', 'show', ['path' => $relPath]);
     }
     return BASE_URL . '/' . $relPath;
+}
+
+/**
+ * Susun URL bersih ke sebuah module/action.
+ *   route('dashboard')                          -> {BASE_URL}/dashboard
+ *   route('purchase_order')                     -> {BASE_URL}/purchase_order
+ *   route('purchase_order', 'create')           -> {BASE_URL}/purchase_order/create
+ *   route('purchase_order', 'edit', ['id'=>5])  -> {BASE_URL}/purchase_order/edit/5
+ *   route('settings', 'index', ['tab'=>'bank']) -> {BASE_URL}/settings?tab=bank
+ *   route('report', 'export', ['type'=>'po','format'=>'pdf'])
+ *                                               -> {BASE_URL}/report/export?type=po&format=pdf
+ *
+ * `id` numerik jadi segmen path; param lain jadi query string. Router tetap
+ * menerima format lama (index.php?module=..&action=..) sebagai fallback.
+ */
+function route(string $module, string $action = 'index', array $params = []): string
+{
+    $path = '/' . rawurlencode($module);
+
+    $idSegment = '';
+    if (isset($params['id']) && ctype_digit((string) $params['id'])) {
+        $idSegment = '/' . $params['id'];
+        unset($params['id']);
+    }
+
+    if ($action !== 'index' || $idSegment !== '') {
+        $path .= '/' . rawurlencode($action);
+    }
+    $path .= $idSegment;
+
+    $query = $params ? '?' . http_build_query($params) : '';
+
+    return BASE_URL . $path . $query;
 }
 
 /**

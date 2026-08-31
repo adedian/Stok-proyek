@@ -9,7 +9,7 @@ $actionUrl = $isEdit ? 'update' : 'store';
             <small class="text-muted">Kode: <strong><?= e($item['item_code']) ?></strong></small>
         <?php endif; ?>
     </div>
-    <a href="<?= BASE_URL ?>/index.php?module=item" class="btn btn-outline-secondary">
+    <a href="<?= BASE_URL ?>/item" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Kembali
     </a>
 </div>
@@ -96,7 +96,7 @@ $actionUrl = $isEdit ? 'update' : 'store';
 
     <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary" id="itemSubmitBtn"><i class="bi bi-save"></i> Simpan</button>
-        <a href="<?= BASE_URL ?>/index.php?module=item" class="btn btn-light border">Batal</a>
+        <a href="<?= BASE_URL ?>/item" class="btn btn-light border">Batal</a>
     </div>
 </form>
 

@@ -3,7 +3,7 @@
         <h4 class="mb-0">Buat Tanda Terima</h4>
         <small class="text-muted">Customer: <strong><?= e($client['name'] ?? '-') ?></strong> &middot; <?= count($invoices) ?> invoice terpilih</small>
     </div>
-    <a href="<?= BASE_URL ?>/index.php?module=sales_invoice" class="btn btn-outline-secondary">
+    <a href="<?= BASE_URL ?>/sales_invoice" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Kembali
     </a>
 </div>
@@ -86,6 +86,6 @@
 
     <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Buat &amp; Cetak Tanda Terima</button>
-        <a href="<?= BASE_URL ?>/index.php?module=sales_invoice" class="btn btn-light border">Batal</a>
+        <a href="<?= BASE_URL ?>/sales_invoice" class="btn btn-light border">Batal</a>
     </div>
 </form>

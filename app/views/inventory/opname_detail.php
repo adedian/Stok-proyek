@@ -10,7 +10,7 @@
         </small>
     </div>
     <div class="d-flex gap-2">
-        <a href="<?= BASE_URL ?>/index.php?module=inventory&action=opnameIndex" class="btn btn-outline-secondary">
+        <a href="<?= BASE_URL ?>/inventory/opnameIndex" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Kembali
         </a>
         <?php if ($opname['status'] === 'draft' && can('inventory', 'complete')): ?>

@@ -2,7 +2,7 @@
 function signatureSortLink(string $col, string $label, string $sort, string $dir): string
 {
     $nextDir = ($sort === $col && $dir === 'asc') ? 'desc' : 'asc';
-    $url = BASE_URL . '/index.php?module=signature&sort=' . urlencode($col) . '&dir=' . $nextDir;
+    $url = route('signature', 'index', ['sort' => $col, 'dir' => $nextDir]);
     return '<a href="' . e($url) . '" class="text-dark text-decoration-none">' . e($label) . sortIndicator($col, $sort, $dir) . '</a>';
 }
 ?>
@@ -12,10 +12,10 @@ function signatureSortLink(string $col, string $label, string $sort, string $dir
         <small class="text-muted">Master tanda tangan untuk dokumen cetak (PO, Penerimaan Barang)</small>
     </div>
     <div class="d-flex gap-2">
-        <a href="<?= BASE_URL ?>/index.php?module=master_data" class="btn btn-outline-secondary">
+        <a href="<?= BASE_URL ?>/master_data" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Master Data
         </a>
-        <a href="<?= BASE_URL ?>/index.php?module=signature&action=create" class="btn btn-primary">
+        <a href="<?= BASE_URL ?>/signature/create" class="btn btn-primary">
             <i class="bi bi-plus-circle"></i> Tambah Tanda Tangan
         </a>
     </div>
@@ -23,8 +23,7 @@ function signatureSortLink(string $col, string $label, string $sort, string $dir
 
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-        <form method="GET" action="<?= BASE_URL ?>/index.php" class="row g-2 align-items-end">
-            <input type="hidden" name="module" value="signature">
+        <form method="GET" action="<?= BASE_URL ?>/signature" class="row g-2 align-items-end">
             <div class="col-md-6">
                 <label class="form-label small text-muted mb-1">Cari (Nama / Jabatan)</label>
                 <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword']) ?>">
@@ -33,7 +32,7 @@ function signatureSortLink(string $col, string $label, string $sort, string $dir
                 <button type="submit" class="btn btn-sm btn-outline-primary w-100">
                     <i class="bi bi-search"></i> Filter
                 </button>
-                <a href="<?= BASE_URL ?>/index.php?module=signature" class="btn btn-sm btn-outline-secondary">
+                <a href="<?= BASE_URL ?>/signature" class="btn btn-sm btn-outline-secondary">
                     <i class="bi bi-x-circle"></i>
                 </a>
             </div>
@@ -61,7 +60,7 @@ function signatureSortLink(string $col, string $label, string $sort, string $dir
                                 <i class="bi bi-pen empty-icon"></i>
                                 <div class="empty-title">Belum ada tanda tangan</div>
                                 <div class="empty-desc">Tambahkan tanda tangan untuk dipakai di dokumen cetak PO & Penerimaan Barang.</div>
-                                <a href="<?= BASE_URL ?>/index.php?module=signature&action=create" class="btn btn-sm btn-primary">
+                                <a href="<?= BASE_URL ?>/signature/create" class="btn btn-sm btn-primary">
                                     <i class="bi bi-plus-circle"></i> Tambah Tanda Tangan
                                 </a>
                             </div>
@@ -87,7 +86,7 @@ function signatureSortLink(string $col, string $label, string $sort, string $dir
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end">
                                         <li>
-                                            <a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=signature&action=edit&id=<?= (int) $s['id'] ?>">
+                                            <a class="dropdown-item" href="<?= BASE_URL ?>/signature/edit/<?= (int) $s['id'] ?>">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
                                         </li>

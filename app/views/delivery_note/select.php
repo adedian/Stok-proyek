@@ -3,7 +3,7 @@
         <h4 class="mb-0">Buat Surat Jalan</h4>
         <small class="text-muted"><?= count($rows) ?> baris Pengeluaran Barang terpilih</small>
     </div>
-    <a href="<?= BASE_URL ?>/index.php?module=stock_out" class="btn btn-outline-secondary">
+    <a href="<?= BASE_URL ?>/stock_out" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Kembali
     </a>
 </div>
@@ -101,7 +101,7 @@
 
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Buat &amp; Cetak Surat Jalan</button>
-                <a href="<?= BASE_URL ?>/index.php?module=stock_out" class="btn btn-light border">Batal</a>
+                <a href="<?= BASE_URL ?>/stock_out" class="btn btn-light border">Batal</a>
             </div>
         </form>
     </div>

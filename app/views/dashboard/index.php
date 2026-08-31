@@ -16,21 +16,21 @@
         $alertCards[] = [
             'variant' => 'warning', 'icon' => 'bi-exclamation-triangle-fill', 'title' => 'Selisih Barang',
             'desc'    => (int) $stats['selisih_belum_validasi'] . ' item penerimaan barang dengan selisih belum divalidasi.',
-            'url'     => BASE_URL . '/index.php?module=validation', 'cta' => 'Validasi Sekarang',
+            'url'     => route('validation'), 'cta' => 'Validasi Sekarang',
         ];
     }
     if ($notifFlags['stok_minimum'] && !empty($belowMinStockItems) && hasRole([ROLE_SUPER_ADMIN, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT])) {
         $alertCards[] = [
             'variant' => 'danger', 'icon' => 'bi-exclamation-octagon-fill', 'title' => 'Stok Minimum',
             'desc'    => count($belowMinStockItems) . ' barang dengan stok di bawah batas minimum.',
-            'url'     => BASE_URL . '/index.php?module=master_data', 'cta' => 'Lihat Barang',
+            'url'     => route('master_data'), 'cta' => 'Lihat Barang',
         ];
     }
     if ($notifFlags['po_belum_diproses'] && !empty($stats['po_belum_diproses']) && hasRole([ROLE_SUPER_ADMIN, ROLE_ACCOUNTING, ROLE_PURCHASE])) {
         $alertCards[] = [
             'variant' => 'info', 'icon' => 'bi-hourglass-split', 'title' => 'PO Belum Diproses',
             'desc'    => (int) $stats['po_belum_diproses'] . ' Purchase Order masih menunggu approval.',
-            'url'     => BASE_URL . '/index.php?module=purchase_order&status=waiting_approval', 'cta' => 'Lihat PO',
+            'url'     => route('purchase_order', 'index', ['status' => 'waiting_approval']), 'cta' => 'Lihat PO',
         ];
     }
 ?>
@@ -64,28 +64,28 @@
     $today = date('Y-m-d');
     $kpis = [
         ['icon' => 'bi-cart-check', 'color' => 'brand', 'label' => 'Total PO', 'value' => (int) $stats['total_po'],
-            'url' => BASE_URL . '/index.php?module=purchase_order'],
+            'url' => route('purchase_order')],
         ['icon' => 'bi-hourglass-split', 'color' => 'warning', 'label' => 'Barang Menunggu Datang', 'value' => (int) $stats['menunggu_datang'],
-            'url' => BASE_URL . '/index.php?module=purchase_order'],
+            'url' => route('purchase_order')],
         ['icon' => 'bi-box-seam', 'color' => 'success', 'label' => 'Barang Diterima Hari Ini', 'value' => (int) $stats['diterima_hari_ini'], 'trend' => $trendDiterima,
-            'url' => BASE_URL . '/index.php?module=goods_receipt&date_from=' . $today . '&date_to=' . $today],
+            'url' => route('goods_receipt', 'index', ['date_from' => $today, 'date_to' => $today])],
         ['icon' => 'bi-box-arrow-up', 'color' => 'danger', 'label' => 'Barang Keluar Hari Ini', 'value' => (int) $stats['keluar_hari_ini'], 'trend' => $trendKeluar,
-            'url' => BASE_URL . '/index.php?module=stock_out&date_from=' . $today . '&date_to=' . $today],
+            'url' => route('stock_out', 'index', ['date_from' => $today, 'date_to' => $today])],
         ['icon' => 'bi-clipboard-data', 'color' => 'info', 'label' => 'Stok Tersedia', 'breakdown' => $stats['stok_tersedia_per_satuan'],
-            'url' => BASE_URL . '/index.php?module=inventory'],
+            'url' => route('inventory')],
     ];
     if ($notifFlags['invoice_pending']) {
         $kpis[] = ['icon' => 'bi-receipt', 'color' => 'purple', 'label' => 'Invoice Belum Tertagih', 'value' => (int) $stats['invoice_pending'],
-            'url' => BASE_URL . '/index.php?module=sales_invoice&billing_status=belum_tertagih'];
+            'url' => route('sales_invoice', 'index', ['billing_status' => 'belum_tertagih'])];
     }
     $kpis[] = ['icon' => 'bi-shop', 'color' => 'brand', 'label' => 'Pembelian Offline', 'value' => (int) $stats['pembelian_offline'],
-        'url' => BASE_URL . '/index.php?module=offline_purchase'];
+        'url' => route('offline_purchase')];
     if ($paymentProgress !== null) {
         $kpis[] = [
             'icon' => 'bi-credit-card', 'color' => 'purple', 'label' => 'Sisa Tagihan PO',
             'value' => formatRupiah($paymentProgress['remaining']),
             'percent' => $paymentProgress['percentage'],
-            'url' => BASE_URL . '/index.php?module=payment&action=summary',
+            'url' => route('payment', 'summary'),
         ];
     }
 ?>

@@ -4,7 +4,7 @@ $actionUrl = $isEdit ? 'update' : 'store';
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h4 class="mb-0"><?= $isEdit ? 'Edit' : 'Tambah' ?> Kategori Barang</h4>
-    <a href="<?= BASE_URL ?>/index.php?module=item_category" class="btn btn-outline-secondary">
+    <a href="<?= BASE_URL ?>/item_category" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Kembali
     </a>
 </div>
@@ -25,6 +25,6 @@ $actionUrl = $isEdit ? 'update' : 'store';
 
     <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Simpan</button>
-        <a href="<?= BASE_URL ?>/index.php?module=item_category" class="btn btn-light border">Batal</a>
+        <a href="<?= BASE_URL ?>/item_category" class="btn btn-light border">Batal</a>
     </div>
 </form>

@@ -4,11 +4,11 @@
         <small class="text-muted">Perhitungan fisik stok vs sistem</small>
     </div>
     <div class="d-flex gap-2">
-        <a href="<?= BASE_URL ?>/index.php?module=inventory" class="btn btn-outline-secondary">
+        <a href="<?= BASE_URL ?>/inventory" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Kartu Stok
         </a>
         <?php if (can('inventory', 'create')): ?>
-            <a href="<?= BASE_URL ?>/index.php?module=inventory&action=opnameCreate" class="btn btn-primary">
+            <a href="<?= BASE_URL ?>/inventory/opnameCreate" class="btn btn-primary">
                 <i class="bi bi-plus-circle"></i> Tambah Opname
             </a>
         <?php endif; ?>
@@ -17,8 +17,7 @@
 
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-        <form method="GET" action="<?= BASE_URL ?>/index.php" class="row g-2 align-items-end">
-            <input type="hidden" name="module" value="inventory">
+        <form method="GET" action="<?= BASE_URL ?>/inventory" class="row g-2 align-items-end">
             <input type="hidden" name="action" value="opnameIndex">
             <div class="col-md-3">
                 <label class="form-label small text-muted mb-1">Kategori Stok</label>
@@ -53,7 +52,7 @@
                 <button type="submit" class="btn btn-sm btn-outline-primary w-100">
                     <i class="bi bi-search"></i> Filter
                 </button>
-                <a href="<?= BASE_URL ?>/index.php?module=inventory&action=opnameIndex" class="btn btn-sm btn-outline-secondary">
+                <a href="<?= BASE_URL ?>/inventory/opnameIndex" class="btn btn-sm btn-outline-secondary">
                     <i class="bi bi-x-circle"></i>
                 </a>
             </div>
@@ -83,7 +82,7 @@
                                 <div class="empty-title">Belum ada stok opname</div>
                                 <?php if (can('inventory', 'create')): ?>
                                     <div class="empty-desc">Lakukan perhitungan fisik stok untuk membandingkan dengan catatan sistem.</div>
-                                    <a href="<?= BASE_URL ?>/index.php?module=inventory&action=opnameCreate" class="btn btn-sm btn-primary">
+                                    <a href="<?= BASE_URL ?>/inventory/opnameCreate" class="btn btn-sm btn-primary">
                                         <i class="bi bi-plus-circle"></i> Tambah Opname
                                     </a>
                                 <?php else: ?>
@@ -108,7 +107,7 @@
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end">
                                         <li>
-                                            <a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=inventory&action=opnameDetail&id=<?= (int) $o['id'] ?>">
+                                            <a class="dropdown-item" href="<?= BASE_URL ?>/inventory/opnameDetail/<?= (int) $o['id'] ?>">
                                                 <i class="bi bi-eye"></i> Detail
                                             </a>
                                         </li>

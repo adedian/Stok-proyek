@@ -19,7 +19,7 @@
                 <i class="bi bi-file-earmark-spreadsheet"></i> Export Rekap Excel
             </a>
         <?php else: ?>
-            <a href="<?= BASE_URL ?>/index.php?module=report&action=exportExcel&type=<?= e($reportKey) ?><?= $exportQuery ?>" class="btn btn-outline-success btn-sm">
+            <a href="<?= BASE_URL ?>/report/exportExcel?type=<?= e($reportKey) ?><?= $exportQuery ?>" class="btn btn-outline-success btn-sm">
                 <i class="bi bi-file-earmark-spreadsheet"></i> Export Excel
             </a>
         <?php endif; ?>
@@ -38,7 +38,7 @@
                 <i class="bi bi-file-earmark-pdf"></i> PDF Rekap Bayar
             </a>
         <?php else: ?>
-            <a href="<?= BASE_URL ?>/index.php?module=report&action=exportPdf&type=<?= e($reportKey) ?><?= $exportQuery ?>" class="btn btn-outline-danger btn-sm">
+            <a href="<?= BASE_URL ?>/report/exportPdf?type=<?= e($reportKey) ?><?= $exportQuery ?>" class="btn btn-outline-danger btn-sm">
                 <i class="bi bi-file-earmark-pdf"></i> Export PDF
             </a>
         <?php endif; ?>

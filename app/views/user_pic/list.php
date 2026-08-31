@@ -4,7 +4,7 @@
         <h4 class="mb-0">PIC Kas</h4>
         <small class="text-muted">Kaitkan akun user ke nama PIC &mdash; menentukan transaksi Kas mana yang boleh dilihat user tersebut</small>
     </div>
-    <a href="<?= BASE_URL ?>/index.php?module=master_data" class="btn btn-outline-secondary">
+    <a href="<?= BASE_URL ?>/master_data" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Master Data
     </a>
 </div>

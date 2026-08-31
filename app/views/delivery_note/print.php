@@ -167,7 +167,7 @@
     <button type="button" class="btn btn-dark btn-sm" onclick="window.print()">
         <i class="bi bi-printer"></i> Cetak
     </button>
-    <a href="<?= BASE_URL ?>/index.php?module=stock_out" class="btn btn-outline-secondary btn-sm">
+    <a href="<?= BASE_URL ?>/stock_out" class="btn btn-outline-secondary btn-sm">
         <i class="bi bi-arrow-left"></i> Kembali
     </a>
 </div>

@@ -3,15 +3,14 @@
         <h4 class="mb-0">Stok Barang</h4>
         <small class="text-muted">Kartu stok realtime per project</small>
     </div>
-    <a href="<?= BASE_URL ?>/index.php?module=inventory&action=opnameIndex" class="btn btn-outline-primary">
+    <a href="<?= BASE_URL ?>/inventory/opnameIndex" class="btn btn-outline-primary">
         <i class="bi bi-clipboard-check"></i> Stok Opname
     </a>
 </div>
 
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-        <form method="GET" action="<?= BASE_URL ?>/index.php" class="row g-2 align-items-end">
-            <input type="hidden" name="module" value="inventory">
+        <form method="GET" action="<?= BASE_URL ?>/inventory" class="row g-2 align-items-end">
             <div class="col-md-3">
                 <label class="form-label small text-muted mb-1">Cari Barang</label>
                 <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword']) ?>">
@@ -47,7 +46,7 @@
                 <button type="submit" class="btn btn-sm btn-outline-primary w-100">
                     <i class="bi bi-search"></i> Filter
                 </button>
-                <a href="<?= BASE_URL ?>/index.php?module=inventory" class="btn btn-sm btn-outline-secondary">
+                <a href="<?= BASE_URL ?>/inventory" class="btn btn-sm btn-outline-secondary">
                     <i class="bi bi-x-circle"></i>
                 </a>
             </div>
@@ -111,7 +110,7 @@
                                         </button>
                                         <ul class="dropdown-menu dropdown-menu-end">
                                             <li>
-                                                <a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=inventory&action=history&id=<?= (int) $item['id'] ?>">
+                                                <a class="dropdown-item" href="<?= BASE_URL ?>/inventory/history/<?= (int) $item['id'] ?>">
                                                     <i class="bi bi-clock-history"></i> Mutasi
                                                 </a>
                                             </li>
@@ -129,7 +128,7 @@
                                         </ul>
                                     </div>
                                 <?php else: ?>
-                                    <a href="<?= BASE_URL ?>/index.php?module=inventory&action=history&id=<?= (int) $item['id'] ?>"
+                                    <a href="<?= BASE_URL ?>/inventory/history/<?= (int) $item['id'] ?>"
                                        class="btn btn-sm btn-outline-secondary" title="Kartu Stok / Mutasi">
                                         <i class="bi bi-clock-history"></i> Mutasi
                                     </a>

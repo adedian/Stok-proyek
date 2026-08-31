@@ -37,7 +37,7 @@ foreach ($availableInvoices as $inv) {
             <span class="text-muted">(nomor &amp; client tidak bisa diganti)</span>
         </small>
     </div>
-    <a href="<?= BASE_URL ?>/index.php?module=collection_receipt" class="btn btn-outline-secondary">
+    <a href="<?= BASE_URL ?>/collection_receipt" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Kembali
     </a>
 </div>
@@ -123,6 +123,6 @@ foreach ($availableInvoices as $inv) {
 
     <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Simpan Perubahan</button>
-        <a href="<?= BASE_URL ?>/index.php?module=collection_receipt" class="btn btn-light border">Batal</a>
+        <a href="<?= BASE_URL ?>/collection_receipt" class="btn btn-light border">Batal</a>
     </div>
 </form>

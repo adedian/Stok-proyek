@@ -62,7 +62,7 @@ $curPic = $cash['pic'] ?? '';
 </style>
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h4 class="mb-0"><?= $isEdit ? 'Edit' : 'Tambah' ?> Kas</h4>
-    <a href="<?= BASE_URL ?>/index.php?module=cash" class="btn btn-outline-secondary">
+    <a href="<?= BASE_URL ?>/cash" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Kembali
     </a>
 </div>
@@ -171,7 +171,7 @@ $curPic = $cash['pic'] ?? '';
 
     <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Simpan</button>
-        <a href="<?= BASE_URL ?>/index.php?module=cash" class="btn btn-light border">Batal</a>
+        <a href="<?= BASE_URL ?>/cash" class="btn btn-light border">Batal</a>
     </div>
 </form>
 

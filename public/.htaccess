@@ -1,0 +1,38 @@
+# =========================================================================
+#  Front controller -- URL bersih (tanpa "index.php?module=...").
+#  Semua request yang BUKAN file/folder nyata (assets, uploads) diarahkan
+#  ke index.php. Router (core/Router.php) yang memecah path jadi
+#  module / action / id.
+#
+#  Contoh:
+#    /dashboard                 -> module=dashboard
+#    /purchase_order            -> module=purchase_order&action=index
+#    /purchase_order/create     -> module=purchase_order&action=create
+#    /purchase_order/edit/5     -> module=purchase_order&action=edit&id=5
+#    /settings?tab=bank         -> module=settings + ?tab=bank
+#
+#  URL lama (index.php?module=...&action=...) TETAP jalan (fallback).
+#  Bekerja di sub-folder (localhost/stok-proyek/public/...) MAUPUN saat
+#  DocumentRoot langsung ke folder public/ (mis. stok.hexamultienergi.com/...).
+# =========================================================================
+
+Options -Indexes -MultiViews
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Jangan rewrite file / folder yang memang ada (assets, uploads, dst).
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Sisanya -> front controller. QSA supaya query string (?tab=, ?id=) ikut.
+    RewriteRule ^ index.php [QSA,L]
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header unset X-Powered-By
+</IfModule>

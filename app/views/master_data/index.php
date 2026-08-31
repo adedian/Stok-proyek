@@ -66,7 +66,7 @@ $subModules = [
         </div>
     </div>
     <div class="col-6 col-md-4 col-lg">
-        <a href="<?= BASE_URL ?>/index.php?module=report&action=inventory" class="text-decoration-none">
+        <a href="<?= BASE_URL ?>/report/inventory" class="text-decoration-none">
             <div class="card border-0 shadow-sm h-100 <?= $stats['below_min_stock'] > 0 ? 'border-start border-4 border-warning' : '' ?>">
                 <div class="card-body d-flex align-items-center">
                     <div class="bg-warning bg-opacity-10 text-warning rounded-3 p-3 me-3"><i class="bi bi-exclamation-triangle fs-3"></i></div>
@@ -84,7 +84,7 @@ $subModules = [
 <div class="row g-3">
     <?php foreach ($subModules as $m): ?>
         <div class="col-md-6 col-lg-4">
-            <a href="<?= BASE_URL ?>/index.php?module=<?= e($m['module']) ?>" class="card border-0 shadow-sm text-decoration-none h-100">
+            <a href="<?= BASE_URL ?>/<?= e($m['module']) ?>" class="card border-0 shadow-sm text-decoration-none h-100">
                 <div class="card-body d-flex align-items-center gap-3">
                     <div class="fs-3 text-primary"><i class="bi <?= e($m['icon']) ?>"></i></div>
                     <div>

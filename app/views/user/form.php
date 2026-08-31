@@ -9,7 +9,7 @@ $hasOverrides = !empty($permOverrides);
     <div>
         <h4 class="mb-0"><?= $isEdit ? 'Edit' : 'Tambah' ?> User</h4>
     </div>
-    <a href="<?= BASE_URL ?>/index.php?module=user" class="btn btn-outline-secondary">
+    <a href="<?= BASE_URL ?>/user" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Kembali
     </a>
 </div>
@@ -129,7 +129,7 @@ $hasOverrides = !empty($permOverrides);
         <button type="submit" class="btn btn-primary">
             <i class="bi bi-save"></i> Simpan
         </button>
-        <a href="<?= BASE_URL ?>/index.php?module=user" class="btn btn-light border">Batal</a>
+        <a href="<?= BASE_URL ?>/user" class="btn btn-light border">Batal</a>
     </div>
 </form>
 

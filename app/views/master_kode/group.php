@@ -13,11 +13,11 @@ $formatPreview = $config
         <h4 class="mb-0">Master Kode &raquo; <?= e($entityMeta['label']) ?></h4>
         <small class="text-muted">
             Data <?= e($entityMeta['label']) ?> tetap dikelola di
-            <a href="<?= BASE_URL ?>/index.php?module=<?= e($entityMeta['module']) ?>">Master <?= e($entityMeta['label']) ?></a> --
+            <a href="<?= BASE_URL ?>/<?= e($entityMeta['module']) ?>">Master <?= e($entityMeta['label']) ?></a> --
             di sini hanya mengatur pola kodenya.
         </small>
     </div>
-    <a href="<?= BASE_URL ?>/index.php?module=master_kode" class="btn btn-outline-secondary">
+    <a href="<?= BASE_URL ?>/master_kode" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Master Kode
     </a>
 </div>
@@ -61,8 +61,7 @@ $formatPreview = $config
 
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-        <form method="GET" action="<?= BASE_URL ?>/index.php" class="row g-2 align-items-end">
-            <input type="hidden" name="module" value="master_kode">
+        <form method="GET" action="<?= BASE_URL ?>/master_kode" class="row g-2 align-items-end">
             <input type="hidden" name="action" value="group">
             <input type="hidden" name="type" value="<?= e($entityType) ?>">
             <div class="col-md-5">
@@ -73,7 +72,7 @@ $formatPreview = $config
                 <button type="submit" class="btn btn-sm btn-outline-primary w-100">
                     <i class="bi bi-search"></i> Cari
                 </button>
-                <a href="<?= BASE_URL ?>/index.php?module=master_kode&action=group&type=<?= e($entityType) ?>" class="btn btn-sm btn-outline-secondary">
+                <a href="<?= BASE_URL ?>/master_kode/group?type=<?= e($entityType) ?>" class="btn btn-sm btn-outline-secondary">
                     <i class="bi bi-x-circle"></i>
                 </a>
             </div>

@@ -3,7 +3,7 @@
         <h4 class="mb-0">Rekap Status Pembayaran PO</h4>
         <small class="text-muted">Perbandingan total PO vs total dibayar per Purchase Order</small>
     </div>
-    <a href="<?= BASE_URL ?>/index.php?module=payment" class="btn btn-outline-secondary">
+    <a href="<?= BASE_URL ?>/payment" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Kembali ke Pembayaran
     </a>
 </div>
@@ -63,7 +63,7 @@
                             </td>
                             <td class="text-center">
                                 <?php if ($row['remaining'] > 0): ?>
-                                    <a href="<?= BASE_URL ?>/index.php?module=payment&action=create&po_id=<?= (int) $row['id'] ?>"
+                                    <a href="<?= BASE_URL ?>/payment/create?po_id=<?= (int) $row['id'] ?>"
                                        class="btn btn-sm btn-outline-primary" title="Bayar">
                                         <i class="bi bi-plus-circle"></i> Bayar
                                     </a>

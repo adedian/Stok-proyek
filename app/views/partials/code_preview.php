@@ -10,7 +10,7 @@
         <i class="bi bi-exclamation-triangle"></i>
         Prefix kode <?= e($codeEntityLabel) ?> belum dikonfigurasi.
         Silakan konfigurasi melalui
-        <a href="<?= BASE_URL ?>/index.php?module=master_kode&action=group&type=<?= e($codeEntityType) ?>" class="alert-link">Master Kode &raquo; <?= e($codeEntityLabel) ?></a>.
+        <a href="<?= BASE_URL ?>/master_kode/group?type=<?= e($codeEntityType) ?>" class="alert-link">Master Kode &raquo; <?= e($codeEntityLabel) ?></a>.
     </div>
 <?php else: ?>
     <small class="text-muted">

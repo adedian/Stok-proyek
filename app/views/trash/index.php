@@ -18,8 +18,7 @@
 
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-        <form method="GET" action="<?= BASE_URL ?>/index.php" class="row g-2 align-items-end">
-            <input type="hidden" name="module" value="trash">
+        <form method="GET" action="<?= BASE_URL ?>/trash" class="row g-2 align-items-end">
             <div class="col-md-4">
                 <label class="form-label small text-muted mb-1">Modul</label>
                 <select name="module_filter" class="form-select form-select-sm">
@@ -33,7 +32,7 @@
                 <button type="submit" class="btn btn-sm btn-outline-primary w-100">
                     <i class="bi bi-search"></i> Filter
                 </button>
-                <a href="<?= BASE_URL ?>/index.php?module=trash" class="btn btn-sm btn-outline-secondary">
+                <a href="<?= BASE_URL ?>/trash" class="btn btn-sm btn-outline-secondary">
                     <i class="bi bi-x-circle"></i>
                 </a>
             </div>

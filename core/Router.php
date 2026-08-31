@@ -46,8 +46,15 @@ class Router
 
     public function dispatch(): void
     {
-        $module = $_GET['module'] ?? 'dashboard';
-        $action = $_GET['action'] ?? 'index';
+        [$module, $action] = $this->resolveRoute();
+
+        // Supaya kode lama yang membaca $_GET['module']/['action']/['id']
+        // (sidebar highlight, breadcrumb, denyAccess, controller) tetap jalan
+        // baik lewat URL bersih maupun format lama.
+        $_GET['module'] = $module;
+        $_GET['action'] = $action;
+        $_REQUEST['module'] = $module;
+        $_REQUEST['action'] = $action;
 
         // Validasi module ada di whitelist -> cegah Local File Inclusion
         if (!array_key_exists($module, $this->moduleMap)) {
@@ -88,6 +95,50 @@ class Router
         }
 
         $controller->$action();
+    }
+
+    /**
+     * Tentukan [module, action] dari:
+     *   1. URL bersih  -> /module/action[/id]   (path setelah APP_BASE_PATH)
+     *   2. Fallback     -> index.php?module=..&action=..  (format lama)
+     * Segmen ke-3 yang berupa angka diperlakukan sebagai ?id=.
+     */
+    private function resolveRoute(): array
+    {
+        $rawPath = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?? '';
+        $rawPath = rawurldecode($rawPath);
+
+        $base = defined('APP_BASE_PATH') ? APP_BASE_PATH : '';
+        if ($base !== '' && strncmp($rawPath, $base, strlen($base)) === 0) {
+            $rawPath = substr($rawPath, strlen($base));
+        }
+
+        $rawPath = trim($rawPath, '/');
+        if ($rawPath === 'index.php') {
+            $rawPath = '';
+        }
+
+        if ($rawPath !== '') {
+            $segments = explode('/', $rawPath);
+            $module = $segments[0];
+
+            if (isset($segments[1]) && $segments[1] !== '') {
+                // Action eksplisit di path -> /module/action
+                $action = $segments[1];
+            } else {
+                // Cuma /module -> hormati ?action= kalau ada (mis. form filter
+                // Laporan yang mengirim action lewat query string), default index.
+                $action = $_GET['action'] ?? 'index';
+            }
+
+            if (isset($segments[2]) && ctype_digit($segments[2]) && !isset($_GET['id'])) {
+                $_GET['id'] = $segments[2];
+            }
+
+            return [$module, $action];
+        }
+
+        return [$_GET['module'] ?? 'dashboard', $_GET['action'] ?? 'index'];
     }
 
     private function notFound(): void

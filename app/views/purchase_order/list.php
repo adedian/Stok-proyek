@@ -4,7 +4,7 @@
         <small class="text-muted">Daftar seluruh Purchase Order</small>
     </div>
     <?php if (can('purchase_order', 'create')): ?>
-    <a href="<?= BASE_URL ?>/index.php?module=purchase_order&action=create" class="btn btn-primary">
+    <a href="<?= BASE_URL ?>/purchase_order/create" class="btn btn-primary">
         <i class="bi bi-plus-circle"></i> Tambah PO
     </a>
     <?php endif; ?>
@@ -12,8 +12,7 @@
 
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-        <form method="GET" action="<?= BASE_URL ?>/index.php" class="row g-2 align-items-end">
-            <input type="hidden" name="module" value="purchase_order">
+        <form method="GET" action="<?= BASE_URL ?>/purchase_order" class="row g-2 align-items-end">
             <div class="col-md-4">
                 <label class="form-label small text-muted mb-1">Cari (No. PO / Supplier)</label>
                 <input type="text" name="keyword" class="form-control form-control-sm"
@@ -45,7 +44,7 @@
                 <button type="submit" class="btn btn-sm btn-outline-primary w-100">
                     <i class="bi bi-search"></i> Filter
                 </button>
-                <a href="<?= BASE_URL ?>/index.php?module=purchase_order" class="btn btn-sm btn-outline-secondary">
+                <a href="<?= BASE_URL ?>/purchase_order" class="btn btn-sm btn-outline-secondary">
                     <i class="bi bi-x-circle"></i>
                 </a>
             </div>
@@ -90,7 +89,7 @@
                                     <div class="empty-title">Belum ada Purchase Order</div>
                                     <div class="empty-desc">Buat PO pertama untuk mulai memesan barang ke supplier.</div>
                                     <?php if (can('purchase_order', 'create')): ?>
-                                    <a href="<?= BASE_URL ?>/index.php?module=purchase_order&action=create" class="btn btn-sm btn-primary">
+                                    <a href="<?= BASE_URL ?>/purchase_order/create" class="btn btn-sm btn-primary">
                                         <i class="bi bi-plus-circle"></i> Tambah PO
                                     </a>
                                     <?php endif; ?>
@@ -123,13 +122,13 @@
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end">
                                         <li>
-                                            <a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=purchase_order&action=detail&id=<?= (int) $po['id'] ?>">
+                                            <a class="dropdown-item" href="<?= BASE_URL ?>/purchase_order/detail/<?= (int) $po['id'] ?>">
                                                 <i class="bi bi-eye"></i> Detail
                                             </a>
                                         </li>
                                         <?php if (can('purchase_order', 'edit')): ?>
                                         <li>
-                                            <a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=purchase_order&action=edit&id=<?= (int) $po['id'] ?>">
+                                            <a class="dropdown-item" href="<?= BASE_URL ?>/purchase_order/edit/<?= (int) $po['id'] ?>">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
                                         </li>

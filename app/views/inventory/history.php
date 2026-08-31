@@ -3,7 +3,7 @@
         <h4 class="mb-0">Kartu Stok - <?= e($item['item_name']) ?></h4>
         <small class="text-muted"><?= e($item['project_name']) ?> &middot; Satuan: <?= e($item['unit']) ?></small>
     </div>
-    <a href="<?= BASE_URL ?>/index.php?module=inventory" class="btn btn-outline-secondary">
+    <a href="<?= BASE_URL ?>/inventory" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Kembali
     </a>
 </div>

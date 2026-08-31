@@ -41,11 +41,7 @@ abstract class Controller
 
     protected function redirect(string $module, string $action = 'index', array $query = [])
     {
-        $url = BASE_URL . "/index.php?module={$module}&action={$action}";
-        foreach ($query as $key => $value) {
-            $url .= '&' . urlencode($key) . '=' . urlencode($value);
-        }
-        header('Location: ' . $url);
+        header('Location: ' . route($module, $action, $query));
         exit;
     }
 

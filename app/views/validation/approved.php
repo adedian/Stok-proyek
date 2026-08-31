@@ -4,13 +4,13 @@
         <small class="text-muted">Barang yang sudah divalidasi dan hasilnya SESUAI dengan PO</small>
     </div>
     <div class="d-flex gap-2">
-        <a href="<?= BASE_URL ?>/index.php?module=validation" class="btn btn-outline-secondary">
+        <a href="<?= BASE_URL ?>/validation" class="btn btn-outline-secondary">
             <i class="bi bi-list-check"></i> Semua Validasi
         </a>
-        <a href="<?= BASE_URL ?>/index.php?module=validation&action=problem" class="btn btn-outline-warning">
+        <a href="<?= BASE_URL ?>/validation/problem" class="btn btn-outline-warning">
             <i class="bi bi-exclamation-triangle"></i> Validasi Belum Sesuai
         </a>
-        <a href="<?= BASE_URL ?>/index.php?module=validation&action=report" class="btn btn-outline-secondary">
+        <a href="<?= BASE_URL ?>/validation/report" class="btn btn-outline-secondary">
             <i class="bi bi-file-earmark-bar-graph"></i> Laporan Selisih
         </a>
     </div>
@@ -18,8 +18,7 @@
 
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-        <form method="GET" action="<?= BASE_URL ?>/index.php" class="row g-2 align-items-end">
-            <input type="hidden" name="module" value="validation">
+        <form method="GET" action="<?= BASE_URL ?>/validation" class="row g-2 align-items-end">
             <input type="hidden" name="action" value="approved">
             <div class="col-md-6">
                 <label class="form-label small text-muted mb-1">Cari (No. Penerimaan / No. PO / Nama Barang)</label>

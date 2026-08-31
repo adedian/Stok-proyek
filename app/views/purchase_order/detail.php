@@ -4,15 +4,15 @@
         <small class="text-muted">Detail Purchase Order</small>
     </div>
     <div class="d-flex gap-2">
-        <a href="<?= BASE_URL ?>/index.php?module=purchase_order&action=print&ids=<?= (int) $po['id'] ?>"
+        <a href="<?= BASE_URL ?>/purchase_order/print?ids=<?= (int) $po['id'] ?>"
            class="btn btn-outline-dark" target="_blank">
             <i class="bi bi-printer"></i> Cetak PO
         </a>
-        <a href="<?= BASE_URL ?>/index.php?module=purchase_order&action=edit&id=<?= (int) $po['id'] ?>"
+        <a href="<?= BASE_URL ?>/purchase_order/edit/<?= (int) $po['id'] ?>"
            class="btn btn-outline-primary">
             <i class="bi bi-pencil"></i> Edit
         </a>
-        <a href="<?= BASE_URL ?>/index.php?module=purchase_order" class="btn btn-outline-secondary">
+        <a href="<?= BASE_URL ?>/purchase_order" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Kembali
         </a>
     </div>
@@ -105,7 +105,7 @@
                 </div>
                 <?php if ($paymentInfo['remaining'] > 0 && canCreate('payment')): ?>
                     <div class="mt-3">
-                        <a href="<?= BASE_URL ?>/index.php?module=payment&action=create&po_id=<?= (int) $po['id'] ?>"
+                        <a href="<?= BASE_URL ?>/payment/create?po_id=<?= (int) $po['id'] ?>"
                            class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-plus-circle"></i> Tambah Pembayaran
                         </a>

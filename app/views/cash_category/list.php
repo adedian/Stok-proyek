@@ -2,7 +2,7 @@
 function cashCatSortLink(string $col, string $label, string $sort, string $dir): string
 {
     $nextDir = ($sort === $col && $dir === 'asc') ? 'desc' : 'asc';
-    $url = BASE_URL . '/index.php?module=cash_category&sort=' . urlencode($col) . '&dir=' . $nextDir;
+    $url = route('cash_category', 'index', ['sort' => $col, 'dir' => $nextDir]);
     return '<a href="' . e($url) . '" class="text-dark text-decoration-none">' . e($label) . sortIndicator($col, $sort, $dir) . '</a>';
 }
 ?>
@@ -12,11 +12,11 @@ function cashCatSortLink(string $col, string $label, string $sort, string $dir):
         <small class="text-muted">Master kategori transaksi Kas</small>
     </div>
     <div class="d-flex gap-2">
-        <a href="<?= BASE_URL ?>/index.php?module=master_data" class="btn btn-outline-secondary">
+        <a href="<?= BASE_URL ?>/master_data" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Master Data
         </a>
         <?php if (can('cash_category', 'create')): ?>
-        <a href="<?= BASE_URL ?>/index.php?module=cash_category&action=create" class="btn btn-primary">
+        <a href="<?= BASE_URL ?>/cash_category/create" class="btn btn-primary">
             <i class="bi bi-plus-circle"></i> Tambah Kategori
         </a>
         <?php endif; ?>
@@ -25,15 +25,14 @@ function cashCatSortLink(string $col, string $label, string $sort, string $dir):
 
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-        <form method="GET" action="<?= BASE_URL ?>/index.php" class="row g-2 align-items-end">
-            <input type="hidden" name="module" value="cash_category">
+        <form method="GET" action="<?= BASE_URL ?>/cash_category" class="row g-2 align-items-end">
             <div class="col-md-6">
                 <label class="form-label small text-muted mb-1">Cari Kategori</label>
                 <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword']) ?>">
             </div>
             <div class="col-md-3 d-flex gap-2">
                 <button type="submit" class="btn btn-sm btn-outline-primary w-100"><i class="bi bi-search"></i> Filter</button>
-                <a href="<?= BASE_URL ?>/index.php?module=cash_category" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-circle"></i></a>
+                <a href="<?= BASE_URL ?>/cash_category" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-circle"></i></a>
             </div>
         </form>
     </div>
@@ -71,7 +70,7 @@ function cashCatSortLink(string $col, string $label, string $sort, string $dir):
                                     <ul class="dropdown-menu dropdown-menu-end">
                                         <?php if (can('cash_category', 'edit')): ?>
                                         <li>
-                                            <a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=cash_category&action=edit&id=<?= (int) $c['id'] ?>">
+                                            <a class="dropdown-item" href="<?= BASE_URL ?>/cash_category/edit/<?= (int) $c['id'] ?>">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
                                         </li>

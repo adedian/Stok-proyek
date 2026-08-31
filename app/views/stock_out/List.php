@@ -4,11 +4,11 @@
         <small class="text-muted">Daftar barang yang keluar dari gudang</small>
     </div>
     <div class="d-flex gap-2">
-        <a href="<?= BASE_URL ?>/index.php?module=delivery_note" class="btn btn-outline-secondary">
+        <a href="<?= BASE_URL ?>/delivery_note" class="btn btn-outline-secondary">
             <i class="bi bi-truck"></i> <span class="d-sm-none">Riwayat</span><span class="d-none d-sm-inline">Riwayat Surat Jalan</span>
         </a>
         <?php if (can('stock_out', 'create')): ?>
-        <a href="<?= BASE_URL ?>/index.php?module=stock_out&action=create" class="btn btn-primary">
+        <a href="<?= BASE_URL ?>/stock_out/create" class="btn btn-primary">
             <i class="bi bi-plus-circle"></i> <span class="d-sm-none">Tambah</span><span class="d-none d-sm-inline">Tambah Pengeluaran</span>
         </a>
         <?php endif; ?>
@@ -17,8 +17,7 @@
 
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-        <form method="GET" action="<?= BASE_URL ?>/index.php" class="row g-2 align-items-end">
-            <input type="hidden" name="module" value="stock_out">
+        <form method="GET" action="<?= BASE_URL ?>/stock_out" class="row g-2 align-items-end">
             <div class="col-md-4">
                 <label class="form-label small text-muted mb-1">Cari (Barang / Tujuan / PIC)</label>
                 <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword']) ?>">
@@ -99,7 +98,7 @@
                                 <div class="empty-title">Belum ada pengeluaran barang</div>
                                 <div class="empty-desc">Catat barang yang keluar dari gudang menuju project.</div>
                                 <?php if (can('stock_out', 'create')): ?>
-                                <a href="<?= BASE_URL ?>/index.php?module=stock_out&action=create" class="btn btn-sm btn-primary">
+                                <a href="<?= BASE_URL ?>/stock_out/create" class="btn btn-sm btn-primary">
                                     <i class="bi bi-plus-circle"></i> Tambah Pengeluaran
                                 </a>
                                 <?php endif; ?>
@@ -143,7 +142,7 @@
                             <td><?= e($so['pic_name']) ?></td>
                             <td>
                                 <?php if (!empty($so['delivery_number'])): ?>
-                                    <a href="<?= BASE_URL ?>/index.php?module=delivery_note&action=print&id=<?= (int) $so['delivery_note_id'] ?>" target="_blank" class="badge bg-info text-dark text-decoration-none">
+                                    <a href="<?= BASE_URL ?>/delivery_note/print/<?= (int) $so['delivery_note_id'] ?>" target="_blank" class="badge bg-info text-dark text-decoration-none">
                                         <?= e($so['delivery_number']) ?>
                                     </a>
                                 <?php else: ?>
@@ -159,7 +158,7 @@
                                     <ul class="dropdown-menu dropdown-menu-end">
                                         <?php if (can('stock_out', 'edit')): ?>
                                         <li>
-                                            <a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=stock_out&action=edit&id=<?= (int) $so['id'] ?>">
+                                            <a class="dropdown-item" href="<?= BASE_URL ?>/stock_out/edit/<?= (int) $so['id'] ?>">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
                                         </li>

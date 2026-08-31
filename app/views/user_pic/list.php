@@ -1,7 +1,7 @@
 <?php /** @var array $assignments @var array $users */ ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-        <h4 class="mb-0">PIC Mapping</h4>
+        <h4 class="mb-0">PIC Kas</h4>
         <small class="text-muted">Kaitkan akun user ke nama PIC &mdash; menentukan transaksi Kas mana yang boleh dilihat user tersebut</small>
     </div>
     <a href="<?= BASE_URL ?>/index.php?module=master_data" class="btn btn-outline-secondary">

@@ -1,6 +1,6 @@
 <?php
 /**
- * Modal quick-add PIC (Kas). Menambah entri ke Master Data > PIC Mapping
+ * Modal quick-add PIC (Kas). Menambah entri ke Master Data > PIC Kas
  * (tabel user_pic_assignments) tanpa keluar dari form Tambah/Edit Kas.
  * Super Admin bisa memilih user tujuan; role lain otomatis dikaitkan ke
  * akun sendiri (ditegakkan server-side di UserPicController::quickStore()).

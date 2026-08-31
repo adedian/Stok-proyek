@@ -7,7 +7,7 @@ require_once ROOT_PATH . '/core/Model.php';
  * Menentukan PIC mana yang "terkait" dengan seorang user, dipakai
  * CashController untuk membatasi baris Kas yang boleh dilihat/diubah oleh
  * role Purchase / PIC Project / Admin Project. Dikelola terpusat lewat
- * Master Data > PIC Mapping -- TIDAK ada nama PIC yang di-hardcode di kode.
+ * Master Data > PIC Kas -- TIDAK ada nama PIC yang di-hardcode di kode.
  *
  * Hard delete (bukan soft): mapping bukan transaksi, tidak perlu Trash.
  */
@@ -30,7 +30,7 @@ class UserPicAssignment extends Model
     }
 
     /**
-     * Semua mapping + nama/role user, untuk halaman Master Data > PIC Mapping.
+     * Semua mapping + nama/role user, untuk halaman Master Data > PIC Kas.
      */
     public function listWithUser(): array
     {
@@ -163,7 +163,7 @@ class UserPicAssignment extends Model
         ]);
     }
 
-    /** Semua mapping + kredensial + user, untuk halaman PIC Mapping (Super Admin). */
+    /** Semua mapping + kredensial + user, untuk halaman PIC Kas (Super Admin). */
     public function listWithUserAndCredential(): array
     {
         return $this->db->fetchAll(

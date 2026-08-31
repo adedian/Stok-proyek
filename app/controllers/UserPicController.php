@@ -6,7 +6,7 @@ require_once ROOT_PATH . '/app/models/User.php';
 require_once ROOT_PATH . '/app/models/ActivityLog.php';
 
 /**
- * Master Data > PIC Mapping (Revisi 9).
+ * Master Data > PIC Kas (Revisi 9).
  * Mengaitkan user (akun login) ke satu/lebih nama PIC. Dipakai CashController
  * untuk menentukan transaksi Kas mana yang boleh dilihat/diubah user tersebut.
  * Khusus Super Admin.
@@ -34,7 +34,7 @@ class UserPicController extends Controller
     public function index()
     {
         $this->view('user_pic/list', [
-            'pageTitle'    => 'PIC Mapping',
+            'pageTitle'    => 'PIC Kas',
             'assignments'  => $this->picModel->listWithUserAndCredential(),
             'users'        => $this->userModel->activeList(),
         ]);

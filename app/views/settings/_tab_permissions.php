@@ -14,7 +14,7 @@ $moduleLabels = [
     'goods_receipt' => 'Penerimaan Barang', 'validation' => 'Validasi Barang', 'stock_out' => 'Pengeluaran Barang',
     'inventory' => 'Stok & Opname', 'offline_purchase' => 'Pembelian Offline',
     'sales_invoice' => 'Invoice Keluar', 'delivery_note' => 'Surat Jalan', 'collection_receipt' => 'Tanda Terima',
-    'cash' => 'Kas', 'cash_category' => 'Kategori Kas', 'user_pic' => 'PIC Mapping',
+    'cash' => 'Kas', 'cash_category' => 'Kategori Kas', 'user_pic' => 'PIC Kas',
     'report' => 'Laporan', 'user' => 'User Management', 'master_data' => 'Master Data', 'master_kode' => 'Master Kode',
     'supplier' => 'Supplier', 'client' => 'Client', 'project' => 'Project', 'item' => 'Barang', 'item_category' => 'Kategori Barang',
     'unit' => 'Satuan', 'warehouse' => 'Gudang', 'payment_method' => 'Metode Pembayaran', 'signature' => 'Tanda Tangan',

@@ -95,7 +95,7 @@ $curPic = $cash['pic'] ?? '';
                             <i class="bi bi-plus-lg"></i>
                         </button>
                     </div>
-                    <div class="form-text">Sumber: Master Data &rarr; PIC Mapping.</div>
+                    <div class="form-text">Sumber: Master Data &rarr; PIC Kas.</div>
                 </div>
 
                 <div class="col-md-3">

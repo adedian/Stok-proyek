@@ -10,6 +10,8 @@ require_once ROOT_PATH . '/app/models/SystemSetting.php';
 require_once ROOT_PATH . '/app/models/ActivityLog.php';
 require_once ROOT_PATH . '/app/models/Unit.php';
 require_once ROOT_PATH . '/app/models/Project.php';
+require_once ROOT_PATH . '/app/models/Item.php';
+require_once ROOT_PATH . '/app/models/ItemCategory.php';
 
 /**
  * Modul Kas (Revisi 9) -- catatan kas masuk & kas keluar.
@@ -33,6 +35,8 @@ class CashController extends Controller
     private ActivityLog $activityLog;
     private Unit $unitModel;
     private Project $projectModel;
+    private Item $barangModel;
+    private ItemCategory $barangCategoryModel;
 
     /** Action yang MEMBANGUN gerbang auth Kas -- boleh diakses tanpa auth Kas. */
     private const KAS_GATE_ACTIONS = ['kasLogin', 'kasAuthenticate', 'kasLogout', 'kasSetupPic', 'kasStorePic'];
@@ -48,6 +52,8 @@ class CashController extends Controller
         $this->activityLog   = new ActivityLog();
         $this->unitModel     = new Unit();
         $this->projectModel  = new Project();
+        $this->barangModel         = new Item();
+        $this->barangCategoryModel = new ItemCategory();
 
         $this->enforceKasAuth();
     }
@@ -327,6 +333,8 @@ class CashController extends Controller
             'picOptions'     => $this->picFieldOptions(),
             'projects'       => $this->projectModel->activeList(),
             'units'          => $this->unitModel->activeList(),
+            'itemCatalog'    => $this->barangModel->activeList(),
+            'itemCategories' => $this->barangCategoryModel->activeList(),
         ]);
     }
 
@@ -410,6 +418,8 @@ class CashController extends Controller
             'picOptions'     => $this->picFieldOptions($row['pic']),
             'projects'       => $this->projectModel->activeList(),
             'units'          => $this->unitModel->activeList(),
+            'itemCatalog'    => $this->barangModel->activeList(),
+            'itemCategories' => $this->barangCategoryModel->activeList(),
         ]);
     }
 
@@ -529,6 +539,7 @@ class CashController extends Controller
         $cashCategories = $this->categoryModel->activeList();
         $units = $this->unitModel->activeList();
         $projects = $this->projectModel->activeList();
+        $itemCatalog = $this->barangModel->activeList();
         ob_start();
         require ROOT_PATH . '/app/views/cash/_item_row.php';
         $html = ob_get_clean();
@@ -628,11 +639,11 @@ class CashController extends Controller
     }
 
     /**
-     * Array baris rincian bersih dari POST: {uraian, cash_category_id,
+     * Array baris rincian bersih dari POST: {uraian, cash_category_id, item_id,
      * project_id, supplier_name, unit, qty, satuan(=harga satuan Rp), jumlah}.
      * Kategori tiap baris dari Master Kategori Kas; kategori ber-affects_stock
-     * membuat baris masuk stok (satuan wajib), "Biaya Operasional" tidak.
-     * project_id hanya untuk baris scope 'proyek'; supplier untuk baris stok.
+     * membuat baris masuk stok -- WAJIB pilih Barang (item_id), Satuan wajib,
+     * Project wajib bila scope 'proyek'. "Biaya Operasional" tidak.
      */
     private function collectItems(): array
     {
@@ -643,6 +654,7 @@ class CashController extends Controller
         $units     = $_POST['item_unit'] ?? [];
         $projects  = $_POST['item_project_id'] ?? [];
         $suppliers = $_POST['item_supplier_name'] ?? [];
+        $barangIds = $_POST['item_barang_id'] ?? [];
         $out = [];
         for ($i = 0; $i < count($uraian); $i++) {
             $u   = trim((string) ($uraian[$i] ?? ''));
@@ -658,6 +670,7 @@ class CashController extends Controller
                 'satuan'           => $s,
                 'jumlah'           => round($q * $s, 2),
                 'cash_category_id' => $cid,
+                'item_id'          => !empty($barangIds[$i]) ? (int) $barangIds[$i] : null,
                 'project_id'       => !empty($projects[$i]) ? (int) $projects[$i] : null,
                 'supplier_name'    => trim((string) ($suppliers[$i] ?? '')) ?: null,
                 'unit'             => trim((string) ($units[$i] ?? '')) ?: null,
@@ -683,6 +696,7 @@ class CashController extends Controller
             $this->itemModel->create([
                 'cash_transaction_id' => $trxId,
                 'cash_category_id'    => $it['cash_category_id'] ?? null,
+                'item_id'            => $isStock ? ($it['item_id'] ?? null) : null,
                 'project_id'          => $isProyek ? ($it['project_id'] ?? null) : null,
                 'supplier_name'       => $isStock ? ($it['supplier_name'] ?? null) : null,
                 'uraian'              => $it['uraian'],
@@ -743,6 +757,9 @@ class CashController extends Controller
                 }
                 $cat = $catMap[$cid];
                 if ((int) $cat['affects_stock'] === 1) {
+                    if (empty($it['item_id']) || !$this->barangModel->find((int) $it['item_id'])) {
+                        $errors[] = "Baris {$n}: Barang wajib dipilih dari master untuk kategori '{$cat['category_name']}'.";
+                    }
                     if (empty($it['unit'])) {
                         $errors[] = "Baris {$n}: Satuan wajib untuk kategori '{$cat['category_name']}'.";
                     }

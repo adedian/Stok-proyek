@@ -3,8 +3,10 @@ require_once ROOT_PATH . '/core/Model.php';
 
 /**
  * Rincian item satu transaksi Kas.
- * {cash_category_id, project_id, supplier_name, uraian, unit, qty,
+ * {cash_category_id, item_id, project_id, supplier_name, uraian, unit, qty,
  *  satuan(=harga satuan Rp), jumlah=qty*satuan}.
+ * item_id (FK items) WAJIB untuk baris ber-kategori stok -- stok dikreditkan
+ * atas NAMA BARANG MASTER supaya nyambung ke Stok Barang / Laporan Stok Barang.
  * project_id diisi hanya untuk baris ber-kategori stok scope 'proyek';
  * supplier_name opsional untuk baris yang masuk stok.
  *
@@ -24,10 +26,12 @@ class CashTransactionItem extends Model
     public function byTransaction(int $trxId): array
     {
         return $this->db->fetchAll(
-            "SELECT cti.*, cc.category_name, cc.affects_stock, cc.stock_scope, p.project_name
+            "SELECT cti.*, cc.category_name, cc.affects_stock, cc.stock_scope, p.project_name,
+                    it.item_name AS master_item_name, it.item_code AS master_item_code
                FROM cash_transaction_items cti
                LEFT JOIN cash_categories cc ON cc.id = cti.cash_category_id
                LEFT JOIN projects p ON p.id = cti.project_id
+               LEFT JOIN items it ON it.id = cti.item_id
               WHERE cti.cash_transaction_id = :id
            ORDER BY cti.id ASC",
             ['id' => $trxId]
@@ -42,9 +46,10 @@ class CashTransactionItem extends Model
     public function stockRowsByTransaction(int $trxId): array
     {
         return $this->db->fetchAll(
-            "SELECT cti.*, cc.stock_scope
+            "SELECT cti.*, cc.stock_scope, it.item_name AS master_item_name
                FROM cash_transaction_items cti
                JOIN cash_categories cc ON cc.id = cti.cash_category_id
+               LEFT JOIN items it ON it.id = cti.item_id
               WHERE cti.cash_transaction_id = :id AND cc.affects_stock = 1",
             ['id' => $trxId]
         );

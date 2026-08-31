@@ -609,6 +609,9 @@ class Inventory extends Model
         if (($t['reference_type'] ?? '') === 'stock_opname' && !empty($t['opname_number'])) {
             return $t['opname_number'];
         }
+        if (($t['reference_type'] ?? '') === 'kas' && !empty($t['kas_no_bukti'])) {
+            return $t['kas_no_bukti'];
+        }
         if (($t['transaction_type'] ?? '') === 'out') {
             return 'BK';
         }
@@ -635,10 +638,12 @@ class Inventory extends Model
             $matchingIds = $this->matchingInventoryIds($row);
             $idPlaceholders = implode(',', array_fill(0, count($matchingIds), '?'));
 
-            $sql = "SELECT st.*, gr.receipt_number AS gr_number, so.opname_number AS opname_number
+            $sql = "SELECT st.*, gr.receipt_number AS gr_number, so.opname_number AS opname_number,
+                           ct.no_bukti AS kas_no_bukti
                     FROM stock_transactions st
                     LEFT JOIN goods_receipts gr ON gr.id = st.reference_id AND st.reference_type = 'goods_receipt'
                     LEFT JOIN stock_opname so ON so.id = st.reference_id AND st.reference_type = 'stock_opname'
+                    LEFT JOIN cash_transactions ct ON ct.id = st.reference_id AND st.reference_type = 'kas'
                     WHERE st.inventory_id IN ({$idPlaceholders})";
             $params = $matchingIds;
             if ($dateFrom !== '') {

@@ -134,9 +134,10 @@ $cashCategories = $categories;
                 </button>
             </div>
             <p class="text-muted small mb-2">
-                Kategori, Project, dan Supplier dipilih per baris. Baris ber-kategori <strong>Material Projek</strong>,
+                Kategori, Barang, Project, dan Supplier dipilih per baris. Baris ber-kategori <strong>Material Projek</strong>,
                 <strong>Inventory Kantor</strong>, atau <strong>Inventory Teknik</strong> otomatis menambah stok
-                saat disimpan (Satuan wajib; Project wajib untuk Material Projek / Inventory Teknik).
+                saat disimpan &mdash; <strong>wajib pilih Barang</strong> dari master (stok dicatat atas nama Barang itu &amp;
+                nyambung ke Laporan Stok Barang), Satuan wajib, Project wajib untuk Material Projek / Inventory Teknik.
                 Baris <strong>Biaya Operasional</strong> tidak menyentuh stok.
             </p>
             <div class="table-responsive">
@@ -145,6 +146,7 @@ $cashCategories = $categories;
                         <tr>
                             <th>Uraian</th>
                             <th>Kategori</th>
+                            <th>Barang</th>
                             <th>Project</th>
                             <th>Supplier</th>
                             <th>Satuan</th>
@@ -165,7 +167,7 @@ $cashCategories = $categories;
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td colspan="7" class="text-end fw-bold">Total Nominal</td>
+                            <td colspan="8" class="text-end fw-bold">Total Nominal</td>
                             <td class="text-end fw-bold" id="grandTotal">Rp 0.00</td>
                             <td></td>
                         </tr>
@@ -182,6 +184,10 @@ $cashCategories = $categories;
 </form>
 
 <?php require ROOT_PATH . '/app/views/partials/quick_add_pic_modal.php'; ?>
+<?php if (canQuickAdd('item')): ?>
+    <?php $itemCategories = $itemCategories ?? []; ?>
+    <?php require ROOT_PATH . '/app/views/partials/quick_add_item_modal.php'; ?>
+<?php endif; ?>
 
 <script>
 (function () {
@@ -218,20 +224,51 @@ $cashCategories = $categories;
         if (cell) cell.classList.toggle('cell-na', !on);
     }
 
+    // Barang picker (select + tombol "+") pakai wrapper .barang-wrap -- tombol
+    // ikut sembunyi. Nilai id disalin ke hidden .barang-id-input.
+    function setBarang(row, on) {
+        const wrap = row.querySelector('.barang-wrap');
+        const sel = row.querySelector('.barang-select');
+        const na = row.querySelector('.barang-na');
+        const idInput = row.querySelector('.barang-id-input');
+        if (!wrap || !sel) return;
+        wrap.classList.toggle('d-none', !on);
+        if (na) na.classList.toggle('d-none', on);
+        const cell = wrap.closest('td');
+        if (cell) cell.classList.toggle('cell-na', !on);
+        sel.disabled = !on;
+        sel.required = on;
+        if (!on) { sel.value = ''; if (idInput) idInput.value = ''; }
+    }
+
     // Kategori baris menentukan kolom stok mana yang aktif:
-    //  affects_stock -> Satuan (wajib) + Supplier (opsional)
+    //  affects_stock -> Barang (wajib) + Satuan (wajib) + Supplier (opsional)
     //  scope 'proyek' -> Project (wajib)
     function applyRowCategory(row) {
         const sel = row.querySelector('.category-select');
         const opt = sel.options[sel.selectedIndex];
         const isStock = !!(opt && opt.dataset.affectsStock === '1');
         const isProyek = isStock && opt.dataset.scope === 'proyek';
+        setBarang(row, isStock);
         setField(row.querySelector('.unit-select'),     row.querySelector('.unit-na'), isStock, true);
         setField(row.querySelector('.supplier-input'),  row.querySelector('.sup-na'),  isStock, false);
         setField(row.querySelector('.project-select'),  row.querySelector('.proj-na'), isProyek, true);
         row.classList.toggle('stock-row', isStock);
         const hint = row.querySelector('.cat-hint');
         if (hint) hint.classList.toggle('d-none', !isStock);
+    }
+
+    // Barang dipilih -> simpan id ke hidden, prefill Satuan bila masih kosong.
+    function onBarangChange(row) {
+        const sel = row.querySelector('.barang-select');
+        const opt = sel.options[sel.selectedIndex];
+        const idInput = row.querySelector('.barang-id-input');
+        if (idInput) idInput.value = opt && opt.value ? opt.value : '';
+        const unitSel = row.querySelector('.unit-select');
+        if (opt && opt.dataset.unit && unitSel && !unitSel.value) {
+            const match = Array.prototype.find.call(unitSel.options, function (o) { return o.value === opt.dataset.unit; });
+            if (match) unitSel.value = opt.dataset.unit;
+        }
     }
 
     tableBody.addEventListener('input', function (e) {
@@ -242,9 +279,18 @@ $cashCategories = $categories;
     tableBody.addEventListener('change', function (e) {
         if (e.target.classList.contains('category-select')) {
             applyRowCategory(e.target.closest('.item-row'));
+        } else if (e.target.classList.contains('barang-select')) {
+            onBarangChange(e.target.closest('.item-row'));
         }
     });
     tableBody.addEventListener('click', function (e) {
+        const quickAddBtn = e.target.closest('.btn-quick-add-item');
+        if (quickAddBtn) {
+            window.__quickAddItemTarget = quickAddBtn.closest('.item-row').querySelector('.barang-select');
+            const modalEl = document.getElementById('modalQuickAddItem');
+            if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            return;
+        }
         const removeBtn = e.target.closest('.btn-remove-row');
         if (removeBtn) {
             if (tableBody.querySelectorAll('.item-row').length <= 1) {

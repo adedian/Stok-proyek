@@ -46,8 +46,11 @@ class CashTransaction extends Model
             }
             $scope = $row['stock_scope'] === 'kantor' ? 'kantor' : 'proyek';
             $projectId = ($scope === 'kantor' || $row['project_id'] === null) ? null : (int) $row['project_id'];
+            // Stok dicatat atas NAMA BARANG MASTER (kalau tertaut) supaya cocok
+            // dengan join items.item_name di Stok Barang / Laporan Stok Barang.
+            $stockName = !empty($row['master_item_name']) ? $row['master_item_name'] : $row['uraian'];
             $inv->creditStock(
-                $row['uraian'],
+                $stockName,
                 (string) ($row['unit'] ?? ''),
                 $projectId,
                 (float) $row['qty'],
@@ -80,8 +83,9 @@ class CashTransaction extends Model
             }
             $scope = $row['stock_scope'] === 'kantor' ? 'kantor' : 'proyek';
             $projectId = ($scope === 'kantor' || $row['project_id'] === null) ? null : (int) $row['project_id'];
+            $stockName = !empty($row['master_item_name']) ? $row['master_item_name'] : $row['uraian'];
             $inv->reverseCredit(
-                $row['uraian'],
+                $stockName,
                 (string) ($row['unit'] ?? ''),
                 $projectId,
                 (float) $row['qty'],

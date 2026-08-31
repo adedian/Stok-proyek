@@ -46,6 +46,12 @@ $cashCategories = $categories;
         color: #6c757d;
         margin-bottom: .15rem;
     }
+    /* Kolom stok yang tidak berlaku untuk kategori baris ini (Project/Supplier/
+       Satuan pada baris non-stok) -- sembunyikan seluruh selnya di mobile
+       supaya kartu tidak penuh label "-". Di desktop sel tetap ada demi
+       kesejajaran kolom tabel. */
+    #itemTable tr.item-row > td.cell-na { display: none; }
+
     #itemTable tr.item-row > td.subtotal-cell { font-weight: 600; }
     #itemTable tr.item-row > td.cell-remove { padding-top: .6rem; }
     #itemTable tr.item-row > td.cell-remove::before { content: none; }
@@ -208,6 +214,8 @@ $cashCategories = $categories;
         field.classList.toggle('d-none', !on);
         if (!on) field.value = '';
         if (na) na.classList.toggle('d-none', on);
+        const cell = field.closest('td');
+        if (cell) cell.classList.toggle('cell-na', !on);
     }
 
     // Kategori baris menentukan kolom stok mana yang aktif:

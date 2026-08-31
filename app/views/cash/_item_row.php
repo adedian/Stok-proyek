@@ -59,7 +59,7 @@ $curProyek = $curAffects && $curScope === 'proyek';
             <i class="bi bi-box-seam"></i> Masuk stok
         </div>
     </td>
-    <td data-label="Project" style="min-width: 150px;">
+    <td data-label="Project" style="min-width: 150px;" class="<?= $curProyek ? '' : 'cell-na' ?>">
         <select name="item_project_id[]" class="form-select form-select-sm project-select<?= $curProyek ? '' : ' d-none' ?>"
                 <?= $curProyek ? '' : 'disabled' ?>>
             <option value="">-- Pilih Project --</option>
@@ -69,12 +69,12 @@ $curProyek = $curAffects && $curScope === 'proyek';
         </select>
         <span class="proj-na text-muted<?= $curProyek ? ' d-none' : '' ?>">&mdash;</span>
     </td>
-    <td data-label="Supplier" style="min-width: 140px;">
+    <td data-label="Supplier" style="min-width: 140px;" class="<?= $curAffects ? '' : 'cell-na' ?>">
         <input type="text" name="item_supplier_name[]" class="form-control form-control-sm supplier-input<?= $curAffects ? '' : ' d-none' ?>"
                value="<?= e($curSup) ?>" placeholder="mis. Toko Jaya" <?= $curAffects ? '' : 'disabled' ?>>
         <span class="sup-na text-muted<?= $curAffects ? ' d-none' : '' ?>">&mdash;</span>
     </td>
-    <td data-label="Satuan" style="width: 120px;">
+    <td data-label="Satuan" style="width: 120px;" class="<?= $curAffects ? '' : 'cell-na' ?>">
         <select name="item_unit[]" class="form-select form-select-sm unit-select<?= $curAffects ? '' : ' d-none' ?>"
                 <?= $curAffects ? '' : 'disabled' ?>>
             <option value="">-- Satuan --</option>

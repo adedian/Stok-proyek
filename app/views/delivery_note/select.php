@@ -28,6 +28,7 @@
                             <select name="destination_type" id="destinationType" class="form-select">
                                 <option value="project" selected>Site/Project</option>
                                 <option value="client">Penjualan (Client)</option>
+                                <option value="manual">Lainnya / Manual (isi bebas)</option>
                             </select>
                         </div>
                         <div class="col-12" id="projectDestWrap">
@@ -59,8 +60,11 @@
                             </div>
                         </div>
                         <div class="col-12">
-                            <label class="form-label">Nama Tujuan <span class="text-muted small">(bebas, mis. "Hotel Azana - Tulungagung")</span></label>
-                            <input type="text" name="destination_name" class="form-control" value="<?= e($rows[0]['destination'] ?? '') ?>">
+                            <label class="form-label">Nama Tujuan
+                                <span class="text-danger d-none" id="destNameReq">*</span>
+                                <span class="text-muted small">(bebas, mis. "Hotel Azana - Tulungagung")</span>
+                            </label>
+                            <input type="text" name="destination_name" id="destinationName" class="form-control" value="<?= e($rows[0]['destination'] ?? '') ?>">
                         </div>
                         <div class="col-12">
                             <label class="form-label">Kota <span class="text-muted small">(untuk baris "Kota, Tanggal" di penutup Surat Jalan -- bukan nama project/client)</span></label>
@@ -137,12 +141,23 @@ document.addEventListener('DOMContentLoaded', function () {
     var destType = document.getElementById('destinationType');
     var projectWrap = document.getElementById('projectDestWrap');
     var clientWrap = document.getElementById('clientDestWrap');
+    var destName = document.getElementById('destinationName');
+    var destNameReq = document.getElementById('destNameReq');
 
-    destType.addEventListener('change', function () {
-        var isClient = destType.value === 'client';
-        projectWrap.classList.toggle('d-none', isClient);
-        clientWrap.classList.toggle('d-none', !isClient);
-    });
+    function applyDestType() {
+        var v = destType.value; // 'project' | 'client' | 'manual'
+        projectWrap.classList.toggle('d-none', v !== 'project');
+        clientWrap.classList.toggle('d-none', v !== 'client');
+
+        // Tujuan manual: Nama Tujuan jadi wajib (satu-satunya penanda tujuan).
+        var manual = v === 'manual';
+        destName.required = manual;
+        destNameReq.classList.toggle('d-none', !manual);
+        if (manual && !destName.value) { destName.focus(); }
+    }
+
+    destType.addEventListener('change', applyDestType);
+    applyDestType();
 
     // Kota di-prefill dari lokasi project (kalau ada) sebagai kemudahan --
     // tetap bebas diedit/dikosongkan manual, TIDAK dipaksa/di-overwrite kalau

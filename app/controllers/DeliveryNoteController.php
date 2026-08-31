@@ -94,12 +94,20 @@ class DeliveryNoteController extends Controller
             $this->redirect('stock_out', 'index');
         }
 
-        $destinationType = ($_POST['destination_type'] ?? 'project') === 'client' ? 'client' : 'project';
+        $destinationType = in_array($_POST['destination_type'] ?? 'project', ['client', 'manual'], true)
+            ? $_POST['destination_type']
+            : 'project';
         $clientId = !empty($_POST['client_id']) ? (int) $_POST['client_id'] : null;
         $projectId = !empty($_POST['project_id']) ? (int) $_POST['project_id'] : null;
+        $destinationName = trim($_POST['destination_name'] ?? '');
 
         if ($destinationType === 'client' && ($clientId === null || !$this->clientModel->find($clientId))) {
             setFlash('error', 'Client tujuan wajib dipilih untuk pengiriman penjualan.');
+            $this->redirect('delivery_note', 'select', ['ids' => implode(',', $ids)]);
+        }
+
+        if ($destinationType === 'manual' && $destinationName === '') {
+            setFlash('error', 'Nama Tujuan wajib diisi untuk tujuan pengiriman manual.');
             $this->redirect('delivery_note', 'select', ['ids' => implode(',', $ids)]);
         }
 
@@ -111,7 +119,7 @@ class DeliveryNoteController extends Controller
             'destination_type' => $destinationType,
             'client_id'        => $destinationType === 'client' ? $clientId : null,
             'project_id'       => $destinationType === 'project' ? $projectId : null,
-            'destination_name' => trim($_POST['destination_name'] ?? '') ?: null,
+            'destination_name' => $destinationName ?: null,
             // Kota tempat serah terima ditandatangani (baris penutup Surat Jalan) --
             // SENGAJA field terpisah dari destination_name/project/client: nama
             // project/client bisa saja bukan nama kota (mis. "PT Pei Hai Phase 2"),

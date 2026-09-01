@@ -9,12 +9,15 @@
  * Opsional:
  *   $codePrefixFieldId  id unik utk <select> (default 'codePrefix')
  *   $codePrefixInline   true = render ringkas dalam 1 baris (dipakai form Barang)
+ *   $codePrefixHideAdd  true = sembunyikan tombol "+" quick-add prefix (dipakai di
+ *                        modal quick-add Barang, yang tidak memuat modal prefix-nya)
  *
  * Format kode: PREFIX.NOMOR.MASTERCODE
  */
 $codePrefixes    = $codePrefixes ?? [];
 $codeMasterCode  = $codeMasterCode ?? '';
 $fieldId         = $codePrefixFieldId ?? 'codePrefix';
+$codePrefixHideAdd = $codePrefixHideAdd ?? false;
 ?>
 <?php if (empty($codePrefixes)): ?>
     <div class="alert alert-warning py-2 mb-0">
@@ -39,7 +42,7 @@ $fieldId         = $codePrefixFieldId ?? 'codePrefix';
                         </option>
                     <?php endforeach; ?>
                 </select>
-                <?php if (function_exists('can') && can('master_kode', 'edit')): ?>
+                <?php if (!$codePrefixHideAdd && function_exists('can') && can('master_kode', 'edit')): ?>
                     <button type="button" class="btn btn-outline-secondary js-cp-add-prefix"
                             data-entity-type="<?= e($codeEntityType) ?>"
                             data-master="<?= e($codeMasterCode) ?>"

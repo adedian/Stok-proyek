@@ -4,9 +4,18 @@
  * jadi target <select>-nya di-resolve dinamis lewat window.__quickAddItemTarget
  * (di-set oleh handler tombol "+ Barang" di tiap baris -- lihat _item_row.php).
  * Butuh variabel $itemCategories, $units, dan permission 'item'.'quick_add'.
+ *
+ * Kode Barang: quick-add SELALU konteks Stok Proyek (lihat ItemController::quickStore),
+ * jadi partial ini menarik sendiri daftar prefix `item_stok_proyek` biar tidak
+ * perlu menambah variabel di ~8 pemanggilnya.
  */
 $itemCategories = $itemCategories ?? [];
 $units = $units ?? [];
+
+require_once ROOT_PATH . '/app/models/CodeConfig.php';
+$__qaCode = new CodeConfig();
+$qaPrefixes   = $__qaCode->configsForEntity('item_stok_proyek');
+$qaMasterCode = $__qaCode->masterCodeForEntity('item_stok_proyek');
 ?>
 <div class="modal fade" id="modalQuickAddItem" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
@@ -22,6 +31,17 @@ $units = $units ?? [];
                     <div class="mb-3">
                         <label class="form-label">Nama Barang <span class="text-danger">*</span></label>
                         <input type="text" name="item_name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <?php
+                        $codePrefixes    = $qaPrefixes;
+                        $codeMasterCode  = $qaMasterCode;
+                        $codeEntityType  = 'item_stok_proyek';
+                        $codeEntityLabel = 'Barang - Stok Proyek';
+                        $codePrefixFieldId = 'quickAddItemPrefix';
+                        require ROOT_PATH . '/app/views/partials/code_preview.php';
+                        ?>
+                        <div class="form-text">Jenis Stok: <strong>Stok Proyek</strong> (barang untuk jenis stok lain ditambah lewat menu Barang).</div>
                     </div>
                     <div class="row g-3">
                         <div class="col-md-6">
@@ -88,9 +108,25 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
+
+    // Preview kode selalu segar tiap modal dibuka (form.reset() setelah quick-add
+    // sebelumnya mengembalikan prefix ke opsi pertama tanpa memicu 'change').
+    var itemModalEl = document.getElementById('modalQuickAddItem');
+    var prefixSel = document.getElementById('quickAddItemPrefix');
+    if (itemModalEl && prefixSel) {
+        itemModalEl.addEventListener('shown.bs.modal', function () {
+            prefixSel.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+    }
 });
 </script>
 
 <?php if (canQuickAdd('unit')): ?>
     <?php require ROOT_PATH . '/app/views/partials/quick_add_unit_modal.php'; ?>
+<?php endif; ?>
+
+<?php /* Tombol "+" prefix di dalam code_preview butuh modal ini ikut termuat.
+         Hanya untuk yang boleh atur Master Kode (Super Admin). */ ?>
+<?php if (function_exists('can') && can('master_kode', 'edit')): ?>
+    <?php require ROOT_PATH . '/app/views/partials/quick_add_prefix_modal.php'; ?>
 <?php endif; ?>

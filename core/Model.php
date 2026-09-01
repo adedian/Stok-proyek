@@ -106,4 +106,55 @@ abstract class Model
         }
         return $this->db->fetchAll("SELECT * FROM {$this->table} WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC");
     }
+
+    /**
+     * True kalau baris ini masih dirujuk FK "keras" (RESTRICT / NO ACTION) dari
+     * tabel lain -- artinya DELETE permanen PASTI ditolak MySQL. FK ber-aturan
+     * CASCADE / SET NULL diabaikan karena tidak menghalangi hard delete.
+     *
+     * Dipakai Tempat Sampah supaya hanya menampilkan baris yang benar-benar
+     * bisa dihapus permanen (tidak "nyangkut" di transaksi lain).
+     */
+    public function isReferenced(int $id): bool
+    {
+        foreach ($this->blockingForeignKeys() as $fk) {
+            $hit = $this->db->fetchOne(
+                "SELECT 1 FROM `{$fk['table']}` WHERE `{$fk['column']}` = :id LIMIT 1",
+                ['id' => $id]
+            );
+            if ($hit) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Daftar (tabel anak, kolom) yang FK ke PK tabel ini dengan aturan hapus
+     * yang MENGHALANGI DELETE. Hasil di-cache per tabel selama request.
+     */
+    private function blockingForeignKeys(): array
+    {
+        static $cache = [];
+        if (isset($cache[$this->table])) {
+            return $cache[$this->table];
+        }
+        $rows = $this->db->fetchAll(
+            "SELECT k.TABLE_NAME AS child_table, k.COLUMN_NAME AS child_column
+               FROM information_schema.KEY_COLUMN_USAGE k
+               JOIN information_schema.REFERENTIAL_CONSTRAINTS r
+                 ON r.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA
+                AND r.CONSTRAINT_NAME = k.CONSTRAINT_NAME
+              WHERE k.REFERENCED_TABLE_SCHEMA = DATABASE()
+                AND k.REFERENCED_TABLE_NAME = :t
+                AND k.REFERENCED_COLUMN_NAME = :pk
+                AND r.DELETE_RULE IN ('RESTRICT', 'NO ACTION')",
+            ['t' => $this->table, 'pk' => $this->primaryKey]
+        );
+        $out = [];
+        foreach ($rows as $r) {
+            $out[] = ['table' => $r['child_table'], 'column' => $r['child_column']];
+        }
+        return $cache[$this->table] = $out;
+    }
 }

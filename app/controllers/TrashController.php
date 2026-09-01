@@ -12,7 +12,6 @@ require_once ROOT_PATH . '/app/models/PurchaseOrder.php';
 require_once ROOT_PATH . '/app/models/Payment.php';
 require_once ROOT_PATH . '/app/models/GoodsReceipt.php';
 require_once ROOT_PATH . '/app/models/StockOut.php';
-require_once ROOT_PATH . '/app/models/Inventory.php';
 require_once ROOT_PATH . '/app/models/StockOpname.php';
 require_once ROOT_PATH . '/app/models/SalesInvoice.php';
 require_once ROOT_PATH . '/app/models/OfflinePurchase.php';
@@ -91,11 +90,10 @@ class TrashController extends Controller
                 'model' => new StockOut(),
                 'display' => fn(array $r) => $r['stock_out_number'] ?? '-',
             ],
-            'inventory' => [
-                'label' => 'Kartu Stok',
-                'model' => new Inventory(),
-                'display' => fn(array $r) => $r['item_name'] ?? '-',
-            ],
+            // 'inventory' (Kartu Stok) SENGAJA tidak di sini: baris ledger stok
+            // adalah turunan otomatis dari GR/Pengeluaran/Opname -- ikut terhapus
+            // & terpulihkan bersama dokumen induknya, bukan data yang dikelola
+            // user langsung dari Tempat Sampah.
             'stock_opname' => [
                 'label' => 'Stok Opname',
                 'model' => new StockOpname(),
@@ -164,6 +162,12 @@ class TrashController extends Controller
                 continue;
             }
             foreach ($cfg['model']->trashedList() as $r) {
+                // Hanya tampilkan yang BENAR-BENAR bisa dihapus permanen -- baris
+                // yang masih dirujuk transaksi lain (FK) belum benar-benar
+                // terhapus dari sistem, jadi disembunyikan dari daftar.
+                if ($cfg['model']->isReferenced((int) $r['id'])) {
+                    continue;
+                }
                 $rows[] = [
                     'module'       => $key,
                     'module_label' => $cfg['label'],
@@ -257,10 +261,17 @@ class TrashController extends Controller
                 continue;
             }
             foreach ($cfg['model']->trashedList() as $r) {
+                // Baris yang masih dirujuk transaksi lain tidak tampil di Tempat
+                // Sampah (lihat index()), jadi jangan ikut dihitung "dilewati".
+                if ($cfg['model']->isReferenced((int) $r['id'])) {
+                    continue;
+                }
                 try {
                     $cfg['model']->forceDeleteById((int) $r['id']);
                     $deleted++;
                 } catch (PDOException $e) {
+                    // Jaring pengaman kalau ada relasi yang lolos cek di atas
+                    // (mis. race condition) -- tetap tidak menggagalkan yang lain.
                     $skipped++;
                 }
             }

@@ -1,12 +1,12 @@
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
         <h4 class="mb-0">Tempat Sampah</h4>
-        <small class="text-muted">Data yang sudah dihapus dari seluruh modul -- bisa dipulihkan atau dihapus permanen</small>
+        <small class="text-muted">Data terhapus yang sudah benar-benar lepas dari sistem -- bisa dipulihkan atau dihapus permanen. Data yang masih dipakai transaksi lain belum muncul di sini.</small>
     </div>
     <?php if (!empty($rows)): ?>
         <form method="POST" action="<?= BASE_URL ?>/index.php?module=trash&action=forceDeleteAll"
               class="js-confirm-delete"
-              data-message="Hapus PERMANEN <?= count($rows) ?> data<?= $moduleFilter !== '' ? ' pada modul ' . e($moduleOptions[$moduleFilter] ?? $moduleFilter) : '' ?>? Data yang masih dipakai transaksi lain akan dilewati. Tindakan ini TIDAK BISA dibatalkan.">
+              data-message="Hapus PERMANEN <?= count($rows) ?> data<?= $moduleFilter !== '' ? ' pada modul ' . e($moduleOptions[$moduleFilter] ?? $moduleFilter) : '' ?>? Tindakan ini TIDAK BISA dibatalkan.">
             <?= csrfField() ?>
             <input type="hidden" name="module_filter" value="<?= e($moduleFilter) ?>">
             <button type="submit" class="btn btn-outline-danger">

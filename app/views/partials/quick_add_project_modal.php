@@ -2,8 +2,13 @@
 /**
  * Modal quick-add Project. Include di halaman manapun yang punya
  * <select id="project_id">. Butuh permission 'project'.'quick_add'.
+ *
+ * Mode dinamis ($quickAddProjectDynamic = true): target <select> di-resolve saat
+ * submit lewat window.__quickAddProjectTarget (dipakai form Kas yang punya banyak
+ * baris Project) + broadcast <option> baru ke semua .project-select.
  */
 $quickAddProjectTargetId = $quickAddProjectTargetId ?? 'project_id';
+$quickAddProjectDynamic  = !empty($quickAddProjectDynamic);
 ?>
 <div class="modal fade" id="modalQuickAddProject" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
@@ -52,7 +57,12 @@ document.addEventListener('DOMContentLoaded', function () {
     initQuickAdd({
         modalId: 'modalQuickAddProject',
         formId: 'formQuickAddProject',
+<?php if ($quickAddProjectDynamic): ?>
+        selectEl: function () { return window.__quickAddProjectTarget || null; },
+        broadcastSelector: '.project-select',
+<?php else: ?>
         selectEl: '<?= e($quickAddProjectTargetId) ?>',
+<?php endif; ?>
         endpoint: '<?= BASE_URL ?>/index.php?module=project&action=quickStore',
     });
 });

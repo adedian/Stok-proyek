@@ -15,7 +15,7 @@
  * $itemCatalog: Barang aktif (id, item_code, item_name, unit_name).
  *
  * Kelas dipakai JS form: .uraian-input .category-select .barang-select
- *   .barang-id-input .barang-wrap .barang-na .project-select .supplier-input
+ *   .barang-id-input .barang-wrap .barang-na .project-wrap .project-select .supplier-input
  *   .unit-select .proj-na .sup-na .unit-na .qty-input .price-input
  *   .subtotal-cell .btn-remove-row .item-row
  */
@@ -49,7 +49,8 @@ $curItemInCatalog = false;
 foreach ($itemCatalog as $it) {
     if ((int) $it['id'] === $curItem) { $curItemInCatalog = true; break; }
 }
-$canQuickAddItem = function_exists('canQuickAdd') && canQuickAdd('item');
+$canQuickAddItem    = function_exists('canQuickAdd') && canQuickAdd('item');
+$canQuickAddProject = function_exists('canQuickAdd') && canQuickAdd('project');
 ?>
 <tr class="item-row<?= $curAffects ? ' stock-row' : '' ?>">
     <td data-label="Uraian" style="min-width: 160px;">
@@ -102,13 +103,22 @@ $canQuickAddItem = function_exists('canQuickAdd') && canQuickAdd('item');
         <span class="barang-na text-muted<?= $curAffects ? ' d-none' : '' ?>">&mdash;</span>
     </td>
     <td data-label="Project" style="min-width: 150px;" class="<?= $curProyek ? '' : 'cell-na' ?>">
-        <select name="item_project_id[]" class="form-select form-select-sm project-select<?= $curProyek ? '' : ' d-none' ?>"
-                <?= $curProyek ? '' : 'disabled' ?>>
-            <option value="">-- Pilih Project --</option>
-            <?php foreach ($projects as $p): ?>
-                <option value="<?= (int) $p['id'] ?>" <?= $curProj === (int) $p['id'] ? 'selected' : '' ?>><?= e($p['project_name']) ?></option>
-            <?php endforeach; ?>
-        </select>
+        <div class="project-wrap<?= $curProyek ? '' : ' d-none' ?>">
+            <div class="input-group input-group-sm">
+                <select name="item_project_id[]" class="form-select form-select-sm project-select"
+                        <?= $curProyek ? '' : 'disabled' ?>>
+                    <option value="">-- Pilih Project --</option>
+                    <?php foreach ($projects as $p): ?>
+                        <option value="<?= (int) $p['id'] ?>" <?= $curProj === (int) $p['id'] ? 'selected' : '' ?>><?= e($p['project_name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <?php if ($canQuickAddProject): ?>
+                    <button type="button" class="btn btn-outline-secondary btn-quick-add-project" title="Tambah Project Cepat">
+                        <i class="bi bi-plus-lg"></i>
+                    </button>
+                <?php endif; ?>
+            </div>
+        </div>
         <span class="proj-na text-muted<?= $curProyek ? ' d-none' : '' ?>">&mdash;</span>
     </td>
     <td data-label="Supplier" style="min-width: 140px;" class="<?= $curAffects ? '' : 'cell-na' ?>">

@@ -188,6 +188,10 @@ $cashCategories = $categories;
     <?php $itemCategories = $itemCategories ?? []; ?>
     <?php require ROOT_PATH . '/app/views/partials/quick_add_item_modal.php'; ?>
 <?php endif; ?>
+<?php if (canQuickAdd('project')): ?>
+    <?php $quickAddProjectDynamic = true; ?>
+    <?php require ROOT_PATH . '/app/views/partials/quick_add_project_modal.php'; ?>
+<?php endif; ?>
 
 <script>
 (function () {
@@ -241,6 +245,22 @@ $cashCategories = $categories;
         if (!on) { sel.value = ''; if (idInput) idInput.value = ''; }
     }
 
+    // Project picker (select + tombol "+") pakai wrapper .project-wrap supaya
+    // tombol "+" ikut sembunyi saat kolom Project tidak aktif.
+    function setProject(row, on) {
+        const wrap = row.querySelector('.project-wrap');
+        const sel = row.querySelector('.project-select');
+        const na = row.querySelector('.proj-na');
+        if (!wrap || !sel) return;
+        wrap.classList.toggle('d-none', !on);
+        if (na) na.classList.toggle('d-none', on);
+        const cell = wrap.closest('td');
+        if (cell) cell.classList.toggle('cell-na', !on);
+        sel.disabled = !on;
+        sel.required = on;
+        if (!on) sel.value = '';
+    }
+
     // Kategori baris menentukan kolom stok mana yang aktif:
     //  affects_stock -> Barang (wajib) + Satuan (wajib) + Supplier (opsional)
     //  scope 'proyek' -> Project (wajib)
@@ -252,7 +272,7 @@ $cashCategories = $categories;
         setBarang(row, isStock);
         setField(row.querySelector('.unit-select'),     row.querySelector('.unit-na'), isStock, true);
         setField(row.querySelector('.supplier-input'),  row.querySelector('.sup-na'),  isStock, false);
-        setField(row.querySelector('.project-select'),  row.querySelector('.proj-na'), isProyek, true);
+        setProject(row, isProyek);
         row.classList.toggle('stock-row', isStock);
         const hint = row.querySelector('.cat-hint');
         if (hint) hint.classList.toggle('d-none', !isStock);
@@ -288,6 +308,13 @@ $cashCategories = $categories;
         if (quickAddBtn) {
             window.__quickAddItemTarget = quickAddBtn.closest('.item-row').querySelector('.barang-select');
             const modalEl = document.getElementById('modalQuickAddItem');
+            if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            return;
+        }
+        const quickAddProjBtn = e.target.closest('.btn-quick-add-project');
+        if (quickAddProjBtn) {
+            window.__quickAddProjectTarget = quickAddProjBtn.closest('.item-row').querySelector('.project-select');
+            const modalEl = document.getElementById('modalQuickAddProject');
             if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).show();
             return;
         }

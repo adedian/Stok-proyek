@@ -31,7 +31,7 @@ ALTER TABLE `cash_categories`
   ADD COLUMN `affects_stock` TINYINT(1) NOT NULL DEFAULT 0 AFTER `category_name`,
   ADD COLUMN `stock_scope`   ENUM('kantor','proyek') NULL DEFAULT NULL AFTER `affects_stock`;
 
-UPDATE `cash_categories` SET `affects_stock` = 1, `stock_scope` = 'proyek' WHERE `category_name` = 'Material Projek';
+UPDATE `cash_categories` SET `affects_stock` = 1, `stock_scope` = 'proyek' WHERE `category_name` IN ('Material Proyek', 'Material Projek');
 UPDATE `cash_categories` SET `affects_stock` = 1, `stock_scope` = 'kantor' WHERE `category_name` = 'Inventory Kantor';
 UPDATE `cash_categories` SET `affects_stock` = 1, `stock_scope` = 'proyek' WHERE `category_name` = 'Inventory Teknik';
 UPDATE `cash_categories` SET `affects_stock` = 0, `stock_scope` = NULL     WHERE `category_name` = 'Biaya Operasional';

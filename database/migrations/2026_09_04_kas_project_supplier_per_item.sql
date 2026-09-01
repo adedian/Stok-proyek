@@ -7,7 +7,7 @@
 --   - cash_transaction_items + project_id (FK projects) + supplier_name.
 --   - Aturan UI/validasi:
 --       * project_id  : aktif & WAJIB hanya untuk baris ber-kategori stok scope
---                       'proyek' (Material Projek / Inventory Teknik).
+--                       'proyek' (Material Proyek / Inventory Teknik).
 --       * supplier_name: opsional, aktif untuk semua baris yang MASUK stok
 --                       (affects_stock=1). Baris "Biaya Operasional" -> kosong.
 --   - cash_transactions: kolom project_id & supplier_name DIBUANG.

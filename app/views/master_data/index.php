@@ -10,7 +10,7 @@ $subModules = [
     ['label' => 'Metode Pembayaran', 'module' => 'payment_method', 'icon' => 'bi-credit-card-2-front', 'desc' => 'Cara pembayaran ke supplier'],
     ['label' => 'Tanda Tangan', 'module' => 'signature', 'icon' => 'bi-pen', 'desc' => 'Tanda tangan untuk dokumen cetak'],
     ['label' => 'Persentase DP', 'module' => 'dp_percentage', 'icon' => 'bi-percent', 'desc' => 'Pilihan Tagihan DP untuk Invoice Keluar'],
-    ['label' => 'Kategori Kas', 'module' => 'cash_category', 'icon' => 'bi-cash-stack', 'desc' => 'Kategori transaksi Kas (Material Projek, Inventory Kantor, dst)'],
+    ['label' => 'Kategori Kas', 'module' => 'cash_category', 'icon' => 'bi-cash-stack', 'desc' => 'Kategori transaksi Kas (Material Proyek, Inventory Kantor, dst)'],
     ['label' => 'PIC Kas', 'module' => 'user_pic', 'icon' => 'bi-person-badge', 'desc' => 'Kaitkan user ke PIC untuk pembatasan akses Kas'],
     ['label' => 'Master Kode', 'module' => 'master_kode', 'icon' => 'bi-upc-scan', 'desc' => 'Atur prefix & nomor otomatis kode Barang/Supplier/Client/Gudang/Project'],
 ];

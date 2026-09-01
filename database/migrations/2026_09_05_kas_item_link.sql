@@ -2,7 +2,7 @@
 -- KAS: baris kategori stok WAJIB tertaut ke master Barang (2026-09-05)
 -- ============================================================
 -- Lanjutan 2026_09_03 / 2026_09_04. Permintaan user: baris rincian Kas yang
--- kategorinya "pembelian barang" (affects_stock: Material Projek / Inventory
+-- kategorinya "pembelian barang" (affects_stock: Material Proyek / Inventory
 -- Kantor / Inventory Teknik) sekarang WAJIB memilih Barang dari master
 -- (seperti form Tambah Barang di PO/Pembelian Offline), lengkap tombol "+"
 -- quick-add. Stok yang dikreditkan dicatat atas NAMA BARANG MASTER supaya

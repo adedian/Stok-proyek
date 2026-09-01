@@ -422,6 +422,25 @@ class GoodsReceiptController extends Controller
         }
 
         assertPeriodOpen('goods_receipt', $receipt['receipt_date'], 'goods_receipt', 'index');
+        $res = $this->deleteOneRecord($id);
+        setFlash($res === true ? 'success' : 'error',
+            $res === true ? 'Penerimaan barang berhasil dihapus.' : 'Gagal menghapus penerimaan barang.');
+        $this->redirect('goods_receipt', 'index');
+    }
+
+    /**
+     * Hapus 1 penerimaan barang ke Tempat Sampah + reverse stok yang sudah
+     * diposting. true = sukses, string = alasan skip. Dipakai delete() & rangeDelete().
+     */
+    private function deleteOneRecord(int $id)
+    {
+        $receipt = $this->receiptModel->find($id);
+        if (!$receipt) {
+            return 'gagal';
+        }
+        // Soft-delete ke Tempat Sampah aman walau periode terkunci (transaksi
+        // pembalik stok dicatat tanggal-sekarang, bukan tanggal GR) -- gerbang
+        // Tutup Bulan tetap berlaku untuk hapus per-baris lewat delete().
 
         $pdo = getPDO();
         try {
@@ -482,13 +501,42 @@ class GoodsReceiptController extends Controller
             }
 
             $pdo->commit();
-            setFlash('success', 'Penerimaan barang berhasil dihapus.');
+            return true;
         } catch (Throwable $e) {
             $pdo->rollBack();
-            error_log('Goods receipt delete error: ' . $e->getMessage());
-            setFlash('error', 'Gagal menghapus penerimaan barang.');
+            error_log('Goods receipt deleteOneRecord error: ' . $e->getMessage());
+            return 'gagal';
+        }
+    }
+
+    /** Hapus semua penerimaan barang dalam rentang tanggal ke Tempat Sampah -- KHUSUS Super Admin. */
+    public function rangeDelete()
+    {
+        rangeDeleteGuardSuperAdmin();
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('goods_receipt', 'index');
+        }
+        verifyCsrf();
+
+        [$from, $to] = rangeDeleteReadDates();
+        if ($err = rangeDeleteValidate($from, $to)) {
+            setFlash('error', $err);
+            $this->redirect('goods_receipt', 'index');
         }
 
+        $deleted = 0;
+        $skipped = [];
+        foreach ($this->receiptModel->idsByDateRange('receipt_date', $from, $to) as $id) {
+            $r = $this->deleteOneRecord($id);
+            if ($r === true) {
+                $deleted++;
+            } else {
+                $skipped[$r] = ($skipped[$r] ?? 0) + 1;
+            }
+        }
+
+        rangeDeleteLog('goods_receipt', $from, $to, $deleted, array_sum($skipped));
+        rangeDeleteFlash($deleted, $skipped);
         $this->redirect('goods_receipt', 'index');
     }
 

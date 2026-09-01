@@ -507,25 +507,73 @@ class CashController extends Controller
         $this->assertCanTouch($row);
         assertPeriodOpen('cash', $row['trx_date'], 'cash', 'index');
 
+        $res = $this->deleteOneRecord($id);
+        setFlash($res === true ? 'success' : 'error',
+            $res === true ? 'Transaksi Kas dipindahkan ke Tempat Sampah.' : 'Gagal menghapus transaksi Kas.');
+        $this->redirect('cash', 'index');
+    }
+
+    /**
+     * Hapus 1 transaksi Kas ke Tempat Sampah + balikkan stok yang pernah
+     * ditambahkan. true = sukses, string = alasan skip. Dipakai delete() &
+     * rangeDelete() (rangeDelete KHUSUS Super Admin -> assertCanTouch no-op).
+     */
+    private function deleteOneRecord(int $id)
+    {
+        $row = $this->cashModel->findWithRelations($id);
+        if (!$row) {
+            return 'gagal';
+        }
+        // Soft-delete ke Tempat Sampah aman walau periode terkunci (stok dibalik
+        // dengan transaksi tanggal-sekarang) -- gerbang Tutup Bulan tetap berlaku
+        // untuk hapus per-baris lewat delete().
+
         $pdo = getPDO();
         try {
             $pdo->beginTransaction();
-            // Baris ber-kategori stok -> balikkan stok yang pernah ditambahkan
-            // sebelum transaksi masuk Tempat Sampah. Di-credit lagi kalau di-restore.
+            // Baris ber-kategori stok -> balikkan stok yang pernah ditambahkan.
             // No-op kalau transaksi ini tidak menyentuh stok.
             $this->cashModel->applyStockReverse($id);
             $this->cashModel->deleteById($id);
             $this->activityLog->log(currentUserId(), 'cash', 'delete',
                 "Kas #{$id} ('{$row['no_bukti']}') dihapus ke Tempat Sampah");
             $pdo->commit();
+            return true;
         } catch (Throwable $e) {
             $pdo->rollBack();
-            error_log('Cash delete error: ' . $e->getMessage());
-            setFlash('error', 'Gagal menghapus transaksi Kas.');
+            error_log('Cash deleteOneRecord error: ' . $e->getMessage());
+            return 'gagal';
+        }
+    }
+
+    /** Hapus semua transaksi Kas dalam rentang tanggal ke Tempat Sampah -- KHUSUS Super Admin. */
+    public function rangeDelete(): void
+    {
+        rangeDeleteGuardSuperAdmin();
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('cash', 'index');
+        }
+        verifyCsrf();
+
+        [$from, $to] = rangeDeleteReadDates();
+        if ($err = rangeDeleteValidate($from, $to)) {
+            setFlash('error', $err);
             $this->redirect('cash', 'index');
         }
 
-        setFlash('success', 'Transaksi Kas dipindahkan ke Tempat Sampah.');
+        $deleted = 0;
+        $skipped = [];
+        foreach ($this->cashModel->idsByDateRange('trx_date', $from, $to) as $id) {
+            $r = $this->deleteOneRecord($id);
+            if ($r === true) {
+                $deleted++;
+            } else {
+                $skipped[$r] = ($skipped[$r] ?? 0) + 1;
+            }
+        }
+
+        rangeDeleteLog('cash', $from, $to, $deleted, array_sum($skipped));
+        rangeDeleteFlash($deleted, $skipped);
         $this->redirect('cash', 'index');
     }
 

@@ -19,6 +19,15 @@ class StockOutController extends Controller
     private SalesInvoice $salesInvoiceModel;
     private SalesInvoiceItem $salesInvoiceItemModel;
 
+    /**
+     * Tujuan pengeluaran "Client (Invoice)" -- urusan penjualan/AR, hanya boleh
+     * dipakai Super Admin, Accounting, dan Purchase. Role lain: hanya Project.
+     */
+    private function canClientDestination(): bool
+    {
+        return hasRole([ROLE_SUPER_ADMIN, ROLE_ACCOUNTING, ROLE_PURCHASE]);
+    }
+
     public function __construct()
     {
         Middleware::requirePermission('stock_out', 'view');
@@ -55,8 +64,9 @@ class StockOutController extends Controller
     public function create()
     {
         Middleware::requirePermission('stock_out', 'create');
+        $canClientDest = $this->canClientDestination();
         $projectId = (int) ($_GET['project_id'] ?? 0);
-        $salesInvoiceId = (int) ($_GET['sales_invoice_id'] ?? 0);
+        $salesInvoiceId = $canClientDest ? (int) ($_GET['sales_invoice_id'] ?? 0) : 0;
 
         $inventoryItems = [];
         if ($projectId) {
@@ -70,7 +80,8 @@ class StockOutController extends Controller
             'mode'         => 'create',
             'stockOut'     => null,
             'projects'     => $this->projectModel->activeList(),
-            'clientInvoices' => $this->salesInvoiceModel->listWithRelations([]),
+            'clientInvoices' => $canClientDest ? $this->salesInvoiceModel->listWithRelations([]) : [],
+            'canClientDest' => $canClientDest,
             'selectedProjectId' => $projectId,
             'selectedSalesInvoiceId' => $salesInvoiceId,
             'selectedDestinationType' => $salesInvoiceId ? 'client' : 'project',
@@ -171,6 +182,10 @@ class StockOutController extends Controller
             'stockOut'     => $stockOut,
             'projects'     => $this->projectModel->activeList(),
             'clientInvoices' => $this->salesInvoiceModel->listWithRelations([]),
+            // Semua field terkunci saat edit -- tetap tampilkan blok Client kalau
+            // record-nya memang bertujuan client, walau role sekarang tak boleh
+            // membuat yang baru.
+            'canClientDest' => $this->canClientDestination() || $stockOut['destination_type'] === 'client',
             'selectedProjectId' => $stockOut['project_id'],
             'selectedSalesInvoiceId' => $stockOut['sales_invoice_id'],
             'selectedDestinationType' => $stockOut['destination_type'],
@@ -283,6 +298,26 @@ class StockOutController extends Controller
         }
 
         assertPeriodOpen('stock_out', $existing['out_date'], 'stock_out', 'index');
+        $res = $this->deleteOneRecord($id);
+        setFlash($res === true ? 'success' : 'error',
+            $res === true ? 'Pengeluaran barang berhasil dihapus dan stok dikembalikan.' : 'Gagal menghapus pengeluaran barang.');
+
+        $this->redirect('stock_out', 'index');
+    }
+
+    /**
+     * Hapus 1 pengeluaran barang ke Tempat Sampah + kembalikan stok.
+     * true = sukses, string = alasan skip. Dipakai delete() & rangeDelete().
+     */
+    private function deleteOneRecord(int $id)
+    {
+        $existing = $this->stockOutModel->find($id);
+        if (!$existing) {
+            return 'gagal';
+        }
+        // Soft-delete ke Tempat Sampah aman walau periode terkunci (koreksi stok
+        // dicatat tanggal-sekarang) -- gerbang Tutup Bulan tetap berlaku untuk
+        // hapus per-baris lewat delete().
 
         $pdo = getPDO();
         try {
@@ -307,13 +342,42 @@ class StockOutController extends Controller
             );
 
             $pdo->commit();
-            setFlash('success', 'Pengeluaran barang berhasil dihapus dan stok dikembalikan.');
+            return true;
         } catch (Throwable $e) {
             $pdo->rollBack();
-            error_log('Stock out delete error: ' . $e->getMessage());
-            setFlash('error', 'Gagal menghapus pengeluaran barang.');
+            error_log('Stock out deleteOneRecord error: ' . $e->getMessage());
+            return 'gagal';
+        }
+    }
+
+    /** Hapus semua pengeluaran barang dalam rentang tanggal ke Tempat Sampah -- KHUSUS Super Admin. */
+    public function rangeDelete()
+    {
+        rangeDeleteGuardSuperAdmin();
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('stock_out', 'index');
+        }
+        verifyCsrf();
+
+        [$from, $to] = rangeDeleteReadDates();
+        if ($err = rangeDeleteValidate($from, $to)) {
+            setFlash('error', $err);
+            $this->redirect('stock_out', 'index');
         }
 
+        $deleted = 0;
+        $skipped = [];
+        foreach ($this->stockOutModel->idsByDateRange('out_date', $from, $to) as $id) {
+            $r = $this->deleteOneRecord($id);
+            if ($r === true) {
+                $deleted++;
+            } else {
+                $skipped[$r] = ($skipped[$r] ?? 0) + 1;
+            }
+        }
+
+        rangeDeleteLog('stock_out', $from, $to, $deleted, array_sum($skipped));
+        rangeDeleteFlash($deleted, $skipped);
         $this->redirect('stock_out', 'index');
     }
 
@@ -335,6 +399,9 @@ class StockOutController extends Controller
      */
     public function ajaxItemsByOffice()
     {
+        if (!$this->canClientDestination()) {
+            $this->json(['items' => []]);
+        }
         $items = $this->inventoryModel->listAllWithStock();
         $salesInvoiceId = (int) ($_GET['sales_invoice_id'] ?? 0);
         if ($salesInvoiceId) {
@@ -397,6 +464,11 @@ class StockOutController extends Controller
     private function collectInput(): array
     {
         $destinationType = ($_POST['destination_type'] ?? 'project') === 'client' ? 'client' : 'project';
+        // Client (Invoice) hanya Super Admin/Accounting/Purchase -- role lain
+        // dipaksa ke Project walau POST-nya diutak-atik.
+        if ($destinationType === 'client' && !$this->canClientDestination()) {
+            $destinationType = 'project';
+        }
 
         return [
             'inventory_id'     => (int) ($_POST['inventory_id'] ?? 0),

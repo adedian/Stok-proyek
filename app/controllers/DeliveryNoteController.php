@@ -242,26 +242,70 @@ class DeliveryNoteController extends Controller
             $this->redirect('delivery_note', 'index');
         }
 
+        $res = $this->deleteOneRecord($id);
+        setFlash($res === true ? 'success' : 'error',
+            $res === true
+                ? 'Surat Jalan berhasil dihapus. Baris Pengeluaran Barang terkait dikembalikan sebagai belum dikelompokkan.'
+                : 'Gagal menghapus Surat Jalan.');
+
+        $this->redirect('delivery_note', 'index');
+    }
+
+    /**
+     * Hapus 1 Surat Jalan ke Tempat Sampah + lepaskan baris Pengeluaran Barang
+     * yang terkelompok di sini. true = sukses, string = alasan skip.
+     */
+    private function deleteOneRecord(int $id)
+    {
+        $note = $this->deliveryNoteModel->find($id);
+        if (!$note) {
+            return 'gagal';
+        }
         $pdo = getPDO();
         try {
             $pdo->beginTransaction();
-
-            // Lepaskan baris stock_out yang terkelompok di sini -- transaksi
-            // pengeluaran barangnya sendiri TIDAK dihapus, cuma dilepas dari Surat
-            // Jalan supaya bisa dikelompokkan ulang.
+            // Transaksi pengeluaran barangnya TIDAK dihapus, cuma dilepas dari
+            // Surat Jalan supaya bisa dikelompokkan ulang.
             $this->stockOutModel->unlinkDeliveryNote($id);
-
             $this->deliveryNoteModel->deleteById($id);
             $this->activityLog->log(currentUserId(), 'delivery_note', 'delete', "Surat Jalan {$note['delivery_number']} dihapus");
-
             $pdo->commit();
-            setFlash('success', 'Surat Jalan berhasil dihapus. Baris Pengeluaran Barang terkait dikembalikan sebagai belum dikelompokkan.');
+            return true;
         } catch (Throwable $e) {
             $pdo->rollBack();
-            error_log('DeliveryNote delete error: ' . $e->getMessage());
-            setFlash('error', 'Gagal menghapus Surat Jalan.');
+            error_log('DeliveryNote deleteOneRecord error: ' . $e->getMessage());
+            return 'gagal';
+        }
+    }
+
+    /** Hapus semua Surat Jalan dalam rentang tanggal ke Tempat Sampah -- KHUSUS Super Admin. */
+    public function rangeDelete()
+    {
+        rangeDeleteGuardSuperAdmin();
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('delivery_note', 'index');
+        }
+        verifyCsrf();
+
+        [$from, $to] = rangeDeleteReadDates();
+        if ($err = rangeDeleteValidate($from, $to)) {
+            setFlash('error', $err);
+            $this->redirect('delivery_note', 'index');
         }
 
+        $deleted = 0;
+        $skipped = [];
+        foreach ($this->deliveryNoteModel->idsByDateRange('delivery_date', $from, $to) as $id) {
+            $r = $this->deleteOneRecord($id);
+            if ($r === true) {
+                $deleted++;
+            } else {
+                $skipped[$r] = ($skipped[$r] ?? 0) + 1;
+            }
+        }
+
+        rangeDeleteLog('delivery_note', $from, $to, $deleted, array_sum($skipped));
+        rangeDeleteFlash($deleted, $skipped);
         $this->redirect('delivery_note', 'index');
     }
 

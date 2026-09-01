@@ -251,8 +251,29 @@ class PaymentController extends Controller
         $id = (int) ($_POST['id'] ?? 0);
         $payment = $this->paymentModel->find($id);
 
-        if ($payment) {
-            assertPeriodOpen('payment', $payment['payment_date'], 'payment', 'index');
+        if (!$payment) {
+            setFlash('error', 'Data pembayaran tidak ditemukan.');
+            $this->redirect('payment', 'index');
+        }
+
+        assertPeriodOpen('payment', $payment['payment_date'], 'payment', 'index');
+        $res = $this->deleteOneRecord($id);
+        setFlash($res === true ? 'success' : 'error',
+            $res === true ? 'Pembayaran berhasil dihapus.' : 'Gagal menghapus pembayaran.');
+
+        $this->redirect('payment', 'index');
+    }
+
+    /** Hapus 1 pembayaran ke Tempat Sampah. true = sukses, string = alasan skip. */
+    private function deleteOneRecord(int $id)
+    {
+        $payment = $this->paymentModel->find($id);
+        if (!$payment) {
+            return 'gagal';
+        }
+        // Soft-delete ke Tempat Sampah aman walau periode terkunci -- gerbang
+        // Tutup Bulan tetap berlaku untuk hapus per-baris lewat delete().
+        try {
             $this->paymentModel->deleteById($id);
             $this->historyModel->log(
                 $payment['purchase_order_id'],
@@ -260,11 +281,41 @@ class PaymentController extends Controller
                 "Pembayaran {$payment['payment_number']} dihapus",
                 currentUserId()
             );
-            setFlash('success', 'Pembayaran berhasil dihapus.');
-        } else {
-            setFlash('error', 'Data pembayaran tidak ditemukan.');
+            return true;
+        } catch (Throwable $e) {
+            error_log('Payment deleteOneRecord error: ' . $e->getMessage());
+            return 'gagal';
+        }
+    }
+
+    /** Hapus semua pembayaran dalam rentang tanggal ke Tempat Sampah -- KHUSUS Super Admin. */
+    public function rangeDelete()
+    {
+        rangeDeleteGuardSuperAdmin();
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('payment', 'index');
+        }
+        verifyCsrf();
+
+        [$from, $to] = rangeDeleteReadDates();
+        if ($err = rangeDeleteValidate($from, $to)) {
+            setFlash('error', $err);
+            $this->redirect('payment', 'index');
         }
 
+        $deleted = 0;
+        $skipped = [];
+        foreach ($this->paymentModel->idsByDateRange('payment_date', $from, $to) as $id) {
+            $r = $this->deleteOneRecord($id);
+            if ($r === true) {
+                $deleted++;
+            } else {
+                $skipped[$r] = ($skipped[$r] ?? 0) + 1;
+            }
+        }
+
+        rangeDeleteLog('payment', $from, $to, $deleted, array_sum($skipped));
+        rangeDeleteFlash($deleted, $skipped);
         $this->redirect('payment', 'index');
     }
 

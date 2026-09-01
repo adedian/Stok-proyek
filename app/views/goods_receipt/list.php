@@ -10,6 +10,16 @@
     <?php endif; ?>
 </div>
 
+<?php if (hasRole([ROLE_SUPER_ADMIN])): ?>
+    <div class="d-flex justify-content-end mb-2">
+        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#rangeDeleteModal">
+            <i class="bi bi-calendar-x"></i> Hapus per Rentang Tanggal
+        </button>
+    </div>
+    <?php $rangeDeleteAction = 'goods_receipt/rangeDelete'; $rangeDeleteLabel = 'Penerimaan Barang';
+          require ROOT_PATH . '/app/views/partials/range_delete_modal.php'; ?>
+<?php endif; ?>
+
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
         <form method="GET" action="<?= BASE_URL ?>/goods_receipt" class="row g-2 align-items-end">

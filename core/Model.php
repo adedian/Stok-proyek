@@ -108,6 +108,22 @@ abstract class Model
     }
 
     /**
+     * ID record (yang belum soft-deleted) dengan $dateCol dalam rentang tanggal
+     * inklusif. Dipakai fitur "Hapus per Rentang Tanggal" -- $dateCol berasal
+     * dari string konstan di controller (mis. 'out_date'), BUKAN input user.
+     * DATE() supaya kolom DATETIME (mis. cash_transactions.trx_date) ikut cocok.
+     */
+    public function idsByDateRange(string $dateCol, string $from, string $to): array
+    {
+        $sql = "SELECT {$this->primaryKey} AS id FROM {$this->table} WHERE DATE({$dateCol}) BETWEEN :f AND :t";
+        if ($this->softDelete) {
+            $sql .= " AND deleted_at IS NULL";
+        }
+        $sql .= " ORDER BY {$dateCol} ASC, {$this->primaryKey} ASC";
+        return array_map('intval', array_column($this->db->fetchAll($sql, ['f' => $from, 't' => $to]), 'id'));
+    }
+
+    /**
      * True kalau baris ini masih dirujuk FK "keras" (RESTRICT / NO ACTION) dari
      * tabel lain -- artinya DELETE permanen PASTI ditolak MySQL. FK ber-aturan
      * CASCADE / SET NULL diabaikan karena tidak menghalangi hard delete.

@@ -297,16 +297,69 @@ class OfflinePurchaseController extends Controller
         }
 
         assertPeriodOpen('offline_purchase', $purchase['purchase_date'], 'offline_purchase', 'index');
+        $res = $this->deleteOneRecord($id);
+        setFlash($res === true ? 'success' : 'error',
+            $res === true ? 'Pembelian offline berhasil dihapus.' : 'Gagal menghapus pembelian offline.');
 
-        $this->purchaseModel->deleteById($id);
-        $this->activityLog->log(
-            currentUserId(),
-            'offline_purchase',
-            'delete',
-            "Pembelian offline {$purchase['purchase_number']} dihapus"
-        );
-        setFlash('success', 'Pembelian offline berhasil dihapus.');
+        $this->redirect('offline_purchase', 'index');
+    }
 
+    /**
+     * Hapus 1 pembelian offline ke Tempat Sampah. true = sukses, string = alasan skip.
+     * Dipakai delete() & rangeDelete().
+     */
+    private function deleteOneRecord(int $id)
+    {
+        $purchase = $this->purchaseModel->find($id);
+        if (!$purchase) {
+            return 'gagal';
+        }
+        // Soft-delete ke Tempat Sampah aman walau sudah ada penerimaan / periode
+        // terkunci (cuma set deleted_at). Gerbang hasReceipts & Tutup Bulan tetap
+        // berlaku untuk hapus per-baris lewat delete().
+        try {
+            $this->purchaseModel->deleteById($id);
+            $this->activityLog->log(
+                currentUserId(),
+                'offline_purchase',
+                'delete',
+                "Pembelian offline {$purchase['purchase_number']} dihapus"
+            );
+            return true;
+        } catch (Throwable $e) {
+            error_log('OfflinePurchase deleteOneRecord error: ' . $e->getMessage());
+            return 'gagal';
+        }
+    }
+
+    /** Hapus semua pembelian offline dalam rentang tanggal ke Tempat Sampah -- KHUSUS Super Admin. */
+    public function rangeDelete()
+    {
+        rangeDeleteGuardSuperAdmin();
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('offline_purchase', 'index');
+        }
+        verifyCsrf();
+
+        [$from, $to] = rangeDeleteReadDates();
+        if ($err = rangeDeleteValidate($from, $to)) {
+            setFlash('error', $err);
+            $this->redirect('offline_purchase', 'index');
+        }
+
+        $deleted = 0;
+        $skipped = [];
+        foreach ($this->purchaseModel->idsByDateRange('purchase_date', $from, $to) as $id) {
+            $r = $this->deleteOneRecord($id);
+            if ($r === true) {
+                $deleted++;
+            } else {
+                $skipped[$r] = ($skipped[$r] ?? 0) + 1;
+            }
+        }
+
+        rangeDeleteLog('offline_purchase', $from, $to, $deleted, array_sum($skipped));
+        rangeDeleteFlash($deleted, $skipped);
         $this->redirect('offline_purchase', 'index');
     }
 

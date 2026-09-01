@@ -1,7 +1,13 @@
 <?php
 $isEdit = $mode === 'edit';
 $actionUrl = $isEdit ? 'update' : 'store';
+// Tujuan "Client (Invoice)" hanya untuk Super Admin/Accounting/Purchase
+// (ditegakkan juga di StockOutController). Role lain: hanya Project.
+$canClientDest = $canClientDest ?? true;
 $destType = $selectedDestinationType ?? 'project';
+if (!$canClientDest) {
+    $destType = 'project';
+}
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
@@ -29,17 +35,22 @@ $destType = $selectedDestinationType ?? 'project';
             <div class="row g-3">
                 <div class="col-md-4">
                     <label class="form-label d-block">Tujuan Pengeluaran <span class="text-danger">*</span></label>
-                    <div class="btn-group w-100" role="group">
-                        <input type="radio" class="btn-check" name="destination_type" id="destTypeProject" value="project" autocomplete="off"
-                               <?= $destType === 'project' ? 'checked' : '' ?> <?= $isEdit ? 'disabled' : '' ?>>
-                        <label class="btn btn-outline-primary" for="destTypeProject">Project</label>
+                    <?php if ($canClientDest): ?>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="destination_type" id="destTypeProject" value="project" autocomplete="off"
+                                   <?= $destType === 'project' ? 'checked' : '' ?> <?= $isEdit ? 'disabled' : '' ?>>
+                            <label class="btn btn-outline-primary" for="destTypeProject">Project</label>
 
-                        <input type="radio" class="btn-check" name="destination_type" id="destTypeClient" value="client" autocomplete="off"
-                               <?= $destType === 'client' ? 'checked' : '' ?> <?= $isEdit ? 'disabled' : '' ?>>
-                        <label class="btn btn-outline-primary" for="destTypeClient">Client (Invoice)</label>
-                    </div>
-                    <?php if ($isEdit): ?>
-                        <input type="hidden" name="destination_type" value="<?= e($destType) ?>">
+                            <input type="radio" class="btn-check" name="destination_type" id="destTypeClient" value="client" autocomplete="off"
+                                   <?= $destType === 'client' ? 'checked' : '' ?> <?= $isEdit ? 'disabled' : '' ?>>
+                            <label class="btn btn-outline-primary" for="destTypeClient">Client (Invoice)</label>
+                        </div>
+                        <?php if ($isEdit): ?>
+                            <input type="hidden" name="destination_type" value="<?= e($destType) ?>">
+                        <?php endif; ?>
+                    <?php else: ?>
+                        <input type="hidden" name="destination_type" value="project">
+                        <div class="form-control bg-light d-flex align-items-center"><i class="bi bi-diagram-3 me-2"></i> Project</div>
                     <?php endif; ?>
                 </div>
                 <div class="col-md-4" id="projectFieldWrap" style="<?= $destType === 'client' ? 'display:none;' : '' ?>">
@@ -94,7 +105,7 @@ $destType = $selectedDestinationType ?? 'project';
                                 data-qty="<?= e((string) $item['qty_available']) ?>"
                                 data-unit="<?= e($item['unit']) ?>"
                                 <?= ($isEdit && (int) $stockOut['inventory_id'] === (int) $item['id']) ? 'selected' : '' ?>>
-                                <?= !empty($item['matches_invoice']) ? "\u{2605} " : '' ?><?= e($item['item_name']) ?> (stok: <?= number_format((float) $item['qty_available'], 2, ',', '.') ?> <?= e($item['unit']) ?><?php if (array_key_exists('project_name', $item)): ?>, <?= e($item['project_name'] ?: 'Stok Kantor') ?><?php endif; ?>)
+                                <?= e($item['item_name']) ?> (stok: <?= number_format((float) $item['qty_available'], 2, ',', '.') ?> <?= e($item['unit']) ?><?php if (array_key_exists('project_name', $item)): ?>, <?= e($item['project_name'] ?: 'Stok Kantor') ?><?php endif; ?>)
                             </option>
                         <?php endforeach; ?>
                         <?php if ($isEdit && !in_array($stockOut['inventory_id'], array_column($inventoryItems, 'id'))): ?>
@@ -111,11 +122,8 @@ $destType = $selectedDestinationType ?? 'project';
                     <?php endif; ?>
                     <div class="form-text" id="stockInfo">
                         <?php if (empty($inventoryItems) && !$isEdit): ?>
-                            Pilih Project atau Client (Invoice) dulu untuk melihat barang yang tersedia.
+                            Pilih <?= $canClientDest ? 'Project atau Client (Invoice)' : 'Project' ?> dulu untuk melihat barang yang tersedia.
                         <?php endif; ?>
-                    </div>
-                    <div class="form-text" id="invoiceMatchHint" style="<?= $destType === 'client' ? '' : 'display:none;' ?>">
-                        <i class="bi bi-star-fill text-warning"></i> = nama barang cocok dengan item di invoice yang dipilih.
                     </div>
                 </div>
                 <div class="col-md-4">
@@ -170,14 +178,12 @@ $destType = $selectedDestinationType ?? 'project';
     const itemSelect = document.getElementById('itemSelect');
     const qtyInput = document.getElementById('qtyInput');
     const stockInfo = document.getElementById('stockInfo');
-    const invoiceMatchHint = document.getElementById('invoiceMatchHint');
     const isEdit = <?= $isEdit ? 'true' : 'false' ?>;
 
     function applyDestinationType(type) {
         const isProject = type !== 'client';
-        projectFieldWrap.style.display = isProject ? '' : 'none';
-        invoiceFieldWrap.style.display = isProject ? 'none' : '';
-        invoiceMatchHint.style.display = isProject ? 'none' : '';
+        if (projectFieldWrap) projectFieldWrap.style.display = isProject ? '' : 'none';
+        if (invoiceFieldWrap) invoiceFieldWrap.style.display = isProject ? 'none' : '';
         if (!isEdit) {
             projectSelect.required = isProject;
             invoiceSelect.required = !isProject;
@@ -204,9 +210,8 @@ $destType = $selectedDestinationType ?? 'project';
                     opt.value = item.id;
                     opt.dataset.qty = item.qty_available;
                     opt.dataset.unit = item.unit;
-                    const star = item.matches_invoice ? '★ ' : '';
                     const origin = ('project_name' in item) ? (', ' + (item.project_name || 'Stok Kantor')) : '';
-                    opt.textContent = star + item.item_name + ' (stok: '
+                    opt.textContent = item.item_name + ' (stok: '
                         + parseFloat(item.qty_available).toLocaleString('id-ID') + ' ' + item.unit + origin + ')';
                     itemSelect.appendChild(opt);
                 });
@@ -220,10 +225,10 @@ $destType = $selectedDestinationType ?? 'project';
     // Barang untuk tujuan Client MUNCUL SEMUA barang yang ada stoknya, LINTAS
     // project & Kantor (bukan cuma Stok Kantor -- barang dari PO biasanya
     // masuk ke bucket project saat diterima, lihat Inventory::listAllWithStock()),
-    // tapi yang namanya cocok dengan item di invoice terpilih ditandai bintang
-    // & didahulukan urutannya (lihat StockOutController::markInvoiceMatches) --
-    // sengaja tidak difilter ketat karena mayoritas baris invoice teks
-    // bebas/jasa, filter ketat bikin dropdown kosong untuk hampir semua invoice.
+    // tapi yang namanya cocok dengan item di invoice terpilih DIDAHULUKAN
+    // urutannya (lihat StockOutController::markInvoiceMatches) -- sengaja tidak
+    // difilter ketat karena mayoritas baris invoice teks bebas/jasa, filter
+    // ketat bikin dropdown kosong untuk hampir semua invoice.
     function loadOfficeItems() {
         var url = '<?= BASE_URL ?>/index.php?module=stock_out&action=ajaxItemsByOffice';
         if (invoiceSelect.value) {

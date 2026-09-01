@@ -351,11 +351,60 @@ class CollectionReceiptController extends Controller
             $this->redirect('collection_receipt', 'index');
         }
 
-        // collection_receipt_items ikut terhapus via ON DELETE CASCADE -- invoice
-        // yang tadinya masuk tanda terima ini otomatis bisa dipilih lagi (isBilled()).
-        $this->receiptModel->deleteById($id);
-        $this->activityLog->log(currentUserId(), 'collection_receipt', 'delete', "Tanda Terima {$receipt['receipt_number']} dihapus");
-        setFlash('success', 'Tanda Terima berhasil dihapus.');
+        $res = $this->deleteOneRecord($id);
+        setFlash($res === true ? 'success' : 'error',
+            $res === true ? 'Tanda Terima berhasil dihapus.' : 'Gagal menghapus Tanda Terima.');
+        $this->redirect('collection_receipt', 'index');
+    }
+
+    /**
+     * Hapus 1 Tanda Terima ke Tempat Sampah (collection_receipt_items ikut via
+     * ON DELETE CASCADE -- invoice-nya bisa dipilih lagi). true = sukses.
+     */
+    private function deleteOneRecord(int $id)
+    {
+        $receipt = $this->receiptModel->find($id);
+        if (!$receipt) {
+            return 'gagal';
+        }
+        try {
+            $this->receiptModel->deleteById($id);
+            $this->activityLog->log(currentUserId(), 'collection_receipt', 'delete', "Tanda Terima {$receipt['receipt_number']} dihapus");
+            return true;
+        } catch (Throwable $e) {
+            error_log('CollectionReceipt deleteOneRecord error: ' . $e->getMessage());
+            return 'gagal';
+        }
+    }
+
+    /** Hapus semua Tanda Terima dalam rentang tanggal ke Tempat Sampah -- KHUSUS Super Admin. */
+    public function rangeDelete()
+    {
+        rangeDeleteGuardSuperAdmin();
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('collection_receipt', 'index');
+        }
+        verifyCsrf();
+
+        [$from, $to] = rangeDeleteReadDates();
+        if ($err = rangeDeleteValidate($from, $to)) {
+            setFlash('error', $err);
+            $this->redirect('collection_receipt', 'index');
+        }
+
+        $deleted = 0;
+        $skipped = [];
+        foreach ($this->receiptModel->idsByDateRange('receipt_date', $from, $to) as $id) {
+            $r = $this->deleteOneRecord($id);
+            if ($r === true) {
+                $deleted++;
+            } else {
+                $skipped[$r] = ($skipped[$r] ?? 0) + 1;
+            }
+        }
+
+        rangeDeleteLog('collection_receipt', $from, $to, $deleted, array_sum($skipped));
+        rangeDeleteFlash($deleted, $skipped);
         $this->redirect('collection_receipt', 'index');
     }
 

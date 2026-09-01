@@ -322,15 +322,72 @@ class PurchaseOrderController extends Controller
         $id = (int) ($_POST['id'] ?? 0);
         $po = $this->poModel->find($id);
 
-        if ($po) {
-            assertPeriodOpen('purchase_order', $po['po_date'], 'purchase_order', 'index');
-            $this->poModel->deleteById($id);
-            $this->historyModel->log($id, 'deleted', 'Purchase Order dihapus (soft delete)', currentUserId());
-            setFlash('success', 'Purchase Order berhasil dihapus.');
-        } else {
+        if (!$po) {
             setFlash('error', 'Purchase Order tidak ditemukan.');
+            $this->redirect('purchase_order', 'index');
         }
 
+        assertPeriodOpen('purchase_order', $po['po_date'], 'purchase_order', 'index');
+        $res = $this->deleteOneRecord($id);
+        setFlash($res === true ? 'success' : 'error',
+            $res === true ? 'Purchase Order berhasil dihapus.' : 'Gagal menghapus Purchase Order.');
+
+        $this->redirect('purchase_order', 'index');
+    }
+
+    /**
+     * Hapus 1 PO ke Tempat Sampah (dipakai delete() & rangeDelete()).
+     * Return true kalau sukses, atau string alasan skip.
+     */
+    private function deleteOneRecord(int $id)
+    {
+        $po = $this->poModel->find($id);
+        if (!$po) {
+            return 'gagal';
+        }
+        // Soft-delete ke Tempat Sampah aman walau periode terkunci / masih
+        // dirujuk dokumen lain (cuma set deleted_at, tidak melanggar FK). Gerbang
+        // Tutup Bulan tetap berlaku untuk hapus PER-BARIS lewat delete().
+        try {
+            $this->poModel->deleteById($id);
+            $this->historyModel->log($id, 'deleted', 'Purchase Order dihapus (soft delete)', currentUserId());
+            return true;
+        } catch (Throwable $e) {
+            error_log('PO deleteOneRecord error: ' . $e->getMessage());
+            return 'gagal';
+        }
+    }
+
+    /**
+     * Hapus semua PO dalam rentang tanggal ke Tempat Sampah -- KHUSUS Super Admin.
+     */
+    public function rangeDelete()
+    {
+        rangeDeleteGuardSuperAdmin();
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('purchase_order', 'index');
+        }
+        verifyCsrf();
+
+        [$from, $to] = rangeDeleteReadDates();
+        if ($err = rangeDeleteValidate($from, $to)) {
+            setFlash('error', $err);
+            $this->redirect('purchase_order', 'index');
+        }
+
+        $deleted = 0;
+        $skipped = [];
+        foreach ($this->poModel->idsByDateRange('po_date', $from, $to) as $id) {
+            $r = $this->deleteOneRecord($id);
+            if ($r === true) {
+                $deleted++;
+            } else {
+                $skipped[$r] = ($skipped[$r] ?? 0) + 1;
+            }
+        }
+
+        rangeDeleteLog('purchase_order', $from, $to, $deleted, array_sum($skipped));
+        rangeDeleteFlash($deleted, $skipped);
         $this->redirect('purchase_order', 'index');
     }
 

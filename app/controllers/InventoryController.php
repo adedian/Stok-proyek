@@ -352,66 +352,116 @@ class InventoryController extends Controller
 
         assertPeriodOpen('stock_opname', $opname['opname_date'], 'inventory', 'opnameDetail', ['id' => $id]);
 
-        if ($opname['status'] === 'completed') {
-            Middleware::requirePermission('inventory', 'delete_stock');
+        $res = $this->deleteOneOpname($id);
+        if ($res === true) {
+            setFlash('success', $opname['status'] === 'completed'
+                ? 'Stok opname berhasil dihapus. Penyesuaian stok yang sudah diterapkan telah dibatalkan.'
+                : 'Stok opname berhasil dihapus.');
+        } else {
+            setFlash('error', 'Gagal menghapus stok opname.');
+        }
 
-            $pdo = getPDO();
+        $this->redirect('inventory', 'opnameIndex');
+    }
+
+    /**
+     * Hapus 1 stok opname ke Tempat Sampah. Kalau statusnya "completed",
+     * penyesuaian stok yang dulu diterapkan dibatalkan (transaksi pembalik di
+     * stock_transactions). true = sukses, string = alasan skip. Dipakai
+     * opnameDelete() & opnameRangeDelete().
+     */
+    private function deleteOneOpname(int $id)
+    {
+        $opname = $this->opnameModel->find($id);
+        if (!$opname) {
+            return 'gagal';
+        }
+        // Soft-delete ke Tempat Sampah aman walau periode terkunci (pembatalan
+        // penyesuaian dicatat tanggal-sekarang) -- gerbang Tutup Bulan tetap
+        // berlaku untuk hapus per-baris lewat opnameDelete().
+
+        if ($opname['status'] !== 'completed') {
+            Middleware::requirePermission('inventory', 'delete');
             try {
-                $pdo->beginTransaction();
-
-                $items = $this->opnameItemModel->itemsByOpname($id);
-                foreach ($items as $item) {
-                    $difference = (float) $item['difference'];
-                    if ($difference == 0) {
-                        continue;
-                    }
-                    $inventoryItem = $this->inventoryModel->find((int) $item['inventory_id']);
-                    if (!$inventoryItem) {
-                        continue; // baris inventory-nya sendiri sudah dihapus, tidak ada yang bisa dibalik
-                    }
-                    // Balikkan selisih yang dulu diterapkan opnameComplete() (bukan reset ke
-                    // qty_system, supaya mutasi stok lain setelah opname ini tidak ikut hilang).
-                    $reverted = (float) $inventoryItem['qty_available'] - $difference;
-                    $this->inventoryModel->adjustToActual(
-                        (int) $item['inventory_id'],
-                        $reverted,
-                        'stock_opname_delete',
-                        $id,
-                        currentUserId(),
-                        "Pembatalan penyesuaian stok opname {$opname['opname_number']} (dihapus)"
-                    );
-                }
-
                 $this->opnameModel->deleteById($id);
-                $this->activityLog->log(
-                    currentUserId(),
-                    'stock_opname',
-                    'delete',
-                    "Stok opname {$opname['opname_number']} (Selesai) dihapus, penyesuaian stok dibatalkan"
-                );
-
-                $pdo->commit();
-                setFlash('success', 'Stok opname berhasil dihapus. Penyesuaian stok yang sudah diterapkan telah dibatalkan.');
+                $this->activityLog->log(currentUserId(), 'stock_opname', 'delete', "Stok opname {$opname['opname_number']} dihapus");
+                return true;
             } catch (Throwable $e) {
-                $pdo->rollBack();
-                error_log('Stock opname delete (completed) error: ' . $e->getMessage());
-                setFlash('error', 'Gagal menghapus stok opname.');
+                error_log('Stock opname deleteOne error: ' . $e->getMessage());
+                return 'gagal';
             }
+        }
 
+        Middleware::requirePermission('inventory', 'delete_stock');
+        $pdo = getPDO();
+        try {
+            $pdo->beginTransaction();
+            $items = $this->opnameItemModel->itemsByOpname($id);
+            foreach ($items as $item) {
+                $difference = (float) $item['difference'];
+                if ($difference == 0) {
+                    continue;
+                }
+                $inventoryItem = $this->inventoryModel->find((int) $item['inventory_id']);
+                if (!$inventoryItem) {
+                    continue; // baris inventory-nya sendiri sudah dihapus, tidak ada yang bisa dibalik
+                }
+                // Balikkan selisih yang dulu diterapkan opnameComplete() (bukan reset ke
+                // qty_system, supaya mutasi stok lain setelah opname ini tidak ikut hilang).
+                $reverted = (float) $inventoryItem['qty_available'] - $difference;
+                $this->inventoryModel->adjustToActual(
+                    (int) $item['inventory_id'],
+                    $reverted,
+                    'stock_opname_delete',
+                    $id,
+                    currentUserId(),
+                    "Pembatalan penyesuaian stok opname {$opname['opname_number']} (dihapus)"
+                );
+            }
+            $this->opnameModel->deleteById($id);
+            $this->activityLog->log(
+                currentUserId(),
+                'stock_opname',
+                'delete',
+                "Stok opname {$opname['opname_number']} (Selesai) dihapus, penyesuaian stok dibatalkan"
+            );
+            $pdo->commit();
+            return true;
+        } catch (Throwable $e) {
+            $pdo->rollBack();
+            error_log('Stock opname deleteOne (completed) error: ' . $e->getMessage());
+            return 'gagal';
+        }
+    }
+
+    /** Hapus semua stok opname dalam rentang tanggal ke Tempat Sampah -- KHUSUS Super Admin. */
+    public function opnameRangeDelete()
+    {
+        rangeDeleteGuardSuperAdmin();
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('inventory', 'opnameIndex');
+        }
+        verifyCsrf();
+
+        [$from, $to] = rangeDeleteReadDates();
+        if ($err = rangeDeleteValidate($from, $to)) {
+            setFlash('error', $err);
             $this->redirect('inventory', 'opnameIndex');
         }
 
-        Middleware::requirePermission('inventory', 'delete');
+        $deleted = 0;
+        $skipped = [];
+        foreach ($this->opnameModel->idsByDateRange('opname_date', $from, $to) as $id) {
+            $r = $this->deleteOneOpname($id);
+            if ($r === true) {
+                $deleted++;
+            } else {
+                $skipped[$r] = ($skipped[$r] ?? 0) + 1;
+            }
+        }
 
-        $this->opnameModel->deleteById($id);
-        $this->activityLog->log(
-            currentUserId(),
-            'stock_opname',
-            'delete',
-            "Stok opname {$opname['opname_number']} dihapus"
-        );
-        setFlash('success', 'Stok opname berhasil dihapus.');
-
+        rangeDeleteLog('stock_opname', $from, $to, $deleted, array_sum($skipped));
+        rangeDeleteFlash($deleted, $skipped);
         $this->redirect('inventory', 'opnameIndex');
     }
 

@@ -293,10 +293,63 @@ class SalesInvoiceController extends Controller
         }
 
         assertPeriodOpen('sales_invoice', $invoice['invoice_date'], 'sales_invoice', 'index');
+        $res = $this->deleteOneRecord($id);
+        setFlash($res === true ? 'success' : 'error',
+            $res === true ? 'Invoice Keluar berhasil dihapus.' : 'Gagal menghapus Invoice Keluar.');
+        $this->redirect('sales_invoice', 'index');
+    }
 
-        $this->invoiceModel->deleteById($id);
-        $this->activityLog->log(currentUserId(), 'sales_invoice', 'delete', "Invoice Keluar {$invoice['invoice_number']} dihapus");
-        setFlash('success', 'Invoice Keluar berhasil dihapus.');
+    /**
+     * Hapus 1 Invoice Keluar ke Tempat Sampah. true = sukses, string = alasan skip.
+     * Dipakai delete() & rangeDelete().
+     */
+    private function deleteOneRecord(int $id)
+    {
+        $invoice = $this->invoiceModel->find($id);
+        if (!$invoice) {
+            return 'gagal';
+        }
+        // Soft-delete ke Tempat Sampah aman walau Invoice sudah masuk Tanda
+        // Terima / periode terkunci (cuma set deleted_at). Gerbang isBilled &
+        // Tutup Bulan tetap berlaku untuk hapus per-baris lewat delete().
+        try {
+            $this->invoiceModel->deleteById($id);
+            $this->activityLog->log(currentUserId(), 'sales_invoice', 'delete', "Invoice Keluar {$invoice['invoice_number']} dihapus");
+            return true;
+        } catch (Throwable $e) {
+            error_log('SalesInvoice deleteOneRecord error: ' . $e->getMessage());
+            return 'gagal';
+        }
+    }
+
+    /** Hapus semua Invoice Keluar dalam rentang tanggal ke Tempat Sampah -- KHUSUS Super Admin. */
+    public function rangeDelete()
+    {
+        rangeDeleteGuardSuperAdmin();
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('sales_invoice', 'index');
+        }
+        verifyCsrf();
+
+        [$from, $to] = rangeDeleteReadDates();
+        if ($err = rangeDeleteValidate($from, $to)) {
+            setFlash('error', $err);
+            $this->redirect('sales_invoice', 'index');
+        }
+
+        $deleted = 0;
+        $skipped = [];
+        foreach ($this->invoiceModel->idsByDateRange('invoice_date', $from, $to) as $id) {
+            $r = $this->deleteOneRecord($id);
+            if ($r === true) {
+                $deleted++;
+            } else {
+                $skipped[$r] = ($skipped[$r] ?? 0) + 1;
+            }
+        }
+
+        rangeDeleteLog('sales_invoice', $from, $to, $deleted, array_sum($skipped));
+        rangeDeleteFlash($deleted, $skipped);
         $this->redirect('sales_invoice', 'index');
     }
 

@@ -244,8 +244,15 @@ class TrashController extends Controller
 
     /**
      * Hapus permanen SEMUA isi Tempat Sampah (opsional dibatasi module_filter).
-     * Baris yang masih dipakai transaksi lain (FK constraint) dilewati dan
-     * dihitung terpisah -- tidak menggagalkan yang lain.
+     *
+     * Dijalankan BER-RONDE sampai stabil: tiap ronde hanya menghapus baris yang
+     * saat itu tidak lagi dirujuk FK "keras". Setelah baris anak terhapus, baris
+     * INDUK-nya (mis. PO yang tadinya dirujuk Pembayaran/Penerimaan yang juga
+     * di-trash) jadi bisa dihapus di ronde berikutnya -- jadi rantai dependensi
+     * ikut bersih dalam sekali klik "Kosongkan".
+     *
+     * Sisa yang tetap tidak terhapus = baris yang masih dipakai data AKTIF
+     * (bukan sesama isi Tempat Sampah) -- dihitung sebagai "dilewati".
      */
     public function forceDeleteAll()
     {
@@ -253,28 +260,39 @@ class TrashController extends Controller
         $this->requirePost();
 
         $moduleFilter = trim($_POST['module_filter'] ?? '');
-        $deleted = 0;
-        $skipped = 0;
-
+        $selectedModules = [];
         foreach ($this->modules as $key => $cfg) {
-            if ($moduleFilter !== '' && $moduleFilter !== $key) {
-                continue;
+            if ($moduleFilter === '' || $moduleFilter === $key) {
+                $selectedModules[$key] = $cfg;
             }
-            foreach ($cfg['model']->trashedList() as $r) {
-                // Baris yang masih dirujuk transaksi lain tidak tampil di Tempat
-                // Sampah (lihat index()), jadi jangan ikut dihitung "dilewati".
-                if ($cfg['model']->isReferenced((int) $r['id'])) {
-                    continue;
-                }
-                try {
-                    $cfg['model']->forceDeleteById((int) $r['id']);
-                    $deleted++;
-                } catch (PDOException $e) {
-                    // Jaring pengaman kalau ada relasi yang lolos cek di atas
-                    // (mis. race condition) -- tetap tidak menggagalkan yang lain.
-                    $skipped++;
+        }
+
+        $totalDeleted = 0;
+        $maxRounds = 10; // cukup utk rantai FK terdalam + guard anti-infinite
+        for ($round = 0; $round < $maxRounds; $round++) {
+            $deletedThisRound = 0;
+            foreach ($selectedModules as $cfg) {
+                foreach ($cfg['model']->trashedList() as $r) {
+                    if ($cfg['model']->isReferenced((int) $r['id'])) {
+                        continue; // coba lagi ronde berikutnya kalau perujuknya keburu terhapus
+                    }
+                    try {
+                        $cfg['model']->forceDeleteById((int) $r['id']);
+                        $deletedThisRound++;
+                    } catch (PDOException $e) {
+                        // jaring pengaman race-condition -- biarkan, ronde berikutnya coba lagi
+                    }
                 }
             }
+            $totalDeleted += $deletedThisRound;
+            if ($deletedThisRound === 0) {
+                break; // tidak ada kemajuan -> sisanya memang tak bisa dihapus
+            }
+        }
+
+        $skipped = 0;
+        foreach ($selectedModules as $cfg) {
+            $skipped += count($cfg['model']->trashedList());
         }
 
         $this->activityLog->log(
@@ -282,15 +300,15 @@ class TrashController extends Controller
             'trash',
             'force_delete',
             "Kosongkan Tempat Sampah" . ($moduleFilter !== '' ? " (modul: {$moduleFilter})" : '')
-                . " -- {$deleted} dihapus permanen, {$skipped} dilewati (masih dipakai)"
+                . " -- {$totalDeleted} dihapus permanen, {$skipped} dilewati (masih dipakai data aktif)"
         );
 
-        if ($deleted === 0 && $skipped === 0) {
+        if ($totalDeleted === 0 && $skipped === 0) {
             setFlash('error', 'Tidak ada data untuk dihapus.');
         } elseif ($skipped === 0) {
-            setFlash('success', "{$deleted} data berhasil dihapus permanen.");
+            setFlash('success', "{$totalDeleted} data berhasil dihapus permanen.");
         } else {
-            setFlash('success', "{$deleted} data dihapus permanen. {$skipped} data dilewati karena masih dipakai transaksi lain.");
+            setFlash('success', "{$totalDeleted} data dihapus permanen. {$skipped} data dilewati karena masih dipakai data aktif.");
         }
 
         $this->redirect('trash', 'index', $moduleFilter !== '' ? ['module_filter' => $moduleFilter] : []);

@@ -207,6 +207,7 @@ class ReportController extends Controller
         $groups = $model->stockDetailReport($filters);
         $dateFrom = $filters['date_from'];
         $dateTo = $filters['date_to'];
+        $showPrice = $filters['show_price'];
 
         ob_start();
         require ROOT_PATH . '/app/views/report/_stock_detail_print.php';
@@ -225,6 +226,7 @@ class ReportController extends Controller
         $rows = $model->stockRecapReport($filters);
         $dateFrom = $filters['date_from'];
         $dateTo = $filters['date_to'];
+        $showPrice = $filters['show_price'];
 
         ob_start();
         require ROOT_PATH . '/app/views/report/_stock_recap_print.php';
@@ -244,7 +246,7 @@ class ReportController extends Controller
         $filters = $this->stockFilters($_GET);
         $groups = (new Inventory())->stockDetailReport($filters);
         [$companyName, $periodText] = $this->stockReportHeaderMeta($filters);
-        streamStockDetailExcel($groups, $companyName, $periodText, 'laporan_stok_detail_' . date('Ymd_His'));
+        streamStockDetailExcel($groups, $companyName, $periodText, 'laporan_stok_detail_' . date('Ymd_His'), $filters['show_price']);
     }
 
     /**
@@ -257,7 +259,7 @@ class ReportController extends Controller
         $filters = $this->stockFilters($_GET);
         $rows = (new Inventory())->stockRecapReport($filters);
         [$companyName, $periodText] = $this->stockReportHeaderMeta($filters);
-        streamStockRecapExcel($rows, $companyName, $periodText, 'laporan_stok_rekap_' . date('Ymd_His'));
+        streamStockRecapExcel($rows, $companyName, $periodText, 'laporan_stok_rekap_' . date('Ymd_His'), $filters['show_price']);
     }
 
     /**
@@ -287,6 +289,10 @@ class ReportController extends Controller
             'item_status'  => trim($get['item_status'] ?? ''),
             'date_from'    => trim($get['date_from'] ?? ''),
             'date_to'      => trim($get['date_to'] ?? ''),
+            // Tampilkan kolom "Dengan Harga" di Cetak/Export? Hanya role ber-izin
+            // (report.stock_price = Super Admin & Accounting) yang boleh; role lain
+            // SELALU tanpa harga, walau param di URL diutak-atik.
+            'show_price'   => (can('report', 'stock_price') && trim($get['show_price'] ?? '1') !== '0'),
             // Baris yang dicentang user di layar Laporan Stok Barang (pilih per barang)
             // -- divalidasi ulang di Inventory::listWithFilters() (cast ke int + AND
             // inv.id IN (...)), bukan sekadar dipercaya dari frontend.
@@ -441,6 +447,11 @@ class ReportController extends Controller
                     'inventory_kantor' => 'Inventory Kantor',
                 ];
                 $stockType = isset($stockTypeLabels[trim($get['stock_type'] ?? '')]) ? trim($get['stock_type']) : '';
+                // Toggle "Tampilkan/Tanpa harga" HANYA untuk role ber-izin
+                // (report.stock_price). Role lain: kontrol disembunyikan & output
+                // Cetak/Export dipaksa tanpa harga (lihat stockFilters()).
+                $canStockPrice = can('report', 'stock_price');
+                $showPrice = ($canStockPrice && trim($get['show_price'] ?? '1') !== '0') ? '1' : '0';
                 $filters = [
                     'project_id' => $projectId, 'keyword' => $keyword, 'stock_filter' => $stockFilter,
                     'item_status' => $itemStatus, 'date_from' => $dateFrom, 'date_to' => $dateTo,
@@ -467,8 +478,8 @@ class ReportController extends Controller
                         ['field' => 'status_label', 'label' => 'Status'],
                     ],
                     'rows' => $rows,
-                    'filterForm' => ['date' => true, 'project' => true, 'keyword' => true, 'stockStatus' => true, 'itemStatus' => true, 'stockType' => $stockTypeLabels],
-                    'filters' => compact('dateFrom', 'dateTo', 'projectId', 'keyword', 'stockFilter', 'itemStatus', 'stockType'),
+                    'filterForm' => ['date' => true, 'project' => true, 'keyword' => true, 'stockStatus' => true, 'itemStatus' => true, 'stockType' => $stockTypeLabels, 'priceMode' => $canStockPrice],
+                    'filters' => compact('dateFrom', 'dateTo', 'projectId', 'keyword', 'stockFilter', 'itemStatus', 'stockType', 'showPrice'),
                     'exportQuery' => $this->buildExportQuery($get),
                 ];
 

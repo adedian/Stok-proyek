@@ -630,14 +630,110 @@ class Inventory extends Model
     }
 
     /**
-     * Cetak Detail (Gambar 2): per barang, daftar transaksi mutasi dalam periode dengan
-     * Saldo Awal/Akhir PER TRANSAKSI langsung dari kolom qty_before/qty_after yang sudah
-     * tersimpan di stock_transactions (tidak dihitung ulang). Barang tanpa mutasi dalam
-     * periode tidak disertakan (tidak ada baris untuk dicetak).
+     * Harga satuan BELI satu transaksi MASUK, ditarik dari dokumen sumbernya
+     * (Laporan Stok Barang "Dengan Harga" -- hanya baris beli yang punya harga;
+     * Keluar/Opname/penyesuaian tidak dinilai). NULL kalau sumber tidak punya
+     * harga (mis. adjustment, stock_out, atau item tak ketemu di dokumen).
+     *
+     *   goods_receipt / goods_receipt_validation -> harga item PO / Pembelian Offline
+     *   offline_purchase                          -> offline_purchase_items.price
+     *   kas                                       -> cash_transaction_items.satuan
+     */
+    private function resolveInUnitPrice(array $t, string $itemName): ?float
+    {
+        if (($t['transaction_type'] ?? '') !== 'in') {
+            return null;
+        }
+        $ref = (string) ($t['reference_type'] ?? '');
+        $refId = (int) ($t['reference_id'] ?? 0);
+        if ($refId <= 0) {
+            return null;
+        }
+
+        if ($ref === 'goods_receipt' || $ref === 'goods_receipt_validation') {
+            $row = $this->db->fetchOne(
+                "SELECT COALESCE(poi.price, opi.price) AS price
+                   FROM goods_receipt_items gri
+                   LEFT JOIN purchase_order_items poi ON poi.id = gri.purchase_order_item_id
+                   LEFT JOIN offline_purchase_items opi ON opi.id = gri.offline_purchase_item_id
+                  WHERE gri.goods_receipt_id = :id
+                    AND COALESCE(NULLIF(gri.actual_item_name, ''), poi.item_name, opi.item_name) = :name
+               ORDER BY gri.id ASC LIMIT 1",
+                ['id' => $refId, 'name' => $itemName]
+            );
+        } elseif ($ref === 'offline_purchase') {
+            $row = $this->db->fetchOne(
+                "SELECT price FROM offline_purchase_items
+                  WHERE offline_purchase_id = :id AND item_name = :name ORDER BY id ASC LIMIT 1",
+                ['id' => $refId, 'name' => $itemName]
+            );
+        } elseif ($ref === 'kas') {
+            $row = $this->db->fetchOne(
+                "SELECT cti.satuan AS price
+                   FROM cash_transaction_items cti
+                   LEFT JOIN items it ON it.id = cti.item_id
+                  WHERE cti.cash_transaction_id = :id
+                    AND COALESCE(it.item_name, cti.uraian) = :name
+               ORDER BY cti.id ASC LIMIT 1",
+                ['id' => $refId, 'name' => $itemName]
+            );
+        } else {
+            return null;
+        }
+
+        return isset($row['price']) && $row['price'] !== null ? (float) $row['price'] : null;
+    }
+
+    /**
+     * Total nilai & qty transaksi MASUK ber-harga untuk satu barang dalam periode --
+     * dipakai kolom "Dengan Harga" di Cetak/Export REKAP (1 baris per barang).
+     * Return [totalNilai, totalQtyBerharga, hargaBeliTerakhir|null].
+     */
+    private function pricedInTotals(array $matchingIds, string $itemName, string $dateFrom, string $dateTo): array
+    {
+        $idPlaceholders = implode(',', array_fill(0, count($matchingIds), '?'));
+        $sql = "SELECT * FROM stock_transactions
+                 WHERE inventory_id IN ({$idPlaceholders}) AND transaction_type = 'in'";
+        $params = $matchingIds;
+        if ($dateFrom !== '') {
+            $sql .= " AND transaction_date >= ?";
+            $params[] = $dateFrom;
+        }
+        if ($dateTo !== '') {
+            $sql .= " AND transaction_date < DATE_ADD(?, INTERVAL 1 DAY)";
+            $params[] = $dateTo;
+        }
+        $sql .= " ORDER BY transaction_date ASC, id ASC";
+        $value = 0.0;
+        $qty = 0.0;
+        $lastPrice = null;
+        foreach ($this->db->fetchAll($sql, $params) as $t) {
+            $price = $this->resolveInUnitPrice($t, $itemName);
+            if ($price === null) {
+                continue;
+            }
+            $value += (float) $t['qty'] * $price;
+            $qty += (float) $t['qty'];
+            $lastPrice = $price;
+        }
+        return [$value, $qty, $lastPrice];
+    }
+
+    /**
+     * Cetak Detail: per barang, daftar transaksi mutasi + kolom "Dengan Harga".
+     *
+     * Angka agregat (Saldo Awal / total In / total Out / Saldo Akhir) diambil dari
+     * stockMutationReport() supaya SAMA PERSIS dengan Cetak Rekap -- baris per
+     * transaksi hanya untuk rincian, tidak lagi menentukan total.
+     *
+     * "Harga barang" = harga beli TERAKHIR yang diketahui untuk barang itu; SEMUA
+     * kolom nilai (In/Out/Saldo Akhir "Dengan Harga") dihitung atas harga tunggal
+     * ini, jadi In Total = In Qty x Harga selalu konsisten (termasuk baris masuk
+     * hasil penyesuaian/BM yang tidak punya harga sumber sendiri).
      */
     public function stockDetailReport(array $filters = []): array
     {
-        $rows = $this->listWithFilters($filters);
+        $rows = $this->stockMutationReport($filters);
         $dateFrom = $filters['date_from'] ?? '';
         $dateTo = $filters['date_to'] ?? '';
         $groups = [];
@@ -671,26 +767,58 @@ class Inventory extends Model
                 continue;
             }
 
+            // Harga barang = harga beli TERAKHIR yang diketahui (satu angka utk grup ini).
+            $itemPrice = null;
+            foreach ($transactions as $t) {
+                if ($t['transaction_type'] === 'in') {
+                    $p = $this->resolveInUnitPrice($t, $row['item_name']);
+                    if ($p !== null) {
+                        $itemPrice = $p;
+                    }
+                }
+            }
+
             $lines = [];
             foreach ($transactions as $t) {
                 $qty = (float) $t['qty'];
+                $inQty  = ($t['transaction_type'] === 'in' || ($t['transaction_type'] === 'adjustment' && $qty > 0)) ? $qty : 0.0;
+                $outQty = ($t['transaction_type'] === 'out' || ($t['transaction_type'] === 'adjustment' && $qty < 0)) ? abs($qty) : 0.0;
+                $saldoAkhirQty = (float) $t['qty_after'];
+
                 $lines[] = [
-                    'transaction_date' => $t['transaction_date'],
-                    'no_bukti'         => $this->resolveNoBukti($t),
-                    'saldo_awal'       => (float) $t['qty_before'],
-                    'in_qty'           => ($t['transaction_type'] === 'in' || ($t['transaction_type'] === 'adjustment' && $qty > 0)) ? $qty : 0.0,
-                    'out_qty'          => ($t['transaction_type'] === 'out' || ($t['transaction_type'] === 'adjustment' && $qty < 0)) ? abs($qty) : 0.0,
-                    'saldo_akhir'      => (float) $t['qty_after'],
+                    'transaction_date'  => $t['transaction_date'],
+                    'no_bukti'          => $this->resolveNoBukti($t),
+                    'saldo_awal'        => (float) $t['qty_before'],
+                    'in_qty'            => $inQty,
+                    'out_qty'           => $outQty,
+                    'saldo_akhir'       => $saldoAkhirQty,
+                    'line_price'        => $itemPrice,   // harga barang (sama utk semua baris grup)
+                    'in_value'          => ($inQty > 0 && $itemPrice !== null) ? $inQty * $itemPrice : null,
+                    'out_value'         => ($outQty > 0 && $itemPrice !== null) ? $outQty * $itemPrice : null,
+                    'saldo_akhir_price' => $itemPrice,
+                    'saldo_akhir_value' => $itemPrice !== null ? $saldoAkhirQty * $itemPrice : null,
                 ];
             }
 
+            // Agregat AUTHORITATIVE dari stockMutationReport (identik dgn Cetak Rekap).
+            $inQtyTotal  = (float) $row['mutasi_masuk'];
+            $outQtyTotal = (float) $row['mutasi_keluar'];
+            $finalSaldo  = (float) $row['saldo_akhir'];
+
             $groups[] = [
-                'item_code'    => $row['item_code'],
-                'item_name'    => $row['item_name'],
-                'unit'         => $row['unit'],
-                'project_name' => $row['project_name'],
-                'lines'        => $lines,
-                'saldo_akhir'  => (float) end($transactions)['qty_after'],
+                'item_code'         => $row['item_code'],
+                'item_name'         => $row['item_name'],
+                'unit'              => $row['unit'],
+                'project_name'      => $row['project_name'],
+                'lines'             => $lines,
+                'saldo_awal'        => (float) $row['saldo_awal'],
+                'in_qty_total'      => $inQtyTotal,
+                'in_total_value'    => $itemPrice !== null ? $inQtyTotal * $itemPrice : null,
+                'out_qty_total'     => $outQtyTotal,
+                'out_total_value'   => $itemPrice !== null ? $outQtyTotal * $itemPrice : null,
+                'saldo_akhir'       => $finalSaldo,
+                'saldo_akhir_price' => $itemPrice,
+                'saldo_akhir_value' => $itemPrice !== null ? $finalSaldo * $itemPrice : null,
             ];
         }
 
@@ -698,14 +826,30 @@ class Inventory extends Model
     }
 
     /**
-     * Cetak Rekap (Gambar 3): reuse stockMutationReport() apa adanya (rumus saldo tidak
-     * diduplikasi). Kolom pertama cetak rekap adalah "No" (nomor urut baris) -- rekap ini
-     * 1 baris = 1 barang, jadi referensi dokumen tunggal per baris tidak relevan di sini
-     * (beda dari Cetak Detail yang 1 baris = 1 transaksi, di situ "No Bukti" tetap dipakai).
+     * Cetak Rekap: 1 baris per barang. Kolom qty dari stockMutationReport();
+     * semua kolom "Dengan Harga" (In/Out/Saldo Akhir) dinilai atas HARGA BELI
+     * TERAKHIR -- angka yang SAMA dipakai Cetak Detail, jadi Total kedua laporan
+     * selalu cocok. In Total = total masuk x harga (bukan cuma bagian yang
+     * punya harga sumber).
      */
     public function stockRecapReport(array $filters = []): array
     {
-        return $this->stockMutationReport($filters);
+        $rows = $this->stockMutationReport($filters);
+        $dateFrom = trim($filters['date_from'] ?? '');
+        $dateTo   = trim($filters['date_to'] ?? '');
+
+        foreach ($rows as &$r) {
+            [, , $lastPrice] = $this->pricedInTotals(
+                $this->matchingInventoryIds($r), $r['item_name'], $dateFrom, $dateTo
+            );
+            $r['in_unit_price']     = $lastPrice;
+            $r['in_value']          = $lastPrice !== null ? (float) $r['mutasi_masuk'] * $lastPrice : null;
+            $r['out_value']         = $lastPrice !== null ? (float) $r['mutasi_keluar'] * $lastPrice : null;
+            $r['saldo_akhir_price'] = $lastPrice;
+            $r['saldo_akhir_value'] = $lastPrice !== null ? (float) $r['saldo_akhir'] * $lastPrice : null;
+        }
+        unset($r);
+        return $rows;
     }
 
     /**

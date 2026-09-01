@@ -101,6 +101,17 @@
                 </div>
             <?php endif; ?>
 
+            <?php if (!empty($filterForm['priceMode'])): ?>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted mb-1">Harga</label>
+                    <select name="show_price" class="form-select form-select-sm">
+                        <option value="1" <?= ($filters['showPrice'] ?? '1') !== '0' ? 'selected' : '' ?>>Tampilkan harga</option>
+                        <option value="0" <?= ($filters['showPrice'] ?? '1') === '0' ? 'selected' : '' ?>>Tanpa harga</option>
+                    </select>
+                    <div class="form-text">Berlaku untuk Cetak &amp; Export (tabel layar tetap tanpa harga).</div>
+                </div>
+            <?php endif; ?>
+
             <?php if (!empty($filterForm['user']) && is_array($filterForm['user'])): ?>
                 <div class="col-md-2">
                     <label class="form-label small text-muted mb-1">User</label>

@@ -91,6 +91,9 @@ return [
     // ReportController::guardReportScope().
     'report' => [
         'view' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_PROJECT_MANAGER],
+        // Boleh melihat kolom HARGA di Laporan Stok Barang (Cetak/Export) +
+        // memilih toggle Tampilkan/Tanpa harga. Role lain: output selalu tanpa harga.
+        'stock_price' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
     ],
 
     // Tutup Bulan (Laporan -> Tutup Bulan) -- SUPER ADMIN ONLY, terkunci

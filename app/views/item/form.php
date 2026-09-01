@@ -109,6 +109,10 @@ $actionUrl = $isEdit ? 'update' : 'store';
     </div>
 </form>
 
+<?php if (!$isEdit && function_exists('can') && can('master_kode', 'edit')): ?>
+    <?php require ROOT_PATH . '/app/views/partials/quick_add_prefix_modal.php'; ?>
+<?php endif; ?>
+
 <?php if (!$isEdit): ?>
 <script>
 (function () {

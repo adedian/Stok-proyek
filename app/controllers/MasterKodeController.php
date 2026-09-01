@@ -161,6 +161,45 @@ class MasterKodeController extends Controller
         $this->redirect('master_kode', 'group', ['type' => $type]);
     }
 
+    /**
+     * AJAX quick-add prefix -- dipanggil dari tombol "+" di samping dropdown
+     * "Prefix Kode" pada form Tambah Barang, supaya tidak perlu pindah ke
+     * halaman Master Kode. Balikannya dipakai JS untuk menyuntik <option> baru
+     * (butuh prefix + digit_length + next_number + master_code).
+     */
+    public function quickAddPrefix()
+    {
+        Middleware::requirePermission('master_kode', 'edit');
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->json(['errors' => ['Metode tidak diizinkan.']], 405);
+        }
+        verifyCsrf();
+
+        $type = trim($_POST['entity_type'] ?? '');
+        $meta = $this->codeConfig->entityMeta($type);
+        if (!$meta) {
+            $this->json(['errors' => ['Kelompok Master Kode tidak dikenal.']], 422);
+        }
+
+        $prefix = strtoupper(trim($_POST['prefix'] ?? ''));
+        $res = $this->codeConfig->addPrefix($type, $prefix, (int) ($_POST['digit_length'] ?? 4), currentUserId());
+        if (!$res['ok']) {
+            $this->json(['errors' => [$res['error']]], 422);
+        }
+
+        $this->activityLog->log(currentUserId(), 'master_kode', 'create',
+            "Prefix baru {$meta['label']} (quick-add dari form Barang): {$prefix}");
+
+        $cfg = $this->codeConfig->getConfigByPrefix($type, $prefix);
+        $this->json([
+            'id'           => $cfg['prefix'],
+            'label'        => $cfg['prefix'],
+            'digit_length' => (int) $cfg['digit_length'],
+            'next_number'  => (int) $cfg['next_number'],
+            'master_code'  => $cfg['master_code'] ?? '',
+        ]);
+    }
+
     /** Ubah prefix / digit satu baris. */
     public function updatePrefix()
     {

@@ -27,17 +27,27 @@ $fieldId         = $codePrefixFieldId ?? 'codePrefix';
     <div class="row g-2 align-items-end">
         <div class="col-sm-4">
             <label class="form-label small mb-1">Prefix Kode <span class="text-danger">*</span></label>
-            <select name="code_prefix" id="<?= e($fieldId) ?>" class="form-select form-select-sm js-cp-prefix"
-                    data-master="<?= e($codeMasterCode) ?>" required>
-                <?php foreach ($codePrefixes as $cfg): ?>
-                    <option value="<?= e($cfg['prefix']) ?>"
-                            data-digit="<?= (int) $cfg['digit_length'] ?>"
-                            data-next="<?= (int) $cfg['next_number'] ?>"
-                            data-master="<?= e($cfg['master_code'] ?? $codeMasterCode) ?>">
-                        <?= e($cfg['prefix']) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
+            <div class="input-group input-group-sm">
+                <select name="code_prefix" id="<?= e($fieldId) ?>" class="form-select form-select-sm js-cp-prefix"
+                        data-master="<?= e($codeMasterCode) ?>" required>
+                    <?php foreach ($codePrefixes as $cfg): ?>
+                        <option value="<?= e($cfg['prefix']) ?>"
+                                data-digit="<?= (int) $cfg['digit_length'] ?>"
+                                data-next="<?= (int) $cfg['next_number'] ?>"
+                                data-master="<?= e($cfg['master_code'] ?? $codeMasterCode) ?>">
+                            <?= e($cfg['prefix']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <?php if (function_exists('can') && can('master_kode', 'edit')): ?>
+                    <button type="button" class="btn btn-outline-secondary js-cp-add-prefix"
+                            data-entity-type="<?= e($codeEntityType) ?>"
+                            data-master="<?= e($codeMasterCode) ?>"
+                            title="Tambah prefix baru">
+                        <i class="bi bi-plus-lg"></i>
+                    </button>
+                <?php endif; ?>
+            </div>
         </div>
         <div class="col-sm-8">
             <label class="form-label small mb-1">Kode Barang <span class="text-muted">(otomatis)</span></label>

@@ -118,4 +118,20 @@ class GoodsReceipt extends Model
         return $this->db->fetchAll($sql, ['id' => $offlinePurchaseId]);
     }
 
+    /**
+     * Penerimaan Barang AKTIF (belum di-soft-delete) yang bersumber dari satu
+     * transaksi Kas -- dipakai CashController untuk mencegah edit/hapus transaksi
+     * Kas selagi barangnya sudah diterima (stok sudah dikoreksi lewat delta GR).
+     */
+    public function firstActiveByCashTransaction(int $cashTransactionId): ?array
+    {
+        $row = $this->db->fetchOne(
+            "SELECT id, receipt_number FROM goods_receipts
+              WHERE cash_transaction_id = :id AND deleted_at IS NULL
+              ORDER BY id LIMIT 1",
+            ['id' => $cashTransactionId]
+        );
+        return $row ?: null;
+    }
+
 }

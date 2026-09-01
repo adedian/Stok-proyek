@@ -111,6 +111,8 @@
             </p>
             <?php if ($receipt['receipt_type'] === 'offline_purchase'): ?>
                 <p class="gr-print-subtitle small text-muted mb-0">Dari Pembelian Offline</p>
+            <?php elseif ($receipt['receipt_type'] === 'cash'): ?>
+                <p class="gr-print-subtitle small text-muted mb-0">Dari Pembelian Kas</p>
             <?php endif; ?>
             <div>No. Penerimaan: <strong><?= e($receipt['receipt_number']) ?></strong></div>
         </div>
@@ -127,6 +129,8 @@
                     <tr><td>No. Pembelian Offline</td><td>: <?= e($receipt['po_number'] ?? '-') ?></td></tr>
                     <tr><td>Supplier</td><td>: <?= e($receipt['supplier_name'] ?? '-') ?></td></tr>
                     <tr><td>Project</td><td>: <?= e($receipt['project_name'] ?? '-') ?></td></tr>
+                <?php elseif ($receipt['receipt_type'] === 'cash'): ?>
+                    <tr><td>No. Bukti Kas</td><td>: <?= e($receipt['cash_no_bukti'] ?? ($receipt['po_number'] ?? '-')) ?></td></tr>
                 <?php else: ?>
                     <tr><td>No. PO</td><td>: <?= e($receipt['po_number'] ?? '-') ?></td></tr>
                     <tr><td>Pembuat PO</td><td>: <?= e($receipt['pembuat_po'] ?? '-') ?></td></tr>

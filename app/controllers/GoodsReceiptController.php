@@ -921,6 +921,7 @@ class GoodsReceiptController extends Controller
                     $scope
                 );
             }
+            $this->receiptItemModel->clearStockPosting((int) $item['id']);
             return;
         }
 
@@ -937,6 +938,7 @@ class GoodsReceiptController extends Controller
             currentUserId(),
             $grStockScope
         );
+        $this->receiptItemModel->clearStockPosting((int) $item['id']);
     }
 
     /**

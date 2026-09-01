@@ -228,12 +228,15 @@ class GoodsReceiptItem extends Model
         }
         if (!empty($filters['keyword'])) {
             $sql .= " AND (gr.receipt_number LIKE :kw1 OR po.po_number LIKE :kw2
-                           OR poi.item_name LIKE :kw3 OR gri.actual_item_name LIKE :kw4)";
+                           OR poi.item_name LIKE :kw3 OR gri.actual_item_name LIKE :kw4
+                           OR it.item_name LIKE :kw5 OR ct.no_bukti LIKE :kw6)";
             $kw = '%' . $filters['keyword'] . '%';
             $params['kw1'] = $kw;
             $params['kw2'] = $kw;
             $params['kw3'] = $kw;
             $params['kw4'] = $kw;
+            $params['kw5'] = $kw;
+            $params['kw6'] = $kw;
         }
 
         $sql .= " ORDER BY gr.receipt_date DESC, gri.id DESC";
@@ -247,29 +250,33 @@ class GoodsReceiptItem extends Model
     public function selisihReport(array $filters = []): array
     {
         $sql = "SELECT gri.*,
-                       COALESCE(gri.actual_item_name, poi.item_name, opi.item_name) AS item_name,
-                       COALESCE(gri.actual_unit, poi.unit, opi.unit) AS unit,
-                       COALESCE(poi.qty_order, opi.qty) AS qty_order,
+                       COALESCE(gri.actual_item_name, poi.item_name, opi.item_name, it.item_name) AS item_name,
+                       COALESCE(gri.actual_unit, poi.unit, opi.unit, cti.unit) AS unit,
+                       COALESCE(poi.qty_order, opi.qty, cti.qty) AS qty_order,
                        gr.receipt_number, gr.receipt_date, gr.purchase_order_id, gr.offline_purchase_id,
-                       COALESCE(po.po_number, op.purchase_number, '-') AS po_number,
+                       COALESCE(po.po_number, op.purchase_number, ct.no_bukti, '-') AS po_number,
                        po.pembuat_po,
-                       COALESCE(po.project_id, op.project_id, gr.project_id) AS project_id,
-                       COALESCE(s.supplier_name, op.supplier_name, gr.source_detail) AS supplier_name,
-                       COALESCE(p.project_name, p2.project_name) AS project_name
+                       COALESCE(po.project_id, op.project_id, cti.project_id, gr.project_id) AS project_id,
+                       COALESCE(s.supplier_name, op.supplier_name, cti.supplier_name, gr.source_detail) AS supplier_name,
+                       COALESCE(p.project_name, p2.project_name, p3.project_name) AS project_name
                 FROM goods_receipt_items gri
                 LEFT JOIN purchase_order_items poi ON poi.id = gri.purchase_order_item_id
                 LEFT JOIN offline_purchase_items opi ON opi.id = gri.offline_purchase_item_id
+                LEFT JOIN cash_transaction_items cti ON cti.id = gri.cash_transaction_item_id
+                LEFT JOIN items it ON it.id = cti.item_id
                 JOIN goods_receipts gr ON gr.id = gri.goods_receipt_id AND gr.deleted_at IS NULL
                 LEFT JOIN purchase_orders po ON po.id = gr.purchase_order_id
                 LEFT JOIN offline_purchases op ON op.id = gr.offline_purchase_id
+                LEFT JOIN cash_transactions ct ON ct.id = gr.cash_transaction_id
                 LEFT JOIN suppliers s ON s.id = po.supplier_id
                 LEFT JOIN projects p ON p.id = po.project_id
                 LEFT JOIN projects p2 ON p2.id = op.project_id
+                LEFT JOIN projects p3 ON p3.id = cti.project_id
                 WHERE gri.comparison_status != 'sesuai'";
         $params = [];
 
         if (!empty($filters['project_id'])) {
-            $sql .= " AND COALESCE(po.project_id, op.project_id, gr.project_id) = :project_id";
+            $sql .= " AND COALESCE(po.project_id, op.project_id, cti.project_id, gr.project_id) = :project_id";
             $params['project_id'] = $filters['project_id'];
         }
         if (!empty($filters['date_from'])) {
@@ -307,35 +314,40 @@ class GoodsReceiptItem extends Model
     public function reportRows(array $filters = []): array
     {
         $sql = "SELECT gri.id, gr.receipt_number, gr.receipt_date, gr.receipt_type, gr.stock_scope,
-                       COALESCE(po.po_number, op.purchase_number, '-') AS po_number,
+                       COALESCE(po.po_number, op.purchase_number, ct.no_bukti, '-') AS po_number,
                        po.pembuat_po,
-                       COALESCE(s.supplier_name, op.supplier_name, gr.source_detail, 'Pemakai/Internal') AS supplier_name,
-                       COALESCE(gri.actual_item_name, poi.item_name, opi.item_name) AS item_name,
-                       COALESCE(gri.actual_unit, poi.unit, opi.unit) AS unit,
+                       COALESCE(s.supplier_name, op.supplier_name, cti.supplier_name, gr.source_detail, 'Pemakai/Internal') AS supplier_name,
+                       COALESCE(gri.actual_item_name, poi.item_name, opi.item_name, it.item_name) AS item_name,
+                       COALESCE(gri.actual_unit, poi.unit, opi.unit, cti.unit) AS unit,
                        gri.qty_received, gri.comparison_status, gri.is_item_mismatch,
                        gri.validated_at, gri.stock_posted_at,
-                       COALESCE(po.project_id, op.project_id, gr.project_id) AS project_id
+                       COALESCE(po.project_id, op.project_id, cti.project_id, gr.project_id) AS project_id
                 FROM goods_receipt_items gri
                 LEFT JOIN purchase_order_items poi ON poi.id = gri.purchase_order_item_id
                 LEFT JOIN offline_purchase_items opi ON opi.id = gri.offline_purchase_item_id
+                LEFT JOIN cash_transaction_items cti ON cti.id = gri.cash_transaction_item_id
+                LEFT JOIN items it ON it.id = cti.item_id
                 JOIN goods_receipts gr ON gr.id = gri.goods_receipt_id AND gr.deleted_at IS NULL
                 LEFT JOIN purchase_orders po ON po.id = gr.purchase_order_id
                 LEFT JOIN offline_purchases op ON op.id = gr.offline_purchase_id
+                LEFT JOIN cash_transactions ct ON ct.id = gr.cash_transaction_id
                 LEFT JOIN suppliers s ON s.id = po.supplier_id
                 WHERE 1=1";
         $params = [];
 
         if (!empty($filters['project_id'])) {
-            $sql .= " AND COALESCE(po.project_id, op.project_id, gr.project_id) = :project_id";
+            $sql .= " AND COALESCE(po.project_id, op.project_id, cti.project_id, gr.project_id) = :project_id";
             $params['project_id'] = $filters['project_id'];
         }
         if (!empty($filters['keyword'])) {
-            $sql .= " AND (gr.receipt_number LIKE :kw1 OR po.po_number LIKE :kw2 OR poi.item_name LIKE :kw3 OR gri.actual_item_name LIKE :kw4)";
+            $sql .= " AND (gr.receipt_number LIKE :kw1 OR po.po_number LIKE :kw2 OR poi.item_name LIKE :kw3 OR gri.actual_item_name LIKE :kw4 OR it.item_name LIKE :kw5 OR ct.no_bukti LIKE :kw6)";
             $kw = '%' . $filters['keyword'] . '%';
             $params['kw1'] = $kw;
             $params['kw2'] = $kw;
             $params['kw3'] = $kw;
             $params['kw4'] = $kw;
+            $params['kw5'] = $kw;
+            $params['kw6'] = $kw;
         }
         if (!empty($filters['date_from'])) {
             $sql .= " AND gr.receipt_date >= :date_from";
@@ -396,6 +408,20 @@ class GoodsReceiptItem extends Model
     public function markStockPosted(int $id, bool $posted): void
     {
         $this->updateById($id, ['stock_posted_at' => $posted ? date('Y-m-d H:i:s') : null]);
+    }
+
+    /**
+     * Nolkan semua penanda posting stok (stock_posted_at + stock_delta_applied)
+     * setelah efek stok item ini dibalik saat GR diedit/dihapus. Supaya kalau GR
+     * dipulihkan dari Tempat Sampah, item mulai "belum divalidasi" lagi dan
+     * kredit stoknya dihitung ulang dari nol (bukan pakai delta basi).
+     */
+    public function clearStockPosting(int $id): void
+    {
+        $this->db->query(
+            "UPDATE goods_receipt_items SET stock_posted_at = NULL, stock_delta_applied = NULL WHERE id = :id",
+            ['id' => $id]
+        );
     }
 
     /**

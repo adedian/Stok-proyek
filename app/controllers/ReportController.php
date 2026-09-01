@@ -432,9 +432,19 @@ class ReportController extends Controller
                 $model = new Inventory();
                 $stockFilter = trim($get['stock_filter'] ?? '');
                 $itemStatus = trim($get['item_status'] ?? '');
+                // Filter Kategori (jenis stok) -- HANYA memengaruhi tampilan layar,
+                // TIDAK ikut ke Cetak/Export (stockFilters() & buildExportQuery()
+                // sengaja tidak membawa 'stock_type').
+                $stockTypeLabels = [
+                    'stok_proyek'      => 'Stok Proyek',
+                    'stok_lampu'       => 'Stok Lampu',
+                    'inventory_kantor' => 'Inventory Kantor',
+                ];
+                $stockType = isset($stockTypeLabels[trim($get['stock_type'] ?? '')]) ? trim($get['stock_type']) : '';
                 $filters = [
                     'project_id' => $projectId, 'keyword' => $keyword, 'stock_filter' => $stockFilter,
                     'item_status' => $itemStatus, 'date_from' => $dateFrom, 'date_to' => $dateTo,
+                    'stock_type' => $stockType,
                 ];
                 $rows = $model->stockMutationReport($filters);
                 foreach ($rows as &$r) {
@@ -457,8 +467,8 @@ class ReportController extends Controller
                         ['field' => 'status_label', 'label' => 'Status'],
                     ],
                     'rows' => $rows,
-                    'filterForm' => ['date' => true, 'project' => true, 'keyword' => true, 'stockStatus' => true, 'itemStatus' => true],
-                    'filters' => compact('dateFrom', 'dateTo', 'projectId', 'keyword', 'stockFilter', 'itemStatus'),
+                    'filterForm' => ['date' => true, 'project' => true, 'keyword' => true, 'stockStatus' => true, 'itemStatus' => true, 'stockType' => $stockTypeLabels],
+                    'filters' => compact('dateFrom', 'dateTo', 'projectId', 'keyword', 'stockFilter', 'itemStatus', 'stockType'),
                     'exportQuery' => $this->buildExportQuery($get),
                 ];
 
@@ -702,7 +712,9 @@ class ReportController extends Controller
     private function buildExportQuery(array $get): string
     {
         $params = $get;
-        unset($params['module'], $params['action'], $params['type']);
+        // 'stock_type' = filter Kategori Laporan Stok Barang: sengaja TIDAK ikut
+        // ke tombol Cetak/Export supaya cetak & ekspor selalu lengkap semua jenis stok.
+        unset($params['module'], $params['action'], $params['type'], $params['stock_type']);
         $query = http_build_query($params);
         return $query ? '&' . $query : '';
     }

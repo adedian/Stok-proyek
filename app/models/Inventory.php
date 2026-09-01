@@ -388,6 +388,14 @@ class Inventory extends Model
             $sql .= " AND inv.stock_scope = :stock_scope";
             $params['stock_scope'] = $filters['stock_scope'];
         }
+        // Filter Kategori (jenis stok master Barang: stok_proyek / stok_lampu /
+        // inventory_kantor). Dipakai HANYA di tampilan layar Laporan Stok Barang
+        // (ReportController::buildReport 'inventory') -- stockFilters() untuk
+        // Cetak/Export TIDAK mengirim key ini, jadi cetak & ekspor tak terpengaruh.
+        if (!empty($filters['stock_type'])) {
+            $sql .= " AND i.stock_type = :stock_type";
+            $params['stock_type'] = $filters['stock_type'];
+        }
         if (!empty($filters['keyword'])) {
             $sql .= " AND inv.item_name LIKE :kw";
             $params['kw'] = '%' . $filters['keyword'] . '%';

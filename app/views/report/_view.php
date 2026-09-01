@@ -88,6 +88,19 @@
                 </div>
             <?php endif; ?>
 
+            <?php if (!empty($filterForm['stockType']) && is_array($filterForm['stockType'])): ?>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted mb-1">Kategori</label>
+                    <select name="stock_type" class="form-select form-select-sm">
+                        <option value="">Semua</option>
+                        <?php foreach ($filterForm['stockType'] as $key => $label): ?>
+                            <option value="<?= e($key) ?>" <?= ($filters['stockType'] ?? '') === $key ? 'selected' : '' ?>><?= e($label) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <div class="form-text">Hanya menyaring tampilan; Cetak &amp; Export tetap semua kategori.</div>
+                </div>
+            <?php endif; ?>
+
             <?php if (!empty($filterForm['user']) && is_array($filterForm['user'])): ?>
                 <div class="col-md-2">
                     <label class="form-label small text-muted mb-1">User</label>

@@ -459,10 +459,13 @@ class ReportController extends Controller
                 ];
                 $rows = $model->stockMutationReport($filters);
                 foreach ($rows as &$r) {
-                    $qty = (float) $r['qty_available'];
+                    // Status = level ITEM (total lintas project) -- definisi sama
+                    // dengan alert "Stok Minimum" Dashboard & halaman Stok Barang.
+                    $tot = (float) ($r['item_total_available'] ?? $r['qty_available']);
                     $min = (float) $r['min_stock'];
-                    $r['status_label'] = $qty <= 0 ? 'Habis' : ($qty <= $min ? 'Minimum' : 'Aman');
+                    $r['status_label'] = $tot <= 0 ? 'Habis' : ($min > 0 && $tot <= $min ? 'Minimum' : 'Aman');
                 }
+                unset($r);
                 return [
                     'title' => 'Laporan Stok Barang',
                     'columns' => [

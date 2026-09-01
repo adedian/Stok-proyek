@@ -87,7 +87,7 @@
                     </div>
                 <?php else: ?>
                     <?php foreach ($topbarAlerts as $alert): ?>
-                        <a href="<?= BASE_URL ?>/<?= e($alert['module']) ?>" class="topbar-dropdown-item">
+                        <a href="<?= e($alert['url'] ?? (BASE_URL . '/' . ($alert['module'] ?? 'dashboard'))) ?>" class="topbar-dropdown-item">
                             <span class="item-icon bg-<?= e($alert['variant']) ?>-subtle text-<?= e($alert['variant']) ?>">
                                 <i class="bi <?= e($alert['icon']) ?>"></i>
                             </span>

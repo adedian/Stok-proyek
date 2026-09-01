@@ -12,18 +12,20 @@
 
 <?php
     $alertCards = [];
-    if ($notifFlags['selisih_barang'] && !empty($stats['selisih_belum_validasi']) && hasRole([ROLE_SUPER_ADMIN, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT])) {
+    // Audiens tiap alert dibatasi ke role yang BENAR-BENAR bisa membuka halaman
+    // tujuannya (lihat config/permissions.php) -- supaya tombolnya tidak 403.
+    if ($notifFlags['selisih_barang'] && !empty($stats['selisih_belum_validasi']) && hasRole([ROLE_SUPER_ADMIN, ROLE_ACCOUNTING, ROLE_PIC_PROJECT])) {
         $alertCards[] = [
             'variant' => 'warning', 'icon' => 'bi-exclamation-triangle-fill', 'title' => 'Selisih Barang',
             'desc'    => (int) $stats['selisih_belum_validasi'] . ' item penerimaan barang dengan selisih belum divalidasi.',
             'url'     => route('validation'), 'cta' => 'Validasi Sekarang',
         ];
     }
-    if ($notifFlags['stok_minimum'] && !empty($belowMinStockItems) && hasRole([ROLE_SUPER_ADMIN, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT])) {
+    if ($notifFlags['stok_minimum'] && !empty($belowMinStockItems) && hasRole([ROLE_SUPER_ADMIN, ROLE_ACCOUNTING])) {
         $alertCards[] = [
             'variant' => 'danger', 'icon' => 'bi-exclamation-octagon-fill', 'title' => 'Stok Minimum',
             'desc'    => count($belowMinStockItems) . ' barang dengan stok di bawah batas minimum.',
-            'url'     => route('master_data'), 'cta' => 'Lihat Barang',
+            'url'     => route('inventory', 'index', ['stock_filter' => 'low']), 'cta' => 'Lihat Stok Barang',
         ];
     }
     if ($notifFlags['po_belum_diproses'] && !empty($stats['po_belum_diproses']) && hasRole([ROLE_SUPER_ADMIN, ROLE_ACCOUNTING, ROLE_PURCHASE])) {
@@ -74,7 +76,7 @@
         ['icon' => 'bi-clipboard-data', 'color' => 'info', 'label' => 'Stok Tersedia', 'breakdown' => $stats['stok_tersedia_per_satuan'],
             'url' => route('inventory')],
     ];
-    if ($notifFlags['invoice_pending']) {
+    if ($notifFlags['invoice_pending'] && hasRole([ROLE_SUPER_ADMIN, ROLE_ACCOUNTING])) {
         $kpis[] = ['icon' => 'bi-receipt', 'color' => 'purple', 'label' => 'Invoice Belum Tertagih', 'value' => (int) $stats['invoice_pending'],
             'url' => route('sales_invoice', 'index', ['billing_status' => 'belum_tertagih'])];
     }

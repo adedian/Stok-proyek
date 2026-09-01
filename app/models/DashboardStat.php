@@ -153,26 +153,41 @@ class DashboardStat
         $settingModel = new SystemSetting();
         $items = [];
 
-        if ($settingModel->getBool('notify_selisih_barang', true) && hasRole([ROLE_SUPER_ADMIN, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT])) {
+        // Audiens tiap peringatan = role yang BENAR-BENAR bisa membuka halaman
+        // tujuannya (config/permissions.php) -- konsisten dg kartu alert di
+        // dashboard/index.php supaya link tidak pernah 403.
+        if ($settingModel->getBool('notify_selisih_barang', true) && hasRole([ROLE_SUPER_ADMIN, ROLE_ACCOUNTING, ROLE_PIC_PROJECT])) {
             $count = $this->barangSelisihBelumValidasi();
             if ($count > 0) {
                 $items[] = [
                     'icon' => 'bi-exclamation-triangle-fill', 'variant' => 'warning',
                     'title' => 'Selisih Barang',
-                    'desc' => "{$count} item penerimaan barang belum divalidasi.",
-                    'module' => 'validation',
+                    'desc' => "{$count} item penerimaan barang dengan selisih belum divalidasi.",
+                    'url' => route('validation'),
                 ];
             }
         }
 
-        if ($settingModel->getBool('notify_stok_minimum', true) && hasRole([ROLE_SUPER_ADMIN, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT])) {
+        if ($settingModel->getBool('notify_invoice_pending', true) && hasRole([ROLE_SUPER_ADMIN, ROLE_ACCOUNTING])) {
+            $count = $this->invoiceBelumTertagih();
+            if ($count > 0) {
+                $items[] = [
+                    'icon' => 'bi-receipt', 'variant' => 'info',
+                    'title' => 'Invoice Belum Tertagih',
+                    'desc' => "{$count} Invoice Keluar belum ada Tanda Terima.",
+                    'url' => route('sales_invoice', 'index', ['billing_status' => 'belum_tertagih']),
+                ];
+            }
+        }
+
+        if ($settingModel->getBool('notify_stok_minimum', true) && hasRole([ROLE_SUPER_ADMIN, ROLE_ACCOUNTING])) {
             $count = (new Item())->belowMinStockCount();
             if ($count > 0) {
                 $items[] = [
                     'icon' => 'bi-exclamation-octagon-fill', 'variant' => 'danger',
                     'title' => 'Stok Minimum',
-                    'desc' => "{$count} barang di bawah stok minimum.",
-                    'module' => 'master_data',
+                    'desc' => "{$count} barang dengan stok di bawah batas minimum.",
+                    'url' => route('inventory', 'index', ['stock_filter' => 'low']),
                 ];
             }
         }
@@ -183,8 +198,8 @@ class DashboardStat
                 $items[] = [
                     'icon' => 'bi-hourglass-split', 'variant' => 'info',
                     'title' => 'PO Belum Diproses',
-                    'desc' => "{$count} Purchase Order menunggu approval.",
-                    'module' => 'purchase_order',
+                    'desc' => "{$count} Purchase Order masih menunggu approval.",
+                    'url' => route('purchase_order', 'index', ['status' => 'waiting_approval']),
                 ];
             }
         }

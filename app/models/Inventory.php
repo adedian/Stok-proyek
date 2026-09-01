@@ -372,8 +372,11 @@ class Inventory extends Model
         // NULL) supaya tidak ujug-ujug jadi 0 tanpa alasan. ROOT FIX: sinkronkan
         // Stok Minimum di semua halaman (Stok Barang, Kartu Stok, Laporan Stok
         // Barang) ke satu sumber kebenaran yang sama dengan Master Data & Dashboard.
-        $sql = "SELECT inv.*, p.project_name, i.item_code,
-                       COALESCE(i.min_stock, inv.min_stock, 0) AS min_stock
+        $sql = "SELECT inv.*, p.project_name, i.item_code, i.status AS item_status,
+                       COALESCE(i.min_stock, inv.min_stock, 0) AS min_stock,
+                       (SELECT COALESCE(SUM(inv2.qty_available), 0)
+                          FROM inventory inv2
+                         WHERE inv2.item_name = inv.item_name AND inv2.deleted_at IS NULL) AS item_total_available
                 FROM inventory inv
                 LEFT JOIN projects p ON p.id = inv.project_id
                 LEFT JOIN items i ON i.item_name = inv.item_name AND i.deleted_at IS NULL
@@ -400,14 +403,27 @@ class Inventory extends Model
             $sql .= " AND inv.item_name LIKE :kw";
             $params['kw'] = '%' . $filters['keyword'] . '%';
         }
-        // 'low'/'empty' dipakai Kartu Stok realtime (InventoryController) -- JANGAN diubah.
         // 'zero'/'nonzero' khusus Laporan Stok Barang (requirement filter "Stok = 0"/"Stok != 0").
         if (($filters['stock_filter'] ?? '') === 'low') {
-            // Pakai ekspresi yang sama dengan kolom min_stock di SELECT (COALESCE ke
-            // master Barang) -- alias SELECT tidak bisa dipakai di WHERE di MySQL.
-            $sql .= " AND inv.qty_available <= COALESCE(i.min_stock, inv.min_stock, 0) AND inv.qty_available > 0";
+            // "Stok Minimum" -- DEFINISI SAMA dengan alert Dashboard
+            // (Item::belowMinStockList): TOTAL stok barang ini LINTAS PROJECT
+            // 0 < total <= min_stock master, barang AKTIF & min_stock > 0.
+            // Barang yang sudah HABIS (total <= 0) TIDAK termasuk di sini
+            // (itu kategori terpisah). Diselaraskan supaya Dashboard, Stok
+            // Barang, dan Laporan Stok Barang menghitung hal yang sama.
+            $sql .= " AND i.status = 'active' AND i.min_stock > 0
+                      AND (SELECT COALESCE(SUM(inv3.qty_available), 0)
+                             FROM inventory inv3
+                            WHERE inv3.item_name = inv.item_name AND inv3.deleted_at IS NULL) > 0
+                      AND (SELECT COALESCE(SUM(inv4.qty_available), 0)
+                             FROM inventory inv4
+                            WHERE inv4.item_name = inv.item_name AND inv4.deleted_at IS NULL) <= i.min_stock";
         } elseif (($filters['stock_filter'] ?? '') === 'empty') {
-            $sql .= " AND inv.qty_available <= 0"; // perilaku asli Kartu Stok realtime, JANGAN diubah
+            // "Stok Habis" -- juga level ITEM (total lintas project habis),
+            // konsisten dengan badge status di halaman Stok Barang.
+            $sql .= " AND (SELECT COALESCE(SUM(inv3.qty_available), 0)
+                             FROM inventory inv3
+                            WHERE inv3.item_name = inv.item_name AND inv3.deleted_at IS NULL) <= 0";
         } elseif (($filters['stock_filter'] ?? '') === 'zero') {
             $sql .= " AND inv.qty_available = 0";
         } elseif (($filters['stock_filter'] ?? '') === 'nonzero') {

@@ -107,16 +107,25 @@ class Item extends Model
      * inventory, dicocokkan lewat nama barang -- items & inventory tidak
      * di-FK-kan langsung, lihat catatan phase Master Data) sudah di bawah min_stock.
      */
+    /**
+     * Barang AKTIF ber-min_stock yang total stoknya (dijumlah lintas project dari
+     * tabel inventory) berada di rentang 0 < total <= min_stock. Barang yang
+     * sudah HABIS (total <= 0) TIDAK termasuk -- hanya yang benar-benar
+     * "menipis" yang dialertkan. HARUS sudah pernah masuk stok (JOIN inventory)
+     * supaya angka Dashboard cocok 1:1 dengan halaman Stok Barang (filter
+     * "Stok Minimum") yang memang hanya menampilkan stok yang ada.
+     */
     public function belowMinStockCount(): int
     {
         $result = $this->db->fetchOne(
             "SELECT COUNT(*) AS total FROM (
                 SELECT i.id
                 FROM items i
-                LEFT JOIN inventory inv ON inv.item_name = i.item_name AND inv.deleted_at IS NULL
+                JOIN inventory inv ON inv.item_name = i.item_name AND inv.deleted_at IS NULL
                 WHERE i.deleted_at IS NULL AND i.status = 'active' AND i.min_stock > 0
                 GROUP BY i.id, i.min_stock
-                HAVING COALESCE(SUM(inv.qty_available), 0) <= i.min_stock
+                HAVING COALESCE(SUM(inv.qty_available), 0) > 0
+                   AND COALESCE(SUM(inv.qty_available), 0) <= i.min_stock
             ) t"
         );
         return (int) ($result['total'] ?? 0);
@@ -128,10 +137,10 @@ class Item extends Model
             "SELECT i.item_name, i.min_stock, u.unit_name, COALESCE(SUM(inv.qty_available), 0) AS total_qty
              FROM items i
              JOIN units u ON u.id = i.unit_id
-             LEFT JOIN inventory inv ON inv.item_name = i.item_name AND inv.deleted_at IS NULL
+             JOIN inventory inv ON inv.item_name = i.item_name AND inv.deleted_at IS NULL
              WHERE i.deleted_at IS NULL AND i.status = 'active' AND i.min_stock > 0
              GROUP BY i.id, i.item_name, i.min_stock, u.unit_name
-             HAVING total_qty <= i.min_stock
+             HAVING total_qty > 0 AND total_qty <= i.min_stock
              ORDER BY i.item_name ASC"
         );
     }

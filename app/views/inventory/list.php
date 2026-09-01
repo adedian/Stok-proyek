@@ -82,9 +82,12 @@
                         <?php
                             $qty = (float) $item['qty_available'];
                             $min = (float) $item['min_stock'];
-                            if ($qty <= 0) {
+                            // Status barang = level ITEM (total lintas project), sama
+                            // dengan definisi alert "Stok Minimum" di Dashboard.
+                            $itemTotal = (float) ($item['item_total_available'] ?? $qty);
+                            if ($itemTotal <= 0) {
                                 $badge = ['bg-danger', 'Habis'];
-                            } elseif ($qty <= $min) {
+                            } elseif ($min > 0 && $itemTotal <= $min) {
                                 $badge = ['bg-warning text-dark', 'Minimum'];
                             } else {
                                 $badge = ['bg-success', 'Aman'];

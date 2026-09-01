@@ -24,7 +24,7 @@
     <div class="card-body">
         <form method="POST" action="<?= BASE_URL ?>/index.php?module=user_pic&action=store" class="row g-2 align-items-end">
             <?= csrfField() ?>
-            <div class="col-md-5">
+            <div class="col-md-6">
                 <label class="form-label small text-muted mb-1">User</label>
                 <select name="user_id" class="form-select form-select-sm" required>
                     <option value="">-- Pilih User --</option>
@@ -33,12 +33,27 @@
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="col-md-5">
+            <div class="col-md-6">
                 <label class="form-label small text-muted mb-1">Nama PIC</label>
                 <input type="text" name="pic_name" class="form-control form-control-sm" placeholder="mis. Andi" required>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-3">
+                <label class="form-label small text-muted mb-1">Username Kas <span class="text-muted">(opsional)</span></label>
+                <input type="text" name="pic_username" class="form-control form-control-sm" autocomplete="off">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small text-muted mb-1">Password Kas</label>
+                <input type="password" name="kas_password" class="form-control form-control-sm" minlength="6" autocomplete="new-password" required>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small text-muted mb-1">Konfirmasi Password</label>
+                <input type="password" name="kas_password_confirm" class="form-control form-control-sm" minlength="6" autocomplete="new-password" required>
+            </div>
+            <div class="col-md-3">
                 <button type="submit" class="btn btn-sm btn-primary w-100"><i class="bi bi-plus-circle"></i> Tambah</button>
+            </div>
+            <div class="col-12">
+                <div class="form-text">Password Kas wajib (min. 6 karakter) &mdash; PIC baru langsung aktif &amp; siap dipakai verifikasi Kas. Username Kas bisa dikosongkan dan di-set nanti lewat tombol <i class="bi bi-key"></i>.</div>
             </div>
         </form>
     </div>

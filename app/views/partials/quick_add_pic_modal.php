@@ -34,10 +34,28 @@ $__activeUsers = $__isSA ? (new User())->activeList() : [];
                     <?php else: ?>
                         <div class="form-text mb-2">PIC baru akan dikaitkan ke akun Anda (<?= e(currentUserName()) ?>).</div>
                     <?php endif; ?>
-                    <div class="mb-1">
+                    <div class="mb-2">
                         <label class="form-label">Nama PIC <span class="text-danger">*</span></label>
                         <input type="text" name="pic_name" class="form-control" placeholder="mis. Andi" required>
                     </div>
+                    <div class="mb-2">
+                        <label class="form-label">Username Kas <span class="text-muted">(opsional)</span></label>
+                        <input type="text" name="pic_username" class="form-control" autocomplete="off"
+                               placeholder="untuk login modul Kas (boleh dikosongkan)">
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-sm-6">
+                            <label class="form-label">Password Kas <span class="text-danger">*</span></label>
+                            <input type="password" name="kas_password" class="form-control" minlength="6"
+                                   autocomplete="new-password" required>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label">Konfirmasi Password <span class="text-danger">*</span></label>
+                            <input type="password" name="kas_password_confirm" class="form-control" minlength="6"
+                                   autocomplete="new-password" required>
+                        </div>
+                    </div>
+                    <div class="form-text">Password Kas dipakai role ber-scope untuk verifikasi saat membuka modul Kas. Minimal 6 karakter. PIC baru langsung berstatus aktif.</div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Batal</button>

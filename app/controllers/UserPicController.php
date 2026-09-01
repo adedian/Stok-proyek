@@ -94,6 +94,11 @@ class UserPicController extends Controller
         $this->redirect('user_pic', 'index');
     }
 
+    /**
+     * Tambah PIC dari halaman Master Data > PIC Kas. Sama seperti quick-add di
+     * form Kas: mapping user->PIC + kredensial login Kas (Username Kas opsional,
+     * Password Kas wajib, status aktif) dibuat sekaligus.
+     */
     public function store()
     {
         Middleware::requirePermission('user_pic', 'create');
@@ -102,38 +107,24 @@ class UserPicController extends Controller
         }
         verifyCsrf();
 
-        $userId  = (int) ($_POST['user_id'] ?? 0);
-        $picName = trim($_POST['pic_name'] ?? '');
-
-        $errors = [];
-        if ($userId <= 0 || !$this->userModel->find($userId)) {
-            $errors[] = 'User wajib dipilih.';
-        }
-        if ($picName === '') {
-            $errors[] = 'Nama PIC wajib diisi.';
-        } elseif ($userId > 0 && $this->picModel->exists($userId, $picName)) {
-            $errors[] = 'Mapping user + PIC ini sudah ada.';
-        }
-
+        [$id, $errors] = $this->createPicWithCredential((int) ($_POST['user_id'] ?? 0), $_POST);
         if (!empty($errors)) {
             setFlash('error', implode(' ', $errors));
             $this->redirect('user_pic', 'index');
         }
 
-        $this->picModel->create([
-            'user_id'    => $userId,
-            'pic_name'   => $picName,
-            'created_by' => currentUserId(),
-        ]);
-        $this->activityLog->log(currentUserId(), 'user_pic', 'create', "PIC '{$picName}' dikaitkan ke user #{$userId}");
-        setFlash('success', 'Mapping PIC berhasil ditambahkan.');
+        $picName = trim($_POST['pic_name'] ?? '');
+        $this->activityLog->log(currentUserId(), 'user_pic', 'create', "PIC '{$picName}' + kredensial Kas dikaitkan ke user #" . (int) ($_POST['user_id'] ?? 0));
+        setFlash('success', 'PIC berhasil ditambahkan.');
         $this->redirect('user_pic', 'index');
     }
 
     /**
-     * AJAX quick-add dari form Kas. Menambah 1 mapping user->PIC.
-     * Super Admin boleh memilih user tujuan; role lain dipaksa ke akunnya
-     * sendiri (tidak percaya user_id dari POST).
+     * AJAX quick-add dari form Kas. Menambah 1 mapping user->PIC SEKALIGUS
+     * kredensial login Kas (Username Kas opsional + Password Kas wajib, status
+     * aktif) -- jadi PIC baru langsung siap dipakai role ber-scope untuk
+     * verifikasi Kas. Super Admin boleh memilih user tujuan; role lain dipaksa
+     * ke akunnya sendiri (tidak percaya user_id dari POST).
      */
     public function quickStore()
     {
@@ -144,33 +135,61 @@ class UserPicController extends Controller
         }
         verifyCsrf();
 
-        $picName = trim($_POST['pic_name'] ?? '');
-        $userId  = currentUserRole() === ROLE_SUPER_ADMIN
+        $userId = currentUserRole() === ROLE_SUPER_ADMIN
             ? (int) ($_POST['user_id'] ?? 0)
             : (int) currentUserId();
 
+        [$id, $errors] = $this->createPicWithCredential($userId, $_POST);
+        if (!empty($errors)) {
+            $this->json(['errors' => $errors], 422);
+        }
+
+        $picName = trim($_POST['pic_name'] ?? '');
+        $this->activityLog->log(currentUserId(), 'user_pic', 'quick_add', "PIC '{$picName}' + kredensial Kas dikaitkan ke user #{$userId} (cepat dari form Kas)");
+
+        // value & label dropdown PIC di form Kas = nama PIC itu sendiri.
+        $this->json(['id' => $picName, 'label' => $picName]);
+    }
+
+    /**
+     * Validasi + buat 1 mapping user->PIC beserta kredensial login Kas.
+     * Return [?int $newId, string[] $errors]. Dipakai store() & quickStore().
+     */
+    private function createPicWithCredential(int $userId, array $post): array
+    {
+        $picName  = trim($post['pic_name'] ?? '');
+        $username = trim($post['pic_username'] ?? '');
+        $pass     = (string) ($post['kas_password'] ?? '');
+        $passConf = (string) ($post['kas_password_confirm'] ?? '');
+
         $errors = [];
         if ($userId <= 0 || !$this->userModel->find($userId)) {
-            $errors[] = 'User tidak valid.';
+            $errors[] = 'User wajib dipilih.';
         }
         if ($picName === '') {
             $errors[] = 'Nama PIC wajib diisi.';
         } elseif ($userId > 0 && $this->picModel->exists($userId, $picName)) {
             $errors[] = 'Mapping user + PIC ini sudah ada.';
         }
+        if (mb_strlen($pass) < 6) {
+            $errors[] = 'Password Kas minimal 6 karakter.';
+        } elseif ($pass !== $passConf) {
+            $errors[] = 'Konfirmasi Password Kas tidak cocok.';
+        }
+        if ($username !== '' && $this->picModel->picUsernameExists($username)) {
+            $errors[] = 'Username Kas sudah dipakai mapping lain.';
+        }
         if (!empty($errors)) {
-            $this->json(['errors' => $errors], 422);
+            return [null, $errors];
         }
 
-        $this->picModel->create([
+        $id = $this->picModel->create([
             'user_id'    => $userId,
             'pic_name'   => $picName,
             'created_by' => currentUserId(),
         ]);
-        $this->activityLog->log(currentUserId(), 'user_pic', 'quick_add', "PIC '{$picName}' dikaitkan ke user #{$userId} (cepat dari form Kas)");
-
-        // value & label dropdown PIC di form Kas = nama PIC itu sendiri.
-        $this->json(['id' => $picName, 'label' => $picName]);
+        $this->picModel->setCredential($id, $username ?: null, password_hash($pass, PASSWORD_DEFAULT), true);
+        return [$id, []];
     }
 
     public function delete()

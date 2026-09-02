@@ -80,8 +80,10 @@
         $kpis[] = ['icon' => 'bi-receipt', 'color' => 'purple', 'label' => 'Invoice Belum Tertagih', 'value' => (int) $stats['invoice_pending'],
             'url' => route('sales_invoice', 'index', ['billing_status' => 'belum_tertagih'])];
     }
-    $kpis[] = ['icon' => 'bi-shop', 'color' => 'brand', 'label' => 'Pembelian Offline', 'value' => (int) $stats['pembelian_offline'],
-        'url' => route('offline_purchase')];
+    if (can('offline_purchase', 'view')) {
+        $kpis[] = ['icon' => 'bi-shop', 'color' => 'brand', 'label' => 'Pembelian Offline', 'value' => (int) $stats['pembelian_offline'],
+            'url' => route('offline_purchase')];
+    }
     if ($paymentProgress !== null) {
         $kpis[] = [
             'icon' => 'bi-credit-card', 'color' => 'purple', 'label' => 'Sisa Tagihan PO',

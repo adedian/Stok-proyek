@@ -20,6 +20,12 @@ if (!hasRole([ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING])) {
     $reports = array_values(array_filter($reports, fn($r) => $r['key'] === 'inventory'));
 }
 
+// Laporan Pembelian Offline hanya untuk yang punya akses modul Pembelian Offline
+// (ditegakkan juga di ReportController::offlinePurchase()).
+if (!can('offline_purchase', 'view')) {
+    $reports = array_values(array_filter($reports, fn($r) => $r['key'] !== 'offlinePurchase'));
+}
+
 // Tutup Bulan -- kartu khusus (Super Admin), menautkan ke modul period_lock.
 if (can('period_lock', 'view')) {
     $reports[] = ['key' => 'periodLock', 'label' => 'Tutup Bulan', 'icon' => 'bi-lock', 'url' => route('period_lock')];

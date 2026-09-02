@@ -337,6 +337,13 @@ class ReportController extends Controller
         $keyword = trim($get['keyword'] ?? '');
         $status = trim($get['status'] ?? '');
 
+        // Laporan Pembelian Offline (layar + Export Excel/PDF) hanya untuk yang
+        // punya akses modul Pembelian Offline -- guardReportScope() cuma menyaring
+        // per-role, Purchase/Accounting lolos di situ padahal aksesnya bisa dicabut.
+        if ($type === 'offlinePurchase' && !can('offline_purchase', 'view')) {
+            denyAccess('Tidak punya akses modul Pembelian Offline');
+        }
+
         switch ($type) {
             case 'po':
                 // Laporan Rekap PO: layar & Export PDF generik menampilkan versi PER ITEM

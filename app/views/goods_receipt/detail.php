@@ -53,9 +53,13 @@
                         <div class="col-md-4">
                             <div class="text-muted small">No. Pembelian Offline</div>
                             <div class="fw-semibold">
-                                <a href="<?= BASE_URL ?>/offline_purchase/detail/<?= (int) $receipt['offline_purchase_id'] ?>">
+                                <?php if (can('offline_purchase', 'view')): ?>
+                                    <a href="<?= BASE_URL ?>/offline_purchase/detail/<?= (int) $receipt['offline_purchase_id'] ?>">
+                                        <?= e($receipt['po_number']) ?>
+                                    </a>
+                                <?php else: ?>
                                     <?= e($receipt['po_number']) ?>
-                                </a>
+                                <?php endif; ?>
                             </div>
                         </div>
                         <div class="col-md-4">

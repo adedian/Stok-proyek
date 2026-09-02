@@ -1,0 +1,11 @@
+# Folder skrip CLI -- tidak boleh diakses lewat web dalam bentuk apa pun.
+# (Di deploy yang benar, DocumentRoot = public/ sehingga folder ini memang
+#  sudah di luar jangkauan web. Ini lapis pengaman kedua untuk setup di mana
+#  seluruh project ter-expose, mis. XAMPP htdocs.)
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>

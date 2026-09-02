@@ -46,6 +46,19 @@
                     <?php if (empty($transactions)): ?>
                         <tr><td colspan="7" class="text-center text-muted py-4">Belum ada mutasi stok untuk barang ini.</td></tr>
                     <?php endif; ?>
+                    <?php
+                        // Slug reference_type internal -> label yang dipahami user.
+                        $refLabels = [
+                            'goods_receipt'            => 'Penerimaan Barang',
+                            'goods_receipt_validation' => 'Validasi Penerimaan',
+                            'stock_out'                => 'Pengeluaran Barang',
+                            'stock_opname'             => 'Stok Opname',
+                            'stock_opname_delete'      => 'Hapus Stok Opname',
+                            'kas'                      => 'Kas',
+                            'offline_purchase'         => 'Pembelian Offline',
+                            'inventory_delete'         => 'Hapus Data Barang',
+                        ];
+                    ?>
                     <?php foreach ($transactions as $t): ?>
                         <?php
                             $typeBadge = [
@@ -56,11 +69,20 @@
                             $typeLabel = [
                                 'in' => 'Masuk', 'out' => 'Keluar', 'adjustment' => 'Penyesuaian',
                             ][$t['transaction_type']] ?? $t['transaction_type'];
+
+                            $refType  = (string) ($t['reference_type'] ?? '');
+                            $refLabel = $refLabels[$refType] ?? ($refType !== '' ? ucwords(str_replace('_', ' ', $refType)) : 'Penyesuaian Manual');
+                            $refDoc   = trim((string) ($t['doc_number'] ?? ''));
                         ?>
                         <tr>
                             <td><?= formatTanggal($t['transaction_date']) ?></td>
                             <td><span class="badge <?= $typeBadge ?>"><?= $typeLabel ?></span></td>
-                            <td class="text-muted small"><?= e($t['reference_type'] ?? '-') ?> #<?= (int) $t['reference_id'] ?></td>
+                            <td class="small">
+                                <?= e($refLabel) ?>
+                                <?php if ($refDoc !== ''): ?>
+                                    <span class="text-muted">&middot; <?= e($refDoc) ?></span>
+                                <?php endif; ?>
+                            </td>
                             <td class="text-end"><?= number_format((float) $t['qty'], 2, ',', '.') ?></td>
                             <td class="text-end"><?= number_format((float) $t['qty_before'], 2, ',', '.') ?></td>
                             <td class="text-end"><?= number_format((float) $t['qty_after'], 2, ',', '.') ?></td>

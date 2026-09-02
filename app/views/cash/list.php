@@ -157,12 +157,20 @@ $kasPicName = $kasPicName ?? null;
                         <th>Mutasi</th>
                         <th class="text-end">Nominal (Rp)</th>
                         <th>Dibuat Oleh</th>
+                        <th>Validasi</th>
                         <th class="text-center no-print">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
+                    <?php
+                        $valBadge = [
+                            'menunggu'    => ['warning text-dark', 'Menunggu'],
+                            'tervalidasi' => ['success', 'Tervalidasi'],
+                            'ditolak'     => ['danger', 'Ditolak'],
+                        ];
+                    ?>
                     <?php if (empty($rows)): ?>
-                        <tr><td colspan="9" class="p-0">
+                        <tr><td colspan="10" class="p-0">
                             <div class="empty-state">
                                 <i class="bi bi-cash-coin empty-icon"></i>
                                 <div class="empty-title">Belum ada transaksi Kas</div>
@@ -191,6 +199,10 @@ $kasPicName = $kasPicName ?? null;
                             </td>
                             <td class="text-end fw-semibold"><?= formatRupiah($r['total_amount']) ?></td>
                             <td><?= e($r['created_by_name'] ?? '-') ?></td>
+                            <td>
+                                <?php [$vc, $vl] = $valBadge[$r['validation_status'] ?? 'menunggu'] ?? ['secondary', $r['validation_status'] ?? '-']; ?>
+                                <span class="badge bg-<?= $vc ?>" <?= !empty($r['validation_note']) ? 'title="' . e($r['validation_note']) . '"' : '' ?>><?= $vl ?></span>
+                            </td>
                             <td class="text-center no-print">
                                 <?php $rowLocked = isPeriodClosed('cash', $r['trx_date']); ?>
                                 <?php if ($rowLocked): ?>

@@ -407,6 +407,7 @@ class CashController extends Controller
             $this->redirect('cash', 'index');
         }
         $this->assertCanTouch($row);
+        $this->assertValidationAllowsChange($row, 'diedit');
         $this->activityLog->log(currentUserId(), 'cash', 'view', "Membuka transaksi Kas #{$id} ('{$row['no_bukti']}')");
 
         $this->view('cash/form', [
@@ -438,6 +439,7 @@ class CashController extends Controller
             $this->redirect('cash', 'index');
         }
         $this->assertCanTouch($existing);
+        $this->assertValidationAllowsChange($existing, 'diedit');
 
         $data  = $this->collectInput();
         $items = $this->collectItems();
@@ -474,6 +476,11 @@ class CashController extends Controller
 
             $n = $this->cashModel->applyStockCredit($id);
 
+            // Transaksi yang tadinya DITOLAK, setelah diperbaiki masuk antrean validasi lagi.
+            if (($existing['validation_status'] ?? '') === 'ditolak') {
+                $this->cashModel->resetValidationToPending($id);
+            }
+
             $this->activityLog->log(currentUserId(), 'cash', 'update', "Kas #{$id} ('{$data['no_bukti']}') diperbarui"
                 . ($n > 0 ? ' (stok disesuaikan ulang)' : ''));
 
@@ -505,6 +512,7 @@ class CashController extends Controller
             $this->redirect('cash', 'index');
         }
         $this->assertCanTouch($row);
+        $this->assertValidationAllowsChange($row, 'dihapus');
         assertPeriodOpen('cash', $row['trx_date'], 'cash', 'index');
 
         $res = $this->deleteOneRecord($id);
@@ -672,6 +680,19 @@ class CashController extends Controller
         $scope = $this->scopePics();
         if ($scope !== null && !in_array($row['pic'], $scope, true)) {
             denyAccess('Percobaan akses transaksi Kas milik PIC lain');
+        }
+    }
+
+    /**
+     * Transaksi Kas yang SUDAH 'tervalidasi' terkunci -- hanya Super Admin yang
+     * boleh mengubah/menghapus. 'menunggu' & 'ditolak' bebas diedit pembuatnya
+     * (mengedit yang 'ditolak' akan mengembalikan statusnya ke 'menunggu').
+     */
+    private function assertValidationAllowsChange(array $row, string $verb): void
+    {
+        if (($row['validation_status'] ?? 'menunggu') === 'tervalidasi'
+            && currentUserRole() !== ROLE_SUPER_ADMIN) {
+            denyAccess("Transaksi Kas '{$row['no_bukti']}' sudah divalidasi -- tidak bisa {$verb}. Hubungi Super Admin bila perlu koreksi.");
         }
     }
 

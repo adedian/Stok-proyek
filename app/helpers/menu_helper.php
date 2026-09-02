@@ -13,6 +13,7 @@ function appMenus(): array
         ['label' => 'Purchase Order', 'module' => 'purchase_order', 'icon' => 'bi-cart-check', 'roles' => permissionRoles('purchase_order', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Pembayaran', 'module' => 'payment', 'icon' => 'bi-credit-card', 'roles' => permissionRoles('payment', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Kas', 'module' => 'cash', 'icon' => 'bi-cash-coin', 'roles' => permissionRoles('cash', 'view'), 'active' => true, 'group' => 'Transaksi'],
+        ['label' => 'Validasi Kas', 'module' => 'cash_validation', 'icon' => 'bi-cash-stack', 'roles' => permissionRoles('cash_validation', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Penerimaan Barang', 'module' => 'goods_receipt', 'icon' => 'bi-box-seam', 'roles' => permissionRoles('goods_receipt', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Validasi Barang', 'module' => 'validation', 'icon' => 'bi-check2-square', 'roles' => permissionRoles('validation', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Pengeluaran Barang', 'module' => 'stock_out', 'icon' => 'bi-box-arrow-up', 'roles' => permissionRoles('stock_out', 'view'), 'active' => true, 'group' => 'Transaksi'],

@@ -195,6 +195,15 @@ return [
         'delete' => [ROLE_SUPER_ADMIN],
     ],
 
+    // Validasi Kas -- persetujuan transaksi Kas. Routing per-divisi ditegakkan
+    // di CashValidationController (kasCanValidateDivision): accounting utk divisi
+    // accounting, purchase utk purchase, project_manager utk project, super_admin
+    // semua. pic_project & admin_project = PEMBUAT, bukan validator.
+    'cash_validation' => [
+        'view'     => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING, ROLE_PURCHASE, ROLE_PROJECT_MANAGER],
+        'validate' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING, ROLE_PURCHASE, ROLE_PROJECT_MANAGER],
+    ],
+
     // Mapping User -> PIC (menentukan siapa lihat Kas siapa). Sensitif =
     // khusus Super Admin.
     'user_pic' => [

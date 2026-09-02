@@ -115,10 +115,110 @@ class CashTransaction extends Model
     public function findWithRelations(int $id)
     {
         return $this->db->fetchOne(
-            "SELECT c.*, usr.full_name AS created_by_name
+            "SELECT c.*, usr.full_name AS created_by_name, val.full_name AS validated_by_name
                FROM cash_transactions c
                LEFT JOIN users usr ON usr.id = c.created_by
+               LEFT JOIN users val ON val.id = c.validated_by
               WHERE c.id = :id AND c.deleted_at IS NULL",
+            ['id' => $id]
+        );
+    }
+
+    // ===================== VALIDASI KAS =====================
+
+    /**
+     * Daftar transaksi Kas untuk halaman Validasi Kas.
+     * $divisions = divisi yang boleh dilihat validator (dari
+     * kasValidatableDivisions()). Kalau [] -> tidak ada yang bisa dilihat.
+     * $status = 'menunggu' | 'tervalidasi' | 'ditolak' | '' (semua).
+     */
+    public function listForValidation(array $divisions, string $status = 'menunggu', array $filters = []): array
+    {
+        if (!$divisions) {
+            return [];
+        }
+        $in = [];
+        $params = [];
+        foreach (array_values($divisions) as $i => $d) {
+            $in[] = ":d{$i}";
+            $params["d{$i}"] = $d;
+        }
+        $where = "c.deleted_at IS NULL AND c.division IN (" . implode(',', $in) . ")";
+
+        if (in_array($status, ['menunggu', 'tervalidasi', 'ditolak'], true)) {
+            $where .= " AND c.validation_status = :st";
+            $params['st'] = $status;
+        }
+        if (!empty($filters['keyword'])) {
+            $where .= " AND (c.no_bukti LIKE :kw OR c.pic LIKE :kw)";
+            $params['kw'] = '%' . $filters['keyword'] . '%';
+        }
+        if (!empty($filters['date_from'])) {
+            $where .= " AND c.trx_date >= :df";
+            $params['df'] = $filters['date_from'];
+        }
+        if (!empty($filters['date_to'])) {
+            $where .= " AND c.trx_date <= :dt";
+            $params['dt'] = $filters['date_to'];
+        }
+
+        $sql = "SELECT c.*, usr.full_name AS created_by_name, val.full_name AS validated_by_name,
+                       (SELECT GROUP_CONCAT(DISTINCT cc.category_name ORDER BY cc.category_name SEPARATOR ', ')
+                          FROM cash_transaction_items cti
+                          JOIN cash_categories cc ON cc.id = cti.cash_category_id
+                         WHERE cti.cash_transaction_id = c.id) AS category_name
+                  FROM cash_transactions c
+                  LEFT JOIN users usr ON usr.id = c.created_by
+                  LEFT JOIN users val ON val.id = c.validated_by
+                 WHERE {$where}
+              ORDER BY c.trx_date DESC, c.id DESC";
+        return $this->db->fetchAll($sql, $params);
+    }
+
+    /** Jumlah transaksi 'menunggu' yang boleh divalidasi role ini (badge menu). */
+    public function countPendingValidation(array $divisions): int
+    {
+        if (!$divisions) {
+            return 0;
+        }
+        $in = [];
+        $params = [];
+        foreach (array_values($divisions) as $i => $d) {
+            $in[] = ":d{$i}";
+            $params["d{$i}"] = $d;
+        }
+        $row = $this->db->fetchOne(
+            "SELECT COUNT(*) AS n FROM cash_transactions
+              WHERE deleted_at IS NULL AND validation_status = 'menunggu'
+                AND division IN (" . implode(',', $in) . ")",
+            $params
+        );
+        return (int) ($row['n'] ?? 0);
+    }
+
+    /** Set hasil validasi. $status = 'tervalidasi' | 'ditolak'. */
+    public function setValidation(int $id, string $status, int $userId, ?string $note): void
+    {
+        $this->db->query(
+            "UPDATE cash_transactions
+                SET validation_status = :st, validated_by = :uid, validated_at = NOW(),
+                    validation_note = :note, updated_at = NOW()
+              WHERE id = :id",
+            ['st' => $status, 'uid' => $userId, 'note' => ($note !== '' ? $note : null), 'id' => $id]
+        );
+    }
+
+    /**
+     * Kembalikan status ke 'menunggu' -- dipanggil saat transaksi yang
+     * 'ditolak' diedit ulang oleh pembuatnya.
+     */
+    public function resetValidationToPending(int $id): void
+    {
+        $this->db->query(
+            "UPDATE cash_transactions
+                SET validation_status = 'menunggu', validated_by = NULL, validated_at = NULL,
+                    validation_note = NULL, updated_at = NOW()
+              WHERE id = :id AND validation_status = 'ditolak'",
             ['id' => $id]
         );
     }

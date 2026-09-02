@@ -39,6 +39,7 @@ class Router
         'dp_percentage'      => 'DpPercentageController',
         'trash'              => 'TrashController',
         'cash'               => 'CashController',
+        'cash_validation'    => 'CashValidationController',
         'cash_category'      => 'CashCategoryController',
         'user_pic'           => 'UserPicController',
         'period_lock'        => 'PeriodLockController',

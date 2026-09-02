@@ -77,6 +77,43 @@ function kasDivisionForRole(?string $roleSlug): string
     }
 }
 
+/** Label manusiawi untuk sebuah divisi Kas. */
+function kasDivisionLabel(string $division): string
+{
+    return [
+        'accounting' => 'Accounting',
+        'purchase'   => 'Purchase',
+        'project'    => 'Project',
+        'umum'       => 'Umum',
+    ][$division] ?? ucfirst($division);
+}
+
+// ===================== VALIDASI KAS =====================
+// Routing validator berdasarkan divisi transaksi:
+//   accounting -> role accounting ; purchase -> role purchase ;
+//   project    -> role project_manager ; umum -> hanya super_admin.
+// super_admin selalu boleh memvalidasi semua.
+
+/** Daftar divisi yang boleh divalidasi oleh sebuah role. */
+function kasValidatableDivisions(?string $roleSlug): array
+{
+    if ($roleSlug === ROLE_SUPER_ADMIN) {
+        return ['accounting', 'purchase', 'project', 'umum'];
+    }
+    switch ($roleSlug) {
+        case ROLE_ACCOUNTING:      return ['accounting'];
+        case ROLE_PURCHASE:        return ['purchase'];
+        case ROLE_PROJECT_MANAGER: return ['project'];
+        default:                   return [];
+    }
+}
+
+/** Boleh-tidaknya role ini memvalidasi transaksi dengan divisi tertentu. */
+function kasCanValidateDivision(?string $roleSlug, string $division): bool
+{
+    return in_array($division, kasValidatableDivisions($roleSlug), true);
+}
+
 /**
  * Cakupan divisi yang boleh DILIHAT user saat ini.
  *   null  = semua divisi (super_admin, accounting).

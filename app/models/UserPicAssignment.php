@@ -189,6 +189,32 @@ class UserPicAssignment extends Model
         return $row ?: null;
     }
 
+    /** Satu baris mapping (aman IDOR: WAJIB cocok user_id). */
+    public function rowForUser(int $id, int $userId): ?array
+    {
+        $row = $this->db->fetchOne(
+            "SELECT * FROM user_pic_assignments WHERE id = :id AND user_id = :uid LIMIT 1",
+            ['id' => $id, 'uid' => $userId]
+        );
+        return $row ?: null;
+    }
+
+    /**
+     * Semua mapping PIC milik user (untuk halaman "Pengaturan Akun" -> ganti
+     * Password Kas sendiri). Hanya yang SUDAH ber-password (bisa dipakai login
+     * Kas) yang relevan buat diganti.
+     */
+    public function credentialedAssignmentsForUser(int $userId): array
+    {
+        return $this->db->fetchAll(
+            "SELECT id, pic_name, pic_username, is_active
+               FROM user_pic_assignments
+              WHERE user_id = :uid AND pic_password IS NOT NULL AND pic_password <> ''
+           ORDER BY pic_name ASC",
+            ['uid' => $userId]
+        );
+    }
+
     /**
      * role_slug pemilik (akun) sebuah nama PIC -- dipakai menentukan `division`
      * transaksi Kas saat dibuat. NULL kalau nama PIC belum di-mapping ke user.

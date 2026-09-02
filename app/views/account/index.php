@@ -4,6 +4,7 @@ foreach (explode(' ', trim($user['full_name'])) as $part) {
     $initials .= mb_substr($part, 0, 1);
 }
 $initials = mb_strtoupper(mb_substr($initials, 0, 2));
+$kasPics = $kasPics ?? [];
 ?>
 <div class="mb-3">
     <h4 class="mb-0">Pengaturan Akun</h4>
@@ -114,6 +115,52 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
                 </form>
             </div>
         </div>
+
+        <?php if (!empty($kasPics)): ?>
+        <div class="card border-0 shadow-sm mt-3">
+            <div class="card-body">
+                <h6 class="mb-1"><i class="bi bi-cash-coin"></i> Ganti Password Kas</h6>
+                <p class="text-muted small mb-3">
+                    Password lapisan kedua yang diminta saat membuka modul <strong>Kas</strong>
+                    (verifikasi PIC + Password Kas). Terpisah dari password login akun.
+                </p>
+                <form method="POST" action="<?= BASE_URL ?>/index.php?module=account&action=changeKasPassword" id="changeKasPasswordForm">
+                    <?= csrfField() ?>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">PIC Kas <span class="text-danger">*</span></label>
+                            <?php if (count($kasPics) === 1): ?>
+                                <input type="hidden" name="pic_id" value="<?= (int) $kasPics[0]['id'] ?>">
+                                <input type="text" class="form-control" value="<?= e($kasPics[0]['pic_name']) ?><?= !empty($kasPics[0]['pic_username']) ? ' (' . e($kasPics[0]['pic_username']) . ')' : '' ?>" disabled>
+                            <?php else: ?>
+                                <select name="pic_id" class="form-select" required>
+                                    <?php foreach ($kasPics as $p): ?>
+                                        <option value="<?= (int) $p['id'] ?>">
+                                            <?= e($p['pic_name']) ?><?= !empty($p['pic_username']) ? ' (' . e($p['pic_username']) . ')' : '' ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            <?php endif; ?>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Password Kas Saat Ini <span class="text-danger">*</span></label>
+                            <input type="password" name="current_kas_password" class="form-control" autocomplete="off" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Password Kas Baru <span class="text-danger">*</span></label>
+                            <input type="password" name="new_kas_password" class="form-control" autocomplete="new-password" minlength="6" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Konfirmasi Password Kas Baru <span class="text-danger">*</span></label>
+                            <input type="password" name="confirm_kas_password" class="form-control" autocomplete="new-password" minlength="6" required>
+                        </div>
+                    </div>
+                    <div class="form-text">Minimal 6 karakter, tidak boleh sama dengan yang lama. Sesi Kas Anda akan diminta verifikasi ulang.</div>
+                    <button type="submit" class="btn btn-primary mt-3"><i class="bi bi-key"></i> Ganti Password Kas</button>
+                </form>
+            </div>
+        </div>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -133,5 +180,21 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
     });
+
+    var kasForm = document.getElementById('changeKasPasswordForm');
+    if (kasForm) {
+        kasForm.addEventListener('submit', function (e) {
+            var a = kasForm.querySelector('[name="new_kas_password"]').value;
+            var b = kasForm.querySelector('[name="confirm_kas_password"]').value;
+            if (a !== b) {
+                e.preventDefault();
+                if (window.Swal) {
+                    Swal.fire({ icon: 'error', title: 'Gagal', text: 'Konfirmasi Password Kas baru tidak cocok.' });
+                } else {
+                    alert('Konfirmasi Password Kas baru tidak cocok.');
+                }
+            }
+        });
+    }
 });
 </script>

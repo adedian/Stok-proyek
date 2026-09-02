@@ -3,6 +3,7 @@ require_once ROOT_PATH . '/core/Controller.php';
 require_once ROOT_PATH . '/core/Middleware.php';
 require_once ROOT_PATH . '/app/models/User.php';
 require_once ROOT_PATH . '/app/models/ActivityLog.php';
+require_once ROOT_PATH . '/app/models/UserPicAssignment.php';
 
 /**
  * AccountController
@@ -18,6 +19,7 @@ class AccountController extends Controller
 {
     private User $userModel;
     private ActivityLog $activityLog;
+    private UserPicAssignment $picModel;
 
     public function __construct()
     {
@@ -27,6 +29,7 @@ class AccountController extends Controller
 
         $this->userModel   = new User();
         $this->activityLog = new ActivityLog();
+        $this->picModel    = new UserPicAssignment();
     }
 
     public function index()
@@ -40,8 +43,11 @@ class AccountController extends Controller
         }
 
         $this->view('account/index', [
-            'pageTitle' => 'Pengaturan Akun',
-            'user'      => $user,
+            'pageTitle'    => 'Pengaturan Akun',
+            'user'         => $user,
+            // PIC Kas milik user ini yang sudah ber-password -> bisa diganti
+            // sendiri di halaman ini. Kosong = tidak menampilkan kartu Password Kas.
+            'kasPics'      => $this->picModel->credentialedAssignmentsForUser((int) currentUserId()),
         ]);
     }
 
@@ -160,6 +166,67 @@ class AccountController extends Controller
         $this->activityLog->log($userId, 'account', 'change_password', 'Password akun diganti');
 
         setFlash('success', 'Password berhasil diganti.');
+        $this->redirect('account', 'index');
+    }
+
+    /**
+     * Ganti PASSWORD KAS sendiri (verifikasi PIC + Password Kas -- lapisan
+     * kedua modul Kas). Untuk user yang punya PIC Kas ber-password (Purchase /
+     * PIC Project / Admin Project, atau siapa pun yang di-assign PIC).
+     * Cegah IDOR: baris PIC WAJIB milik currentUserId().
+     */
+    public function changeKasPassword()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('account', 'index');
+        }
+        verifyCsrf();
+
+        $userId  = currentUserId();
+        $picId   = (int) ($_POST['pic_id'] ?? 0);
+        $current = (string) ($_POST['current_kas_password'] ?? '');
+        $new     = (string) ($_POST['new_kas_password'] ?? '');
+        $confirm = (string) ($_POST['confirm_kas_password'] ?? '');
+
+        $row = $this->picModel->rowForUser($picId, (int) $userId);
+        if (!$row || empty($row['pic_password'])) {
+            setFlash('error', 'Data PIC Kas tidak ditemukan untuk akun Anda.');
+            $this->redirect('account', 'index');
+        }
+
+        $errors = [];
+        if (!password_verify($current, (string) $row['pic_password'])) {
+            $errors[] = 'Password Kas saat ini salah.';
+        }
+        if (strlen($new) < 6) {
+            $errors[] = 'Password Kas baru minimal 6 karakter.';
+        }
+        if ($new !== $confirm) {
+            $errors[] = 'Konfirmasi Password Kas baru tidak cocok.';
+        }
+        if (empty($errors) && password_verify($new, (string) $row['pic_password'])) {
+            $errors[] = 'Password Kas baru tidak boleh sama dengan yang lama.';
+        }
+
+        if (!empty($errors)) {
+            setFlash('error', implode(' ', $errors));
+            $this->redirect('account', 'index');
+        }
+
+        $this->picModel->setCredential(
+            (int) $row['id'],
+            $row['pic_username'],
+            password_hash($new, PASSWORD_DEFAULT),
+            (int) ($row['is_active'] ?? 1) === 1
+        );
+
+        // Paksa verifikasi Kas ulang di sesi ini kalau kebetulan sedang aktif.
+        unset($_SESSION['kas_auth']);
+
+        $this->activityLog->log($userId, 'user_pic', 'change_password',
+            "Password Kas PIC '{$row['pic_name']}' diganti sendiri lewat Pengaturan Akun");
+
+        setFlash('success', "Password Kas untuk PIC '{$row['pic_name']}' berhasil diganti.");
         $this->redirect('account', 'index');
     }
 }

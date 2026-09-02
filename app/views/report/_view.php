@@ -131,8 +131,10 @@
                     <label class="form-label small text-muted mb-1">Modul</label>
                     <select name="log_module" class="form-select form-select-sm">
                         <option value="">Semua</option>
-                        <?php foreach ($filterForm['module'] as $m): ?>
-                            <option value="<?= e($m) ?>" <?= ($filters['module'] ?? '') === $m ? 'selected' : '' ?>><?= e($m) ?></option>
+                        <?php foreach ($filterForm['module'] as $mSlug => $mLabel): ?>
+                            <?php // Kompat: kalau nilainya list biasa (bukan slug=>label), pakai nilainya utk dua-duanya.
+                                  $optVal = is_int($mSlug) ? $mLabel : $mSlug; ?>
+                            <option value="<?= e($optVal) ?>" <?= ($filters['module'] ?? '') === $optVal ? 'selected' : '' ?>><?= e($mLabel) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>

@@ -604,6 +604,17 @@ class ReportController extends Controller
                 $module = trim($get['log_module'] ?? '');
                 $filters = ['date_from' => $dateFrom, 'date_to' => $dateTo, 'user_id' => $userId, 'module' => $module];
                 $rows = $model->listWithFilters($filters);
+                // Ganti slug modul/aksi jadi label manusiawi (tabel & filter).
+                foreach ($rows as &$logRow) {
+                    $logRow['module'] = activityLogModuleLabel((string) $logRow['module']);
+                    $logRow['action'] = activityLogActionLabel((string) $logRow['action']);
+                }
+                unset($logRow);
+                $moduleFilterOptions = [];
+                foreach ($model->distinctModules() as $slug) {
+                    $moduleFilterOptions[$slug] = activityLogModuleLabel((string) $slug);
+                }
+                asort($moduleFilterOptions);
                 $userModel = new User();
                 return [
                     'title' => 'Riwayat Aktivitas (Audit Log)',
@@ -616,7 +627,7 @@ class ReportController extends Controller
                         ['field' => 'ip_address', 'label' => 'IP'],
                     ],
                     'rows' => $rows,
-                    'filterForm' => ['date' => true, 'user' => $userModel->activeList(), 'module' => $model->distinctModules()],
+                    'filterForm' => ['date' => true, 'user' => $userModel->activeList(), 'module' => $moduleFilterOptions],
                     'filters' => compact('dateFrom', 'dateTo', 'userId', 'module'),
                     'exportQuery' => $this->buildExportQuery($get),
                 ];

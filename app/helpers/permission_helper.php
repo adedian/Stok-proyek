@@ -90,6 +90,42 @@ function permissionLabelMaps(): array
 }
 
 /**
+ * Label modul untuk Riwayat Aktivitas (Audit Log). Pakai label Hak Akses,
+ * plus modul yang muncul di log tapi bukan modul berizin (auth, dst).
+ */
+function activityLogModuleLabel(string $slug): string
+{
+    static $extra = [
+        'auth'         => 'Autentikasi',
+        'invoice'      => 'Invoice (lama)',
+        'stock_opname' => 'Stok Opname',
+    ];
+    $maps = permissionLabelMaps()['modules'];
+    return $maps[$slug] ?? $extra[$slug] ?? ucwords(str_replace('_', ' ', $slug));
+}
+
+/**
+ * Label aksi untuk Riwayat Aktivitas. Map singkat untuk aksi umum; sisanya
+ * (mostly event teknis: kas_login, access_denied, dst) di-Title-Case-kan
+ * supaya tidak tampil sebagai slug mentah.
+ */
+function activityLogActionLabel(string $slug): string
+{
+    static $map = [
+        'view' => 'Lihat', 'create' => 'Tambah', 'update' => 'Ubah', 'delete' => 'Hapus',
+        'restore' => 'Pulihkan', 'force_delete' => 'Hapus Permanen', 'quick_add' => 'Tambah Cepat',
+        'complete' => 'Selesaikan', 'approve' => 'Setujui', 'reject' => 'Tolak',
+        'close' => 'Tutup Periode', 'reopen' => 'Buka Periode',
+        'login' => 'Login', 'logout' => 'Logout', 'login_failed' => 'Login Gagal',
+        'toggle_status' => 'Ubah Status', 'change_password' => 'Ganti Password',
+        'update_profile' => 'Ubah Profil', 'access_denied' => 'Akses Ditolak',
+        'kas_login' => 'Verifikasi Kas', 'kas_logout' => 'Keluar Sesi Kas',
+        'kas_login_failed' => 'Verifikasi Kas Gagal', 'kas_view_balance' => 'Lihat Saldo Kas',
+    ];
+    return $map[$slug] ?? ucwords(str_replace('_', ' ', $slug));
+}
+
+/**
  * Matrix hasil baca tabel role_permissions.
  * return: ['managed' => bool, 'roles' => [module][action] => [role_slug,...]]
  * managed=false kalau tabel belum ada / kosong / error -> pemanggil fallback ke file.

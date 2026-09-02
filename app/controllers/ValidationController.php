@@ -103,75 +103,34 @@ class ValidationController extends Controller
             // lebih), bukan saat penerimaan disimpan. stock_posted_at menjaga supaya
             // kredit/reverse ini idempotent walau item divalidasi ulang berkali-kali
             // (mis. validator awalnya salah pilih status, lalu dikoreksi).
+            $wasPosted = !empty($item['stock_posted_at']);
             $isNowValid = in_array($status, self::STOCK_VALID_STATUSES, true);
-            $projectId = $item['project_id'] !== null ? (int) $item['project_id'] : null;
 
-            if (!empty($item['cash_transaction_item_id'])) {
-                // Alur Pembelian Kas: Kas SUDAH kredit qty penuh (cash_qty) saat
-                // transaksi Kas disimpan. Validasi hanya menerapkan DELTA supaya
-                // stok akhir = qty fisik yang diterima (0 kalau "barang lain").
-                // stock_delta_applied menyimpan delta yang sudah dipasang -> idempoten
-                // walau divalidasi ulang berkali-kali.
-                $cashQty     = (float) ($item['cash_qty'] ?? 0);
-                $finalWanted = $isNowValid ? (float) $item['qty_received'] : 0.0;
-                $targetDelta = $finalWanted - $cashQty;
-                $prevDelta   = $item['stock_delta_applied'] !== null ? (float) $item['stock_delta_applied'] : 0.0;
-                $adjust      = $targetDelta - $prevDelta;
-
-                if ($adjust > 0.00001) {
-                    $this->inventoryModel->creditStock(
-                        $item['item_name'],
-                        $item['unit'],
-                        $projectId,
-                        $adjust,
-                        'goods_receipt_validation',
-                        (int) $item['goods_receipt_id'],
-                        date('Y-m-d'),
-                        currentUserId(),
-                        $item['stock_scope']
-                    );
-                } elseif ($adjust < -0.00001) {
-                    $this->inventoryModel->reverseCredit(
-                        $item['item_name'],
-                        $item['unit'],
-                        $projectId,
-                        -$adjust,
-                        'goods_receipt_validation',
-                        (int) $item['goods_receipt_id'],
-                        currentUserId(),
-                        $item['stock_scope']
-                    );
-                }
-                $this->itemModel->markStockDeltaApplied($id, $targetDelta);
-            } else {
-                $wasPosted = !empty($item['stock_posted_at']);
-
-                if ($isNowValid && !$wasPosted) {
-                    $this->inventoryModel->creditStock(
-                        $item['item_name'],
-                        $item['unit'],
-                        $projectId,
-                        (float) $item['qty_received'],
-                        'goods_receipt_validation',
-                        (int) $item['goods_receipt_id'],
-                        date('Y-m-d'),
-                        currentUserId(),
-                        $item['stock_scope']
-                    );
-                    $this->itemModel->markStockPosted($id, true);
-                } elseif (!$isNowValid && $wasPosted) {
-                    $this->inventoryModel->reverseCredit(
-                        $item['item_name'],
-                        $item['unit'],
-                        $projectId,
-                        (float) $item['qty_received'],
-                        'goods_receipt_validation',
-                        (int) $item['goods_receipt_id'],
-                        currentUserId(),
-                        $item['stock_scope']
-                    );
-                    $this->itemModel->markStockPosted($id, false);
-                }
+            if ($isNowValid && !$wasPosted) {
+                $this->inventoryModel->creditStock(
+                    $item['item_name'],
+                    $item['unit'],
+                    $item['project_id'] !== null ? (int) $item['project_id'] : null,
+                    (float) $item['qty_received'],
+                    'goods_receipt_validation',
+                    (int) $item['goods_receipt_id'],
+                    date('Y-m-d'),
+                    currentUserId(),
+                    $item['stock_scope']
+                );
+                $this->itemModel->markStockPosted($id, true);
+            } elseif (!$isNowValid && $wasPosted) {
+                $this->inventoryModel->reverseCredit(
+                    $item['item_name'],
+                    $item['unit'],
+                    $item['project_id'] !== null ? (int) $item['project_id'] : null,
+                    (float) $item['qty_received'],
+                    'goods_receipt_validation',
+                    (int) $item['goods_receipt_id'],
+                    currentUserId(),
+                    $item['stock_scope']
+                );
+                $this->itemModel->markStockPosted($id, false);
             }
 
             if ($item['purchase_order_id']) {

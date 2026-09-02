@@ -143,19 +143,12 @@
                                             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                         </div>
                                         <div class="modal-body">
-                                            <?php $isCashItem = !empty($item['cash_transaction_item_id']); ?>
                                             <p class="small text-muted mb-3">
-                                                <?= $isCashItem ? 'No. Bukti Kas' : 'No. PO' ?> <?= e($item['po_number']) ?> &middot;
+                                                No. PO <?= e($item['po_number']) ?> &middot;
                                                 Penerimaan <?= e($item['receipt_number']) ?><br>
-                                                <?= $isCashItem ? 'Qty Dibeli (Kas)' : 'Qty PO' ?>: <?= number_format((float) $item['qty_order'], 2, ',', '.') ?>
+                                                Qty PO: <?= number_format((float) $item['qty_order'], 2, ',', '.') ?>
                                                 &middot; Qty Diterima: <?= number_format((float) $item['qty_received'], 2, ',', '.') ?>
                                             </p>
-                                            <?php if ($isCashItem): ?>
-                                                <div class="alert alert-info small py-2 px-3 mb-3">
-                                                    Kas sudah menambah stok <strong><?= number_format((float) ($item['cash_qty'] ?? 0), 2, ',', '.') ?></strong> saat transaksi disimpan.
-                                                    Validasi ini menyesuaikan stok ke <strong>qty diterima</strong> (status "Barang Lain" &rarr; stok item ini dikembalikan ke 0).
-                                                </div>
-                                            <?php endif; ?>
                                             <div class="mb-3">
                                                 <label class="form-label">Status Validasi</label>
                                                 <select name="comparison_status" class="form-select" required>

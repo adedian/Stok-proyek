@@ -92,7 +92,7 @@
                             <td class="fw-semibold"><?= e($r['receipt_number']) ?></td>
                             <td>
                                 <?php
-                                    $sourceBadge = ['purchase_order' => ['primary', 'PO'], 'offline_purchase' => ['warning text-dark', 'Offline'], 'cash' => ['success', 'Kas'], 'pemakai' => ['info text-dark', 'Pemakai']];
+                                    $sourceBadge = ['purchase_order' => ['primary', 'PO'], 'offline_purchase' => ['warning text-dark', 'Offline'], 'pemakai' => ['info text-dark', 'Pemakai']];
                                     [$sourceClass, $sourceLabel] = $sourceBadge[$r['receipt_type']] ?? ['secondary', $r['receipt_type']];
                                 ?>
                                 <span class="badge bg-<?= e($sourceClass) ?>"><?= e($sourceLabel) ?></span>

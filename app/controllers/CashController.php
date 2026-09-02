@@ -12,7 +12,6 @@ require_once ROOT_PATH . '/app/models/Unit.php';
 require_once ROOT_PATH . '/app/models/Project.php';
 require_once ROOT_PATH . '/app/models/Item.php';
 require_once ROOT_PATH . '/app/models/ItemCategory.php';
-require_once ROOT_PATH . '/app/models/GoodsReceipt.php';
 
 /**
  * Modul Kas (Revisi 9) -- catatan kas masuk & kas keluar.
@@ -38,7 +37,6 @@ class CashController extends Controller
     private Project $projectModel;
     private Item $barangModel;
     private ItemCategory $barangCategoryModel;
-    private GoodsReceipt $grModel;
 
     /** Action yang MEMBANGUN gerbang auth Kas -- boleh diakses tanpa auth Kas. */
     private const KAS_GATE_ACTIONS = ['kasLogin', 'kasAuthenticate', 'kasLogout', 'kasSetupPic', 'kasStorePic'];
@@ -56,7 +54,6 @@ class CashController extends Controller
         $this->projectModel  = new Project();
         $this->barangModel         = new Item();
         $this->barangCategoryModel = new ItemCategory();
-        $this->grModel             = new GoodsReceipt();
 
         $this->enforceKasAuth();
     }
@@ -442,12 +439,6 @@ class CashController extends Controller
         }
         $this->assertCanTouch($existing);
 
-        if ($gr = $this->grModel->firstActiveByCashTransaction($id)) {
-            setFlash('error', "Transaksi Kas ini sudah diterima di Penerimaan Barang {$gr['receipt_number']}. "
-                . 'Hapus/batalkan penerimaan barang itu dulu sebelum mengubah transaksi Kas ini.');
-            $this->redirect('cash', 'edit', ['id' => $id]);
-        }
-
         $data  = $this->collectInput();
         $items = $this->collectItems();
         $errors = $this->validateInput($data, $items, $id);
@@ -517,13 +508,8 @@ class CashController extends Controller
         assertPeriodOpen('cash', $row['trx_date'], 'cash', 'index');
 
         $res = $this->deleteOneRecord($id);
-        if ($res === true) {
-            setFlash('success', 'Transaksi Kas dipindahkan ke Tempat Sampah.');
-        } elseif (is_string($res) && $res !== 'gagal') {
-            setFlash('error', "Transaksi Kas tidak bisa dihapus: {$res}.");
-        } else {
-            setFlash('error', 'Gagal menghapus transaksi Kas.');
-        }
+        setFlash($res === true ? 'success' : 'error',
+            $res === true ? 'Transaksi Kas dipindahkan ke Tempat Sampah.' : 'Gagal menghapus transaksi Kas.');
         $this->redirect('cash', 'index');
     }
 
@@ -537,13 +523,6 @@ class CashController extends Controller
         $row = $this->cashModel->findWithRelations($id);
         if (!$row) {
             return 'gagal';
-        }
-        // Barang dari transaksi Kas ini sudah diterima (GR aktif) -> stok sudah
-        // dikoreksi lewat delta di GR. Menghapus Kas di sini akan membuat delta
-        // itu menggantung. Wajib hapus penerimaannya dulu (berlaku juga untuk
-        // Hapus per Rentang Tanggal -> dihitung sebagai dilewati).
-        if ($gr = $this->grModel->firstActiveByCashTransaction($id)) {
-            return "dipakai Penerimaan Barang {$gr['receipt_number']}";
         }
         // Soft-delete ke Tempat Sampah aman walau periode terkunci (stok dibalik
         // dengan transaksi tanggal-sekarang) -- gerbang Tutup Bulan tetap berlaku

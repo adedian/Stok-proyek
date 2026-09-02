@@ -6,9 +6,6 @@ $selectedOfflinePurchaseId = $selectedOfflinePurchase['id'] ?? ($selectedOffline
 $receiptType = $receipt['receipt_type'] ?? ($defaultReceiptType ?? 'purchase_order');
 $offlinePurchaseList = $offlinePurchaseList ?? [];
 $offlineItems = $offlineItems ?? [];
-$cashList = $cashList ?? [];
-$cashItems = $cashItems ?? [];
-$selectedCashTransactionId = $selectedCashTransactionId ?? ($receipt['cash_transaction_id'] ?? '');
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
@@ -36,10 +33,10 @@ $selectedCashTransactionId = $selectedCashTransactionId ?? ($receipt['cash_trans
                     <label class="form-label">Sumber Penerimaan <span class="text-danger">*</span></label>
                     <select name="receipt_type" id="receiptTypeSelect" class="form-select">
                         <option value="purchase_order" <?= $receiptType === 'purchase_order' ? 'selected' : '' ?>>Dari Purchase Order (Supplier)</option>
-                        <option value="cash" <?= $receiptType === 'cash' ? 'selected' : '' ?>>Dari Pembelian Kas</option>
+                        <option value="offline_purchase" <?= $receiptType === 'offline_purchase' ? 'selected' : '' ?>>Dari Pembelian Offline</option>
                         <option value="pemakai" <?= $receiptType === 'pemakai' ? 'selected' : '' ?>>Dari Pemakai/Internal</option>
                     </select>
-                    <div class="form-text">Pembelian barang di luar PO dicatat lewat modul Kas (baris rincian kategori stok); pilih "Dari Pembelian Kas" untuk menerima barangnya. Barang yang diserahkan pemakai internal lewat opsi terakhir.</div>
+                    <div class="form-text">Barang dari Pembelian Offline (di luar mekanisme PO) dan yang dikembalikan/diserahkan oleh pemakai internal dicatat lewat 2 opsi terakhir.</div>
                 </div>
                 <div class="col-md-6" id="stockScopeWrapper" style="display:none;">
                     <label class="form-label">Kategori Stok <span class="text-danger">*</span></label>
@@ -72,34 +69,21 @@ $selectedCashTransactionId = $selectedCashTransactionId ?? ($receipt['cash_trans
                 </div>
             </div>
 
-            <?php if ($isEdit && $receiptType === 'offline_purchase'): ?>
-            <div class="row g-3" id="offlinePurchaseFields">
+            <div class="row g-3" id="offlinePurchaseFields" <?= (!$isEdit && $receiptType !== 'offline_purchase') ? 'style="display:none;"' : '' ?>>
                 <div class="col-md-5">
-                    <label class="form-label">Pembelian Offline</label>
-                    <input type="text" class="form-control" value="<?= e($receipt['po_number'] ?? '-') ?>" disabled>
-                    <input type="hidden" name="offline_purchase_id" value="<?= (int) $receipt['offline_purchase_id'] ?>">
-                    <div class="form-text">Penerimaan dari Pembelian Offline (data lama). Sumber tidak bisa diganti saat edit.</div>
-                </div>
-            </div>
-            <?php endif; ?>
-
-            <div class="row g-3" id="cashFields" <?= (!$isEdit && $receiptType !== 'cash') ? 'style="display:none;"' : '' ?>>
-                <div class="col-md-7">
-                    <label class="form-label">Transaksi Kas <span class="text-danger" id="cashRequiredMark">*</span></label>
+                    <label class="form-label">Pembelian Offline <span class="text-danger" id="offlinePurchaseRequiredMark">*</span></label>
+                    <select name="offline_purchase_id" id="offlinePurchaseSelect" class="form-select"
+                            <?= $isEdit ? 'disabled' : '' ?>>
+                        <option value="">-- Pilih Pembelian Offline --</option>
+                        <?php foreach ($offlinePurchaseList as $op): ?>
+                            <option value="<?= (int) $op['id'] ?>" <?= (string) $selectedOfflinePurchaseId === (string) $op['id'] ? 'selected' : '' ?>>
+                                <?= e($op['purchase_number']) ?> &mdash; <?= e($op['supplier_name']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
                     <?php if ($isEdit): ?>
-                        <input type="text" class="form-control" value="<?= e($receipt['cash_no_bukti'] ?? ($receipt['po_number'] ?? '-')) ?>" disabled>
-                        <input type="hidden" name="cash_transaction_id" value="<?= (int) ($receipt['cash_transaction_id'] ?? 0) ?>">
-                        <div class="form-text">Transaksi Kas tidak bisa diganti saat edit. Hapus penerimaan ini dan buat baru jika salah.</div>
-                    <?php else: ?>
-                        <select name="cash_transaction_id" id="cashSelect" class="form-select">
-                            <option value="">-- Pilih Transaksi Kas --</option>
-                            <?php foreach ($cashList as $ct): ?>
-                                <option value="<?= (int) $ct['id'] ?>" <?= (string) $selectedCashTransactionId === (string) $ct['id'] ? 'selected' : '' ?>>
-                                    <?= e($ct['no_bukti']) ?> &mdash; <?= e(date('d/m/Y', strtotime($ct['trx_date']))) ?><?= !empty($ct['items_label']) ? ' &mdash; ' . e($ct['items_label']) : '' ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                        <div class="form-text">Hanya transaksi Kas yang punya baris beli barang (kategori stok, tertaut master Barang) yang tampil di sini.</div>
+                        <input type="hidden" name="offline_purchase_id" value="<?= (int) $receipt['offline_purchase_id'] ?>">
+                        <div class="form-text">Pembelian Offline tidak bisa diganti saat edit. Hapus penerimaan ini dan buat baru jika salah.</div>
                     <?php endif; ?>
                 </div>
             </div>
@@ -206,8 +190,7 @@ $selectedCashTransactionId = $selectedCashTransactionId ?? ($receipt['cash_trans
         </div>
     </div>
 
-    <?php if ($isEdit && $receiptType === 'offline_purchase'): ?>
-    <div class="card border-0 shadow-sm mb-3" id="offlineItemsCard">
+    <div class="card border-0 shadow-sm mb-3" id="offlineItemsCard" <?= (!$isEdit && $receiptType !== 'offline_purchase') ? 'style="display:none;"' : '' ?>>
         <div class="card-body">
             <h6 class="mb-3">Item Barang &amp; Qty Diterima</h6>
             <div id="offlineItemsWrapper">
@@ -236,44 +219,8 @@ $selectedCashTransactionId = $selectedCashTransactionId ?? ($receipt['cash_trans
             </div>
         </div>
     </div>
-    <?php endif; ?>
 
-    <div class="card border-0 shadow-sm mb-3" id="cashItemsCard" <?= (!$isEdit && $receiptType !== 'cash') ? 'style="display:none;"' : '' ?>>
-        <div class="card-body">
-            <h6 class="mb-3">Item Barang &amp; Qty Diterima</h6>
-            <p class="text-muted small mb-2">
-                Transaksi Kas sudah menambah stok penuh saat disimpan. Isi qty yang
-                benar-benar diterima fisik &mdash; stok baru dikoreksi ke angka itu
-                saat item ini <strong>Divalidasi</strong> (Validasi Barang).
-            </p>
-            <div id="cashItemsWrapper">
-                <?php if (empty($cashItems)): ?>
-                    <p class="text-muted small" id="cashItemsEmptyMsg">Pilih Transaksi Kas terlebih dahulu untuk menampilkan daftar item.</p>
-                <?php endif; ?>
-                <div class="table-responsive">
-                    <table class="table table-sm align-middle <?= empty($cashItems) ? 'd-none' : '' ?>" id="cashItemsTable">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Nama Barang</th>
-                                <th>Satuan</th>
-                                <th class="text-end">Qty Dibeli</th>
-                                <th class="text-end">Sudah Diterima</th>
-                                <th class="text-end">Sisa</th>
-                                <th style="width: 140px;">Qty Diterima Sekarang</th>
-                            </tr>
-                        </thead>
-                        <tbody id="cashItemsBody">
-                            <?php foreach ($cashItems as $index => $cashItem): ?>
-                                <?php include ROOT_PATH . '/app/views/goods_receipt/_cash_item_row.php'; ?>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="card border-0 shadow-sm mb-3" id="mismatchItemsCard" <?= (!$isEdit && !in_array($receiptType, ['purchase_order', 'cash'], true)) ? 'style="display:none;"' : '' ?>>
+    <div class="card border-0 shadow-sm mb-3" id="mismatchItemsCard" <?= (!$isEdit && !in_array($receiptType, ['purchase_order', 'offline_purchase'], true)) ? 'style="display:none;"' : '' ?>>
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <h6 class="mb-0">Barang Tidak Sesuai <span class="text-muted small fw-normal">(opsional)</span></h6>
@@ -283,7 +230,7 @@ $selectedCashTransactionId = $selectedCashTransactionId ?? ($receipt['cash_trans
             </div>
             <p class="text-muted small mb-3">
                 Jangan diisi di tabel item di atas. Kalau ada barang yang datang tapi
-                sama sekali tidak sesuai/tidak tercantum di PO atau Transaksi Kas ini
+                sama sekali tidak sesuai/tidak tercantum di PO atau Pembelian Offline ini
                 (mis. pesan "Kabel NYY" tapi yang datang "Kabel NYM"), tambahkan sebagai baris
                 terpisah di sini -- otomatis ditandai
                 <span class="badge bg-dark">Barang Lain</span> untuk ditindaklanjuti di modul Validasi.
@@ -421,35 +368,35 @@ $selectedCashTransactionId = $selectedCashTransactionId ?? ($receipt['cash_trans
 <?php if (!$isEdit): ?>
 <script>
 (function () {
-    // Toggle tampilan alur PO vs Pembelian Kas vs Pemakai + wajib/tidaknya field terkait
+    // Toggle tampilan alur PO vs Pembelian Offline vs Pemakai + wajib/tidaknya field terkait
     const typeSelect = document.getElementById('receiptTypeSelect');
     const poFields = document.getElementById('poFields');
-    const cashFields = document.getElementById('cashFields');
+    const offlinePurchaseFields = document.getElementById('offlinePurchaseFields');
     const pemakaiFields = document.getElementById('pemakaiFields');
     const stockScopeWrapper = document.getElementById('stockScopeWrapper');
     const poItemsCard = document.getElementById('poItemsCard');
-    const cashItemsCard = document.getElementById('cashItemsCard');
+    const offlineItemsCard = document.getElementById('offlineItemsCard');
     const mismatchItemsCard = document.getElementById('mismatchItemsCard');
     const pemakaiItemsCard = document.getElementById('pemakaiItemsCard');
     const poSelectEl = document.getElementById('poSelect');
-    const cashSelectEl = document.getElementById('cashSelect');
+    const offlinePurchaseSelectEl = document.getElementById('offlinePurchaseSelect');
 
     function applyReceiptType() {
         const type = typeSelect.value;
         const isPo = type === 'purchase_order';
-        const isCash = type === 'cash';
+        const isOffline = type === 'offline_purchase';
         const isPemakai = type === 'pemakai';
 
         poFields.style.display = isPo ? '' : 'none';
-        cashFields.style.display = isCash ? '' : 'none';
+        offlinePurchaseFields.style.display = isOffline ? '' : 'none';
         pemakaiFields.style.display = isPemakai ? '' : 'none';
         stockScopeWrapper.style.display = isPemakai ? '' : 'none';
         poItemsCard.style.display = isPo ? '' : 'none';
-        cashItemsCard.style.display = isCash ? '' : 'none';
-        mismatchItemsCard.style.display = (isPo || isCash) ? '' : 'none';
+        offlineItemsCard.style.display = isOffline ? '' : 'none';
+        mismatchItemsCard.style.display = (isPo || isOffline) ? '' : 'none';
         pemakaiItemsCard.style.display = isPemakai ? '' : 'none';
         if (poSelectEl) poSelectEl.required = isPo;
-        if (cashSelectEl) cashSelectEl.required = isCash;
+        if (offlinePurchaseSelectEl) offlinePurchaseSelectEl.required = isOffline;
     }
 
     if (typeSelect) {
@@ -528,24 +475,23 @@ $selectedCashTransactionId = $selectedCashTransactionId ?? ($receipt['cash_trans
 </script>
 <script>
 (function () {
-    const cashSelect = document.getElementById('cashSelect');
-    const cashItemsTable = document.getElementById('cashItemsTable');
-    const cashItemsBody = document.getElementById('cashItemsBody');
-    const emptyMsg = document.getElementById('cashItemsEmptyMsg');
-    if (!cashSelect) return;
+    const offlinePurchaseSelect = document.getElementById('offlinePurchaseSelect');
+    const offlineItemsTable = document.getElementById('offlineItemsTable');
+    const offlineItemsBody = document.getElementById('offlineItemsBody');
+    const emptyMsg = document.getElementById('offlineItemsEmptyMsg');
 
-    // AJAX: setiap kali user pilih Transaksi Kas, muat daftar item + sisa qty dari server
-    cashSelect.addEventListener('change', function () {
-        const cashTransactionId = this.value;
-        cashItemsBody.innerHTML = '';
+    // AJAX: setiap kali user pilih Pembelian Offline, muat daftar item + sisa qty dari server
+    offlinePurchaseSelect.addEventListener('change', function () {
+        const offlinePurchaseId = this.value;
+        offlineItemsBody.innerHTML = '';
 
-        if (!cashTransactionId) {
-            cashItemsTable.classList.add('d-none');
+        if (!offlinePurchaseId) {
+            offlineItemsTable.classList.add('d-none');
             if (emptyMsg) emptyMsg.classList.remove('d-none');
             return;
         }
 
-        const url = '<?= BASE_URL ?>/index.php?module=goods_receipt&action=ajaxCashItems&cash_transaction_id=' + cashTransactionId;
+        const url = '<?= BASE_URL ?>/index.php?module=goods_receipt&action=ajaxOfflinePurchaseItems&offline_purchase_id=' + offlinePurchaseId;
         fetch(url)
             .then(function (res) { return res.json(); })
             .then(function (data) {
@@ -553,20 +499,20 @@ $selectedCashTransactionId = $selectedCashTransactionId ?? ($receipt['cash_trans
                     alert(data.error);
                     return;
                 }
-                cashItemsBody.innerHTML = data.html;
+                offlineItemsBody.innerHTML = data.html;
                 if (data.count > 0) {
-                    cashItemsTable.classList.remove('d-none');
+                    offlineItemsTable.classList.remove('d-none');
                     if (emptyMsg) emptyMsg.classList.add('d-none');
                 } else {
-                    cashItemsTable.classList.add('d-none');
+                    offlineItemsTable.classList.add('d-none');
                     if (emptyMsg) {
-                        emptyMsg.textContent = 'Transaksi Kas ini tidak memiliki item beli barang.';
+                        emptyMsg.textContent = 'Pembelian offline ini tidak memiliki item.';
                         emptyMsg.classList.remove('d-none');
                     }
                 }
             })
             .catch(function () {
-                alert('Gagal memuat item Transaksi Kas. Silakan coba lagi.');
+                alert('Gagal memuat item Pembelian Offline. Silakan coba lagi.');
             });
     });
 })();

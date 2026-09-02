@@ -7,7 +7,6 @@ require_once ROOT_PATH . '/app/models/DeliveryDocument.php';
 require_once ROOT_PATH . '/app/models/PurchaseOrder.php';
 require_once ROOT_PATH . '/app/models/PurchaseOrderHistory.php';
 require_once ROOT_PATH . '/app/models/OfflinePurchase.php';
-require_once ROOT_PATH . '/app/models/CashTransaction.php';
 require_once ROOT_PATH . '/app/models/Inventory.php';
 require_once ROOT_PATH . '/app/models/Project.php';
 require_once ROOT_PATH . '/app/models/ActivityLog.php';
@@ -22,7 +21,6 @@ class GoodsReceiptController extends Controller
     private PurchaseOrder $poModel;
     private PurchaseOrderHistory $historyModel;
     private OfflinePurchase $offlinePurchaseModel;
-    private CashTransaction $cashModel;
     private Inventory $inventoryModel;
     private Project $projectModel;
     private ActivityLog $activityLog;
@@ -39,7 +37,6 @@ class GoodsReceiptController extends Controller
         $this->poModel          = new PurchaseOrder();
         $this->historyModel     = new PurchaseOrderHistory();
         $this->offlinePurchaseModel = new OfflinePurchase();
-        $this->cashModel        = new CashTransaction();
         $this->inventoryModel   = new Inventory();
         $this->projectModel     = new Project();
         $this->activityLog      = new ActivityLog();
@@ -97,28 +94,24 @@ class GoodsReceiptController extends Controller
     {
         Middleware::requirePermission('goods_receipt', 'create');
         $poId = (int) ($_GET['po_id'] ?? 0);
-        $cashTransactionId = (int) ($_GET['cash_transaction_id'] ?? 0);
+        $offlinePurchaseId = (int) ($_GET['offline_purchase_id'] ?? 0);
         $selectedPo = $poId ? $this->poModel->findWithRelations($poId) : null;
         $poItems = $poId ? $this->receiptItemModel->poItemsForReceipt($poId) : [];
-        $selectedCash = $cashTransactionId ? $this->cashModel->findWithRelations($cashTransactionId) : null;
-        $cashItems = $cashTransactionId ? $this->receiptItemModel->cashItemsForReceipt($cashTransactionId) : [];
-        $defaultReceiptType = $cashTransactionId ? 'cash' : 'purchase_order';
+        $selectedOfflinePurchase = $offlinePurchaseId ? $this->offlinePurchaseModel->findWithRelations($offlinePurchaseId) : null;
+        $offlineItems = $offlinePurchaseId ? $this->receiptItemModel->offlineItemsForReceipt($offlinePurchaseId) : [];
+        $defaultReceiptType = $offlinePurchaseId ? 'offline_purchase' : 'purchase_order';
 
         $this->view('goods_receipt/form', [
             'pageTitle'      => 'Tambah Penerimaan Barang',
             'mode'           => 'create',
-            'receipt'        => $cashTransactionId ? ['receipt_type' => 'cash'] : null,
+            'receipt'        => $offlinePurchaseId ? ['receipt_type' => 'offline_purchase'] : null,
             'receiptNumber'  => $this->receiptModel->previewReceiptNumber(),
             'poList'         => $this->poModel->receivablePoList(),
             'selectedPo'     => $selectedPo,
             'poItems'        => $poItems,
-            'cashList'       => $this->cashModel->receivableStockList(),
-            'selectedCash'   => $selectedCash,
-            'cashItems'      => $cashItems,
-            'selectedCashTransactionId' => $cashTransactionId,
-            'offlinePurchaseList' => [],
-            'selectedOfflinePurchase' => null,
-            'offlineItems'   => [],
+            'offlinePurchaseList' => $this->offlinePurchaseModel->receivableList(),
+            'selectedOfflinePurchase' => $selectedOfflinePurchase,
+            'offlineItems'   => $offlineItems,
             'defaultReceiptType' => $defaultReceiptType,
             'projects'       => $this->projectModel->activeList(),
             'units'          => $this->unitModel->activeList(),
@@ -165,7 +158,6 @@ class GoodsReceiptController extends Controller
             $receiptId = $this->receiptModel->create([
                 'purchase_order_id'   => $data['purchase_order_id'] ?: null,
                 'offline_purchase_id' => $data['offline_purchase_id'] ?: null,
-                'cash_transaction_id' => $data['cash_transaction_id'] ?: null,
                 'receipt_type'      => $data['receipt_type'],
                 'stock_scope'       => $data['stock_scope'],
                 'project_id'        => $data['project_id'] ?: null,
@@ -198,13 +190,6 @@ class GoodsReceiptController extends Controller
                     'goods_receipt',
                     'create',
                     "Penerimaan barang dari Pembelian Offline {$this->receiptModel->find($receiptId)['receipt_number']} dicatat"
-                );
-            } elseif ($data['cash_transaction_id']) {
-                $this->activityLog->log(
-                    currentUserId(),
-                    'goods_receipt',
-                    'create',
-                    "Penerimaan barang dari Pembelian Kas {$this->receiptModel->find($receiptId)['receipt_number']} dicatat"
                 );
             } else {
                 $this->activityLog->log(
@@ -243,14 +228,10 @@ class GoodsReceiptController extends Controller
         }
 
         $isOffline = $receipt['receipt_type'] === 'offline_purchase';
-        $isCash    = $receipt['receipt_type'] === 'cash';
         $poItems = [];
         $offlineItems = [];
-        $cashItems = [];
         if ($isOffline) {
             $offlineItems = $this->receiptItemModel->offlineItemsForReceipt((int) $receipt['offline_purchase_id'], $id);
-        } elseif ($isCash) {
-            $cashItems = $this->receiptItemModel->cashItemsForReceipt((int) $receipt['cash_transaction_id'], $id);
         } else {
             $poItems = $this->receiptItemModel->poItemsForReceipt((int) $receipt['purchase_order_id'], $id);
         }
@@ -261,9 +242,7 @@ class GoodsReceiptController extends Controller
         foreach ($receiptItems as $ri) {
             if ($isOffline && $ri['offline_purchase_item_id'] !== null) {
                 $receiptQtyMap[$ri['offline_purchase_item_id']] = (float) $ri['qty_received'];
-            } elseif ($isCash && $ri['cash_transaction_item_id'] !== null) {
-                $receiptQtyMap[$ri['cash_transaction_item_id']] = (float) $ri['qty_received'];
-            } elseif (!$isOffline && !$isCash && $ri['purchase_order_item_id'] !== null) {
+            } elseif (!$isOffline && $ri['purchase_order_item_id'] !== null) {
                 $receiptQtyMap[$ri['purchase_order_item_id']] = (float) $ri['qty_received'];
             }
         }
@@ -275,16 +254,13 @@ class GoodsReceiptController extends Controller
             $oi['qty_received_current'] = $receiptQtyMap[$oi['offline_item_id']] ?? 0;
         }
         unset($oi);
-        foreach ($cashItems as &$ci) {
-            $ci['qty_received_current'] = $receiptQtyMap[$ci['cash_item_id']] ?? 0;
-        }
-        unset($ci);
 
-        // Baris "Barang Tidak Sesuai" (semua *_item_id NULL) di-preload supaya
-        // tidak hilang saat form disubmit ulang (update() hapus+insert semua item).
+        // Baris "Barang Tidak Sesuai" (purchase_order_item_id & offline_purchase_item_id NULL)
+        // perlu di-preload supaya tidak hilang saat form ini disubmit ulang
+        // (update() hapus+insert ulang semua item).
         $mismatchItems = array_values(array_filter(
             $receiptItems,
-            fn($ri) => $ri['purchase_order_item_id'] === null && $ri['offline_purchase_item_id'] === null && $ri['cash_transaction_item_id'] === null
+            fn($ri) => $ri['purchase_order_item_id'] === null && $ri['offline_purchase_item_id'] === null
         ));
 
         $this->view('goods_receipt/form', [
@@ -295,12 +271,7 @@ class GoodsReceiptController extends Controller
             'poList'         => $this->poModel->receivablePoList(),
             'selectedPo'     => $receipt,
             'poItems'        => $poItems,
-            'cashList'       => $this->cashModel->receivableStockList(),
-            'selectedCash'   => $receipt,
-            'cashItems'      => $cashItems,
-            'selectedCashTransactionId' => (int) ($receipt['cash_transaction_id'] ?? 0),
-            // Dipertahankan untuk EDIT GR offline lama (opsi create sudah dihapus).
-            'offlinePurchaseList' => [],
+            'offlinePurchaseList' => $this->offlinePurchaseModel->receivableList(),
             'selectedOfflinePurchase' => $receipt,
             'offlineItems'   => $offlineItems,
             'defaultReceiptType' => $receipt['receipt_type'],
@@ -336,7 +307,6 @@ class GoodsReceiptController extends Controller
         // Sumber/PO/Pembelian Offline & tipe/kategori tidak boleh diganti saat edit -- gunakan data asli
         $data['purchase_order_id']   = (int) $existing['purchase_order_id'];
         $data['offline_purchase_id'] = (int) $existing['offline_purchase_id'];
-        $data['cash_transaction_id'] = (int) ($existing['cash_transaction_id'] ?? 0);
         $data['receipt_type']  = $existing['receipt_type'];
         $data['stock_scope']   = $existing['stock_scope'];
         $data['project_id']    = $existing['project_id'];
@@ -368,12 +338,24 @@ class GoodsReceiptController extends Controller
             $effectiveProjectId = $po ? (int) $po['project_id']
                 : ($offlinePurchase ? (int) $offlinePurchase['project_id'] : (int) ($data['project_id'] ?? 0));
 
-            // Batalkan efek stok lama (item PO/offline: reverse qty_received yg sudah
-            // diposting; item Kas: balikkan stock_delta_applied). Item yang datanya
-            // berubah otomatis butuh divalidasi ulang.
+            // Batalkan kredit stok lama HANYA untuk item yang benar-benar sudah
+            // pernah diposting (stock_posted_at terisi -- lihat ValidationController).
+            // Item yang mengubah data penerimaannya otomatis butuh divalidasi ulang.
             $oldItems = $this->receiptItemModel->itemsByReceipt($id);
             foreach ($oldItems as $oldItem) {
-                $this->reverseGrItemStock($oldItem, $effectiveProjectId, $data['stock_scope']);
+                if (empty($oldItem['stock_posted_at'])) {
+                    continue;
+                }
+                $this->inventoryModel->reverseCredit(
+                    $oldItem['item_name'],
+                    $oldItem['unit'],
+                    $effectiveProjectId ?: null,
+                    (float) $oldItem['qty_received'],
+                    'goods_receipt',
+                    $id,
+                    currentUserId(),
+                    $data['stock_scope']
+                );
             }
 
             $updateData = [
@@ -408,13 +390,6 @@ class GoodsReceiptController extends Controller
                     'goods_receipt',
                     'update',
                     "Penerimaan barang dari Pembelian Offline {$existing['receipt_number']} diperbarui"
-                );
-            } elseif ($existing['cash_transaction_id']) {
-                $this->activityLog->log(
-                    currentUserId(),
-                    'goods_receipt',
-                    'update',
-                    "Penerimaan barang dari Pembelian Kas {$existing['receipt_number']} diperbarui"
                 );
             }
 
@@ -480,10 +455,23 @@ class GoodsReceiptController extends Controller
                 : ($offlinePurchase ? (int) $offlinePurchase['project_id'] : (int) ($receipt['project_id'] ?? 0));
             $items = $this->receiptItemModel->itemsByReceipt($id);
 
-            // Batalkan efek stok tiap item (PO/offline: reverse qty_received yg
-            // sudah diposting Validasi; Kas: balikkan stock_delta_applied).
+            // Hanya reverse item yang benar-benar sudah pernah diposting ke stok
+            // (stock_posted_at terisi) -- item yang belum/tidak lolos validasi
+            // memang tidak pernah masuk stok, jadi tidak ada yang perlu dikoreksi.
             foreach ($items as $item) {
-                $this->reverseGrItemStock($item, $effectiveProjectId, $receipt['stock_scope'] ?? 'proyek');
+                if (empty($item['stock_posted_at'])) {
+                    continue;
+                }
+                $this->inventoryModel->reverseCredit(
+                    $item['item_name'],
+                    $item['unit'],
+                    $effectiveProjectId ?: null,
+                    (float) $item['qty_received'],
+                    'goods_receipt',
+                    $id,
+                    currentUserId(),
+                    $receipt['stock_scope'] ?? 'proyek'
+                );
             }
 
             $this->receiptModel->deleteById($id);
@@ -502,13 +490,6 @@ class GoodsReceiptController extends Controller
                     'goods_receipt',
                     'delete',
                     "Penerimaan barang (Pembelian Offline) {$receipt['receipt_number']} dihapus"
-                );
-            } elseif ($receipt['cash_transaction_id']) {
-                $this->activityLog->log(
-                    currentUserId(),
-                    'goods_receipt',
-                    'delete',
-                    "Penerimaan barang (Pembelian Kas) {$receipt['receipt_number']} dihapus"
                 );
             } else {
                 $this->activityLog->log(
@@ -644,40 +625,12 @@ class GoodsReceiptController extends Controller
         $this->json(['html' => $html, 'count' => count($items)]);
     }
 
-    /**
-     * AJAX: ambil daftar item beli barang dari satu transaksi Kas (sisa qty) --
-     * dipanggil saat user memilih Transaksi Kas di dropdown form tambah penerimaan.
-     * Meniru persis ajaxOfflinePurchaseItems().
-     */
-    public function ajaxCashItems()
-    {
-        $cashTransactionId = (int) ($_GET['cash_transaction_id'] ?? 0);
-        $cashTransaction = $this->cashModel->find($cashTransactionId);
-
-        if (!$cashTransaction) {
-            $this->json(['error' => 'Transaksi kas tidak ditemukan'], 404);
-        }
-
-        $items = $this->receiptItemModel->cashItemsForReceipt($cashTransactionId);
-
-        ob_start();
-        foreach ($items as $index => $cashItem) {
-            include ROOT_PATH . '/app/views/goods_receipt/_cash_item_row.php';
-        }
-        $html = ob_get_clean();
-
-        $this->json(['html' => $html, 'count' => count($items)]);
-    }
-
     // ================= Helper privat =================
 
     private function collectInput(): array
     {
         $receiptType = $_POST['receipt_type'] ?? 'purchase_order';
-        // 'offline_purchase' dipertahankan HANYA untuk update() GR lama -- form
-        // create tak lagi mengirimnya, tapi biarkan lolos whitelist supaya
-        // collectOfflineItems() tetap jalan saat mengedit GR offline lama.
-        if (!in_array($receiptType, ['purchase_order', 'pemakai', 'offline_purchase', 'cash'], true)) {
+        if (!in_array($receiptType, ['purchase_order', 'pemakai', 'offline_purchase'], true)) {
             $receiptType = 'purchase_order';
         }
 
@@ -685,22 +638,19 @@ class GoodsReceiptController extends Controller
             $items = $this->collectPoItems();
         } elseif ($receiptType === 'offline_purchase') {
             $items = $this->collectOfflineItems();
-        } elseif ($receiptType === 'cash') {
-            $items = $this->collectCashItems();
         } else {
             $items = $this->collectPemakaiItems();
         }
-        $isSourced = in_array($receiptType, ['purchase_order', 'offline_purchase', 'cash'], true);
+        $isSourced = $receiptType === 'purchase_order' || $receiptType === 'offline_purchase';
         $mismatchItems = $isSourced ? $this->collectMismatchItems() : [];
 
         $stockScope = $receiptType === 'pemakai'
             ? (($_POST['stock_scope'] ?? 'proyek') === 'kantor' ? 'kantor' : 'proyek')
-            : 'proyek'; // penerimaan dari PO/Pembelian Offline/Kas selalu terikat project
+            : 'proyek'; // penerimaan dari PO/Pembelian Offline selalu terikat project
 
         return [
             'purchase_order_id'   => (int) ($_POST['purchase_order_id'] ?? 0),
             'offline_purchase_id' => (int) ($_POST['offline_purchase_id'] ?? 0),
-            'cash_transaction_id' => (int) ($_POST['cash_transaction_id'] ?? 0),
             'receipt_type'      => $receiptType,
             'stock_scope'       => $stockScope,
             'project_id'        => (int) ($_POST['project_id'] ?? 0),
@@ -751,27 +701,6 @@ class GoodsReceiptController extends Controller
                 continue;
             }
             $items[] = ['offline_item_id' => $offlineItemId, 'qty_received' => $qty];
-        }
-        return $items;
-    }
-
-    /**
-     * Item dari alur Pembelian Kas: qty_received[] dipasangkan dengan
-     * cash_item_id[] (= cash_transaction_items.id) -- cermin collectOfflineItems().
-     */
-    private function collectCashItems(): array
-    {
-        $cashItemIds = $_POST['cash_item_id'] ?? [];
-        $qtys = $_POST['qty_received'] ?? [];
-
-        $items = [];
-        foreach ($cashItemIds as $i => $cashItemId) {
-            $cashItemId = (int) $cashItemId;
-            $qty = (float) ($qtys[$i] ?? 0);
-            if ($cashItemId <= 0 || $qty <= 0) {
-                continue;
-            }
-            $items[] = ['cash_item_id' => $cashItemId, 'qty_received' => $qty];
         }
         return $items;
     }
@@ -855,13 +784,6 @@ class GoodsReceiptController extends Controller
             if (empty($data['items']) && empty($data['mismatchItems'])) {
                 $errors[] = 'Minimal harus ada 1 item dengan qty diterima lebih dari 0 (item Pembelian Offline atau barang tidak sesuai).';
             }
-        } elseif ($data['receipt_type'] === 'cash') {
-            if ($data['cash_transaction_id'] <= 0) {
-                $errors[] = 'Transaksi Kas wajib dipilih.';
-            }
-            if (empty($data['items']) && empty($data['mismatchItems'])) {
-                $errors[] = 'Minimal harus ada 1 item dengan qty diterima lebih dari 0 (item Pembelian Kas atau barang tidak sesuai).';
-            }
         } else {
             if ($data['project_id'] <= 0 && $data['stock_scope'] === 'proyek') {
                 $errors[] = 'Project wajib dipilih untuk penerimaan kategori Stok Proyek.';
@@ -875,70 +797,6 @@ class GoodsReceiptController extends Controller
         }
 
         return $errors;
-    }
-
-    /**
-     * Batalkan efek stok satu item penerimaan saat GR di-edit / dihapus.
-     *
-     * - Item PO / Pembelian Offline / barang tidak sesuai: kalau sudah pernah
-     *   diposting Validasi (stock_posted_at terisi), reverse sebesar qty_received.
-     * - Item Pembelian Kas: Kas sudah kredit qty PENUH saat transaksi Kas disimpan;
-     *   Validasi hanya menerapkan DELTA (stock_delta_applied) supaya stok = qty
-     *   fisik. Di sini cukup membatalkan delta itu -> stok balik ke angka Kas.
-     *   (Kas sendiri yang menghapus kredit penuh kalau transaksinya dihapus.)
-     *   delta < 0 dikembalikan dg creditStock; delta > 0 dg reverseCredit.
-     */
-    private function reverseGrItemStock(array $item, int $effectiveProjectId, string $grStockScope): void
-    {
-        if (!empty($item['cash_transaction_item_id'])) {
-            $delta = (float) ($item['stock_delta_applied'] ?? 0);
-            if (abs($delta) < 0.00001) {
-                return; // belum divalidasi / delta nol -- tak ada yang perlu dikoreksi
-            }
-            $projectId = !empty($item['cash_project_id']) ? (int) $item['cash_project_id'] : null;
-            $scope = $item['cash_stock_scope'] ?: 'proyek';
-            if ($delta < 0) {
-                $this->inventoryModel->creditStock(
-                    $item['item_name'],
-                    $item['unit'],
-                    $projectId,
-                    -$delta,
-                    'goods_receipt',
-                    (int) $item['goods_receipt_id'],
-                    date('Y-m-d'),
-                    currentUserId(),
-                    $scope
-                );
-            } else {
-                $this->inventoryModel->reverseCredit(
-                    $item['item_name'],
-                    $item['unit'],
-                    $projectId,
-                    $delta,
-                    'goods_receipt',
-                    (int) $item['goods_receipt_id'],
-                    currentUserId(),
-                    $scope
-                );
-            }
-            $this->receiptItemModel->clearStockPosting((int) $item['id']);
-            return;
-        }
-
-        if (empty($item['stock_posted_at'])) {
-            return; // item PO/offline yang belum/tidak lolos validasi -- tak pernah masuk stok
-        }
-        $this->inventoryModel->reverseCredit(
-            $item['item_name'],
-            $item['unit'],
-            $effectiveProjectId ?: null,
-            (float) $item['qty_received'],
-            'goods_receipt',
-            (int) $item['goods_receipt_id'],
-            currentUserId(),
-            $grStockScope
-        );
-        $this->receiptItemModel->clearStockPosting((int) $item['id']);
     }
 
     /**
@@ -1004,35 +862,6 @@ class GoodsReceiptController extends Controller
             }
 
             $this->saveMismatchItems($receiptId, $data['mismatchItems'] ?? []);
-        } elseif ($data['receipt_type'] === 'cash') {
-            $cashItemDetails = $this->receiptItemModel->cashItemsForReceipt((int) $data['cash_transaction_id'], $receiptId);
-            $detailByCashItemId = [];
-            foreach ($cashItemDetails as $detail) {
-                $detailByCashItemId[$detail['cash_item_id']] = $detail;
-            }
-
-            foreach ($data['items'] as $item) {
-                $detail = $detailByCashItemId[$item['cash_item_id']] ?? null;
-                if (!$detail) {
-                    continue;
-                }
-
-                $totalAfter = $detail['qty_received_before'] + $item['qty_received'];
-                $status = $this->receiptItemModel->resolveComparisonStatus($detail['qty_order'], $totalAfter);
-
-                $this->receiptItemModel->create([
-                    'goods_receipt_id'        => $receiptId,
-                    'cash_transaction_item_id' => $item['cash_item_id'],
-                    'is_item_mismatch'        => 0,
-                    'qty_received'            => $item['qty_received'],
-                    'comparison_status'       => $status,
-                    // stock_delta_applied NULL = belum divalidasi. Stok baru
-                    // dikoreksi ke qty fisik saat item divalidasi (Validasi Barang).
-                    'created_by'              => currentUserId(),
-                ]);
-            }
-
-            $this->saveMismatchItems($receiptId, $data['mismatchItems'] ?? []);
         } else {
             foreach ($data['items'] as $item) {
                 $this->receiptItemModel->create([
@@ -1041,7 +870,7 @@ class GoodsReceiptController extends Controller
                     'actual_unit'       => $item['actual_unit'],
                     'is_item_mismatch'  => 0,
                     'qty_received'      => $item['qty_received'],
-                    'comparison_status' => 'sesuai', // tidak ada sumber untuk dibandingkan
+                    'comparison_status' => 'sesuai', // tidak ada PO/Pembelian Offline untuk dibandingkan
                     'created_by'        => currentUserId(),
                 ]);
             }

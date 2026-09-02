@@ -32,8 +32,6 @@
                                 <span class="badge bg-info text-dark">Pemakai/Internal</span>
                             <?php elseif ($receipt['receipt_type'] === 'offline_purchase'): ?>
                                 <span class="badge bg-warning text-dark">Pembelian Offline</span>
-                            <?php elseif ($receipt['receipt_type'] === 'cash'): ?>
-                                <span class="badge bg-success">Pembelian Kas</span>
                             <?php else: ?>
                                 <span class="badge bg-primary">Purchase Order</span>
                             <?php endif; ?>
@@ -67,15 +65,6 @@
                         <div class="col-md-4">
                             <div class="text-muted small">Project</div>
                             <div class="fw-semibold"><?= e($receipt['project_name']) ?></div>
-                        </div>
-                    <?php elseif ($receipt['receipt_type'] === 'cash'): ?>
-                        <div class="col-md-4">
-                            <div class="text-muted small">No. Bukti Kas</div>
-                            <div class="fw-semibold"><?= e($receipt['cash_no_bukti'] ?? $receipt['po_number']) ?></div>
-                        </div>
-                        <div class="col-md-8">
-                            <div class="text-muted small">Catatan Stok</div>
-                            <div class="small text-muted">Stok sudah ditambah penuh saat transaksi Kas disimpan; Validasi Barang menyesuaikan ke qty fisik yang diterima.</div>
                         </div>
                     <?php else: ?>
                         <div class="col-md-4">

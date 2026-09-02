@@ -123,29 +123,6 @@ class CashTransaction extends Model
         );
     }
 
-    /**
-     * Transaksi Kas yang punya >=1 baris beli barang (kategori ber-affects_stock
-     * & tertaut master Barang) -- untuk dropdown "Dari Pembelian Kas" di form
-     * Penerimaan Barang. Tanpa scoping PIC/divisi (fungsi gudang, lihat semua).
-     */
-    public function receivableStockList(): array
-    {
-        return $this->db->fetchAll(
-            "SELECT c.id, c.no_bukti, c.trx_date,
-                    (SELECT GROUP_CONCAT(DISTINCT it.item_name SEPARATOR ', ')
-                       FROM cash_transaction_items x
-                       JOIN cash_categories xc ON xc.id = x.cash_category_id AND xc.affects_stock = 1
-                       JOIN items it ON it.id = x.item_id
-                      WHERE x.cash_transaction_id = c.id) AS items_label
-               FROM cash_transactions c
-              WHERE c.deleted_at IS NULL
-                AND EXISTS (SELECT 1 FROM cash_transaction_items cti
-                            JOIN cash_categories cc ON cc.id = cti.cash_category_id AND cc.affects_stock = 1
-                            WHERE cti.cash_transaction_id = c.id AND cti.item_id IS NOT NULL)
-           ORDER BY c.trx_date DESC, c.id DESC"
-        );
-    }
-
     public function listFiltered(array $filters, ?array $scopePics, ?array $divisionScope = null): array
     {
         [$where, $params] = $this->buildWhere($filters, $scopePics, $divisionScope);

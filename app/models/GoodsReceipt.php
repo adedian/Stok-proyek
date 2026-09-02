@@ -83,9 +83,8 @@ class GoodsReceipt extends Model
     public function findWithRelations(int $id)
     {
         $sql = "SELECT gr.*,
-                       COALESCE(po.po_number, op.purchase_number, ct.no_bukti, '-') AS po_number,
+                       COALESCE(po.po_number, op.purchase_number, '-') AS po_number,
                        po.pembuat_po,
-                       ct.no_bukti AS cash_no_bukti,
                        COALESCE(po.project_id, op.project_id, gr.project_id) AS effective_project_id,
                        COALESCE(s.supplier_name, op.supplier_name, gr.source_detail, 'Pemakai/Internal') AS supplier_name,
                        COALESCE(p.project_name, p3.project_name, p2.project_name) AS project_name,
@@ -93,7 +92,6 @@ class GoodsReceipt extends Model
                 FROM goods_receipts gr
                 LEFT JOIN purchase_orders po ON po.id = gr.purchase_order_id
                 LEFT JOIN offline_purchases op ON op.id = gr.offline_purchase_id
-                LEFT JOIN cash_transactions ct ON ct.id = gr.cash_transaction_id
                 LEFT JOIN suppliers s ON s.id = po.supplier_id
                 LEFT JOIN projects p ON p.id = po.project_id
                 LEFT JOIN projects p3 ON p3.id = op.project_id
@@ -116,22 +114,6 @@ class GoodsReceipt extends Model
                 WHERE gr.offline_purchase_id = :id AND gr.deleted_at IS NULL
                 ORDER BY gr.created_at DESC";
         return $this->db->fetchAll($sql, ['id' => $offlinePurchaseId]);
-    }
-
-    /**
-     * Penerimaan Barang AKTIF (belum di-soft-delete) yang bersumber dari satu
-     * transaksi Kas -- dipakai CashController untuk mencegah edit/hapus transaksi
-     * Kas selagi barangnya sudah diterima (stok sudah dikoreksi lewat delta GR).
-     */
-    public function firstActiveByCashTransaction(int $cashTransactionId): ?array
-    {
-        $row = $this->db->fetchOne(
-            "SELECT id, receipt_number FROM goods_receipts
-              WHERE cash_transaction_id = :id AND deleted_at IS NULL
-              ORDER BY id LIMIT 1",
-            ['id' => $cashTransactionId]
-        );
-        return $row ?: null;
     }
 
 }

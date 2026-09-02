@@ -101,7 +101,7 @@
             <div class="card-body">
                 <h6 class="mb-3"><i class="bi bi-box-seam"></i> Penerimaan Barang</h6>
                 <?php if (empty($receipts)): ?>
-                    <p class="text-muted small mb-2">Tidak ada penerimaan barang untuk pembelian offline ini.</p>
+                    <p class="text-muted small mb-2">Belum ada penerimaan barang untuk pembelian offline ini.</p>
                 <?php else: ?>
                     <ul class="list-group list-group-flush">
                         <?php foreach ($receipts as $r): ?>
@@ -116,11 +116,11 @@
                         <?php endforeach; ?>
                     </ul>
                 <?php endif; ?>
-                <div class="alert alert-info small mt-3 mb-0">
-                    Pembelian barang di luar PO kini dicatat lewat modul <strong>Kas</strong>.
-                    Penerimaan barangnya dibuat dari menu <strong>Penerimaan Barang</strong> &rarr;
-                    sumber "Dari Pembelian Kas". Data di sini hanya menampilkan riwayat lama.
-                </div>
+                <?php if (in_array($purchase['status'], ['belum_diterima', 'diterima_sebagian'], true)): ?>
+                    <a href="<?= BASE_URL ?>/goods_receipt/create?offline_purchase_id=<?= (int) $purchase['id'] ?>" class="btn btn-sm btn-primary mt-3">
+                        <i class="bi bi-plus-circle"></i> Catat Penerimaan Barang
+                    </a>
+                <?php endif; ?>
             </div>
         </div>
     </div>

@@ -6,6 +6,9 @@ $selectedOfflinePurchaseId = $selectedOfflinePurchase['id'] ?? ($selectedOffline
 $receiptType = $receipt['receipt_type'] ?? ($defaultReceiptType ?? 'purchase_order');
 $offlinePurchaseList = $offlinePurchaseList ?? [];
 $offlineItems = $offlineItems ?? [];
+// Opsi "Dari Pembelian Offline" hanya muncul kalau user boleh mengakses modul
+// Pembelian Offline (ditegakkan juga di GoodsReceiptController).
+$canOfflineSource = can('offline_purchase', 'view');
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
@@ -33,10 +36,18 @@ $offlineItems = $offlineItems ?? [];
                     <label class="form-label">Sumber Penerimaan <span class="text-danger">*</span></label>
                     <select name="receipt_type" id="receiptTypeSelect" class="form-select">
                         <option value="purchase_order" <?= $receiptType === 'purchase_order' ? 'selected' : '' ?>>Dari Purchase Order (Supplier)</option>
+                        <?php if ($canOfflineSource): ?>
                         <option value="offline_purchase" <?= $receiptType === 'offline_purchase' ? 'selected' : '' ?>>Dari Pembelian Offline</option>
+                        <?php endif; ?>
                         <option value="pemakai" <?= $receiptType === 'pemakai' ? 'selected' : '' ?>>Dari Pemakai/Internal</option>
                     </select>
-                    <div class="form-text">Barang dari Pembelian Offline (di luar mekanisme PO) dan yang dikembalikan/diserahkan oleh pemakai internal dicatat lewat 2 opsi terakhir.</div>
+                    <div class="form-text">
+                        <?php if ($canOfflineSource): ?>
+                            Barang dari Pembelian Offline (di luar mekanisme PO) dan yang dikembalikan/diserahkan oleh pemakai internal dicatat lewat 2 opsi terakhir.
+                        <?php else: ?>
+                            Barang yang dikembalikan/diserahkan oleh pemakai internal dicatat lewat opsi terakhir.
+                        <?php endif; ?>
+                    </div>
                 </div>
                 <div class="col-md-6" id="stockScopeWrapper" style="display:none;">
                     <label class="form-label">Kategori Stok <span class="text-danger">*</span></label>

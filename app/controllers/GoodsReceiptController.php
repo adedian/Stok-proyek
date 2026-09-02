@@ -95,6 +95,11 @@ class GoodsReceiptController extends Controller
         Middleware::requirePermission('goods_receipt', 'create');
         $poId = (int) ($_GET['po_id'] ?? 0);
         $offlinePurchaseId = (int) ($_GET['offline_purchase_id'] ?? 0);
+        // "Dari Pembelian Offline" hanya untuk user yang punya akses modul
+        // Pembelian Offline -- selain itu, abaikan konteks offline sepenuhnya.
+        if ($offlinePurchaseId && !can('offline_purchase', 'view')) {
+            $offlinePurchaseId = 0;
+        }
         $selectedPo = $poId ? $this->poModel->findWithRelations($poId) : null;
         $poItems = $poId ? $this->receiptItemModel->poItemsForReceipt($poId) : [];
         $selectedOfflinePurchase = $offlinePurchaseId ? $this->offlinePurchaseModel->findWithRelations($offlinePurchaseId) : null;
@@ -631,6 +636,12 @@ class GoodsReceiptController extends Controller
     {
         $receiptType = $_POST['receipt_type'] ?? 'purchase_order';
         if (!in_array($receiptType, ['purchase_order', 'pemakai', 'offline_purchase'], true)) {
+            $receiptType = 'purchase_order';
+        }
+        // Tanpa akses modul Pembelian Offline, sumber "offline_purchase" tidak
+        // diizinkan walau POST-nya diutak-atik -- diturunkan ke 'purchase_order'
+        // (validateInput lalu menuntut PO dipilih, jadi tidak lolos diam-diam).
+        if ($receiptType === 'offline_purchase' && !can('offline_purchase', 'view')) {
             $receiptType = 'purchase_order';
         }
 

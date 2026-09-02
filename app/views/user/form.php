@@ -39,6 +39,13 @@ $hasOverrides = !empty($permOverrides);
                             </option>
                         <?php endforeach; ?>
                     </select>
+                    <?php if (!$isEdit): ?>
+                        <div class="form-text">
+                            Role <strong>Purchase</strong>, <strong>PIC Project</strong>, <strong>Admin Project</strong>:
+                            PIC Kas otomatis dibuat saat user disimpan (Password Kas awal = password login;
+                            bisa diganti di <em>Master Data &rsaquo; PIC Kas</em>).
+                        </div>
+                    <?php endif; ?>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Username <span class="text-danger">*</span></label>

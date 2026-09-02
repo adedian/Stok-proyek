@@ -19,6 +19,9 @@ $needsPicKas = $needsPicKas ?? [];
     <strong>Super Admin</strong>, <strong>Accounting</strong>, dan <strong>Project Manager</strong> melihat seluruh Kas
     tanpa verifikasi tambahan. Atur username &amp; password/PIN Kas tiap PIC lewat tombol
     <i class="bi bi-key"></i> di bawah.
+    <br><i class="bi bi-magic"></i> User <strong>baru</strong> ber-role Purchase/PIC Project/Admin Project
+    otomatis dapat PIC Kas saat dibuat (Password Kas awal = password login). Daftar di bawah
+    hanya untuk user lama yang belum punya.
 </div>
 
 <?php if (can('user_pic', 'create') && !empty($needsPicKas)): ?>

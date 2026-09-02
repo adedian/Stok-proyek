@@ -5,6 +5,7 @@ require_once ROOT_PATH . '/app/models/User.php';
 require_once ROOT_PATH . '/app/models/Role.php';
 require_once ROOT_PATH . '/app/models/ActivityLog.php';
 require_once ROOT_PATH . '/app/models/UserPermission.php';
+require_once ROOT_PATH . '/app/models/UserPicAssignment.php';
 
 class UserController extends Controller
 {
@@ -72,10 +73,68 @@ class UserController extends Controller
 
         $this->savePermissionOverrides($newId, (int) $data['role_id']);
 
+        // Role Purchase / PIC Project / Admin Project WAJIB punya PIC Kas untuk
+        // membuka modul Kas -> buat otomatis biar tak perlu setup manual.
+        $kasProvisioned = $this->autoProvisionKasPic(
+            $newId,
+            (int) $data['role_id'],
+            $data['full_name'],
+            $data['username'],
+            $data['password']
+        );
+
         $this->activityLog->log(currentUserId(), 'user', 'create', "User '{$data['username']}' dibuat");
 
-        setFlash('success', 'User berhasil dibuat.');
+        setFlash('success', 'User berhasil dibuat.'
+            . ($kasProvisioned ? ' PIC Kas otomatis dibuat (Password Kas awal = password login user).' : ''));
         $this->redirect('user', 'index');
+    }
+
+    /**
+     * Buat mapping PIC Kas + kredensial untuk user baru ber-role wajib-PIC-Kas
+     * (Purchase / PIC Project / Admin Project). Nama PIC = nama lengkap, Username
+     * Kas = username, Password Kas awal = SAMA dengan password login (bisa diganti
+     * nanti lewat Master Data > PIC Kas). Return true kalau berhasil membuat.
+     */
+    private function autoProvisionKasPic(int $userId, int $roleId, string $fullName, string $username, string $plainPassword): bool
+    {
+        $slug = $this->roleModel->slugById($roleId);
+        if (!in_array($slug, [ROLE_PURCHASE, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT], true)) {
+            return false;
+        }
+
+        $pic = new UserPicAssignment();
+        if ($pic->hasLoginablePic($userId)) {
+            return false;
+        }
+
+        $picName = $fullName !== '' ? $fullName : $username;
+        if ($pic->exists($userId, $picName)) {
+            return false; // sudah ada mapping (mis. tanpa password) -> jangan gandakan
+        }
+
+        $picUsername = $username;
+        if ($pic->picUsernameExists($picUsername)) {
+            $picUsername = $username . '_kas';
+            if ($pic->picUsernameExists($picUsername)) {
+                $picUsername = null; // biarkan kosong, admin set nanti
+            }
+        }
+
+        $id = $pic->create([
+            'user_id'    => $userId,
+            'pic_name'   => $picName,
+            'created_by' => currentUserId(),
+        ]);
+        $pic->setCredential($id, $picUsername, password_hash($plainPassword, PASSWORD_DEFAULT), true);
+
+        $this->activityLog->log(
+            currentUserId(),
+            'user_pic',
+            'create',
+            "PIC Kas '{$picName}' otomatis dibuat untuk user baru '{$username}' (Password Kas awal = password login)"
+        );
+        return true;
     }
 
     public function edit()

@@ -45,12 +45,24 @@ class User extends Model
      */
     public function listWithRole(): array
     {
+        // Urut per-role (untuk pengelompokan di User Management), lalu nama.
         return $this->db->fetchAll(
             "SELECT u.*, r.role_name, r.role_slug
              FROM users u
              JOIN roles r ON r.id = u.role_id
              WHERE u.deleted_at IS NULL
-             ORDER BY u.full_name ASC"
+             ORDER BY
+                CASE r.role_slug
+                    WHEN 'super_admin'     THEN 1
+                    WHEN 'project_manager' THEN 2
+                    WHEN 'accounting'      THEN 3
+                    WHEN 'purchase'        THEN 4
+                    WHEN 'pic_project'     THEN 5
+                    WHEN 'admin_project'   THEN 6
+                    ELSE 99
+                END,
+                r.role_name ASC,
+                u.full_name ASC"
         );
     }
 

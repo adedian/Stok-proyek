@@ -8,6 +8,13 @@
     </a>
 </div>
 
+<?php
+// Kelompokkan user per role (urutan sudah diatur di User::listWithRole()).
+$groups = [];
+foreach ($users as $u) {
+    $groups[$u['role_name']][] = $u;
+}
+?>
 <div class="card border-0 shadow-sm">
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -22,20 +29,29 @@
                         <th class="text-center">Aksi</th>
                     </tr>
                 </thead>
+                <?php if (empty($users)): ?>
                 <tbody>
-                    <?php if (empty($users)): ?>
-                        <tr><td colspan="6" class="p-0">
-                            <div class="empty-state">
-                                <i class="bi bi-people empty-icon"></i>
-                                <div class="empty-title">Belum ada user</div>
-                                <div class="empty-desc">Tambahkan akun user untuk anggota tim yang perlu mengakses sistem.</div>
-                                <a href="<?= BASE_URL ?>/user/create" class="btn btn-sm btn-primary">
-                                    <i class="bi bi-plus-circle"></i> Tambah User
-                                </a>
-                            </div>
-                        </td></tr>
-                    <?php endif; ?>
-                    <?php foreach ($users as $u): ?>
+                    <tr><td colspan="6" class="p-0">
+                        <div class="empty-state">
+                            <i class="bi bi-people empty-icon"></i>
+                            <div class="empty-title">Belum ada user</div>
+                            <div class="empty-desc">Tambahkan akun user untuk anggota tim yang perlu mengakses sistem.</div>
+                            <a href="<?= BASE_URL ?>/user/create" class="btn btn-sm btn-primary">
+                                <i class="bi bi-plus-circle"></i> Tambah User
+                            </a>
+                        </div>
+                    </td></tr>
+                </tbody>
+                <?php endif; ?>
+                <?php foreach ($groups as $roleName => $roleUsers): ?>
+                <tbody class="border-top">
+                    <tr class="table-light">
+                        <th colspan="6" class="py-2">
+                            <i class="bi bi-person-badge"></i> <?= e($roleName) ?>
+                            <span class="badge bg-secondary rounded-pill ms-1"><?= count($roleUsers) ?></span>
+                        </th>
+                    </tr>
+                    <?php foreach ($roleUsers as $u): ?>
                         <tr>
                             <td><?= e($u['full_name']) ?></td>
                             <td><?= e($u['username']) ?></td>
@@ -93,6 +109,7 @@
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
+                <?php endforeach; ?>
             </table>
         </div>
     </div>

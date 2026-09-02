@@ -191,6 +191,53 @@ class UserController extends Controller
         $this->redirect('user', 'index');
     }
 
+    /**
+     * Hapus akun user (soft delete -- KHUSUS Super Admin).
+     * Akun jadi tidak bisa login & hilang dari semua daftar; referensi historis
+     * (created_by, validated_by, activity log, dst) tetap utuh. Pemulihan hanya
+     * lewat DB. Tidak bisa hapus diri sendiri atau Super Admin terakhir.
+     */
+    public function delete()
+    {
+        Middleware::requirePermission('user', 'delete');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('user', 'index');
+        }
+        verifyCsrf();
+
+        $id = (int) ($_POST['id'] ?? 0);
+        $user = $this->userModel->findWithRole($id);
+
+        if (!$user) {
+            setFlash('error', 'User tidak ditemukan.');
+            $this->redirect('user', 'index');
+        }
+
+        if ($id === currentUserId()) {
+            setFlash('error', 'Anda tidak bisa menghapus akun sendiri.');
+            $this->redirect('user', 'index');
+        }
+
+        if ($user['role_slug'] === ROLE_SUPER_ADMIN
+            && $this->userModel->countByRoleSlug(ROLE_SUPER_ADMIN) <= 1) {
+            setFlash('error', 'Tidak bisa menghapus Super Admin terakhir.');
+            $this->redirect('user', 'index');
+        }
+
+        $this->userModel->deleteById($id);
+
+        $this->activityLog->log(
+            currentUserId(),
+            'user',
+            'delete',
+            "Akun '{$user['username']}' ({$user['full_name']}) dihapus"
+        );
+
+        setFlash('success', "Akun '{$user['username']}' berhasil dihapus.");
+        $this->redirect('user', 'index');
+    }
+
     // ================= Helper privat =================
 
     private function collectInput(): array

@@ -110,6 +110,7 @@ return [
         'view'   => [ROLE_SUPER_ADMIN],
         'create' => [ROLE_SUPER_ADMIN],
         'edit'   => [ROLE_SUPER_ADMIN],
+        'delete' => [ROLE_SUPER_ADMIN],
     ],
 
     // ================= Master Data =================

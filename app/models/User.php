@@ -112,4 +112,19 @@ class User extends Model
         );
         return (int) ($result['total'] ?? 0);
     }
+
+    /**
+     * Jumlah akun (aktif MAUPUN nonaktif, belum dihapus) untuk sebuah role --
+     * dipakai mencegah Super Admin TERAKHIR dihapus permanen.
+     */
+    public function countByRoleSlug(string $roleSlug): int
+    {
+        $result = $this->db->fetchOne(
+            "SELECT COUNT(*) AS total FROM users u
+             JOIN roles r ON r.id = u.role_id
+             WHERE r.role_slug = :slug AND u.deleted_at IS NULL",
+            ['slug' => $roleSlug]
+        );
+        return (int) ($result['total'] ?? 0);
+    }
 }

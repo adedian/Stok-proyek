@@ -73,6 +73,19 @@
                                                     </button>
                                                 </form>
                                             </li>
+                                            <?php if (can('user', 'delete')): ?>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <form method="POST" action="<?= BASE_URL ?>/index.php?module=user&action=delete"
+                                                      onsubmit="return confirm('HAPUS akun <?= e($u['username']) ?> secara permanen dari daftar? Akun tidak bisa login lagi. Data riwayat tetap tersimpan.');">
+                                                    <?= csrfField() ?>
+                                                    <input type="hidden" name="id" value="<?= (int) $u['id'] ?>">
+                                                    <button type="submit" class="dropdown-item text-danger">
+                                                        <i class="bi bi-trash"></i> Hapus Akun
+                                                    </button>
+                                                </form>
+                                            </li>
+                                            <?php endif; ?>
                                         </ul>
                                     </div>
                                 <?php endif; ?>

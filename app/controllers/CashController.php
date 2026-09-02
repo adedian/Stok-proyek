@@ -264,7 +264,13 @@ class CashController extends Controller
             'rows'        => $rows,
             'filters'     => $filters,
             'categories'  => $this->categoryModel->activeList(),
-            'picOptions'  => $scope === null ? $this->cashModel->distinctPics(null, $divScope) : $scope,
+            // Dropdown PIC: gabungan PIC yang sudah punya transaksi + SEMUA PIC
+            // dari master mapping yang divisinya boleh dilihat user ini (jadi
+            // PM lihat Tio/dian/Rizal walau belum ada transaksinya). Role
+            // ber-scope PIC sendiri: tetap hanya PIC-nya.
+            'picOptions'  => $scope === null
+                ? $this->mergedPicOptions($divScope)
+                : $scope,
             'scoped'      => $scope !== null,
             'summary'     => $summary,
             'balances'    => $balances,
@@ -642,6 +648,22 @@ class CashController extends Controller
     private function scopePics(): ?array
     {
         return kasScopePicNames();
+    }
+
+    /**
+     * Opsi dropdown filter PIC untuk role "lihat semua" -- gabungan PIC yang
+     * sudah punya transaksi Kas (dalam cakupan divisi) + semua PIC master yang
+     * divisinya boleh dilihat user ini. Unik & terurut.
+     */
+    private function mergedPicOptions(?array $divScope): array
+    {
+        $opts = array_merge(
+            $this->cashModel->distinctPics(null, $divScope),
+            $this->picModel->picNamesForDivisions($divScope)
+        );
+        $opts = array_values(array_unique(array_filter($opts, fn($v) => $v !== null && $v !== '')));
+        sort($opts);
+        return $opts;
     }
 
     /**

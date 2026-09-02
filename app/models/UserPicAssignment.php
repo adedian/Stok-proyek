@@ -99,6 +99,35 @@ class UserPicAssignment extends Model
         );
     }
 
+    /**
+     * Nama PIC (dari master mapping) yang PEMILIK akunnya ber-divisi Kas
+     * termasuk dalam $divisions. $divisions = null -> semua PIC.
+     * Dipakai untuk isi dropdown filter PIC di daftar Kas untuk role
+     * "lihat semua" (Super Admin/Accounting -> semua; Project Manager ->
+     * hanya PIC divisi 'project' = pic_project + admin_project), sehingga
+     * PIC muncul walau belum punya transaksi Kas.
+     */
+    public function picNamesForDivisions(?array $divisions): array
+    {
+        $rows = $this->db->fetchAll(
+            "SELECT DISTINCT upa.pic_name, r.role_slug
+               FROM user_pic_assignments upa
+               JOIN users u ON u.id = upa.user_id AND u.deleted_at IS NULL
+               JOIN roles r ON r.id = u.role_id
+              WHERE upa.pic_name <> ''"
+        );
+        $names = [];
+        foreach ($rows as $row) {
+            if ($divisions === null
+                || in_array(kasDivisionForRole($row['role_slug']), $divisions, true)) {
+                $names[$row['pic_name']] = true;
+            }
+        }
+        $names = array_keys($names);
+        sort($names);
+        return $names;
+    }
+
     /** Ada PIC AKTIF + sudah ber-password (siap dipakai login Kas)? */
     public function hasLoginablePic(int $userId): bool
     {

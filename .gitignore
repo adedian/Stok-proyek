@@ -1,5 +1,6 @@
 /.claude/
 /vendor/
+/config/local.php
 /logs/*
 !/logs/.gitkeep
 !/logs/.htaccess

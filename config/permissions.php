@@ -31,9 +31,10 @@ return [
     ],
 
     // Pengaturan akun MILIK SENDIRI -- setiap role yang login boleh akses.
+    // AccountController hanya mengecek 'view' (halaman "Akun Saya" -- ubah
+    // profil/password sendiri). Tidak ada action 'edit' terpisah.
     'account' => [
         'view' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT, ROLE_PROJECT_MANAGER],
-        'edit' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT, ROLE_PROJECT_MANAGER],
     ],
 
     'purchase_order' => [

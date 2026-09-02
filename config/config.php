@@ -15,6 +15,18 @@ date_default_timezone_set('Asia/Jakarta');
 
 define('APP_NAME', 'Sistem Kontrol Stok Proyek');
 
+// ---------------------------------------------------------------------------
+// Konfigurasi lokal / per-server (config/local.php -- TIDAK di-commit).
+// Dipakai untuk APP_ENV, kredensial DB (via config/database.php), & path
+// mysqldump. Kalau file tidak ada -> array kosong -> semua pakai default aman.
+// Template: config/local.example.php
+// ---------------------------------------------------------------------------
+$APP_LOCAL = is_file(__DIR__ . '/local.php') ? require __DIR__ . '/local.php' : [];
+if (!is_array($APP_LOCAL)) {
+    $APP_LOCAL = [];
+}
+$GLOBALS['__APP_LOCAL'] = $APP_LOCAL;
+
 // BASE_URL mengikuti host yang dipakai browser untuk mengakses server ini
 // (localhost ATAU alamat IP LAN, mis. http://192.168.100.125/stok-proyek/public)
 // supaya aplikasi tetap jalan diakses dari komputer lain di jaringan yang sama
@@ -38,14 +50,12 @@ $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' :
 $host   = $_SERVER['HTTP_HOST'] ?? 'localhost';
 define('BASE_URL', $scheme . '://' . $host . APP_BASE_PATH);
 
-// Lingkungan ditentukan otomatis dari host: akses lewat localhost/127.0.0.1
-// dianggap 'development' (developer sedang menguji, error tampil penuh).
-// Akses lewat alamat lain (mis. IP LAN tempat aplikasi dipakai sehari-hari)
-// dianggap 'production' -- error TIDAK ditampilkan ke user, hanya dicatat ke
-// logs/error.log. Untuk memaksa salah satu mode, ganti baris di bawah dengan
-// define('APP_ENV', 'development'); atau 'production';.
-$appHost = strtolower((string) ($_SERVER['HTTP_HOST'] ?? 'localhost'));
-define('APP_ENV', preg_match('/^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/', $appHost) ? 'development' : 'production');
+// Lingkungan ditentukan SECARA EKSPLISIT, bukan ditebak dari Host header
+// (Host bisa dipalsukan penyerang -> "Host: localhost" ke server produksi dulu
+// bisa memaksa mode development & membocorkan stack trace/path).
+// Urutan sumber: config/local.php  ->  env var APP_ENV  ->  default 'production'.
+$appEnv = $APP_LOCAL['app_env'] ?? (getenv('APP_ENV') ?: 'production');
+define('APP_ENV', $appEnv === 'development' ? 'development' : 'production');
 
 if (APP_ENV === 'development') {
     error_reporting(E_ALL);
@@ -85,6 +95,18 @@ define('LOG_PATH', ROOT_PATH . '/logs/error.log');
 ini_set('log_errors', 1);
 ini_set('error_log', LOG_PATH);
 
+// Rotasi log sederhana: kalau error.log sudah > 5 MB, arsipkan dengan timestamp
+// lalu buang arsip yang lebih tua dari 30 hari. Aman untuk balapan antar-request
+// (@rename yang kalah tinggal gagal diam-diam). Cek filesize = 1 stat, murah.
+if (@is_file(LOG_PATH) && @filesize(LOG_PATH) > 5 * 1024 * 1024) {
+    @rename(LOG_PATH, LOG_PATH . '.' . date('Ymd_His'));
+    foreach (glob(LOG_PATH . '.*') ?: [] as $__old) {
+        if (is_file($__old) && filemtime($__old) < time() - 30 * 86400) {
+            @unlink($__old);
+        }
+    }
+}
+
 // Daftar role yang valid (harus sinkron dengan tabel `roles`)
 define('ROLE_SUPER_ADMIN', 'super_admin');
 define('ROLE_PROJECT_MANAGER', 'project_manager');
@@ -102,7 +124,13 @@ define('ROLE_ADMIN_PROJECT', 'admin_project');
 define('ROLE_FINANCE', 'finance');
 define('ROLE_GUDANG', 'gudang');
 
-// Backup Database (Pengaturan Sistem) -- path default instalasi XAMPP.
-// Satu-satunya tempat di sistem yang menjalankan shell command, dibatasi Super Admin saja.
-define('MYSQLDUMP_PATH', 'C:\\xampp\\mysql\\bin\\mysqldump.exe');
+// Backup Database (Pengaturan Sistem) -- satu-satunya tempat yang menjalankan
+// shell command, dibatasi Super Admin. Path mysqldump:
+//   1) config/local.php 'mysqldump_path'  (kalau diisi)
+//   2) default sesuai OS: Windows/XAMPP -> mysqldump.exe ; Linux -> 'mysqldump'
+//      (umumnya sudah ada di PATH pada hosting Linux).
+$mysqldumpDefault = (DIRECTORY_SEPARATOR === '\\')
+    ? 'C:\\xampp\\mysql\\bin\\mysqldump.exe'
+    : 'mysqldump';
+define('MYSQLDUMP_PATH', !empty($APP_LOCAL['mysqldump_path']) ? $APP_LOCAL['mysqldump_path'] : $mysqldumpDefault);
 define('BACKUP_PATH', ROOT_PATH . '/storage/backups');

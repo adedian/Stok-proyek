@@ -78,6 +78,24 @@ class ActivityLog extends Model
     }
 
     /**
+     * Jumlah percobaan login GAGAL untuk satu USERNAME dalam $minutes menit
+     * terakhir -- dipakai AuthController untuk lockout per-akun (pelengkap
+     * throttle per-IP). Cocokkan lewat description (persis, bukan LIKE) yang
+     * ditulis saat login gagal: "Percobaan login gagal: <username>".
+     */
+    public function countRecentFailedLoginsByUser(string $username, int $minutes = 15): int
+    {
+        $since = date('Y-m-d H:i:s', time() - ($minutes * 60));
+        $row = $this->db->fetchOne(
+            "SELECT COUNT(*) AS c FROM activity_logs
+             WHERE module = 'auth' AND action = 'login_failed'
+               AND description = :desc AND created_at >= :since",
+            ['desc' => 'Percobaan login gagal: ' . $username, 'since' => $since]
+        );
+        return (int) ($row['c'] ?? 0);
+    }
+
+    /**
      * Daftar module unik yang pernah tercatat -- dipakai untuk dropdown filter.
      */
     public function distinctModules(): array

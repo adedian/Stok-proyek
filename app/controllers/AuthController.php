@@ -55,6 +55,17 @@ class AuthController extends Controller
             $this->redirect('auth', 'login');
         }
 
+        // --- Lockout per-AKUN (jendela 15 menit, ambang 5 kegagalan) ---
+        // Pelengkap throttle per-IP: menahan brute-force satu akun dari banyak IP.
+        // Trade-off: satu penyerang bisa "mengunci" akun orang lain sementara
+        // (auto-lepas 15 menit) -- diterima untuk aplikasi internal; throttle
+        // per-IP (8) sudah membatasi kecepatan penyerang mengumpulkan kegagalan.
+        if ($this->activityLog->countRecentFailedLoginsByUser($username, 15) >= 5) {
+            $this->activityLog->log(null, 'auth', 'login_blocked', "Akun '{$username}' dikunci sementara: percobaan login berlebihan");
+            setFlash('error', 'Akun ini dikunci sementara karena terlalu banyak percobaan gagal. Coba lagi dalam 15 menit.');
+            $this->redirect('auth', 'login');
+        }
+
         $user = $this->userModel->findByUsername($username);
 
         // Pesan error digeneralisir (tidak bocorkan "username salah" vs "password salah")

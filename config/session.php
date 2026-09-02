@@ -35,9 +35,16 @@ define('SESSION_TIMEOUT', resolveSessionTimeout());
 ini_set('session.use_strict_mode', 1);
 ini_set('session.use_only_cookies', 1);
 ini_set('session.cookie_httponly', 1);
-// Aktifkan baris berikut jika sudah pakai HTTPS di production
-// ini_set('session.cookie_secure', 1);
 ini_set('session.cookie_samesite', 'Lax');
+
+// cookie_secure otomatis: ON kalau request lewat HTTPS (langsung maupun di
+// belakang proxy/CDN yang meneruskan X-Forwarded-Proto). Di dev lokal (http)
+// tetap OFF supaya cookie tidak hilang. Tidak perlu diutak-atik manual.
+$__https = (!empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off')
+    || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https')
+    || (($_SERVER['HTTP_X_FORWARDED_SSL'] ?? '') === 'on')
+    || (($_SERVER['SERVER_PORT'] ?? '') === '443');
+ini_set('session.cookie_secure', $__https ? '1' : '0');
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();

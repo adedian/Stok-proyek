@@ -5,11 +5,15 @@
  * Nama database HARUS sama dengan yang diimport dari database/schema.sql (Phase 2).
  */
 
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'db_stok_proyek');
-define('DB_USER', 'root');
-define('DB_PASS', '');
-define('DB_CHARSET', 'utf8mb4');
+// Kredensial di-override oleh config/local.php (lihat config/config.php yang
+// mengisi $GLOBALS['__APP_LOCAL']). Kalau tidak ada -> pakai default di bawah.
+// JANGAN commit password produksi ke file ini -- taruh di config/local.php.
+$__local = $GLOBALS['__APP_LOCAL'] ?? [];
+define('DB_HOST',    (isset($__local['db_host'])    && $__local['db_host']    !== '') ? $__local['db_host']    : 'localhost');
+define('DB_NAME',    (isset($__local['db_name'])    && $__local['db_name']    !== '') ? $__local['db_name']    : 'db_stok_proyek');
+define('DB_USER',    (isset($__local['db_user'])    && $__local['db_user']    !== '') ? $__local['db_user']    : 'root');
+define('DB_PASS',    array_key_exists('db_pass', $__local) ? (string) $__local['db_pass'] : '');
+define('DB_CHARSET', (isset($__local['db_charset']) && $__local['db_charset'] !== '') ? $__local['db_charset'] : 'utf8mb4');
 
 function getPDO()
 {

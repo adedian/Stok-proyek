@@ -324,7 +324,7 @@ class PurchaseOrder extends Model
             return; // status di luar alur penerimaan barang, jangan diutak-atik
         }
 
-        $sql = "SELECT poi.qty_order, COALESCE(SUM(CASE WHEN gri.stock_posted_at IS NOT NULL THEN gri.qty_received ELSE 0 END), 0) AS qty_received
+        $sql = "SELECT poi.qty_order, COALESCE(SUM(CASE WHEN gri.stock_posted_at IS NOT NULL AND gr.id IS NOT NULL THEN gri.qty_received ELSE 0 END), 0) AS qty_received
                 FROM purchase_order_items poi
                 LEFT JOIN goods_receipt_items gri ON gri.purchase_order_item_id = poi.id
                 LEFT JOIN goods_receipts gr ON gr.id = gri.goods_receipt_id AND gr.deleted_at IS NULL

@@ -125,7 +125,7 @@ class OfflinePurchase extends Model
             return;
         }
 
-        $sql = "SELECT opi.qty, COALESCE(SUM(CASE WHEN gri.stock_posted_at IS NOT NULL THEN gri.qty_received ELSE 0 END), 0) AS qty_posted
+        $sql = "SELECT opi.qty, COALESCE(SUM(CASE WHEN gri.stock_posted_at IS NOT NULL AND gr.id IS NOT NULL THEN gri.qty_received ELSE 0 END), 0) AS qty_posted
                 FROM offline_purchase_items opi
                 LEFT JOIN goods_receipt_items gri ON gri.offline_purchase_item_id = opi.id
                 LEFT JOIN goods_receipts gr ON gr.id = gri.goods_receipt_id AND gr.deleted_at IS NULL

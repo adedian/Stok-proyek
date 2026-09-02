@@ -215,6 +215,17 @@ class UserPicAssignment extends Model
         );
     }
 
+    /** Satu baris mapping PIC milik user (state apa pun) -- untuk form "Buat
+     *  Password Kas" pertama kali di Pengaturan Akun. NULL kalau belum ada. */
+    public function firstAssignmentForUser(int $userId): ?array
+    {
+        $row = $this->db->fetchOne(
+            "SELECT * FROM user_pic_assignments WHERE user_id = :uid ORDER BY id ASC LIMIT 1",
+            ['uid' => $userId]
+        );
+        return $row ?: null;
+    }
+
     /**
      * role_slug pemilik (akun) sebuah nama PIC -- dipakai menentukan `division`
      * transaksi Kas saat dibuat. NULL kalau nama PIC belum di-mapping ke user.

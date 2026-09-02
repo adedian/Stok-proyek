@@ -42,12 +42,19 @@ class AccountController extends Controller
             $this->redirect('dashboard', 'index');
         }
 
+        $uid          = (int) currentUserId();
+        $kasPics      = $this->picModel->credentialedAssignmentsForUser($uid);
+        // Role yang butuh Password Kas (non-exempt: Purchase/PIC Project/Admin
+        // Project). Mereka boleh MEMBUAT Password Kas sendiri walau belum punya.
+        $kasRoleNeedsPassword = !kasIsExemptRole($user['role_slug']);
+
         $this->view('account/index', [
             'pageTitle'    => 'Pengaturan Akun',
             'user'         => $user,
-            // PIC Kas milik user ini yang sudah ber-password -> bisa diganti
-            // sendiri di halaman ini. Kosong = tidak menampilkan kartu Password Kas.
-            'kasPics'      => $this->picModel->credentialedAssignmentsForUser((int) currentUserId()),
+            // Sudah punya PIC Kas ber-password -> form GANTI (verifikasi lama).
+            'kasPics'      => $kasPics,
+            // Belum punya tapi role-nya butuh -> form BUAT (set pertama kali).
+            'kasCanSetup'  => empty($kasPics) && $kasRoleNeedsPassword,
         ]);
     }
 
@@ -182,34 +189,75 @@ class AccountController extends Controller
         }
         verifyCsrf();
 
-        $userId  = currentUserId();
-        $picId   = (int) ($_POST['pic_id'] ?? 0);
-        $current = (string) ($_POST['current_kas_password'] ?? '');
+        $userId  = (int) currentUserId();
+        $mode    = ($_POST['mode'] ?? 'change') === 'set' ? 'set' : 'change';
         $new     = (string) ($_POST['new_kas_password'] ?? '');
         $confirm = (string) ($_POST['confirm_kas_password'] ?? '');
 
-        $row = $this->picModel->rowForUser($picId, (int) $userId);
-        if (!$row || empty($row['pic_password'])) {
-            setFlash('error', 'Data PIC Kas tidak ditemukan untuk akun Anda.');
-            $this->redirect('account', 'index');
-        }
-
         $errors = [];
-        if (!password_verify($current, (string) $row['pic_password'])) {
-            $errors[] = 'Password Kas saat ini salah.';
-        }
         if (strlen($new) < 6) {
             $errors[] = 'Password Kas baru minimal 6 karakter.';
         }
         if ($new !== $confirm) {
             $errors[] = 'Konfirmasi Password Kas baru tidak cocok.';
         }
-        if (empty($errors) && password_verify($new, (string) $row['pic_password'])) {
-            $errors[] = 'Password Kas baru tidak boleh sama dengan yang lama.';
-        }
-
         if (!empty($errors)) {
             setFlash('error', implode(' ', $errors));
+            $this->redirect('account', 'index');
+        }
+
+        $user = $this->userModel->findWithRole($userId);
+
+        // ---- MODE: BUAT (set pertama kali) ----
+        if ($mode === 'set') {
+            if (kasIsExemptRole($user['role_slug'] ?? '')) {
+                setFlash('error', 'Role Anda tidak memakai Password Kas.');
+                $this->redirect('account', 'index');
+            }
+            $existing = $this->picModel->firstAssignmentForUser($userId);
+            if ($existing && !empty($existing['pic_password'])) {
+                setFlash('error', 'Password Kas sudah ada. Gunakan form "Ganti Password Kas".');
+                $this->redirect('account', 'index');
+            }
+
+            $picName     = ($user['full_name'] ?? '') !== '' ? $user['full_name'] : $user['username'];
+            $picUsername = $existing['pic_username'] ?? $user['username'];
+            if (empty($existing['pic_username']) && $this->picModel->picUsernameExists($picUsername)) {
+                $picUsername = $user['username'] . '_kas';
+                if ($this->picModel->picUsernameExists($picUsername)) {
+                    $picUsername = null;
+                }
+            }
+
+            $picId = $existing['id'] ?? $this->picModel->create([
+                'user_id'    => $userId,
+                'pic_name'   => $picName,
+                'created_by' => $userId,
+            ]);
+            $this->picModel->setCredential((int) $picId, $picUsername, password_hash($new, PASSWORD_DEFAULT), true);
+
+            unset($_SESSION['kas_auth']);
+            $this->activityLog->log($userId, 'user_pic', 'create',
+                "Password Kas PIC '{$picName}' dibuat sendiri lewat Pengaturan Akun");
+            setFlash('success', "Password Kas berhasil dibuat. Anda kini bisa membuka modul Kas (verifikasi PIC '{$picName}').");
+            $this->redirect('account', 'index');
+        }
+
+        // ---- MODE: GANTI (verifikasi lama) ----
+        $picId   = (int) ($_POST['pic_id'] ?? 0);
+        $current = (string) ($_POST['current_kas_password'] ?? '');
+
+        $row = $this->picModel->rowForUser($picId, $userId);
+        if (!$row || empty($row['pic_password'])) {
+            setFlash('error', 'Data PIC Kas tidak ditemukan untuk akun Anda.');
+            $this->redirect('account', 'index');
+        }
+        if (!password_verify($current, (string) $row['pic_password'])) {
+            setFlash('error', 'Password Kas saat ini salah.');
+            $this->redirect('account', 'index');
+        }
+        if (password_verify($new, (string) $row['pic_password'])) {
+            setFlash('error', 'Password Kas baru tidak boleh sama dengan yang lama.');
             $this->redirect('account', 'index');
         }
 
@@ -220,12 +268,9 @@ class AccountController extends Controller
             (int) ($row['is_active'] ?? 1) === 1
         );
 
-        // Paksa verifikasi Kas ulang di sesi ini kalau kebetulan sedang aktif.
         unset($_SESSION['kas_auth']);
-
         $this->activityLog->log($userId, 'user_pic', 'change_password',
             "Password Kas PIC '{$row['pic_name']}' diganti sendiri lewat Pengaturan Akun");
-
         setFlash('success', "Password Kas untuk PIC '{$row['pic_name']}' berhasil diganti.");
         $this->redirect('account', 'index');
     }

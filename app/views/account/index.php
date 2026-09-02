@@ -5,6 +5,7 @@ foreach (explode(' ', trim($user['full_name'])) as $part) {
 }
 $initials = mb_strtoupper(mb_substr($initials, 0, 2));
 $kasPics = $kasPics ?? [];
+$kasCanSetup = $kasCanSetup ?? false;
 ?>
 <div class="mb-3">
     <h4 class="mb-0">Pengaturan Akun</h4>
@@ -126,6 +127,7 @@ $kasPics = $kasPics ?? [];
                 </p>
                 <form method="POST" action="<?= BASE_URL ?>/index.php?module=account&action=changeKasPassword" id="changeKasPasswordForm">
                     <?= csrfField() ?>
+                    <input type="hidden" name="mode" value="change">
                     <div class="row g-3">
                         <div class="col-md-4">
                             <label class="form-label">PIC Kas <span class="text-danger">*</span></label>
@@ -160,6 +162,33 @@ $kasPics = $kasPics ?? [];
                 </form>
             </div>
         </div>
+        <?php elseif ($kasCanSetup): ?>
+        <div class="card border-0 shadow-sm mt-3">
+            <div class="card-body">
+                <h6 class="mb-1"><i class="bi bi-cash-coin"></i> Buat Password Kas</h6>
+                <p class="text-muted small mb-3">
+                    Role Anda perlu <strong>Password Kas</strong> (lapisan kedua) untuk membuka modul
+                    <strong>Kas</strong>. Buat di sini &mdash; setelah itu Anda langsung bisa mengakses Kas.
+                    Nama PIC Kas otomatis: <strong><?= e($user['full_name']) ?></strong>.
+                </p>
+                <form method="POST" action="<?= BASE_URL ?>/index.php?module=account&action=changeKasPassword" id="setKasPasswordForm">
+                    <?= csrfField() ?>
+                    <input type="hidden" name="mode" value="set">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Password Kas <span class="text-danger">*</span></label>
+                            <input type="password" name="new_kas_password" class="form-control" autocomplete="new-password" minlength="6" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Konfirmasi Password Kas <span class="text-danger">*</span></label>
+                            <input type="password" name="confirm_kas_password" class="form-control" autocomplete="new-password" minlength="6" required>
+                        </div>
+                    </div>
+                    <div class="form-text">Minimal 6 karakter.</div>
+                    <button type="submit" class="btn btn-primary mt-3"><i class="bi bi-plus-circle"></i> Buat Password Kas</button>
+                </form>
+            </div>
+        </div>
         <?php endif; ?>
     </div>
 </div>
@@ -181,20 +210,21 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    var kasForm = document.getElementById('changeKasPasswordForm');
-    if (kasForm) {
+    ['changeKasPasswordForm', 'setKasPasswordForm'].forEach(function (id) {
+        var kasForm = document.getElementById(id);
+        if (!kasForm) { return; }
         kasForm.addEventListener('submit', function (e) {
             var a = kasForm.querySelector('[name="new_kas_password"]').value;
             var b = kasForm.querySelector('[name="confirm_kas_password"]').value;
             if (a !== b) {
                 e.preventDefault();
                 if (window.Swal) {
-                    Swal.fire({ icon: 'error', title: 'Gagal', text: 'Konfirmasi Password Kas baru tidak cocok.' });
+                    Swal.fire({ icon: 'error', title: 'Gagal', text: 'Konfirmasi Password Kas tidak cocok.' });
                 } else {
-                    alert('Konfirmasi Password Kas baru tidak cocok.');
+                    alert('Konfirmasi Password Kas tidak cocok.');
                 }
             }
         });
-    }
+    });
 });
 </script>

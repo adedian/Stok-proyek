@@ -158,9 +158,52 @@ if (!$canClientDest) {
         </div>
     <?php else: ?>
         <?php /* ============ TAMBAH: bisa >1 barang ============ */ ?>
+        <style>
+        /* Daftar Barang (form Tambah Pengeluaran) -- di HP tabel entri diubah
+           jadi kartu supaya kolom Qty & tombol hapus tidak terpotong. Hanya
+           menyasar #soItemsTable form ini. Pola sama dgn cash/form.php. */
+        @media (max-width: 767.98px) {
+            .so-items-head { flex-wrap: wrap; }
+            .so-items-head > #soAddRowBtn { flex: 1 1 100%; margin-top: .4rem; }
+
+            #soItemsTable { border: 0; }
+            #soItemsTable thead { display: none; }
+            #soItemsTable tbody,
+            #soItemsTable tr.so-item-row { display: block; width: 100%; }
+
+            #soItemsTable tr.so-item-row {
+                border: 1px solid #dee2e6;
+                border-radius: .5rem;
+                padding: .6rem .75rem .75rem;
+                margin-bottom: .625rem;
+                background: #fff;
+            }
+            #soItemsTable tr.so-item-row > td {
+                display: block;
+                width: 100% !important;
+                border: 0;
+                padding: .4rem 0 0;
+                text-align: left !important;
+            }
+            #soItemsTable tr.so-item-row > td::before {
+                content: attr(data-label);
+                display: block;
+                font-size: .7rem;
+                font-weight: 600;
+                letter-spacing: .02em;
+                text-transform: uppercase;
+                color: #6c757d;
+                margin-bottom: .15rem;
+            }
+            #soItemsTable tr.so-item-row > td .so-qty-input { text-align: left !important; }
+            #soItemsTable tr.so-item-row > td.cell-remove { padding-top: .6rem; }
+            #soItemsTable tr.so-item-row > td.cell-remove::before { content: none; }
+            #soItemsTable tr.so-item-row > td.cell-remove .so-remove-row { width: 100%; }
+        }
+        </style>
         <div class="card border-0 shadow-sm mb-3">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="d-flex justify-content-between align-items-center mb-2 so-items-head">
                     <label class="form-label mb-0">Daftar Barang <span class="text-danger">*</span></label>
                     <button type="button" class="btn btn-sm btn-outline-primary" id="soAddRowBtn" disabled>
                         <i class="bi bi-plus-lg"></i> Tambah Baris
@@ -170,26 +213,26 @@ if (!$canClientDest) {
                     <table class="table table-sm align-middle mb-0" id="soItemsTable">
                         <thead class="table-light">
                             <tr>
-                                <th style="min-width: 260px;">Barang</th>
-                                <th style="width: 160px;" class="text-end">Qty Keluar</th>
+                                <th style="min-width: 220px;">Barang</th>
+                                <th style="width: 150px;" class="text-end">Qty Keluar</th>
                                 <th style="width: 44px;"></th>
                             </tr>
                         </thead>
                         <tbody id="soItemsBody">
                             <tr class="so-item-row">
-                                <td>
+                                <td data-label="Barang">
                                     <select name="inventory_id[]" class="form-select form-select-sm so-item-select" required disabled>
                                         <option value="">-- Pilih Barang --</option>
                                     </select>
                                     <div class="form-text so-stock-info small"></div>
                                 </td>
-                                <td>
+                                <td data-label="Qty Keluar">
                                     <input type="number" name="qty[]" class="form-control form-control-sm text-end so-qty-input"
                                            min="0.01" step="0.01" required disabled>
                                 </td>
-                                <td class="text-center">
+                                <td class="text-center cell-remove">
                                     <button type="button" class="btn btn-sm btn-outline-danger so-remove-row" title="Hapus baris" tabindex="-1">
-                                        <i class="bi bi-x-lg"></i>
+                                        <i class="bi bi-x-lg"></i><span class="d-md-none ms-1">Hapus baris</span>
                                     </button>
                                 </td>
                             </tr>

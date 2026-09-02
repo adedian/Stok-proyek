@@ -62,7 +62,7 @@
                     <p class="text-muted small mb-0" id="emptyNotice">Pilih Kategori Stok/Project untuk memuat daftar barang.</p>
                 <?php endif; ?>
                 <div class="table-responsive">
-                    <table class="table table-sm align-middle" id="itemsTable" style="<?= empty($items) ? 'display:none;' : '' ?>">
+                    <table class="table table-sm align-middle entry-cards" id="itemsTable" style="<?= empty($items) ? 'display:none;' : '' ?>">
                         <thead class="table-light">
                             <tr>
                                 <th>Barang</th>

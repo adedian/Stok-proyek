@@ -34,10 +34,14 @@ $catalog       = permissionActionCatalog();
         </button>
     </div>
 
+    <p class="perm-matrix-hint">
+        <i class="bi bi-arrow-left-right"></i> Geser tabel ke samping untuk melihat semua role. Kolom <strong>Modul</strong> tetap menempel.
+    </p>
+
     <div class="card border-0 shadow-sm">
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-sm table-bordered align-middle mb-0" style="min-width: 900px;">
+                <table class="table table-sm table-bordered align-middle mb-0 perm-matrix" data-no-cards style="min-width: 900px;">
                     <thead class="table-light">
                         <tr>
                             <th style="min-width: 160px;">Modul</th>

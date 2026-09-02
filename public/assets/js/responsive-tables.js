@@ -18,7 +18,7 @@
 (function () {
     'use strict';
 
-    var MQ = window.matchMedia('(max-width: 575.98px)');
+    var MQ = window.matchMedia('(max-width: 767.98px)');
     var entries = [];
 
     function norm(el) {
@@ -140,14 +140,36 @@
             count++;
         });
 
-        if (!count) return null;
+        // Tidak ada baris data. Kalau ada baris "kosong" (colspan, mis. empty-state
+        // atau "Tidak ada transaksi ...") DAN tabelnya termasuk lebar, tetap
+        // sembunyikan tabel di HP lalu tampilkan pesannya sebagai satu kartu --
+        // supaya header tabel yang meluber tidak terpotong di layar sempit.
+        if (!count) {
+            if (dataCols < 4 && headCells.length < 5) return null;
+            var emptyCell = null;
+            Array.prototype.forEach.call(body.rows, function (tr) {
+                if (emptyCell) return;
+                var c = Array.prototype.filter.call(tr.cells, function (x) { return x.hasAttribute('colspan'); })[0];
+                if (c) emptyCell = c;
+            });
+            if (!emptyCell) return null;
+            var ecard = document.createElement('div');
+            ecard.className = 'rt-card rt-card--empty';
+            ecard.innerHTML = emptyCell.innerHTML;
+            cards.appendChild(ecard);
+            wrapper.parentNode.insertBefore(cards, wrapper.nextSibling);
+            return {
+                wrapper: wrapper, table: table, cards: cards, slots: [],
+                mode: 'table', forceCards: true
+            };
+        }
 
         wrapper.parentNode.insertBefore(cards, wrapper.nextSibling);
-        // >=5 kolom data = pasti sempit di HP -> selalu kartu. 4 kolom -> kartu
-        // hanya kalau tabelnya benar-benar meluber (diukur di apply()).
+        // >=4 kolom data = sempit di HP -> selalu kartu. <4 kolom -> kartu hanya
+        // kalau tabelnya benar-benar meluber (diukur di apply()).
         return {
             wrapper: wrapper, table: table, cards: cards, slots: slots,
-            mode: 'table', forceCards: dataCols >= 5
+            mode: 'table', forceCards: dataCols >= 4
         };
     }
 
@@ -221,8 +243,48 @@
         });
     }
 
+    /* ---------------------------------------------------------------------
+       Tabel entri ber-class .entry-cards: isi atribut data-label tiap <td>
+       di <tbody> dari teks header <thead> yang bersesuaian, supaya CSS
+       (responsive.css bagian 7b) bisa menampilkan label kolom saat baris
+       ditumpuk jadi kartu di HP. Idempoten -- td yang sudah punya data-label
+       (mis. dari view) tidak disentuh. MutationObserver menjaga baris yang
+       ditambah lewat JS/AJAX ikut ter-label.
+       --------------------------------------------------------------------- */
+    function labelEntryRows(table) {
+        var headRow = table.tHead && table.tHead.rows[table.tHead.rows.length - 1];
+        if (!headRow) return;
+        var heads = Array.prototype.map.call(headRow.cells, norm);
+        Array.prototype.forEach.call(table.tBodies, function (tb) {
+            Array.prototype.forEach.call(tb.rows, function (tr) {
+                var i = 0;
+                Array.prototype.forEach.call(tr.cells, function (td) {
+                    var span = td.colSpan || 1;
+                    if (span > 1) { i += span; return; } // baris total/kosong -> lewati
+                    if (!td.hasAttribute('data-label')) {
+                        td.setAttribute('data-label', heads[i] || '');
+                    }
+                    i += 1;
+                });
+            });
+        });
+    }
+
+    function initEntryCards() {
+        var tables = document.querySelectorAll('.main-content table.entry-cards');
+        Array.prototype.forEach.call(tables, function (table) {
+            labelEntryRows(table);
+            if (!window.MutationObserver || !table.tBodies.length) return;
+            var mo = new MutationObserver(function () { labelEntryRows(table); });
+            Array.prototype.forEach.call(table.tBodies, function (tb) {
+                mo.observe(tb, { childList: true });
+            });
+        });
+    }
+
     function init() {
         wrapBareTables();
+        initEntryCards();
         var wrappers = document.querySelectorAll('.main-content .table-responsive');
         Array.prototype.forEach.call(wrappers, function (w) {
             try {

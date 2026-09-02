@@ -158,7 +158,7 @@ $actionUrl = $isEdit ? 'update' : 'store';
                 </button>
             </div>
             <div class="table-responsive">
-                <table class="table table-sm align-middle" id="itemTable">
+                <table class="table table-sm align-middle entry-cards" id="itemTable">
                     <thead class="table-light">
                         <tr>
                             <th>Nama Barang</th>

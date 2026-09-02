@@ -179,7 +179,7 @@ $canOfflineSource = can('offline_purchase', 'view');
                     <p class="text-muted small" id="poItemsEmptyMsg">Pilih Purchase Order terlebih dahulu untuk menampilkan daftar item.</p>
                 <?php endif; ?>
                 <div class="table-responsive">
-                    <table class="table table-sm align-middle <?= empty($poItems) ? 'd-none' : '' ?>" id="poItemsTable">
+                    <table class="table table-sm align-middle entry-cards <?= empty($poItems) ? 'd-none' : '' ?>" id="poItemsTable">
                         <thead class="table-light">
                             <tr>
                                 <th>Nama Barang (PO)</th>
@@ -209,7 +209,7 @@ $canOfflineSource = can('offline_purchase', 'view');
                     <p class="text-muted small" id="offlineItemsEmptyMsg">Pilih Pembelian Offline terlebih dahulu untuk menampilkan daftar item.</p>
                 <?php endif; ?>
                 <div class="table-responsive">
-                    <table class="table table-sm align-middle <?= empty($offlineItems) ? 'd-none' : '' ?>" id="offlineItemsTable">
+                    <table class="table table-sm align-middle entry-cards <?= empty($offlineItems) ? 'd-none' : '' ?>" id="offlineItemsTable">
                         <thead class="table-light">
                             <tr>
                                 <th>Nama Barang</th>
@@ -247,7 +247,7 @@ $canOfflineSource = can('offline_purchase', 'view');
                 <span class="badge bg-dark">Barang Lain</span> untuk ditindaklanjuti di modul Validasi.
             </p>
             <div class="table-responsive">
-                <table class="table table-sm align-middle <?= empty($mismatchItems) ? 'd-none' : '' ?>" id="mismatchItemsTable">
+                <table class="table table-sm align-middle entry-cards <?= empty($mismatchItems) ? 'd-none' : '' ?>" id="mismatchItemsTable">
                     <thead class="table-light">
                         <tr>
                             <th>Nama Barang</th>
@@ -296,7 +296,7 @@ $canOfflineSource = can('offline_purchase', 'view');
                 </button>
             </div>
             <div class="table-responsive">
-                <table class="table table-sm align-middle" id="pemakaiItemsTable">
+                <table class="table table-sm align-middle entry-cards" id="pemakaiItemsTable">
                     <thead class="table-light">
                         <tr>
                             <th>Nama Barang</th>

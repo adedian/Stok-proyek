@@ -406,11 +406,167 @@
 }
 
 /* ============================================================
-   8. TABEL -> KARTU (mobile <576px)
+   7b. TABEL ENTRI -> KARTU BERTUMPUK  (class .entry-cards di <table>)
+   Untuk tabel input di form Tambah/Edit (PO, Invoice, Pembelian Offline,
+   Stok Opname, Penerimaan Barang) yang punya banyak kolom -> di HP tiap
+   baris jadi kartu bertumpuk supaya kolom Qty/Harga/tombol hapus tidak
+   terpotong. Label kolom diambil otomatis dari <thead> oleh
+   responsive-tables.js (atribut data-label per <td>). Tetap tabel biasa
+   di >=768px & saat dicetak.
+   ============================================================ */
+@media (max-width: 767.98px) {
+    table.entry-cards {
+        border: 0;
+    }
+
+    table.entry-cards > thead {
+        display: none;
+    }
+
+    table.entry-cards > tbody,
+    table.entry-cards > tfoot,
+    table.entry-cards > tbody > tr,
+    table.entry-cards > tfoot > tr {
+        display: block;
+        width: 100%;
+    }
+
+    table.entry-cards > tbody > tr {
+        position: relative;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        background: var(--surface);
+        box-shadow: var(--shadow-xs);
+        padding: .6rem .75rem .75rem;
+        margin-bottom: .625rem;
+    }
+
+    table.entry-cards > tbody > tr > td {
+        display: block;
+        width: 100% !important;
+        border: 0;
+        padding: .4rem 0 0;
+        text-align: left !important;
+    }
+
+    table.entry-cards > tbody > tr > td::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: .15rem;
+        font-size: .7rem;
+        font-weight: 600;
+        letter-spacing: .02em;
+        text-transform: uppercase;
+        color: var(--ink-faint);
+    }
+
+    /* Kolom tanpa judul (tombol hapus / spacer): tanpa label, tombol full-width */
+    table.entry-cards > tbody > tr > td[data-label=""]::before {
+        content: none;
+    }
+
+    table.entry-cards > tbody > tr > td[data-label=""] {
+        padding-top: .6rem;
+    }
+
+    table.entry-cards > tbody > tr > td[data-label=""] .btn {
+        width: 100%;
+    }
+
+    /* Sel kosong / tak berlaku utk baris ini -> sembunyikan (jangan kartu penuh "-") */
+    table.entry-cards > tbody > tr > td:empty,
+    table.entry-cards > tbody > tr > td.cell-na {
+        display: none;
+    }
+
+    /* Input angka yang di desktop rata-kanan -> rata-kiri di kartu */
+    table.entry-cards > tbody > tr > td .form-control,
+    table.entry-cards > tbody > tr > td .form-select {
+        text-align: left !important;
+    }
+
+    table.entry-cards > tbody > tr > td.subtotal-cell {
+        font-weight: 600;
+    }
+
+    /* Baris total di <tfoot>: label kiri / nilai kanan */
+    table.entry-cards > tfoot > tr {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 1rem;
+        border-top: 2px solid var(--border);
+        margin-top: .25rem;
+        padding: .55rem .5rem 0;
+        font-weight: 700;
+    }
+
+    table.entry-cards > tfoot > tr.table-light {
+        background: var(--bg-app);
+        border-radius: var(--radius-sm);
+        padding: .55rem .5rem;
+        margin-top: .35rem;
+    }
+
+    table.entry-cards > tfoot td {
+        display: block;
+        border: 0;
+        padding: 0;
+        text-align: left !important;
+        background: transparent !important;
+    }
+
+    table.entry-cards > tfoot td:empty {
+        display: none;
+    }
+}
+
+/* ============================================================
+   7c. MATRIX HAK AKSES  (Pengaturan Sistem -> Hak Akses)
+   Matrix modul x role -- terlalu lebar & bergantung rowspan, jadi TIDAK
+   diubah jadi karto. Di HP: scroll horizontal dengan kolom Modul & Aksi
+   yang menempel (sticky) supaya konteks baris tetap terlihat.
+   ============================================================ */
+.perm-matrix-hint {
+    display: none;
+}
+
+@media (max-width: 767.98px) {
+    .perm-matrix-hint {
+        display: block;
+        margin-bottom: .4rem;
+        font-size: .75rem;
+        color: var(--ink-faint);
+    }
+
+    .perm-matrix > thead th:first-child,
+    .perm-matrix > tbody td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 1;
+        background: var(--surface);
+        box-shadow: 1px 0 0 var(--border);
+    }
+
+    .perm-matrix > thead th:first-child {
+        z-index: 2;
+        background: var(--bg-app);
+    }
+
+    /* baris modul terkunci (table-light) tetap kebaca di kolom sticky */
+    .perm-matrix > tbody > tr.table-light td:first-child {
+        background: #f6f8fb;
+    }
+}
+
+/* ============================================================
+   8. TABEL -> KARTU (mobile <768px)
    Transformasi dilakukan responsive-tables.js: tabel read-only yang
    TIDAK muat layar disembunyikan, diganti daftar .rt-cards. Tabel yang
    masih muat / tabel input (ada <input> di body) TIDAK diubah, hanya
    dirapatkan.
+   Catatan: ambang kartu = 767.98px, disamakan dengan topbar/toolbar/
+   form-entri supaya semua HP (portrait & landscape) konsisten.
    ============================================================ */
 @media (max-width: 767.98px) {
     .table-responsive > .table {
@@ -432,7 +588,7 @@
     }
 }
 
-@media (max-width: 575.98px) {
+@media (max-width: 767.98px) {
     /* Tabel yang sudah dijadikan kartu */
     .rt-hide-table {
         display: none !important;
@@ -450,6 +606,13 @@
     .card-body.p-0 > .rt-cards,
     .card-body > .table-responsive + .rt-cards {
         padding: .75rem;
+    }
+
+    .rt-card--empty {
+        text-align: center;
+        color: var(--ink-faint);
+        font-size: .88rem;
+        padding: 1.1rem .85rem;
     }
 
     .rt-cards[hidden] {
@@ -591,7 +754,7 @@
 /* ============================================================
    10. DROPDOWN & SELECT
    ============================================================ */
-@media (max-width: 575.98px) {
+@media (max-width: 767.98px) {
     .dropdown-menu {
         max-width: 92vw;
     }
@@ -715,6 +878,24 @@
 
     .rt-hide-table {
         display: block !important;
+    }
+
+    /* Tabel entri: kembalikan ke bentuk tabel biasa saat dicetak */
+    table.entry-cards > thead {
+        display: table-header-group;
+    }
+
+    table.entry-cards > tbody,
+    table.entry-cards > tfoot,
+    table.entry-cards > tbody > tr,
+    table.entry-cards > tfoot > tr,
+    table.entry-cards > tbody > tr > td,
+    table.entry-cards > tfoot > tr > td {
+        display: revert;
+    }
+
+    table.entry-cards > tbody > tr > td::before {
+        content: none;
     }
 }
 

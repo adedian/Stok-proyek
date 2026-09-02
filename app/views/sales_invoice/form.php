@@ -131,7 +131,7 @@ if (empty($items)) {
                 </button>
             </div>
             <div class="table-responsive">
-                <table class="table table-sm align-middle mb-0">
+                <table class="table table-sm align-middle mb-0 entry-cards">
                     <thead class="table-light">
                         <tr>
                             <th style="width: 260px;">Barang / Deskripsi</th>

@@ -21,15 +21,23 @@ Options -Indexes -MultiViews
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # --- Paksa HTTPS di production -----------------------------------------
-    # Aktif hanya kalau request BUKAN https (langsung maupun via proxy/CDN yang
-    # meneruskan X-Forwarded-Proto), DAN host bukan localhost/127.0.0.1 (biar
-    # dev lokal tetap bisa http). Redirect 301 permanen.
+    # --- Paksa HTTPS -- HANYA untuk domain publik ------------------------
+    # Redirect 301 http->https, KECUALI untuk akses lokal / LAN yang memang
+    # dipakai lewat http (localhost, IP privat 10/172.16-31/192.168, nama
+    # host tanpa titik, dan domain internal .local/.lan/.internal/.home/.test).
+    # Menghormati X-Forwarded-Proto/-Ssl dari proxy/CDN yang terminate SSL.
+    # Kalau nanti mau paksa HTTPS di mana pun, hapus baris-baris pengecualian
+    # HTTP_HOST di bawah.
     RewriteCond %{HTTPS} !=on
     RewriteCond %{HTTP:X-Forwarded-Proto} !=https [NC]
     RewriteCond %{HTTP:X-Forwarded-Ssl} !=on [NC]
     RewriteCond %{HTTP_HOST} !^localhost(:\d+)?$ [NC]
     RewriteCond %{HTTP_HOST} !^127\.0\.0\.1(:\d+)?$ [NC]
+    RewriteCond %{HTTP_HOST} !^10\.\d+\.\d+\.\d+(:\d+)?$ [NC]
+    RewriteCond %{HTTP_HOST} !^172\.(1[6-9]|2[0-9]|3[01])\.\d+\.\d+(:\d+)?$ [NC]
+    RewriteCond %{HTTP_HOST} !^192\.168\.\d+\.\d+(:\d+)?$ [NC]
+    RewriteCond %{HTTP_HOST} !^[^.]+(:\d+)?$ [NC]
+    RewriteCond %{HTTP_HOST} !\.(local|lan|internal|home|test)(:\d+)?$ [NC]
     RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
 
     # Jangan rewrite file / folder yang memang ada (assets, uploads, dst).

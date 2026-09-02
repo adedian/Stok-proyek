@@ -29,6 +29,18 @@ class UserPicAssignment extends Model
         return array_column($rows, 'pic_name');
     }
 
+    /** Nama PIC milik user yang BELUM ber-password (hint "tautkan password"). */
+    public function passwordlessPicNamesForUser(int $userId): array
+    {
+        $rows = $this->db->fetchAll(
+            "SELECT pic_name FROM user_pic_assignments
+              WHERE user_id = :uid AND (pic_password IS NULL OR pic_password = '')
+           ORDER BY pic_name ASC",
+            ['uid' => $userId]
+        );
+        return array_column($rows, 'pic_name');
+    }
+
     /**
      * Semua mapping + nama/role user, untuk halaman Master Data > PIC Kas.
      */

@@ -1,5 +1,6 @@
 <?php
-/** @var array $picNames @var int|null $lockedUntil @var int $failsLeft */
+/** @var array $picNames @var int|null $lockedUntil @var int $failsLeft @var array $existingNames */
+$existingNames = $existingNames ?? [];
 $locked = $lockedUntil !== null;
 $mins   = $locked ? (int) ceil(($lockedUntil - time()) / 60) : 0;
 ?>
@@ -54,6 +55,17 @@ $mins   = $locked ? (int) ceil(($lockedUntil - time()) / 60) : 0;
                     </form>
                     <div class="text-center small text-muted mt-3">
                         <i class="bi bi-info-circle"></i> Sesi login aplikasi Anda tetap aktif.
+                    </div>
+
+                    <hr class="my-3">
+                    <div class="text-center">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#formTambahPicLogin">
+                            <i class="bi bi-plus-circle"></i> Tambah PIC Kas
+                        </button>
+                        <div class="form-text">Daftarkan nama PIC Kas lain untuk akun Anda.</div>
+                    </div>
+                    <div class="collapse mt-3" id="formTambahPicLogin">
+                        <?php require ROOT_PATH . '/app/views/cash/_pic_form.php'; ?>
                     </div>
                 <?php endif; ?>
             </div>

@@ -102,10 +102,11 @@ class CashController extends Controller
         }
 
         $this->view('cash/kas_login', [
-            'pageTitle'   => 'Verifikasi Kas',
-            'picNames'    => $this->picModel->loginablePicNames((int) currentUserId()),
-            'lockedUntil' => kasLoginLockedUntil(),
-            'failsLeft'   => kasFailsRemaining(),
+            'pageTitle'     => 'Verifikasi Kas',
+            'picNames'      => $this->picModel->loginablePicNames((int) currentUserId()),
+            'existingNames' => $this->picModel->passwordlessPicNamesForUser((int) currentUserId()),
+            'lockedUntil'   => kasLoginLockedUntil(),
+            'failsLeft'     => kasFailsRemaining(),
         ]);
     }
 
@@ -174,7 +175,7 @@ class CashController extends Controller
         }
         $this->view('cash/kas_setup', [
             'pageTitle'     => 'PIC Kas Belum Terdaftar',
-            'existingNames' => $this->picModel->picNamesForUser((int) currentUserId()),
+            'existingNames' => $this->picModel->passwordlessPicNamesForUser((int) currentUserId()),
         ]);
     }
 

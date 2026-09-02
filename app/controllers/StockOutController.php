@@ -99,7 +99,7 @@ class StockOutController extends Controller
         verifyCsrf();
 
         $data = $this->collectInput();
-        $errors = $this->validateInput($data);
+        $errors = $this->validateInput($data, true);
 
         if (!empty($errors)) {
             setFlash('error', implode(' ', $errors));
@@ -112,45 +112,56 @@ class StockOutController extends Controller
         try {
             $pdo->beginTransaction();
 
-            // Debit stok DULU -- kalau stok tidak cukup, exception dilempar
-            // dan transaksi di-rollback, record stock_out TIDAK akan tersimpan.
-            $this->inventoryModel->debitStock(
-                $data['inventory_id'],
-                $data['qty'],
-                'stock_out',
-                0, // reference_id di-update setelah record stock_out dibuat (lihat bawah)
-                $data['out_date'],
-                currentUserId(),
-                "Keluar ke {$data['destination']}"
-            );
+            // Satu submit form bisa berisi >1 barang -> dibuat 1 record stock_out
+            // per barang (semua berbagi tujuan/PIC/tanggal yang sama). Model data
+            // tetap "1 baris = 1 barang" spt sebelumnya, jadi Surat Jalan, laporan,
+            // dashboard & Tempat Sampah tidak berubah.
+            $qtyTotal = 0.0;
+            foreach ($data['items'] as $item) {
+                // Debit stok DULU -- kalau stok tidak cukup, exception dilempar
+                // dan transaksi di-rollback, TIDAK ada record stock_out tersimpan.
+                $this->inventoryModel->debitStock(
+                    $item['inventory_id'],
+                    $item['qty'],
+                    'stock_out',
+                    0, // reference_id di-update setelah record stock_out dibuat (lihat bawah)
+                    $data['out_date'],
+                    currentUserId(),
+                    "Keluar ke {$data['destination']}"
+                );
 
-            $stockOutId = $this->stockOutModel->create([
-                'stock_out_number' => $this->stockOutModel->generateStockOutNumber(),
-                'inventory_id'     => $data['inventory_id'],
-                'project_id'       => $data['destination_type'] === 'project' ? $data['project_id'] : null,
-                'destination_type' => $data['destination_type'],
-                'sales_invoice_id' => $data['destination_type'] === 'client' ? $data['sales_invoice_id'] : null,
-                'pic_name'     => $data['pic_name'],
-                'destination'  => $data['destination'],
-                'qty'          => $data['qty'],
-                'out_date'     => $data['out_date'],
-                'notes'        => $data['notes'],
-                'created_by'   => currentUserId(),
-            ]);
+                $stockOutId = $this->stockOutModel->create([
+                    'stock_out_number' => $this->stockOutModel->generateStockOutNumber(),
+                    'inventory_id'     => $item['inventory_id'],
+                    'project_id'       => $data['destination_type'] === 'project' ? $data['project_id'] : null,
+                    'destination_type' => $data['destination_type'],
+                    'sales_invoice_id' => $data['destination_type'] === 'client' ? $data['sales_invoice_id'] : null,
+                    'pic_name'     => $data['pic_name'],
+                    'destination'  => $data['destination'],
+                    'qty'          => $item['qty'],
+                    'out_date'     => $data['out_date'],
+                    'notes'        => $data['notes'],
+                    'created_by'   => currentUserId(),
+                ]);
 
-            // Update reference_id di stock_transactions yang barusan dibuat supaya menunjuk ke stock_out ini
-            $this->fixLastTransactionReference($data['inventory_id'], $stockOutId);
+                // Update reference_id di stock_transactions yang barusan dibuat supaya menunjuk ke stock_out ini
+                $this->fixLastTransactionReference($item['inventory_id'], $stockOutId);
+                $qtyTotal += $item['qty'];
+            }
 
+            $jml = count($data['items']);
             $this->activityLog->log(
                 currentUserId(),
                 'stock_out',
                 'create',
-                "Pengeluaran barang dibuat: {$data['qty']} unit ke {$data['destination']}"
+                "Pengeluaran barang dibuat: {$jml} barang ({$qtyTotal} unit) ke {$data['destination']}"
             );
 
             $pdo->commit();
 
-            setFlash('success', 'Pengeluaran barang berhasil disimpan.');
+            setFlash('success', $jml > 1
+                ? "{$jml} baris pengeluaran barang berhasil disimpan."
+                : 'Pengeluaran barang berhasil disimpan.');
             $this->redirect('stock_out', 'index');
         } catch (RuntimeException $e) {
             // Termasuk error "stok tidak mencukupi" dari debitStock()
@@ -470,20 +481,43 @@ class StockOutController extends Controller
             $destinationType = 'project';
         }
 
+        // Barang bisa dikirim sebagai array (form Tambah, >1 barang) atau skalar
+        // (form Edit, tetap 1 barang). Normalkan jadi list $items + sediakan juga
+        // inventory_id/qty "tunggal" (elemen pertama) supaya alur Edit lama jalan.
+        $rawInv = $_POST['inventory_id'] ?? '';
+        $rawQty = $_POST['qty'] ?? '';
+        $items = [];
+        if (is_array($rawInv)) {
+            foreach ($rawInv as $i => $invId) {
+                $invId = (int) $invId;
+                $qty   = (float) ($rawQty[$i] ?? 0);
+                if ($invId > 0 || $qty > 0) {
+                    $items[] = ['inventory_id' => $invId, 'qty' => $qty];
+                }
+            }
+        } elseif ((int) $rawInv > 0 || (float) $rawQty > 0) {
+            $items[] = ['inventory_id' => (int) $rawInv, 'qty' => (float) $rawQty];
+        }
+
         return [
-            'inventory_id'     => (int) ($_POST['inventory_id'] ?? 0),
+            'items'            => $items,
+            'inventory_id'     => $items[0]['inventory_id'] ?? 0,
+            'qty'              => $items[0]['qty'] ?? 0.0,
             'project_id'       => (int) ($_POST['project_id'] ?? 0),
             'destination_type' => $destinationType,
             'sales_invoice_id' => (int) ($_POST['sales_invoice_id'] ?? 0),
             'pic_name'     => trim($_POST['pic_name'] ?? ''),
             'destination'  => trim($_POST['destination'] ?? ''),
-            'qty'          => (float) ($_POST['qty'] ?? 0),
             'out_date'     => $_POST['out_date'] ?? '',
             'notes'        => trim($_POST['notes'] ?? ''),
         ];
     }
 
-    private function validateInput(array $data): array
+    /**
+     * @param bool $multiItem true saat Tambah (validasi list $data['items']),
+     *                        false saat Edit (validasi 1 barang tunggal).
+     */
+    private function validateInput(array $data, bool $multiItem = false): array
     {
         $errors = [];
 
@@ -495,20 +529,42 @@ class StockOutController extends Controller
         if ($data['destination_type'] === 'client' && $data['sales_invoice_id'] <= 0) {
             $errors[] = 'Client (Invoice) wajib dipilih.';
         }
-        if ($data['inventory_id'] <= 0) {
-            $errors[] = 'Barang wajib dipilih.';
-        }
         if ($data['pic_name'] === '') {
             $errors[] = 'PIC wajib diisi.';
         }
         if ($data['destination'] === '') {
             $errors[] = 'Tujuan wajib diisi.';
         }
-        if ($data['qty'] <= 0) {
-            $errors[] = 'Qty harus lebih dari 0.';
-        }
         if (empty($data['out_date'])) {
             $errors[] = 'Tanggal keluar wajib diisi.';
+        }
+
+        if ($multiItem) {
+            if (empty($data['items'])) {
+                $errors[] = 'Minimal harus ada 1 barang.';
+            }
+            $seen = [];
+            foreach ($data['items'] as $item) {
+                if ($item['inventory_id'] <= 0) {
+                    $errors[] = 'Masih ada baris barang yang belum dipilih.';
+                    continue;
+                }
+                if ($item['qty'] <= 0) {
+                    $errors[] = 'Qty harus lebih dari 0 untuk semua barang.';
+                }
+                if (isset($seen[$item['inventory_id']])) {
+                    $errors[] = 'Ada barang yang dipilih lebih dari sekali -- gabungkan jadi satu baris.';
+                }
+                $seen[$item['inventory_id']] = true;
+            }
+            $errors = array_values(array_unique($errors));
+        } else {
+            if ($data['inventory_id'] <= 0) {
+                $errors[] = 'Barang wajib dipilih.';
+            }
+            if ($data['qty'] <= 0) {
+                $errors[] = 'Qty harus lebih dari 0.';
+            }
         }
 
         // Catatan: pengecekan stok cukup/tidak dilakukan di Inventory::debitStock()

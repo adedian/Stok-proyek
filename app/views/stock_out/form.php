@@ -95,42 +95,7 @@ if (!$canClientDest) {
                         <input type="hidden" name="sales_invoice_id" value="<?= (int) $selectedSalesInvoiceId ?>">
                     <?php endif; ?>
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label">Barang <span class="text-danger">*</span></label>
-                    <select name="inventory_id" id="itemSelect" class="form-select" required
-                            <?= ($isEdit || empty($inventoryItems)) ? 'disabled' : '' ?>>
-                        <option value="">-- Pilih Barang --</option>
-                        <?php foreach ($inventoryItems as $item): ?>
-                            <option value="<?= (int) $item['id'] ?>"
-                                data-qty="<?= e((string) $item['qty_available']) ?>"
-                                data-unit="<?= e($item['unit']) ?>"
-                                <?= ($isEdit && (int) $stockOut['inventory_id'] === (int) $item['id']) ? 'selected' : '' ?>>
-                                <?= e($item['item_name']) ?> (stok: <?= number_format((float) $item['qty_available'], 2, ',', '.') ?> <?= e($item['unit']) ?><?php if (array_key_exists('project_name', $item)): ?>, <?= e($item['project_name'] ?: 'Stok Kantor') ?><?php endif; ?>)
-                            </option>
-                        <?php endforeach; ?>
-                        <?php if ($isEdit && !in_array($stockOut['inventory_id'], array_column($inventoryItems, 'id'))): ?>
-                            <!-- item sedang diedit tapi stoknya sekarang 0 / sudah tidak masuk listByProject -->
-                            <option value="<?= (int) $stockOut['inventory_id'] ?>" selected
-                                data-qty="<?= e((string) ($stockOut['qty_available'] + $stockOut['qty'])) ?>"
-                                data-unit="<?= e($stockOut['unit']) ?>">
-                                <?= e($stockOut['item_name']) ?> (stok saat ini: <?= number_format((float) $stockOut['qty_available'], 2, ',', '.') ?> <?= e($stockOut['unit']) ?>)
-                            </option>
-                        <?php endif; ?>
-                    </select>
-                    <?php if ($isEdit): ?>
-                        <input type="hidden" name="inventory_id" value="<?= (int) $stockOut['inventory_id'] ?>">
-                    <?php endif; ?>
-                    <div class="form-text" id="stockInfo">
-                        <?php if (empty($inventoryItems) && !$isEdit): ?>
-                            Pilih <?= $canClientDest ? 'Project atau Client (Invoice)' : 'Project' ?> dulu untuk melihat barang yang tersedia.
-                        <?php endif; ?>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Qty Keluar <span class="text-danger">*</span></label>
-                    <input type="number" name="qty" id="qtyInput" class="form-control"
-                           value="<?= e($stockOut['qty'] ?? '') ?>" min="0.01" step="0.01" required>
-                </div>
+
                 <div class="col-md-4">
                     <label class="form-label">Tanggal Keluar <span class="text-danger">*</span></label>
                     <input type="date" name="out_date" class="form-control"
@@ -155,6 +120,89 @@ if (!$canClientDest) {
         </div>
     </div>
 
+    <?php if ($isEdit): ?>
+        <?php /* ============ EDIT: tetap 1 barang, field terkunci ============ */ ?>
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Barang <span class="text-danger">*</span></label>
+                        <select name="inventory_id" id="itemSelect" class="form-select" required disabled>
+                            <option value="">-- Pilih Barang --</option>
+                            <?php foreach ($inventoryItems as $item): ?>
+                                <option value="<?= (int) $item['id'] ?>"
+                                    data-qty="<?= e((string) $item['qty_available']) ?>"
+                                    data-unit="<?= e($item['unit']) ?>"
+                                    <?= ((int) $stockOut['inventory_id'] === (int) $item['id']) ? 'selected' : '' ?>>
+                                    <?= e($item['item_name']) ?> (stok: <?= number_format((float) $item['qty_available'], 2, ',', '.') ?> <?= e($item['unit']) ?><?php if (array_key_exists('project_name', $item)): ?>, <?= e($item['project_name'] ?: 'Stok Kantor') ?><?php endif; ?>)
+                                </option>
+                            <?php endforeach; ?>
+                            <?php if (!in_array($stockOut['inventory_id'], array_column($inventoryItems, 'id'))): ?>
+                                <option value="<?= (int) $stockOut['inventory_id'] ?>" selected
+                                    data-qty="<?= e((string) ($stockOut['qty_available'] + $stockOut['qty'])) ?>"
+                                    data-unit="<?= e($stockOut['unit']) ?>">
+                                    <?= e($stockOut['item_name']) ?> (stok saat ini: <?= number_format((float) $stockOut['qty_available'], 2, ',', '.') ?> <?= e($stockOut['unit']) ?>)
+                                </option>
+                            <?php endif; ?>
+                        </select>
+                        <input type="hidden" name="inventory_id" value="<?= (int) $stockOut['inventory_id'] ?>">
+                        <div class="form-text" id="stockInfo"></div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Qty Keluar <span class="text-danger">*</span></label>
+                        <input type="number" name="qty" id="qtyInput" class="form-control"
+                               value="<?= e($stockOut['qty'] ?? '') ?>" min="0.01" step="0.01" required>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <?php else: ?>
+        <?php /* ============ TAMBAH: bisa >1 barang ============ */ ?>
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <label class="form-label mb-0">Daftar Barang <span class="text-danger">*</span></label>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="soAddRowBtn" disabled>
+                        <i class="bi bi-plus-lg"></i> Tambah Baris
+                    </button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0" id="soItemsTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="min-width: 260px;">Barang</th>
+                                <th style="width: 160px;" class="text-end">Qty Keluar</th>
+                                <th style="width: 44px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="soItemsBody">
+                            <tr class="so-item-row">
+                                <td>
+                                    <select name="inventory_id[]" class="form-select form-select-sm so-item-select" required disabled>
+                                        <option value="">-- Pilih Barang --</option>
+                                    </select>
+                                    <div class="form-text so-stock-info small"></div>
+                                </td>
+                                <td>
+                                    <input type="number" name="qty[]" class="form-control form-control-sm text-end so-qty-input"
+                                           min="0.01" step="0.01" required disabled>
+                                </td>
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-sm btn-outline-danger so-remove-row" title="Hapus baris" tabindex="-1">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="form-text mt-2" id="soItemsHint">
+                    Pilih <?= $canClientDest ? 'Project atau Client (Invoice)' : 'Project' ?> dulu untuk melihat barang yang tersedia.
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary">
             <i class="bi bi-save"></i> Simpan
@@ -168,98 +216,12 @@ if (!$canClientDest) {
     <?php require ROOT_PATH . '/app/views/partials/quick_add_project_modal.php'; ?>
 <?php endif; ?>
 
+<?php if ($isEdit): ?>
 <script>
 (function () {
-    const projectSelect = document.getElementById('projectSelect');
-    const invoiceSelect = document.getElementById('invoiceSelect');
-    const projectFieldWrap = document.getElementById('projectFieldWrap');
-    const invoiceFieldWrap = document.getElementById('invoiceFieldWrap');
-    const destTypeRadios = document.querySelectorAll('input[name="destination_type"]');
     const itemSelect = document.getElementById('itemSelect');
     const qtyInput = document.getElementById('qtyInput');
     const stockInfo = document.getElementById('stockInfo');
-    const isEdit = <?= $isEdit ? 'true' : 'false' ?>;
-
-    function applyDestinationType(type) {
-        const isProject = type !== 'client';
-        if (projectFieldWrap) projectFieldWrap.style.display = isProject ? '' : 'none';
-        if (invoiceFieldWrap) invoiceFieldWrap.style.display = isProject ? 'none' : '';
-        if (!isEdit) {
-            projectSelect.required = isProject;
-            invoiceSelect.required = !isProject;
-        }
-    }
-
-    function resetItemSelect() {
-        itemSelect.innerHTML = '<option value="">-- Pilih Barang --</option>';
-        itemSelect.disabled = true;
-        stockInfo.textContent = '';
-    }
-
-    function loadItems(url, emptyMessage) {
-        resetItemSelect();
-        fetch(url)
-            .then(function (res) { return res.json(); })
-            .then(function (data) {
-                if (!data.items || data.items.length === 0) {
-                    stockInfo.textContent = emptyMessage;
-                    return;
-                }
-                data.items.forEach(function (item) {
-                    const opt = document.createElement('option');
-                    opt.value = item.id;
-                    opt.dataset.qty = item.qty_available;
-                    opt.dataset.unit = item.unit;
-                    const origin = ('project_name' in item) ? (', ' + (item.project_name || 'Stok Kantor')) : '';
-                    opt.textContent = item.item_name + ' (stok: '
-                        + parseFloat(item.qty_available).toLocaleString('id-ID') + ' ' + item.unit + origin + ')';
-                    itemSelect.appendChild(opt);
-                });
-                itemSelect.disabled = false;
-            })
-            .catch(function () {
-                stockInfo.textContent = 'Gagal memuat daftar barang.';
-            });
-    }
-
-    // Barang untuk tujuan Client MUNCUL SEMUA barang yang ada stoknya, LINTAS
-    // project & Kantor (bukan cuma Stok Kantor -- barang dari PO biasanya
-    // masuk ke bucket project saat diterima, lihat Inventory::listAllWithStock()),
-    // tapi yang namanya cocok dengan item di invoice terpilih DIDAHULUKAN
-    // urutannya (lihat StockOutController::markInvoiceMatches) -- sengaja tidak
-    // difilter ketat karena mayoritas baris invoice teks bebas/jasa, filter
-    // ketat bikin dropdown kosong untuk hampir semua invoice.
-    function loadOfficeItems() {
-        var url = '<?= BASE_URL ?>/index.php?module=stock_out&action=ajaxItemsByOffice';
-        if (invoiceSelect.value) {
-            url += '&sales_invoice_id=' + invoiceSelect.value;
-        }
-        loadItems(url, 'Tidak ada barang dengan stok tersedia.');
-    }
-
-    invoiceSelect.addEventListener('change', function () {
-        if (isEdit) return;
-        loadOfficeItems();
-    });
-
-    // Ganti Tujuan Pengeluaran (Project <-> Client/Invoice): tukar field mana
-    // yang ditampilkan+wajib, kosongkan pilihan satunya, dan muat ulang Barang --
-    // barang untuk Client diambil dari Stok Kantor, beda dari Project yang
-    // barangnya per-project.
-    destTypeRadios.forEach(function (radio) {
-        radio.addEventListener('change', function () {
-            if (isEdit) return;
-            applyDestinationType(this.value);
-
-            if (this.value === 'client') {
-                projectSelect.value = '';
-                loadOfficeItems();
-            } else {
-                invoiceSelect.value = '';
-                resetItemSelect();
-            }
-        });
-    });
 
     function updateStockInfo() {
         const selected = itemSelect.options[itemSelect.selectedIndex];
@@ -274,24 +236,6 @@ if (!$canClientDest) {
         qtyInput.setAttribute('max', qtyAvailable);
     }
 
-    // AJAX: setiap ganti project, muat ulang daftar barang yang ada stoknya di project itu
-    projectSelect.addEventListener('change', function () {
-        // Saat edit, PO/project & item sengaja tidak boleh diganti supaya konsisten
-        // dengan histori stok yang sudah tercatat -- lihat catatan di bawah form.
-        if (isEdit) return;
-
-        const projectId = this.value;
-        if (!projectId) {
-            resetItemSelect();
-            return;
-        }
-        loadItems('<?= BASE_URL ?>/index.php?module=stock_out&action=ajaxItemsByProject&project_id=' + projectId,
-            'Tidak ada barang dengan stok tersedia di project ini.');
-    });
-
-    itemSelect.addEventListener('change', updateStockInfo);
-
-    // Validasi akhir di client: qty tidak boleh melebihi stok (validasi SEBENARNYA tetap di server)
     document.getElementById('stockOutForm').addEventListener('submit', function (e) {
         const max = parseFloat(qtyInput.getAttribute('max') || 'Infinity');
         const qty = parseFloat(qtyInput.value || '0');
@@ -301,10 +245,226 @@ if (!$canClientDest) {
         }
     });
 
-    applyDestinationType('<?= e($destType) ?>');
     updateStockInfo();
 })();
 </script>
+<?php else: ?>
+<script>
+(function () {
+    const projectSelect = document.getElementById('projectSelect');
+    const invoiceSelect = document.getElementById('invoiceSelect');
+    const projectFieldWrap = document.getElementById('projectFieldWrap');
+    const invoiceFieldWrap = document.getElementById('invoiceFieldWrap');
+    const destTypeRadios = document.querySelectorAll('input[name="destination_type"]');
+    const itemsBody = document.getElementById('soItemsBody');
+    const addRowBtn = document.getElementById('soAddRowBtn');
+    const itemsHint = document.getElementById('soItemsHint');
+    const form = document.getElementById('stockOutForm');
+
+    // Daftar barang tersedia saat ini (di-refresh via AJAX tiap ganti Project/Invoice).
+    let currentItems = [];
+
+    function optionLabel(item) {
+        const origin = ('project_name' in item) ? (', ' + (item.project_name || 'Stok Kantor')) : '';
+        return item.item_name + ' (stok: '
+            + parseFloat(item.qty_available).toLocaleString('id-ID') + ' ' + item.unit + origin + ')';
+    }
+
+    function selectedElsewhere(exceptSelect) {
+        const chosen = [];
+        itemsBody.querySelectorAll('.so-item-select').forEach(function (sel) {
+            if (sel !== exceptSelect && sel.value) { chosen.push(sel.value); }
+        });
+        return chosen;
+    }
+
+    // Isi ulang <option> sebuah <select> baris dari currentItems, jaga pilihan lama
+    // kalau masih ada, dan disable opsi yang sudah dipakai baris lain.
+    function renderRowOptions(sel) {
+        const prev = sel.value;
+        const taken = selectedElsewhere(sel);
+        sel.innerHTML = '<option value="">-- Pilih Barang --</option>';
+        currentItems.forEach(function (item) {
+            const opt = document.createElement('option');
+            opt.value = item.id;
+            opt.dataset.qty = item.qty_available;
+            opt.dataset.unit = item.unit;
+            opt.textContent = optionLabel(item);
+            if (String(item.id) === String(prev)) { opt.selected = true; }
+            if (taken.indexOf(String(item.id)) !== -1) { opt.disabled = true; }
+            sel.appendChild(opt);
+        });
+        sel.disabled = currentItems.length === 0;
+        updateRowStock(sel.closest('.so-item-row'));
+    }
+
+    function renderAllRows() {
+        itemsBody.querySelectorAll('.so-item-select').forEach(renderRowOptions);
+        addRowBtn.disabled = currentItems.length === 0;
+    }
+
+    function updateRowStock(row) {
+        const sel = row.querySelector('.so-item-select');
+        const qtyInput = row.querySelector('.so-qty-input');
+        const info = row.querySelector('.so-stock-info');
+        const opt = sel.options[sel.selectedIndex];
+        qtyInput.disabled = sel.disabled;
+        if (!opt || !opt.value) {
+            info.textContent = '';
+            qtyInput.removeAttribute('max');
+            return;
+        }
+        const avail = parseFloat(opt.dataset.qty || '0');
+        info.innerHTML = 'Stok tersedia: <strong>' + avail.toLocaleString('id-ID') + ' ' + (opt.dataset.unit || '') + '</strong>';
+        qtyInput.setAttribute('max', avail);
+    }
+
+    function newRow() {
+        const first = itemsBody.querySelector('.so-item-row');
+        const row = first.cloneNode(true);
+        row.querySelector('.so-item-select').value = '';
+        row.querySelector('.so-qty-input').value = '';
+        row.querySelector('.so-stock-info').textContent = '';
+        wireRow(row);
+        itemsBody.appendChild(row);
+        renderRowOptions(row.querySelector('.so-item-select'));
+        return row;
+    }
+
+    function wireRow(row) {
+        const sel = row.querySelector('.so-item-select');
+        sel.addEventListener('change', function () {
+            updateRowStock(row);
+            renderAllRows(); // segarkan opsi disabled di baris lain
+        });
+        row.querySelector('.so-remove-row').addEventListener('click', function () {
+            if (itemsBody.querySelectorAll('.so-item-row').length <= 1) {
+                sel.value = '';
+                row.querySelector('.so-qty-input').value = '';
+                updateRowStock(row);
+                renderAllRows();
+                return;
+            }
+            row.remove();
+            renderAllRows();
+        });
+    }
+
+    function resetItems(message) {
+        currentItems = [];
+        // buang semua baris kecuali satu
+        itemsBody.querySelectorAll('.so-item-row').forEach(function (r, i) {
+            if (i === 0) {
+                r.querySelector('.so-item-select').value = '';
+                r.querySelector('.so-qty-input').value = '';
+            } else {
+                r.remove();
+            }
+        });
+        renderAllRows();
+        itemsHint.textContent = message || '';
+    }
+
+    function loadItems(url, emptyMessage) {
+        fetch(url)
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                currentItems = (data.items || []).map(function (it) {
+                    return {
+                        id: it.id, item_name: it.item_name,
+                        qty_available: it.qty_available, unit: it.unit,
+                        project_name: ('project_name' in it) ? it.project_name : undefined
+                    };
+                });
+                // hapus key project_name kalau memang tidak ada (biar 'in' akurat)
+                currentItems.forEach(function (it) { if (it.project_name === undefined) delete it.project_name; });
+                renderAllRows();
+                itemsHint.textContent = currentItems.length ? '' : emptyMessage;
+            })
+            .catch(function () { itemsHint.textContent = 'Gagal memuat daftar barang.'; });
+    }
+
+    function loadOfficeItems() {
+        let url = '<?= BASE_URL ?>/index.php?module=stock_out&action=ajaxItemsByOffice';
+        if (invoiceSelect.value) { url += '&sales_invoice_id=' + invoiceSelect.value; }
+        loadItems(url, 'Tidak ada barang dengan stok tersedia.');
+    }
+
+    function applyDestinationType(type) {
+        const isProject = type !== 'client';
+        if (projectFieldWrap) projectFieldWrap.style.display = isProject ? '' : 'none';
+        if (invoiceFieldWrap) invoiceFieldWrap.style.display = isProject ? 'none' : '';
+        projectSelect.required = isProject;
+        invoiceSelect.required = !isProject;
+    }
+
+    destTypeRadios.forEach(function (radio) {
+        radio.addEventListener('change', function () {
+            applyDestinationType(this.value);
+            if (this.value === 'client') {
+                projectSelect.value = '';
+                if (invoiceSelect.value) { loadOfficeItems(); } else { resetItems('Pilih Client (Invoice) dulu.'); }
+            } else {
+                invoiceSelect.value = '';
+                resetItems('Pilih Project dulu untuk melihat barang yang tersedia.');
+            }
+        });
+    });
+
+    projectSelect.addEventListener('change', function () {
+        if (!this.value) { resetItems('Pilih Project dulu untuk melihat barang yang tersedia.'); return; }
+        loadItems('<?= BASE_URL ?>/index.php?module=stock_out&action=ajaxItemsByProject&project_id=' + this.value,
+            'Tidak ada barang dengan stok tersedia di project ini.');
+    });
+
+    invoiceSelect.addEventListener('change', function () {
+        if (!this.value) { resetItems('Pilih Client (Invoice) dulu.'); return; }
+        loadOfficeItems();
+    });
+
+    addRowBtn.addEventListener('click', function () { newRow(); });
+
+    form.addEventListener('submit', function (e) {
+        const rows = Array.prototype.slice.call(itemsBody.querySelectorAll('.so-item-row'));
+        let filled = 0;
+        for (let i = 0; i < rows.length; i++) {
+            const sel = rows[i].querySelector('.so-item-select');
+            const qtyInput = rows[i].querySelector('.so-qty-input');
+            if (!sel.value) { continue; }
+            filled++;
+            const max = parseFloat(qtyInput.getAttribute('max') || 'Infinity');
+            const qty = parseFloat(qtyInput.value || '0');
+            if (qty <= 0) {
+                e.preventDefault();
+                alert('Qty keluar harus lebih dari 0 untuk "' + sel.options[sel.selectedIndex].textContent + '".');
+                return;
+            }
+            if (qty > max) {
+                e.preventDefault();
+                alert('Qty keluar (' + qty + ') melebihi stok tersedia (' + max + ') untuk "' + sel.options[sel.selectedIndex].textContent + '".');
+                return;
+            }
+        }
+        if (filled === 0) {
+            e.preventDefault();
+            alert('Pilih minimal 1 barang.');
+        }
+    });
+
+    // init
+    wireRow(itemsBody.querySelector('.so-item-row'));
+    applyDestinationType('<?= e($destType) ?>');
+    <?php if ($selectedProjectId): ?>
+    if (projectSelect.value) {
+        loadItems('<?= BASE_URL ?>/index.php?module=stock_out&action=ajaxItemsByProject&project_id=' + projectSelect.value,
+            'Tidak ada barang dengan stok tersedia di project ini.');
+    }
+    <?php elseif ($selectedSalesInvoiceId): ?>
+    if (invoiceSelect.value) { loadOfficeItems(); }
+    <?php endif; ?>
+})();
+</script>
+<?php endif; ?>
 
 <?php if ($isEdit): ?>
     <p class="text-muted small mt-3">

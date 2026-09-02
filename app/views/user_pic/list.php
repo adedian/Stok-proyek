@@ -1,4 +1,6 @@
-<?php /** @var array $assignments @var array $users */ ?>
+<?php /** @var array $assignments @var array $users @var array $needsPicKas */
+$needsPicKas = $needsPicKas ?? [];
+?>
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h4 class="mb-0">PIC Kas</h4>
@@ -19,14 +21,36 @@
     <i class="bi bi-key"></i> di bawah.
 </div>
 
+<?php if (can('user_pic', 'create') && !empty($needsPicKas)): ?>
+<div class="alert alert-warning">
+    <div class="fw-semibold mb-1"><i class="bi bi-exclamation-triangle"></i> <?= count($needsPicKas) ?> user belum bisa mengakses modul Kas</div>
+    <div class="small mb-2">
+        User berikut ber-role yang <strong>wajib PIC Kas</strong> (Purchase / PIC Project / Admin Project)
+        tapi belum punya PIC ber-password. Klik <em>Siapkan</em> untuk mengisi form di bawah,
+        lalu tinggal set password.
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <?php foreach ($needsPicKas as $n): ?>
+            <button type="button" class="btn btn-sm btn-outline-dark js-prep-pic"
+                    data-user-id="<?= (int) $n['id'] ?>"
+                    data-pic-name="<?= e($n['full_name']) ?>"
+                    data-pic-username="<?= e($n['username']) ?>">
+                <?= e($n['full_name']) ?> <span class="text-muted">(<?= e($n['role_name']) ?>)</span>
+                &middot; <i class="bi bi-arrow-down-circle"></i> Siapkan
+            </button>
+        <?php endforeach; ?>
+    </div>
+</div>
+<?php endif; ?>
+
 <?php if (can('user_pic', 'create')): ?>
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-        <form method="POST" action="<?= BASE_URL ?>/index.php?module=user_pic&action=store" class="row g-2 align-items-end">
+        <form method="POST" action="<?= BASE_URL ?>/index.php?module=user_pic&action=store" class="row g-2 align-items-end" id="addPicForm">
             <?= csrfField() ?>
             <div class="col-md-6">
                 <label class="form-label small text-muted mb-1">User</label>
-                <select name="user_id" class="form-select form-select-sm" required>
+                <select name="user_id" id="picUserSelect" class="form-select form-select-sm" required>
                     <option value="">-- Pilih User --</option>
                     <?php foreach ($users as $u): ?>
                         <option value="<?= (int) $u['id'] ?>"><?= e($u['full_name']) ?> (<?= e($u['username']) ?>)</option>
@@ -35,11 +59,11 @@
             </div>
             <div class="col-md-6">
                 <label class="form-label small text-muted mb-1">Nama PIC</label>
-                <input type="text" name="pic_name" class="form-control form-control-sm" placeholder="mis. Andi" required>
+                <input type="text" name="pic_name" id="picNameInput" class="form-control form-control-sm" placeholder="mis. Andi" required>
             </div>
             <div class="col-md-3">
                 <label class="form-label small text-muted mb-1">Username Kas <span class="text-muted">(opsional)</span></label>
-                <input type="text" name="pic_username" class="form-control form-control-sm" autocomplete="off">
+                <input type="text" name="pic_username" id="picUsernameInput" class="form-control form-control-sm" autocomplete="off">
             </div>
             <div class="col-md-3">
                 <label class="form-label small text-muted mb-1">Password Kas</label>
@@ -166,6 +190,24 @@ document.addEventListener('DOMContentLoaded', function () {
             confirmAction(form.dataset.message, 'Ya, hapus').then(function (ok) {
                 if (ok) form.submit();
             });
+        });
+    });
+
+    // "Siapkan" -> prefill form Tambah PIC untuk user yang belum punya PIC Kas.
+    document.querySelectorAll('.js-prep-pic').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var sel  = document.getElementById('picUserSelect');
+            var name = document.getElementById('picNameInput');
+            var uname = document.getElementById('picUsernameInput');
+            if (sel)  sel.value = btn.dataset.userId;
+            if (name) name.value = btn.dataset.picName || '';
+            if (uname) uname.value = btn.dataset.picUsername || '';
+            var form = document.getElementById('addPicForm');
+            if (form) {
+                form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                var pw = form.querySelector('input[name="kas_password"]');
+                if (pw) setTimeout(function () { pw.focus(); }, 300);
+            }
         });
     });
 });

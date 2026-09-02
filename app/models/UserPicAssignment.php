@@ -75,6 +75,30 @@ class UserPicAssignment extends Model
         );
     }
 
+    /**
+     * User AKTIF yang WAJIB punya PIC Kas (role non-exempt: Purchase, PIC
+     * Project, Admin Project) tapi BELUM punya PIC aktif ber-password -->
+     * mereka kena tembok "PIC Kas Belum Terdaftar" saat buka modul Kas.
+     * Dipakai untuk panel bantu di halaman PIC Kas.
+     */
+    public function usersNeedingPicKas(): array
+    {
+        return $this->db->fetchAll(
+            "SELECT u.id, u.full_name, u.username, r.role_name
+               FROM users u
+               JOIN roles r ON r.id = u.role_id
+              WHERE u.deleted_at IS NULL
+                AND u.status = 'active'
+                AND r.role_slug IN ('purchase', 'pic_project', 'admin_project')
+                AND NOT EXISTS (
+                    SELECT 1 FROM user_pic_assignments p
+                     WHERE p.user_id = u.id AND p.is_active = 1
+                       AND p.pic_password IS NOT NULL AND p.pic_password <> ''
+                )
+              ORDER BY r.role_name ASC, u.full_name ASC"
+        );
+    }
+
     /** Ada PIC AKTIF + sudah ber-password (siap dipakai login Kas)? */
     public function hasLoginablePic(int $userId): bool
     {

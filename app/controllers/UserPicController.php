@@ -37,6 +37,7 @@ class UserPicController extends Controller
             'pageTitle'    => 'PIC Kas',
             'assignments'  => $this->picModel->listWithUserAndCredential(),
             'users'        => $this->userModel->activeList(),
+            'needsPicKas'  => $this->picModel->usersNeedingPicKas(),
         ]);
     }
 

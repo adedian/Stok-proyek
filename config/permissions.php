@@ -179,10 +179,12 @@ return [
     'cash' => [
         'view'   => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT, ROLE_PROJECT_MANAGER],
         'create' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT],
-        // Edit & hapus transaksi Kas: HANYA Super Admin & Accounting. Role lain
-        // (Purchase/PIC/Admin Project/PM) hanya boleh membuat & melihat.
-        'edit'   => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
-        'delete' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        // Edit & hapus transaksi Kas: Super Admin, Accounting, tim Purchase, dan
+        // tim Project (PIC Project & Admin Project) -- ter-scope PIC-nya sendiri.
+        // Project Manager: lihat saja. Transaksi/edit/hapus di BULAN YANG SUDAH
+        // DITUTUP tetap ditolak untuk semua (assertPeriodOpen di CashController).
+        'edit'   => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING, ROLE_PURCHASE, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT],
+        'delete' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING, ROLE_PURCHASE, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT],
         // Kartu saldo Kas di halaman utama Kas. Super Admin & Accounting melihat
         // SEMUA divisi + Total Saldo. Purchase / PIC Project / Admin Project /
         // Project Manager melihat HANYA saldo divisi mereka sendiri (mis.

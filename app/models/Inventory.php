@@ -56,6 +56,14 @@ class Inventory extends Model
             return;
         }
 
+        // "Stok Proyek" HANYA untuk stok yang terikat project. Kalau masuk ke
+        // bucket kantor (tanpa project), turunkan ke "Inventory Kantor" supaya
+        // kolom Kategori tidak bentrok dengan kolom Project di Stok Barang.
+        // ("Stok Lampu" sengaja dibiarkan -- boleh di project maupun kantor.)
+        if ($stockScope === 'kantor' && $stockType === 'stok_proyek') {
+            $stockType = 'inventory_kantor';
+        }
+
         $existing = $this->findByItemProject($itemName, $unit, $projectId, $stockScope);
 
         if ($existing) {

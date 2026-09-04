@@ -189,6 +189,23 @@ $actionUrl = $isEdit ? 'update' : 'store';
                     </tfoot>
                 </table>
             </div>
+            <?php
+            // Opsi kategori untuk dropdown per baris item (input list + datalist):
+            // gabungan master "Kategori Barang" + beberapa contoh bawaan, tetap
+            // bisa diketik sendiri (free text).
+            $categoryOptions = array_map(fn($c) => $c['category_name'], $itemCategories ?? []);
+            foreach (['Stok Kantor', 'Stok Lampu', 'Inventory Kantor'] as $default) {
+                if (!in_array($default, $categoryOptions, true)) {
+                    $categoryOptions[] = $default;
+                }
+            }
+            sort($categoryOptions, SORT_NATURAL | SORT_FLAG_CASE);
+            ?>
+            <datalist id="poCategoryOptions">
+                <?php foreach ($categoryOptions as $opt): ?>
+                    <option value="<?= e($opt) ?>"></option>
+                <?php endforeach; ?>
+            </datalist>
         </div>
     </div>
 

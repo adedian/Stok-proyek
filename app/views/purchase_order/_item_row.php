@@ -57,8 +57,8 @@ $selectedCategory = $item['category'] ?? '';
     </td>
     <td style="width: 150px;">
         <input type="text" name="category[]" class="form-control form-control-sm category-input"
-               value="<?= e($selectedCategory) ?>" placeholder="Kategori (opsional)"
-               title="Catatan kategori bebas -- tidak terhubung ke Master Data Barang. Hanya tampil di cetak PO.">
+               list="poCategoryOptions" value="<?= e($selectedCategory) ?>" placeholder="Kategori (opsional)"
+               title="Pilih dari daftar atau ketik sendiri -- catatan bebas, tidak terhubung ke Master Data Barang. Hanya tampil di cetak PO.">
     </td>
     <td style="width: 110px;">
         <input type="text" class="form-control form-control-sm unit-display" value="<?= e($item['unit']) ?>" readonly>

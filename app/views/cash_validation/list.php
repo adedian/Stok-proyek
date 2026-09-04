@@ -131,7 +131,7 @@ $modals = ''; // dikumpulkan lalu dirender DI LUAR <table> (form dalam <tbody> r
                         <?php if ($canThis): ?>
                             <?php ob_start(); ?>
                             <div class="modal fade" id="reviewModal<?= (int) $r['id'] ?>" tabindex="-1">
-                              <div class="modal-dialog modal-lg">
+                              <div class="modal-dialog modal-lg modal-dialog-scrollable modal-fullscreen-sm-down">
                                 <div class="modal-content">
                                   <form method="POST" action="<?= BASE_URL ?>/index.php?module=cash_validation&action=validate">
                                     <?= csrfField() ?>
@@ -150,7 +150,7 @@ $modals = ''; // dikumpulkan lalu dirender DI LUAR <table> (form dalam <tbody> r
                                         <div class="col-sm-4"><span class="text-muted">Total</span><br><strong><?= formatRupiah($r['total_amount']) ?></strong></div>
                                       </div>
                                       <div class="table-responsive mb-3">
-                                        <table class="table table-sm mb-0">
+                                        <table class="table table-sm mb-0 entry-cards">
                                           <thead class="table-light"><tr>
                                             <th>Uraian</th><th>Kategori</th><th class="text-end">Qty</th>
                                             <th class="text-end">Harga Satuan</th><th class="text-end">Jumlah</th>

@@ -1,35 +1,9 @@
 <?php
-$reports = [
-    ['key' => 'po', 'label' => 'Purchase Order', 'icon' => 'bi-cart-check'],
-    ['key' => 'payment', 'label' => 'Pembayaran', 'icon' => 'bi-credit-card'],
-    // Laporan Kas (buku kas berjalan) tetap "milik" modul Kas -- punya view/PDF/Excel
-    // & scoping per-PIC sendiri di CashController -- jadi kartunya cuma menautkan
-    // ke sana, bukan lewat ReportController::buildReport() yang generik.
-    ['key' => 'cash', 'label' => 'Kas', 'icon' => 'bi-cash-coin', 'url' => route('cash', 'report')],
-    ['key' => 'goodsReceipt', 'label' => 'Penerimaan Barang', 'icon' => 'bi-box-seam'],
-    ['key' => 'stockOut', 'label' => 'Pengeluaran Barang', 'icon' => 'bi-box-arrow-up'],
-    ['key' => 'inventory', 'label' => 'Stok Barang', 'icon' => 'bi-clipboard-data'],
-    ['key' => 'stockOpname', 'label' => 'Stok Opname', 'icon' => 'bi-clipboard-check'],
-    ['key' => 'invoice', 'label' => 'Invoice Keluar', 'icon' => 'bi-cash-stack'],
-    ['key' => 'offlinePurchase', 'label' => 'Pembelian Offline', 'icon' => 'bi-shop'],
-    ['key' => 'activityLog', 'label' => 'Riwayat Aktivitas (Audit Log)', 'icon' => 'bi-clock-history'],
-];
-
-// Revisi 9: PIC Project & Project Manager hanya Laporan Kartu Stok (Stok Barang).
-if (!hasRole([ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING])) {
-    $reports = array_values(array_filter($reports, fn($r) => $r['key'] === 'inventory'));
-}
-
-// Laporan Pembelian Offline hanya untuk yang punya akses modul Pembelian Offline
-// (ditegakkan juga di ReportController::offlinePurchase()).
-if (!can('offline_purchase', 'view')) {
-    $reports = array_values(array_filter($reports, fn($r) => $r['key'] !== 'offlinePurchase'));
-}
-
-// Tutup Bulan -- kartu khusus (Super Admin), menautkan ke modul period_lock.
-if (can('period_lock', 'view')) {
-    $reports[] = ['key' => 'periodLock', 'label' => 'Tutup Bulan', 'icon' => 'bi-lock', 'url' => route('period_lock')];
-}
+/**
+ * Daftar kartu laporan disiapkan di ReportController::availableReports() --
+ * sudah difilter sesuai izin modul tiap user (konsisten dgn guardReportScope()).
+ */
+$reports = $reports ?? [];
 ?>
 <div class="mb-3">
     <h4 class="mb-0">Laporan</h4>

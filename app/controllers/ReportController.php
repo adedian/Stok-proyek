@@ -29,39 +29,135 @@ class ReportController extends Controller
     }
 
     /**
-     * Revisi 9: PIC Project & Project Manager hanya boleh Laporan Kartu Stok
-     * (Stok Barang). Selain Super Admin/Purchase/Accounting, action laporan
-     * lain (PO, Pembayaran, Invoice, Audit Trail, dst) ditolak server-side --
-     * bukan sekadar disembunyikan di menu.
+     * Setiap jenis laporan mewakili sebuah "halaman"/modul. Laporan hanya boleh
+     * DIBUKA kalau user boleh view modul terkait -- ditegakkan server-side, bukan
+     * sekadar disembunyikan di menu.
+     *   - Role project (PIC/PM & sejenisnya): tetap HANYA Laporan Kartu Stok
+     *     (Revisi 9).
+     *   - Super Admin / Purchase / Accounting: dibatasi per-laporan sesuai
+     *     can('<modul>', 'view'). Riwayat Aktivitas: Super Admin & Accounting saja.
      */
     private function guardReportScope(): void
     {
-        $role = currentUserRole();
-        if (in_array($role, [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING], true)) {
-            return;
-        }
-
         $action = $_GET['action'] ?? 'index';
-        $stockOnly = [
-            'index', 'inventory',
-            'printStockDetail', 'printStockRecap',
-            'exportStockDetail', 'exportStockRecap',
-        ];
-        $genericExport = ['exportExcel', 'exportPdf'];
-
-        if (in_array($action, $stockOnly, true)) {
-            return;
-        }
-        if (in_array($action, $genericExport, true) && ($_GET['type'] ?? '') === 'inventory') {
+        if ($action === 'index') {
             return;
         }
 
-        denyAccess('Laporan di luar cakupan role (hanya Laporan Kartu Stok yang diizinkan)');
+        $role = currentUserRole();
+        $type = $this->reportTypeForRequest();
+
+        // --- Role project: hanya Kartu Stok (Stok Barang) ---
+        if (!in_array($role, [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING], true)) {
+            $stockOnly = [
+                'inventory',
+                'printStockDetail', 'printStockRecap',
+                'exportStockDetail', 'exportStockRecap',
+            ];
+            if (in_array($action, $stockOnly, true)) {
+                return;
+            }
+            if (in_array($action, ['exportExcel', 'exportPdf'], true) && ($_GET['type'] ?? '') === 'inventory') {
+                return;
+            }
+            denyAccess('Laporan di luar cakupan role (hanya Laporan Kartu Stok yang diizinkan)');
+        }
+
+        // --- Super Admin / Purchase / Accounting: gate per laporan ---
+        if ($type === 'activityLog') {
+            if (!in_array($role, [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING], true)) {
+                denyAccess('Laporan Riwayat Aktivitas hanya untuk Super Admin & Accounting.');
+            }
+            return;
+        }
+        $needs = self::REPORT_MODULE_PERMS[$type] ?? null;
+        if ($needs !== null && !can($needs, 'view')) {
+            denyAccess('Anda tidak punya akses ke laporan ini.');
+        }
     }
+
+    /**
+     * Jenis laporan yang sedang diminta -- dinormalkan dari nama action / ?type=.
+     */
+    private function reportTypeForRequest(): string
+    {
+        $action = $_GET['action'] ?? 'index';
+        $dedicated = ['po', 'payment', 'goodsReceipt', 'stockOut', 'inventory', 'stockOpname', 'invoice', 'offlinePurchase', 'activityLog'];
+        if (in_array($action, $dedicated, true)) {
+            return $action;
+        }
+        if (in_array($action, ['exportPoDetail', 'exportPoRecap', 'printPoDetail', 'printPoRecap'], true)) {
+            return 'po';
+        }
+        if (in_array($action, ['printStockDetail', 'printStockRecap', 'exportStockDetail', 'exportStockRecap'], true)) {
+            return 'inventory';
+        }
+        if (in_array($action, ['exportExcel', 'exportPdf'], true)) {
+            $t = trim($_GET['type'] ?? '');
+            return in_array($t, $dedicated, true) ? $t : '';
+        }
+        return 'index';
+    }
+
+    /** Laporan -> izin modul yang mewakili "halaman"-nya. */
+    private const REPORT_MODULE_PERMS = [
+        'po'              => 'purchase_order',
+        'payment'         => 'payment',
+        'cash'            => 'cash',
+        'goodsReceipt'    => 'goods_receipt',
+        'stockOut'        => 'stock_out',
+        'inventory'       => 'inventory',
+        'stockOpname'     => 'inventory',
+        'invoice'         => 'sales_invoice',
+        'offlinePurchase' => 'offline_purchase',
+    ];
 
     public function index()
     {
-        $this->view('report/index', ['pageTitle' => 'Laporan']);
+        $this->view('report/index', [
+            'pageTitle' => 'Laporan',
+            'reports'   => $this->availableReports(),
+        ]);
+    }
+
+    /**
+     * Kartu laporan yang boleh dilihat user -- konsisten dengan guardReportScope().
+     */
+    private function availableReports(): array
+    {
+        $all = [
+            ['key' => 'po',              'label' => 'Purchase Order',                'icon' => 'bi-cart-check'],
+            ['key' => 'payment',         'label' => 'Pembayaran',                    'icon' => 'bi-credit-card'],
+            // Laporan Kas "milik" modul Kas (scoping per-PIC sendiri) -> tautkan ke sana.
+            ['key' => 'cash',            'label' => 'Kas',                           'icon' => 'bi-cash-coin', 'url' => route('cash', 'report')],
+            ['key' => 'goodsReceipt',    'label' => 'Penerimaan Barang',             'icon' => 'bi-box-seam'],
+            ['key' => 'stockOut',        'label' => 'Pengeluaran Barang',            'icon' => 'bi-box-arrow-up'],
+            ['key' => 'inventory',       'label' => 'Stok Barang',                   'icon' => 'bi-clipboard-data'],
+            ['key' => 'stockOpname',     'label' => 'Stok Opname',                   'icon' => 'bi-clipboard-check'],
+            ['key' => 'invoice',         'label' => 'Invoice Keluar',                'icon' => 'bi-cash-stack'],
+            ['key' => 'offlinePurchase', 'label' => 'Pembelian Offline',             'icon' => 'bi-shop'],
+            ['key' => 'activityLog',     'label' => 'Riwayat Aktivitas (Audit Log)', 'icon' => 'bi-clock-history'],
+        ];
+
+        $role = currentUserRole();
+
+        if (!in_array($role, [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING], true)) {
+            // Role project: hanya Kartu Stok (Revisi 9).
+            $out = array_values(array_filter($all, fn($r) => $r['key'] === 'inventory'));
+        } else {
+            $out = array_values(array_filter($all, function ($r) use ($role) {
+                if ($r['key'] === 'activityLog') {
+                    return in_array($role, [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING], true);
+                }
+                $mod = self::REPORT_MODULE_PERMS[$r['key']] ?? null;
+                return $mod === null ? true : can($mod, 'view');
+            }));
+        }
+
+        if (can('period_lock', 'view')) {
+            $out[] = ['key' => 'periodLock', 'label' => 'Tutup Bulan', 'icon' => 'bi-lock', 'url' => route('period_lock')];
+        }
+        return $out;
     }
 
     public function po()

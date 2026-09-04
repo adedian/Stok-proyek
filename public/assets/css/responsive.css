@@ -531,6 +531,9 @@
     display: none;
 }
 
+.perm-matrix .perm-col-module { min-width: 160px; }
+.perm-matrix .perm-col-action { min-width: 120px; }
+
 @media (max-width: 767.98px) {
     .perm-matrix-hint {
         display: block;
@@ -539,22 +542,32 @@
         color: var(--ink-faint);
     }
 
-    .perm-matrix > thead th:first-child,
-    .perm-matrix > tbody td:first-child {
+    /* Hanya kolom "Modul" yang dibekukan (sesuai catatan hint di layar).
+       Target lewat kelas eksplisit .perm-c-module / .perm-col-module -- BUKAN
+       :first-child -- karena sel "Modul" ber-rowspan, jadi di baris ke-2/3 tiap
+       grup sel pertamanya justru sel "Aksi". Itu sebabnya badge Ubah/Hapus dulu
+       ketarik ke kiri & menimpa nama modul. */
+    .perm-matrix .perm-c-module,
+    .perm-matrix .perm-col-module {
         position: sticky;
         left: 0;
-        z-index: 1;
+        z-index: 2;
         background: var(--surface);
         box-shadow: 1px 0 0 var(--border);
+        max-width: 150px;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        font-size: .8rem;
+        line-height: 1.25;
     }
 
-    .perm-matrix > thead th:first-child {
-        z-index: 2;
+    .perm-matrix > thead .perm-col-module {
+        z-index: 3;
         background: var(--bg-app);
     }
 
-    /* baris modul terkunci (table-light) tetap kebaca di kolom sticky */
-    .perm-matrix > tbody > tr.table-light td:first-child {
+    /* baris modul terkunci (table-light) tetap solid di kolom beku */
+    .perm-matrix > tbody > tr.table-light .perm-c-module {
         background: #f6f8fb;
     }
 }

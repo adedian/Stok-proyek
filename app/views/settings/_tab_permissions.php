@@ -44,8 +44,8 @@ $catalog       = permissionActionCatalog();
                 <table class="table table-sm table-bordered align-middle mb-0 perm-matrix" data-no-cards style="min-width: 900px;">
                     <thead class="table-light">
                         <tr>
-                            <th style="min-width: 160px;">Modul</th>
-                            <th style="min-width: 120px;">Aksi</th>
+                            <th class="perm-col-module">Modul</th>
+                            <th class="perm-col-action">Aksi</th>
                             <th class="text-center" style="width: 90px;" title="Selalu penuh">
                                 <?= e($roleLabelAll[ROLE_SUPER_ADMIN] ?? 'Super Admin') ?>
                             </th>
@@ -60,7 +60,7 @@ $catalog       = permissionActionCatalog();
                             <?php foreach ($actions as $i => $action): ?>
                                 <tr class="<?= $locked ? 'table-light text-muted' : '' ?>">
                                     <?php if ($i === 0): ?>
-                                        <td rowspan="<?= count($actions) ?>" class="fw-semibold">
+                                        <td rowspan="<?= count($actions) ?>" class="fw-semibold perm-c-module">
                                             <?= e($moduleLabel[$module] ?? $module) ?>
                                             <?php if ($locked): ?>
                                                 <span class="badge bg-secondary ms-1" title="Dikunci ke Super Admin">
@@ -69,7 +69,7 @@ $catalog       = permissionActionCatalog();
                                             <?php endif; ?>
                                         </td>
                                     <?php endif; ?>
-                                    <td>
+                                    <td class="perm-c-action">
                                         <span class="badge bg-light text-dark border">
                                             <?= e($actionLabel[$action] ?? $action) ?>
                                         </span>

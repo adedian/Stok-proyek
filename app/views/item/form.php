@@ -54,14 +54,17 @@ $actionUrl = $isEdit ? 'update' : 'store';
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Jenis Stok <span class="text-danger">*</span></label>
-                    <select name="stock_type" id="stockTypeSelect" class="form-select" required <?= $isEdit ? 'disabled' : '' ?>>
+                    <select name="stock_type" id="stockTypeSelect" class="form-select" required>
                         <?php foreach ($stockTypeLabels as $st => $stLabel): ?>
                             <option value="<?= e($st) ?>" <?= ($item['stock_type'] ?? 'stok_proyek') === $st ? 'selected' : '' ?>><?= e($stLabel) ?></option>
                         <?php endforeach; ?>
                     </select>
                     <?php if ($isEdit): ?>
-                        <input type="hidden" name="stock_type" value="<?= e($item['stock_type'] ?? 'stok_proyek') ?>">
-                        <div class="form-text">Jenis Stok menentukan kelompok kode (Master Kode &raquo; Barang) saat dibuat, tidak bisa diganti setelah kode terbit.</div>
+                        <div class="form-text">
+                            Menentukan pengelompokan stok (Stok Barang, Opname, Laporan). Kode barang
+                            <strong><?= e($item['item_code']) ?></strong> TIDAK berubah saat Jenis Stok diganti.
+                            Baris stok barang ini akan otomatis mengikuti Jenis Stok yang baru.
+                        </div>
                     <?php else: ?>
                         <div class="form-text">Menentukan kelompok kode (prefix) dari Master Kode &raquo; Barang.</div>
                     <?php endif; ?>

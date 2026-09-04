@@ -6,6 +6,7 @@ require_once ROOT_PATH . '/app/models/ItemCategory.php';
 require_once ROOT_PATH . '/app/models/Unit.php';
 require_once ROOT_PATH . '/app/models/ActivityLog.php';
 require_once ROOT_PATH . '/app/models/CodeConfig.php';
+require_once ROOT_PATH . '/app/models/Inventory.php';
 
 class ItemController extends Controller
 {
@@ -14,6 +15,7 @@ class ItemController extends Controller
     private Unit $unitModel;
     private ActivityLog $activityLog;
     private CodeConfig $codeConfig;
+    private Inventory $inventoryModel;
 
     /**
      * Jenis Stok (items.stock_type) -> kelompok Master Kode (code_configs.entity_type)
@@ -48,6 +50,7 @@ class ItemController extends Controller
         $this->unitModel     = new Unit();
         $this->activityLog   = new ActivityLog();
         $this->codeConfig    = new CodeConfig();
+        $this->inventoryModel = new Inventory();
     }
 
     public function index()
@@ -220,8 +223,23 @@ class ItemController extends Controller
         }
 
         $this->itemModel->updateById($id, $data);
+
+        // Jenis Stok diganti -> samakan semua baris stok barang ini supaya Stok
+        // Barang / Opname / Laporan langsung mengikuti. Kode barang TIDAK diubah.
+        $stockTypeChanged = ($existing['stock_type'] ?? 'stok_proyek') !== $data['stock_type'];
+        if ($stockTypeChanged) {
+            $n = $this->inventoryModel->resyncStockTypeByName($existing['item_name'], $data['stock_type']);
+            $this->activityLog->log(
+                currentUserId(), 'item', 'update',
+                "Jenis Stok '{$data['item_name']}' diubah ke "
+                    . (self::STOCK_TYPE_LABELS[$data['stock_type']] ?? $data['stock_type'])
+                    . " ({$n} baris stok ikut disesuaikan)"
+            );
+        }
+
         $this->activityLog->log(currentUserId(), 'item', 'update', "Barang '{$data['item_name']}' diperbarui");
-        setFlash('success', 'Barang berhasil diperbarui.');
+        setFlash('success', 'Barang berhasil diperbarui.'
+            . ($stockTypeChanged ? ' Jenis Stok & baris stok terkait ikut diperbarui.' : ''));
         $this->redirect('item', 'index');
     }
 

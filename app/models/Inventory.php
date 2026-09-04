@@ -240,6 +240,30 @@ class Inventory extends Model
     }
 
     /**
+     * Samakan stock_type SEMUA baris inventory sebuah barang ke Jenis Stok master
+     * yang baru (dipakai saat Jenis Stok diubah di Master Data > Barang, supaya
+     * Stok Barang / Opname / Laporan langsung ikut). Aturan sama dengan
+     * creditStock(): baris bucket kantor tidak boleh berkategori "stok_proyek".
+     */
+    public function resyncStockTypeByName(string $itemName, string $stockType): int
+    {
+        $n = $this->db->query(
+            "UPDATE inventory SET stock_type = :t WHERE item_name = :n AND deleted_at IS NULL",
+            ['t' => $stockType, 'n' => $itemName]
+        )->rowCount();
+
+        if ($stockType === 'stok_proyek') {
+            $this->db->query(
+                "UPDATE inventory SET stock_type = 'inventory_kantor'
+                  WHERE item_name = :n AND deleted_at IS NULL
+                    AND stock_scope = 'kantor' AND stock_type = 'stok_proyek'",
+                ['n' => $itemName]
+            );
+        }
+        return $n;
+    }
+
+    /**
      * Daftar item yang punya stok (qty_available > 0) di sebuah project,
      * dipakai untuk dropdown "Pilih Barang" di form pengeluaran barang.
      */

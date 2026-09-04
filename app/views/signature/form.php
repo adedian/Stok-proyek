@@ -21,12 +21,12 @@ $actionUrl = $isEdit ? 'update' : 'store';
                 <div class="col-md-6">
                     <label class="form-label">Nama Pemilik Tanda Tangan <span class="text-danger">*</span></label>
                     <input type="text" name="name" class="form-control"
-                           value="<?= e($signature['name'] ?? '') ?>" placeholder="mis. Budi Santoso" required autofocus>
+                           value="<?= e($signature['name'] ?? '') ?>" required autofocus>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Jabatan <span class="text-danger">*</span></label>
                     <input type="text" name="position" class="form-control"
-                           value="<?= e($signature['position'] ?? '') ?>" placeholder="mis. Project Manager" required>
+                           value="<?= e($signature['position'] ?? '') ?>" required>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Gambar Tanda Tangan <?= $isEdit ? '' : '<span class="text-danger">*</span>' ?></label>

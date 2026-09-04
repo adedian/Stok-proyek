@@ -20,7 +20,7 @@ $existingNames = $existingNames ?? [];
     <?= csrfField() ?>
     <div class="mb-3">
         <label class="form-label">Nama PIC <span class="text-danger">*</span></label>
-        <input type="text" name="pic_name" class="form-control" placeholder="mis. Tio" required>
+        <input type="text" name="pic_name" class="form-control" required>
     </div>
     <div class="mb-3">
         <label class="form-label">Username / Nama Login PIC</label>

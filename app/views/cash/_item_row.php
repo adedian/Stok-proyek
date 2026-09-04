@@ -55,7 +55,7 @@ $canQuickAddProject = function_exists('canQuickAdd') && canQuickAdd('project');
 <tr class="item-row<?= $curAffects ? ' stock-row' : '' ?>">
     <td data-label="Uraian" style="min-width: 160px;">
         <input type="text" name="item_uraian[]" class="form-control form-control-sm uraian-input"
-               value="<?= e($item['uraian'] ?? '') ?>" placeholder="mis. Pembelian kabel" required>
+               value="<?= e($item['uraian'] ?? '') ?>" required>
     </td>
     <td data-label="Kategori" style="min-width: 160px;">
         <select name="item_cash_category_id[]" class="form-select form-select-sm category-select" required>
@@ -123,7 +123,7 @@ $canQuickAddProject = function_exists('canQuickAdd') && canQuickAdd('project');
     </td>
     <td data-label="Supplier" style="min-width: 140px;" class="<?= $curAffects ? '' : 'cell-na' ?>">
         <input type="text" name="item_supplier_name[]" class="form-control form-control-sm supplier-input<?= $curAffects ? '' : ' d-none' ?>"
-               value="<?= e($curSup) ?>" placeholder="mis. Toko Jaya" <?= $curAffects ? '' : 'disabled' ?>>
+               value="<?= e($curSup) ?>" <?= $curAffects ? '' : 'disabled' ?>>
         <span class="sup-na text-muted<?= $curAffects ? ' d-none' : '' ?>">&mdash;</span>
     </td>
     <td data-label="Satuan" style="width: 120px;" class="<?= $curAffects ? '' : 'cell-na' ?>">

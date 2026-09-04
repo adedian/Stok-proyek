@@ -38,7 +38,7 @@ function mkPreview(array $c, string $mc): string
                     <div class="col-8">
                         <label class="form-label small mb-1">Kode</label>
                         <input type="text" name="master_code" class="form-control text-uppercase"
-                               value="<?= e($masterCode) ?>" maxlength="10" placeholder="mis. ITM" required>
+                               value="<?= e($masterCode) ?>" maxlength="10" required>
                     </div>
                     <div class="col-4">
                         <button type="submit" class="btn btn-primary w-100"><i class="bi bi-save"></i></button>
@@ -58,7 +58,7 @@ function mkPreview(array $c, string $mc): string
                     <input type="hidden" name="entity_type" value="<?= e($entityType) ?>">
                     <div class="col-sm-4">
                         <label class="form-label small mb-1">Prefix</label>
-                        <input type="text" name="prefix" class="form-control text-uppercase" maxlength="20" required placeholder="mis. ME">
+                        <input type="text" name="prefix" class="form-control text-uppercase" maxlength="20" required>
                     </div>
                     <div class="col-sm-4">
                         <label class="form-label small mb-1">Jumlah Digit</label>
@@ -124,7 +124,7 @@ function mkPreview(array $c, string $mc): string
             <input type="hidden" name="type" value="<?= e($entityType) ?>">
             <div class="col-md-5">
                 <label class="form-label small text-muted mb-1">Cari (Kode / Nama)</label>
-                <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword']) ?>" placeholder="mis. ME.0001, sup 01">
+                <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword']) ?>">
             </div>
             <div class="col-md-2 d-flex gap-2">
                 <button type="submit" class="btn btn-sm btn-outline-primary w-100"><i class="bi bi-search"></i> Cari</button>

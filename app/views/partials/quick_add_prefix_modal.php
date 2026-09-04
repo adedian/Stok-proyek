@@ -22,7 +22,7 @@
                     <div class="mb-2">
                         <label class="form-label">Prefix <span class="text-danger">*</span></label>
                         <input type="text" name="prefix" class="form-control text-uppercase"
-                               placeholder="mis. ME, EL" maxlength="10" required
+                               maxlength="10" required
                                style="text-transform:uppercase">
                         <div class="form-text">Huruf/angka saja, tanpa spasi atau simbol.</div>
                     </div>

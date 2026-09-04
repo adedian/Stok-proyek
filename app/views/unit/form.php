@@ -19,7 +19,7 @@ $actionUrl = $isEdit ? 'update' : 'store';
         <div class="card-body">
             <label class="form-label">Nama Satuan <span class="text-danger">*</span></label>
             <input type="text" name="unit_name" class="form-control"
-                   value="<?= e($unit['unit_name'] ?? '') ?>" placeholder="mis. Kg, Zak, M3" required autofocus>
+                   value="<?= e($unit['unit_name'] ?? '') ?>" required autofocus>
         </div>
     </div>
 

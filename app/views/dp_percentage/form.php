@@ -22,7 +22,7 @@ $actionUrl = $isEdit ? 'update' : 'store';
             <div class="row g-3">
                 <div class="col-md-6">
                     <label class="form-label">Nama <span class="text-danger">*</span></label>
-                    <input type="text" name="name" class="form-control" value="<?= e($row['name'] ?? '') ?>" placeholder="mis. DP 50%" required>
+                    <input type="text" name="name" class="form-control" value="<?= e($row['name'] ?? '') ?>" required>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Persentase (%) <span class="text-danger">*</span></label>

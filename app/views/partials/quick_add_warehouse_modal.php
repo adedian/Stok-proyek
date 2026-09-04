@@ -18,7 +18,7 @@ $quickAddWarehouseTargetId = $quickAddWarehouseTargetId ?? 'delivery_location_id
                     <?= csrfField() ?>
                     <div class="mb-3">
                         <label class="form-label">Nama Lokasi <span class="text-danger">*</span></label>
-                        <input type="text" name="warehouse_name" class="form-control" placeholder="mis. Gudang Proyek A" required>
+                        <input type="text" name="warehouse_name" class="form-control" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Alamat</label>

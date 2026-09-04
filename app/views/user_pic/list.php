@@ -62,7 +62,7 @@ $needsPicKas = $needsPicKas ?? [];
             </div>
             <div class="col-md-6">
                 <label class="form-label small text-muted mb-1">Nama PIC</label>
-                <input type="text" name="pic_name" id="picNameInput" class="form-control form-control-sm" placeholder="mis. Andi" required>
+                <input type="text" name="pic_name" id="picNameInput" class="form-control form-control-sm" required>
             </div>
             <div class="col-md-3">
                 <label class="form-label small text-muted mb-1">Username Kas <span class="text-muted">(opsional)</span></label>

@@ -36,7 +36,7 @@ $__activeUsers = $__isSA ? (new User())->activeList() : [];
                     <?php endif; ?>
                     <div class="mb-2">
                         <label class="form-label">Nama PIC <span class="text-danger">*</span></label>
-                        <input type="text" name="pic_name" class="form-control" placeholder="mis. Andi" required>
+                        <input type="text" name="pic_name" class="form-control" required>
                     </div>
                     <div class="mb-2">
                         <label class="form-label">Username Kas <span class="text-muted">(opsional)</span></label>

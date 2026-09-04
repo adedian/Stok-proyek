@@ -109,8 +109,7 @@ $cashCategories = $categories;
 
                 <div class="col-md-3">
                     <label class="form-label">No Bukti <span class="text-danger">*</span></label>
-                    <input type="text" name="no_bukti" class="form-control" value="<?= $val('no_bukti') ?>"
-                           placeholder="mis. KB-001" required>
+                    <input type="text" name="no_bukti" class="form-control" value="<?= $val('no_bukti') ?>" required>
                 </div>
 
                 <div class="col-md-3">
@@ -133,13 +132,6 @@ $cashCategories = $categories;
                     <i class="bi bi-plus-circle"></i> Tambah Baris
                 </button>
             </div>
-            <p class="text-muted small mb-2">
-                Kategori, Barang, Project, dan Supplier dipilih per baris. Baris ber-kategori <strong>Material Proyek</strong>,
-                <strong>Inventory Kantor</strong>, atau <strong>Inventory Teknik</strong> otomatis menambah stok
-                saat disimpan &mdash; <strong>wajib pilih Barang</strong> dari master (stok dicatat atas nama Barang itu &amp;
-                nyambung ke Laporan Stok Barang), Satuan wajib, Project wajib untuk Material Proyek / Inventory Teknik.
-                Baris <strong>Biaya Operasional</strong> tidak menyentuh stok.
-            </p>
             <div class="table-responsive">
                 <table class="table table-sm align-middle" id="itemTable">
                     <thead class="table-light">

@@ -68,7 +68,7 @@
                         </div>
                         <div class="col-12">
                             <label class="form-label">Kota <span class="text-muted small">(untuk baris "Kota, Tanggal" di penutup Surat Jalan -- bukan nama project/client)</span></label>
-                            <input type="text" name="city" id="cityInput" class="form-control" placeholder="mis. Surabaya">
+                            <input type="text" name="city" id="cityInput" class="form-control">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">No. Kendaraan</label>

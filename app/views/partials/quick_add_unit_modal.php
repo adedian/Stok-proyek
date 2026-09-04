@@ -17,7 +17,7 @@
                     <?= csrfField() ?>
                     <div class="mb-1">
                         <label class="form-label">Nama Satuan <span class="text-danger">*</span></label>
-                        <input type="text" name="unit_name" class="form-control" placeholder="mis. Zak, Kubik" required>
+                        <input type="text" name="unit_name" class="form-control" required>
                     </div>
                 </div>
                 <div class="modal-footer">

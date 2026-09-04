@@ -17,7 +17,7 @@
                     <?= csrfField() ?>
                     <div class="mb-1">
                         <label class="form-label">Nama Metode <span class="text-danger">*</span></label>
-                        <input type="text" name="method_name" class="form-control" placeholder="mis. QRIS, Kartu Kredit" required>
+                        <input type="text" name="method_name" class="form-control" required>
                     </div>
                 </div>
                 <div class="modal-footer">

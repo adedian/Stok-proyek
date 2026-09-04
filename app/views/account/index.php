@@ -75,7 +75,7 @@ $kasCanSetup = $kasCanSetup ?? false;
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Nomor Telepon</label>
-                            <input type="text" name="phone" class="form-control" value="<?= e($user['phone'] ?? '') ?>" placeholder="mis. 081234567890">
+                            <input type="text" name="phone" class="form-control" value="<?= e($user['phone'] ?? '') ?>">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Foto Profil</label>

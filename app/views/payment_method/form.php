@@ -19,7 +19,7 @@ $actionUrl = $isEdit ? 'update' : 'store';
         <div class="card-body">
             <label class="form-label">Nama Metode Pembayaran <span class="text-danger">*</span></label>
             <input type="text" name="method_name" class="form-control"
-                   value="<?= e($method['method_name'] ?? '') ?>" placeholder="mis. Transfer Bank, Tunai" required autofocus>
+                   value="<?= e($method['method_name'] ?? '') ?>" required autofocus>
         </div>
     </div>
 

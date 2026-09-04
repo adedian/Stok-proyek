@@ -3,19 +3,29 @@
  * Modal quick-add Barang. Dipakai dari baris item PO (bisa banyak baris),
  * jadi target <select>-nya di-resolve dinamis lewat window.__quickAddItemTarget
  * (di-set oleh handler tombol "+ Barang" di tiap baris -- lihat _item_row.php).
- * Butuh variabel $itemCategories, $units, dan permission 'item'.'quick_add'.
+ * Butuh variabel $units dan permission 'item'.'quick_add'.
  *
- * Kode Barang: quick-add SELALU konteks Stok Proyek (lihat ItemController::quickStore),
- * jadi partial ini menarik sendiri daftar prefix `item_stok_proyek` biar tidak
- * perlu menambah variabel di ~8 pemanggilnya.
+ * Kode Barang mengikuti "Jenis Stok" yang dipilih: Stok Proyek -> prefix ITM/LA/..,
+ * Stok Lampu -> LMP, Inventory Kantor -> INVT (masing-masing punya sequence sendiri,
+ * lihat Master Kode > Barang). Jenis Stok yang dipilih di sini juga yang tersimpan
+ * di items.stock_type -- menentukan pengelompokan di Stok Barang / Opname / Laporan.
  */
-$itemCategories = $itemCategories ?? [];
 $units = $units ?? [];
 
 require_once ROOT_PATH . '/app/models/CodeConfig.php';
 $__qaCode = new CodeConfig();
-$qaPrefixes   = $__qaCode->configsForEntity('item_stok_proyek');
-$qaMasterCode = $__qaCode->masterCodeForEntity('item_stok_proyek');
+$__qaTypes = stockTypeLabels();
+$__qaDefaultType = 'stok_proyek';
+$qaGroups = [];
+foreach ($__qaTypes as $__st => $__stLabel) {
+    $__ent = 'item_' . $__st;
+    $qaGroups[$__st] = [
+        'label'      => $__stLabel,
+        'entity'     => $__ent,
+        'prefixes'   => $__qaCode->configsForEntity($__ent),
+        'masterCode' => $__qaCode->masterCodeForEntity($__ent),
+    ];
+}
 ?>
 <div class="modal fade" id="modalQuickAddItem" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
@@ -33,26 +43,29 @@ $qaMasterCode = $__qaCode->masterCodeForEntity('item_stok_proyek');
                         <input type="text" name="item_name" class="form-control" required>
                     </div>
                     <div class="mb-3">
-                        <?php
-                        $codePrefixes    = $qaPrefixes;
-                        $codeMasterCode  = $qaMasterCode;
-                        $codeEntityType  = 'item_stok_proyek';
-                        $codeEntityLabel = 'Barang - Stok Proyek';
-                        $codePrefixFieldId = 'quickAddItemPrefix';
-                        require ROOT_PATH . '/app/views/partials/code_preview.php';
-                        ?>
-                        <div class="form-text">Jenis Stok: <strong>Stok Proyek</strong> (barang untuk jenis stok lain ditambah lewat menu Barang).</div>
+                        <label class="form-label">Jenis Stok <span class="text-danger">*</span></label>
+                        <select name="stock_type" id="quickAddItemStockType" class="form-select" required>
+                            <?php foreach ($qaGroups as $st => $g): ?>
+                                <option value="<?= e($st) ?>" <?= $st === $__qaDefaultType ? 'selected' : '' ?>><?= e($g['label']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="form-text">Menentukan prefix kode Barang &amp; pengelompokan stok (Stok Barang, Opname, Laporan).</div>
+                    </div>
+                    <div class="mb-3">
+                        <?php foreach ($qaGroups as $st => $g): ?>
+                            <div class="qa-code-group" data-stock-type="<?= e($st) ?>" style="<?= $st === $__qaDefaultType ? '' : 'display:none;' ?>">
+                                <?php
+                                $codePrefixes      = $g['prefixes'];
+                                $codeMasterCode    = $g['masterCode'];
+                                $codeEntityType    = $g['entity'];
+                                $codeEntityLabel   = 'Barang - ' . $g['label'];
+                                $codePrefixFieldId = 'quickAddItemPrefix_' . $st;
+                                require ROOT_PATH . '/app/views/partials/code_preview.php';
+                                ?>
+                            </div>
+                        <?php endforeach; ?>
                     </div>
                     <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Kategori</label>
-                            <select name="category_id" class="form-select">
-                                <option value="">-- Tanpa kategori --</option>
-                                <?php foreach ($itemCategories as $c): ?>
-                                    <option value="<?= (int) $c['id'] ?>"><?= e($c['category_name']) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
                         <div class="col-md-6">
                             <label class="form-label">Satuan <span class="text-danger">*</span></label>
                             <div class="input-group">
@@ -77,7 +90,7 @@ $qaMasterCode = $__qaCode->masterCodeForEntity('item_stok_proyek');
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Simpan</button>
+                    <button type="submit" class="btn btn-primary" id="quickAddItemSubmitBtn"><i class="bi bi-save"></i> Simpan</button>
                 </div>
             </form>
         </div>
@@ -109,15 +122,37 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Preview kode selalu segar tiap modal dibuka (form.reset() setelah quick-add
-    // sebelumnya mengembalikan prefix ke opsi pertama tanpa memicu 'change').
     var itemModalEl = document.getElementById('modalQuickAddItem');
-    var prefixSel = document.getElementById('quickAddItemPrefix');
-    if (itemModalEl && prefixSel) {
-        itemModalEl.addEventListener('shown.bs.modal', function () {
-            prefixSel.dispatchEvent(new Event('change', { bubbles: true }));
+    var stockTypeSel = document.getElementById('quickAddItemStockType');
+    var submitBtn = document.getElementById('quickAddItemSubmitBtn');
+
+    // Tampilkan grup prefix/preview sesuai Jenis Stok; hanya prefix grup aktif yang
+    // ikut submit (sisanya di-disable). Tombol Simpan mati kalau grup aktif belum
+    // punya prefix (belum dikonfigurasi di Master Kode).
+    function applyQaStockType() {
+        var st = stockTypeSel ? stockTypeSel.value : '<?= e($__qaDefaultType) ?>';
+        document.querySelectorAll('.qa-code-group').forEach(function (g) {
+            var show = g.dataset.stockType === st;
+            g.style.display = show ? '' : 'none';
+            g.querySelectorAll('select[name="code_prefix"]').forEach(function (pf) { pf.disabled = !show; });
+            if (show) {
+                var active = g.querySelector('.js-cp-prefix');
+                if (active) active.dispatchEvent(new Event('change', { bubbles: true }));
+            }
         });
+        var activeGroup = document.querySelector('.qa-code-group[data-stock-type="' + st + '"]');
+        var hasPrefix = !!(activeGroup && activeGroup.querySelector('select[name="code_prefix"]'));
+        if (submitBtn) submitBtn.disabled = !hasPrefix;
     }
+
+    if (stockTypeSel) stockTypeSel.addEventListener('change', applyQaStockType);
+
+    if (itemModalEl) {
+        // form.reset() setelah quick-add sebelumnya mengembalikan select ke opsi
+        // pertama tanpa memicu 'change' -- sinkronkan ulang tiap modal dibuka.
+        itemModalEl.addEventListener('shown.bs.modal', applyQaStockType);
+    }
+    applyQaStockType();
 });
 </script>
 

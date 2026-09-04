@@ -183,10 +183,11 @@ return [
         // (Purchase/PIC/Admin Project/PM) hanya boleh membuat & melihat.
         'edit'   => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
         'delete' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
-        // Kartu saldo Kas (total & per-divisi) di halaman utama Kas -- SENGAJA
-        // hanya Super Admin & Accounting. Role lain melihat daftar transaksi
-        // (ter-scope PIC-nya) TANPA angka saldo.
-        'view_balance' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        // Kartu saldo Kas di halaman utama Kas. Super Admin & Accounting melihat
+        // SEMUA divisi + Total Saldo. Purchase / PIC Project / Admin Project /
+        // Project Manager melihat HANYA saldo divisi mereka sendiri (mis.
+        // Purchase -> "Saldo Kas Purchase", role project -> "Saldo Kas Project").
+        'view_balance' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING, ROLE_PURCHASE, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT, ROLE_PROJECT_MANAGER],
     ],
 
     // Master Kategori Kas -- Accounting boleh kelola (view/create/edit) tapi

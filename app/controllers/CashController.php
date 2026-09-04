@@ -249,10 +249,19 @@ class CashController extends Controller
             $summary[$r['mutasi']] += (float) $r['total_amount'];
         }
 
-        // Kartu saldo -- SENGAJA hanya Super Admin / Accounting (cash.view_balance).
+        // Kartu saldo (cash.view_balance):
+        //   Super Admin / Accounting -> SEMUA divisi + Total Saldo.
+        //   Purchase / PIC Project / Admin Project / Project Manager -> HANYA
+        //   saldo divisi mereka sendiri (purchase -> Saldo Kas Purchase, role
+        //   project -> Saldo Kas Project), tanpa Total & tanpa divisi lain.
         $balances = null;
+        $balanceShowTotal = false;
         if (can('cash', 'view_balance')) {
-            $balances = $this->cashModel->balanceByDivision($scope, $divScope);
+            $role = currentUserRole();
+            $balanceShowTotal = in_array($role, [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING], true);
+            // Saldo divisi dihitung PENUH (semua PIC divisi itu), bukan hanya PIC user.
+            $balDivScope = $balanceShowTotal ? null : [kasDivisionForRole($role)];
+            $balances = $this->cashModel->balanceByDivision(null, $balDivScope);
             $stamp = date('Y-m-d');
             if (($_SESSION['kas_balance_logged'] ?? '') !== $stamp) {
                 $_SESSION['kas_balance_logged'] = $stamp;
@@ -275,6 +284,7 @@ class CashController extends Controller
             'scoped'      => $scope !== null,
             'summary'     => $summary,
             'balances'    => $balances,
+            'balanceShowTotal' => $balanceShowTotal,
             'kasExempt'   => kasIsExemptRole(currentUserRole()),
             'kasPicName'  => kasIsExemptRole(currentUserRole()) ? null : kasPicName(),
         ]);
@@ -785,11 +795,16 @@ class CashController extends Controller
             $cat     = $it['cash_category_id'] ? ($this->categoryModel->find((int) $it['cash_category_id']) ?: null) : null;
             $isStock = $cat && (int) $cat['affects_stock'] === 1;
             $isProyek = $isStock && ($cat['stock_scope'] ?? null) === 'proyek';
+            // Project disimpan untuk baris ber-scope 'proyek' (wajib) DAN untuk
+            // baris kategori non-stok / "Biaya Operasional" (opsional) -- biaya
+            // bisa dibebankan ke project. Baris stok non-proyek (Inventory
+            // Kantor) tetap tanpa project.
+            $keepProject = $isProyek || ($cat && (int) $cat['affects_stock'] === 0);
             $this->itemModel->create([
                 'cash_transaction_id' => $trxId,
                 'cash_category_id'    => $it['cash_category_id'] ?? null,
                 'item_id'            => $isStock ? ($it['item_id'] ?? null) : null,
-                'project_id'          => $isProyek ? ($it['project_id'] ?? null) : null,
+                'project_id'          => $keepProject ? ($it['project_id'] ?? null) : null,
                 'supplier_name'       => $isStock ? ($it['supplier_name'] ?? null) : null,
                 'uraian'              => $it['uraian'],
                 'unit'               => $isStock ? ($it['unit'] ?? null) : null,

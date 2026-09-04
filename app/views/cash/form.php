@@ -239,7 +239,7 @@ $cashCategories = $categories;
 
     // Project picker (select + tombol "+") pakai wrapper .project-wrap supaya
     // tombol "+" ikut sembunyi saat kolom Project tidak aktif.
-    function setProject(row, on) {
+    function setProject(row, on, req) {
         const wrap = row.querySelector('.project-wrap');
         const sel = row.querySelector('.project-select');
         const na = row.querySelector('.proj-na');
@@ -249,22 +249,25 @@ $cashCategories = $categories;
         const cell = wrap.closest('td');
         if (cell) cell.classList.toggle('cell-na', !on);
         sel.disabled = !on;
-        sel.required = on;
+        sel.required = !!(on && req);
         if (!on) sel.value = '';
     }
 
     // Kategori baris menentukan kolom stok mana yang aktif:
     //  affects_stock -> Barang (wajib) + Satuan (wajib) + Supplier (opsional)
     //  scope 'proyek' -> Project (wajib)
+    //  kategori non-stok terpilih (mis. Biaya Operasional) -> Project (opsional)
     function applyRowCategory(row) {
         const sel = row.querySelector('.category-select');
         const opt = sel.options[sel.selectedIndex];
+        const catChosen = !!(opt && opt.value);
         const isStock = !!(opt && opt.dataset.affectsStock === '1');
         const isProyek = isStock && opt.dataset.scope === 'proyek';
+        const showProject = isProyek || (catChosen && !isStock);
         setBarang(row, isStock);
         setField(row.querySelector('.unit-select'),     row.querySelector('.unit-na'), isStock, true);
         setField(row.querySelector('.supplier-input'),  row.querySelector('.sup-na'),  isStock, false);
-        setProject(row, isProyek);
+        setProject(row, showProject, isProyek);
         row.classList.toggle('stock-row', isStock);
         const hint = row.querySelector('.cat-hint');
         if (hint) hint.classList.toggle('d-none', !isStock);

@@ -383,17 +383,30 @@ class CashTransaction extends Model
             'umum'       => 'Saldo Kas Umum',
         ];
 
+        $aggMap = [];
+        foreach ($agg as $r) {
+            $aggMap[$r['division']] = $r;
+        }
+
+        // Kalau dibatasi ke divisi tertentu (mis. role Purchase -> ['purchase']),
+        // kartu saldo divisi itu HARUS tetap muncul walau belum ada transaksi
+        // (pakai opening balance). Tanpa batasan: divisi yang punya transaksi.
+        $divs = ($divisionScope !== null && count($divisionScope) > 0)
+            ? array_values(array_unique($divisionScope))
+            : array_keys($aggMap);
+
         $rows = [];
         $total = 0.0;
-        foreach ($agg as $r) {
-            $div = $r['division'];
-            $saldo = ($opening[$div] ?? 0.0) + (float) $r['masuk'] - (float) $r['keluar'];
+        foreach ($divs as $div) {
+            $masuk  = (float) ($aggMap[$div]['masuk'] ?? 0);
+            $keluar = (float) ($aggMap[$div]['keluar'] ?? 0);
+            $saldo  = ($opening[$div] ?? 0.0) + $masuk - $keluar;
             $total += $saldo;
             $rows[] = [
                 'division' => $div,
                 'label'    => $labels[$div] ?? ('Saldo Kas ' . ucfirst($div)),
-                'masuk'    => (float) $r['masuk'],
-                'keluar'   => (float) $r['keluar'],
+                'masuk'    => $masuk,
+                'keluar'   => $keluar,
                 'saldo'    => $saldo,
             ];
         }

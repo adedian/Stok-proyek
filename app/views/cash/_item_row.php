@@ -42,6 +42,11 @@ foreach ($cashCategories as $c) {
     }
 }
 $curProyek = $curAffects && $curScope === 'proyek';
+// Kolom Project juga tampil (opsional) untuk kategori NON-stok seperti "Biaya
+// Operasional" -- supaya biaya bisa dibebankan ke sebuah project. Wajib hanya
+// untuk kategori stok ber-scope 'proyek'.
+$curNonStockCat  = $curCat > 0 && !$curAffects;
+$curShowProject  = $curProyek || $curNonStockCat;
 
 // Barang terpilih tapi tidak ada di katalog aktif (mis. sudah discontinue) ->
 // tetap tampilkan sebagai opsi supaya data lama tidak hilang saat edit.
@@ -102,11 +107,11 @@ $canQuickAddProject = function_exists('canQuickAdd') && canQuickAdd('project');
         <input type="hidden" name="item_barang_id[]" class="barang-id-input" value="<?= $curItem ?: '' ?>">
         <span class="barang-na text-muted<?= $curAffects ? ' d-none' : '' ?>">&mdash;</span>
     </td>
-    <td data-label="Project" style="min-width: 150px;" class="<?= $curProyek ? '' : 'cell-na' ?>">
-        <div class="project-wrap<?= $curProyek ? '' : ' d-none' ?>">
+    <td data-label="Project" style="min-width: 150px;" class="<?= $curShowProject ? '' : 'cell-na' ?>">
+        <div class="project-wrap<?= $curShowProject ? '' : ' d-none' ?>">
             <div class="input-group input-group-sm">
                 <select name="item_project_id[]" class="form-select form-select-sm project-select"
-                        <?= $curProyek ? '' : 'disabled' ?>>
+                        <?= $curShowProject ? '' : 'disabled' ?> <?= $curProyek ? 'required' : '' ?>>
                     <option value="">-- Pilih Project --</option>
                     <?php foreach ($projects as $p): ?>
                         <option value="<?= (int) $p['id'] ?>" <?= $curProj === (int) $p['id'] ? 'selected' : '' ?>><?= e($p['project_name']) ?></option>
@@ -119,7 +124,7 @@ $canQuickAddProject = function_exists('canQuickAdd') && canQuickAdd('project');
                 <?php endif; ?>
             </div>
         </div>
-        <span class="proj-na text-muted<?= $curProyek ? ' d-none' : '' ?>">&mdash;</span>
+        <span class="proj-na text-muted<?= $curShowProject ? ' d-none' : '' ?>">&mdash;</span>
     </td>
     <td data-label="Supplier" style="min-width: 140px;" class="<?= $curAffects ? '' : 'cell-na' ?>">
         <input type="text" name="item_supplier_name[]" class="form-control form-control-sm supplier-input<?= $curAffects ? '' : ' d-none' ?>"

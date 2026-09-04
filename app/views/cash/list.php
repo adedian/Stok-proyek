@@ -2,6 +2,7 @@
 /** @var array $rows @var array $filters @var array $categories @var array $picOptions @var bool $scoped @var array $summary
  *  @var array|null $balances @var bool $kasExempt @var string|null $kasPicName */
 $balances   = $balances ?? null;
+$balanceShowTotal = $balanceShowTotal ?? false;
 $kasExempt  = $kasExempt ?? true;
 $kasPicName = $kasPicName ?? null;
 ?>
@@ -32,8 +33,10 @@ $kasPicName = $kasPicName ?? null;
 </div>
 
 <?php if ($balances !== null): ?>
-    <?php /* Kartu saldo -- hanya Super Admin & Accounting (cash.view_balance). */ ?>
+    <?php /* Kartu saldo. Super Admin/Accounting: semua divisi + Total. Role lain:
+             hanya saldo divisi sendiri (cash.view_balance). */ ?>
     <div class="row g-2 mb-3">
+        <?php if ($balanceShowTotal): ?>
         <div class="col-12 col-md-3">
             <div class="card border-0 shadow-sm h-100 bg-primary text-white">
                 <div class="card-body py-2">
@@ -42,6 +45,7 @@ $kasPicName = $kasPicName ?? null;
                 </div>
             </div>
         </div>
+        <?php endif; ?>
         <?php foreach ($balances['rows'] as $b): ?>
             <div class="col-6 col-md-3">
                 <div class="card border-0 shadow-sm h-100">
@@ -54,6 +58,7 @@ $kasPicName = $kasPicName ?? null;
         <?php endforeach; ?>
     </div>
 
+    <?php if ($balanceShowTotal): ?>
     <div class="row g-2 mb-3">
         <div class="col-6 col-md-3">
             <div class="card border-0 shadow-sm h-100">
@@ -80,7 +85,8 @@ $kasPicName = $kasPicName ?? null;
             </div>
         </div>
     </div>
-<?php endif; ?>
+    <?php endif; /* $balanceShowTotal (ringkasan filter) */ ?>
+<?php endif; /* $balances */ ?>
 
 <?php if (hasRole([ROLE_SUPER_ADMIN])): ?>
     <div class="d-flex justify-content-end mb-2">

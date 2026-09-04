@@ -69,12 +69,31 @@
 
         var slots = []; // { td, container, nodes }
         var count = 0;
-        var body = table.tBodies[0];
 
-        Array.prototype.forEach.call(body.rows, function (tr) {
+        // Semua <tbody> -- tabel daftar bisa punya >1 tbody (mis. User Management
+        // dikelompokkan per role). Dulu hanya tBodies[0] yang diproses -> di HP
+        // hanya grup pertama yang muncul.
+        var allRows = [];
+        Array.prototype.forEach.call(table.tBodies, function (tb) {
+            Array.prototype.forEach.call(tb.rows, function (tr) { allRows.push(tr); });
+        });
+
+        allRows.forEach(function (tr) {
             var cells = Array.prototype.slice.call(tr.cells);
             if (!cells.length) return;
-            if (cells.some(function (c) { return c.hasAttribute('colspan'); })) return; // empty-state / TOTAL
+            if (cells.some(function (c) { return c.hasAttribute('colspan'); })) {
+                // Baris judul grup (<th colspan> -- mis. nama role di User
+                // Management) -> jadikan sub-judul daftar kartu. Baris kosong /
+                // empty-state (<td colspan>) tetap dilewati (ditangani di bawah).
+                var span = cells[0];
+                if (span.tagName === 'TH' && norm(span)) {
+                    var gh = document.createElement('div');
+                    gh.className = 'rt-card-group';
+                    gh.innerHTML = span.innerHTML;
+                    cards.appendChild(gh);
+                }
+                return;
+            }
 
             var card = document.createElement('div');
             card.className = 'rt-card';
@@ -147,9 +166,9 @@
         if (!count) {
             if (dataCols < 4 && headCells.length < 5) return null;
             var emptyCell = null;
-            Array.prototype.forEach.call(body.rows, function (tr) {
+            allRows.forEach(function (tr) {
                 if (emptyCell) return;
-                var c = Array.prototype.filter.call(tr.cells, function (x) { return x.hasAttribute('colspan'); })[0];
+                var c = Array.prototype.filter.call(tr.cells, function (x) { return x.hasAttribute('colspan') && x.tagName === 'TD'; })[0];
                 if (c) emptyCell = c;
             });
             if (!emptyCell) return null;

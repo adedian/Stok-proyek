@@ -16,6 +16,10 @@ require_once ROOT_PATH . '/app/models/CodeConfig.php';
 $__qaCode = new CodeConfig();
 $__qaTypes = stockTypeLabels();
 $__qaDefaultType = 'stok_proyek';
+// Tombol "+" tambah prefix: di modal quick-add ini boleh dipakai siapa pun yang
+// boleh menambah Barang cepat (Purchase/Accounting/PIC dll), bukan cuma Super
+// Admin -- supaya alur quick-add tidak buntu kalau grup prefix belum ada.
+$__qaCanAddPrefix = function_exists('can') && (can('master_kode', 'edit') || can('item', 'quick_add'));
 $qaGroups = [];
 foreach ($__qaTypes as $__st => $__stLabel) {
     $__ent = 'item_' . $__st;
@@ -60,6 +64,7 @@ foreach ($__qaTypes as $__st => $__stLabel) {
                                 $codeEntityType    = $g['entity'];
                                 $codeEntityLabel   = 'Barang - ' . $g['label'];
                                 $codePrefixFieldId = 'quickAddItemPrefix_' . $st;
+                                $codePrefixCanAdd  = $__qaCanAddPrefix;
                                 require ROOT_PATH . '/app/views/partials/code_preview.php';
                                 ?>
                             </div>
@@ -160,8 +165,7 @@ document.addEventListener('DOMContentLoaded', function () {
     <?php require ROOT_PATH . '/app/views/partials/quick_add_unit_modal.php'; ?>
 <?php endif; ?>
 
-<?php /* Tombol "+" prefix di dalam code_preview butuh modal ini ikut termuat.
-         Hanya untuk yang boleh atur Master Kode (Super Admin). */ ?>
-<?php if (function_exists('can') && can('master_kode', 'edit')): ?>
+<?php /* Tombol "+" prefix di dalam code_preview butuh modal ini ikut termuat. */ ?>
+<?php if ($__qaCanAddPrefix): ?>
     <?php require ROOT_PATH . '/app/views/partials/quick_add_prefix_modal.php'; ?>
 <?php endif; ?>

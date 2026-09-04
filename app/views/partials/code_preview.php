@@ -11,6 +11,9 @@
  *   $codePrefixInline   true = render ringkas dalam 1 baris (dipakai form Barang)
  *   $codePrefixHideAdd  true = sembunyikan tombol "+" quick-add prefix (dipakai di
  *                        modal quick-add Barang, yang tidak memuat modal prefix-nya)
+ *   $codePrefixCanAdd   override siapa yang boleh lihat tombol "+" (default: yang
+ *                        boleh 'master_kode'.'edit'). Modal quick-add Barang
+ *                        melonggarkan ini ke pengguna 'item'.'quick_add'.
  *
  * Format kode: PREFIX.NOMOR.MASTERCODE
  */
@@ -18,6 +21,7 @@ $codePrefixes    = $codePrefixes ?? [];
 $codeMasterCode  = $codeMasterCode ?? '';
 $fieldId         = $codePrefixFieldId ?? 'codePrefix';
 $codePrefixHideAdd = $codePrefixHideAdd ?? false;
+$codePrefixCanAdd  = $codePrefixCanAdd ?? (function_exists('can') && can('master_kode', 'edit'));
 ?>
 <?php if (empty($codePrefixes)): ?>
     <div class="alert alert-warning py-2 mb-0">
@@ -42,7 +46,7 @@ $codePrefixHideAdd = $codePrefixHideAdd ?? false;
                         </option>
                     <?php endforeach; ?>
                 </select>
-                <?php if (!$codePrefixHideAdd && function_exists('can') && can('master_kode', 'edit')): ?>
+                <?php if (!$codePrefixHideAdd && $codePrefixCanAdd): ?>
                     <button type="button" class="btn btn-outline-secondary js-cp-add-prefix"
                             data-entity-type="<?= e($codeEntityType) ?>"
                             data-master="<?= e($codeMasterCode) ?>"

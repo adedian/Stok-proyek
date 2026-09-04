@@ -25,7 +25,12 @@ class MasterKodeController extends Controller
 
     public function __construct()
     {
-        Middleware::requirePermission('master_kode', 'view');
+        // quickAddPrefix() dicek izinnya sendiri (lebih longgar: pengguna yang
+        // boleh 'item'.'quick_add' juga boleh menambah prefix Barang dari modal
+        // quick-add) -- jangan diblokir dulu oleh gate 'view' yang Super Admin-only.
+        if (($_GET['action'] ?? 'index') !== 'quickAddPrefix') {
+            Middleware::requirePermission('master_kode', 'view');
+        }
         $this->codeConfig  = new CodeConfig();
         $this->activityLog = new ActivityLog();
     }
@@ -169,13 +174,23 @@ class MasterKodeController extends Controller
      */
     public function quickAddPrefix()
     {
-        Middleware::requirePermission('master_kode', 'edit');
+        // Super Admin (master_kode.edit) boleh untuk semua kelompok. Pengguna
+        // 'item'.'quick_add' (Purchase/Accounting/PIC/Admin Project) boleh juga,
+        // TAPI hanya untuk kelompok Barang (item_*) -- dari modal quick-add Barang.
+        $canMasterKode = can('master_kode', 'edit');
+        $canItemQuickAdd = can('item', 'quick_add');
+        if (!$canMasterKode && !$canItemQuickAdd) {
+            $this->json(['errors' => ['Anda tidak berhak menambah prefix kode.']], 403);
+        }
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->json(['errors' => ['Metode tidak diizinkan.']], 405);
         }
         verifyCsrf();
 
         $type = trim($_POST['entity_type'] ?? '');
+        if (!$canMasterKode && strpos($type, 'item_') !== 0) {
+            $this->json(['errors' => ['Anda hanya boleh menambah prefix kelompok Barang.']], 403);
+        }
         $meta = $this->codeConfig->entityMeta($type);
         if (!$meta) {
             $this->json(['errors' => ['Kelompok Master Kode tidak dikenal.']], 422);

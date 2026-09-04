@@ -387,3 +387,30 @@ function formatReportValue($value, string $format = 'text'): string
             return (string) $value;
     }
 }
+
+/**
+ * Peta Jenis Stok (items.stock_type) => label tampilan. SUMBER TUNGGAL dipakai
+ * Master Data > Barang, Stok Opname, Penerimaan Barang, dan Laporan Stok Barang
+ * supaya "Kategori / Jenis Stok" konsisten di seluruh aplikasi.
+ */
+function stockTypeLabels(): array
+{
+    return [
+        'stok_proyek'      => 'Stok Proyek',
+        'stok_lampu'       => 'Stok Lampu',
+        'inventory_kantor' => 'Inventory Kantor',
+    ];
+}
+
+/** Label satu Jenis Stok; kembalikan key apa adanya kalau tak dikenal. */
+function stockTypeLabel(?string $key): string
+{
+    return stockTypeLabels()[$key] ?? (string) $key;
+}
+
+/** Normalisasi input jadi salah satu key stock_type yang valid. */
+function normalizeStockType($value, string $default = 'stok_proyek'): string
+{
+    $value = is_string($value) ? trim($value) : '';
+    return array_key_exists($value, stockTypeLabels()) ? $value : $default;
+}

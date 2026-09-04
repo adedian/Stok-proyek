@@ -30,11 +30,11 @@
         <form method="GET" action="<?= BASE_URL ?>/inventory" class="row g-2 align-items-end">
             <input type="hidden" name="action" value="opnameIndex">
             <div class="col-md-3">
-                <label class="form-label small text-muted mb-1">Kategori Stok</label>
-                <select name="stock_scope" class="form-select form-select-sm">
+                <label class="form-label small text-muted mb-1">Jenis Stok</label>
+                <select name="stock_type" class="form-select form-select-sm">
                     <option value="">Semua</option>
-                    <?php foreach ($scopeLabels as $key => $label): ?>
-                        <option value="<?= e($key) ?>" <?= $filters['stock_scope'] === $key ? 'selected' : '' ?>><?= e($label) ?></option>
+                    <?php foreach ($stockTypeLabels as $key => $label): ?>
+                        <option value="<?= e($key) ?>" <?= $filters['stock_type'] === $key ? 'selected' : '' ?>><?= e($label) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -104,7 +104,7 @@
                     <?php foreach ($opnames as $o): ?>
                         <tr>
                             <td><?= e($o['opname_number']) ?></td>
-                            <td><span class="badge bg-<?= $o['stock_scope'] === 'kantor' ? 'info text-dark' : 'primary' ?>"><?= e($scopeLabels[$o['stock_scope']] ?? $o['stock_scope']) ?></span></td>
+                            <td><span class="badge bg-<?= $o['stock_type'] === 'stok_proyek' ? 'primary' : 'info text-dark' ?>"><?= e(stockTypeLabel($o['stock_type'])) ?></span></td>
                             <td><?= e($o['project_name'] ?? '-') ?></td>
                             <td><?= formatTanggal($o['opname_date']) ?></td>
                             <td class="text-center">

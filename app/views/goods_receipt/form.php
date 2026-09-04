@@ -50,11 +50,16 @@ $canOfflineSource = can('offline_purchase', 'view');
                     </div>
                 </div>
                 <div class="col-md-6" id="stockScopeWrapper" style="display:none;">
-                    <label class="form-label">Kategori Stok <span class="text-danger">*</span></label>
-                    <select name="stock_scope" class="form-select">
-                        <option value="proyek">Stok Proyek</option>
-                        <option value="kantor">Stok Kantor</option>
+                    <label class="form-label">Jenis Stok <span class="text-danger">*</span></label>
+                    <select name="stock_type" class="form-select">
+                        <?php foreach (stockTypeLabels() as $stKey => $stLabel): ?>
+                            <option value="<?= e($stKey) ?>"><?= e($stLabel) ?></option>
+                        <?php endforeach; ?>
                     </select>
+                    <div class="form-text">
+                        Untuk barang yang cocok dengan Master Data &raquo; Barang, jenis stok otomatis ikut master.
+                        Pilihan ini jadi default untuk barang di luar master.
+                    </div>
                 </div>
             </div>
             <?php else: ?>
@@ -102,7 +107,7 @@ $canOfflineSource = can('offline_purchase', 'view');
             <div class="row g-3" id="pemakaiFields" style="display:none;">
                 <div class="col-md-6">
                     <label class="form-label">Nama Pemakai / Departemen <span class="text-danger">*</span></label>
-                    <input type="text" name="source_detail" class="form-control" placeholder="Contoh: Budi (Site Proyek A) / Gudang Kantor">
+                    <input type="text" name="source_detail" class="form-control">
                 </div>
                 <div class="col-md-6" id="pemakaiProjectWrapper">
                     <label class="form-label">Project</label>
@@ -124,7 +129,7 @@ $canOfflineSource = can('offline_purchase', 'view');
                 <div class="col-md-4">
                     <label class="form-label">Nama Penerima <span class="text-danger">*</span></label>
                     <input type="text" name="receiver_name" class="form-control"
-                           value="<?= e($receipt['received_by_name'] ?? '') ?>" placeholder="Contoh: Budi Santoso" required>
+                           value="<?= e($receipt['received_by_name'] ?? '') ?>" required>
                     <div class="form-text">Nama orang yang secara langsung menerima barang (boleh bukan pengguna sistem).</div>
                 </div>
                 <div class="col-md-6">

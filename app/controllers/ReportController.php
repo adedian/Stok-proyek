@@ -445,14 +445,10 @@ class ReportController extends Controller
                 $model = new Inventory();
                 $stockFilter = trim($get['stock_filter'] ?? '');
                 $itemStatus = trim($get['item_status'] ?? '');
-                // Filter Kategori (jenis stok) -- HANYA memengaruhi tampilan layar,
-                // TIDAK ikut ke Cetak/Export (stockFilters() & buildExportQuery()
-                // sengaja tidak membawa 'stock_type').
-                $stockTypeLabels = [
-                    'stok_proyek'      => 'Stok Proyek',
-                    'stok_lampu'       => 'Stok Lampu',
-                    'inventory_kantor' => 'Inventory Kantor',
-                ];
+                // Filter Jenis Stok -- HANYA memengaruhi tampilan layar, TIDAK ikut
+                // ke Cetak/Export (stockFilters() & buildExportQuery() sengaja tidak
+                // membawa 'stock_type'). Label dari sumber tunggal stockTypeLabels().
+                $stockTypeLabels = stockTypeLabels();
                 $stockType = isset($stockTypeLabels[trim($get['stock_type'] ?? '')]) ? trim($get['stock_type']) : '';
                 // Toggle "Tampilkan/Tanpa harga" HANYA untuk role ber-izin
                 // (report.stock_price). Role lain: kontrol disembunyikan & output

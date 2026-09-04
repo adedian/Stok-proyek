@@ -353,7 +353,7 @@ class GoodsReceiptItem extends Model
         $sql = "SELECT gri.*,
                        COALESCE(gri.actual_item_name, poi.item_name, opi.item_name) AS item_name,
                        COALESCE(gri.actual_unit, poi.unit, opi.unit) AS unit,
-                       gr.receipt_number, gr.receipt_type, gr.stock_scope, gr.receipt_date,
+                       gr.receipt_number, gr.receipt_type, gr.stock_scope, gr.stock_type, gr.receipt_date,
                        COALESCE(gr.project_id, po.project_id, op.project_id) AS project_id,
                        gr.purchase_order_id, po.po_number,
                        gr.offline_purchase_id, op.purchase_number

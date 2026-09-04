@@ -18,10 +18,24 @@ class StockOpname extends Model
         'completed' => 'success',
     ];
 
+    /**
+     * @deprecated 2026-09-12 -- "Kategori Stok" sekarang pakai 3 Jenis Stok master
+     * (stockTypeLabels()). Dipertahankan hanya untuk data lama yang masih membaca
+     * stock_scope; jangan dipakai untuk fitur baru.
+     */
     public array $scopeLabels = [
         'proyek' => 'Stok Proyek',
         'kantor' => 'Stok Kantor',
     ];
+
+    /** Jenis Stok (stock_type) -- SUMBER: stockTypeLabels() helper global. */
+    public array $stockTypeLabels;
+
+    public function __construct()
+    {
+        parent::__construct();
+        $this->stockTypeLabels = stockTypeLabels();
+    }
 
     /**
      * "001/SO.HME/X/2026" -- lihat catatan lengkap di SalesInvoice::generateInvoiceNumber(),
@@ -55,6 +69,10 @@ class StockOpname extends Model
         if (!empty($filters['stock_scope'])) {
             $sql .= " AND so.stock_scope = :stock_scope";
             $params['stock_scope'] = $filters['stock_scope'];
+        }
+        if (!empty($filters['stock_type'])) {
+            $sql .= " AND so.stock_type = :stock_type";
+            $params['stock_type'] = $filters['stock_type'];
         }
         if (!empty($filters['status'])) {
             $sql .= " AND so.status = :status";

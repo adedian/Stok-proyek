@@ -5,8 +5,8 @@
             <span class="badge bg-<?= $statusBadgeClass[$opname['status']] ?> ms-2"><?= e($statusLabels[$opname['status']]) ?></span>
         </h4>
         <small class="text-muted">
-            <span class="badge bg-<?= $opname['stock_scope'] === 'kantor' ? 'info text-dark' : 'primary' ?>"><?= e($scopeLabels[$opname['stock_scope']] ?? $opname['stock_scope']) ?></span>
-            <?= e($opname['project_name'] ?? 'Tanpa Project (Kantor)') ?> &middot; <?= formatTanggal($opname['opname_date']) ?>
+            <span class="badge bg-<?= $opname['stock_type'] === 'stok_proyek' ? 'primary' : 'info text-dark' ?>"><?= e(stockTypeLabel($opname['stock_type'])) ?></span>
+            <?= e($opname['project_name'] ?? 'Semua Project + Kantor') ?> &middot; <?= formatTanggal($opname['opname_date']) ?>
         </small>
     </div>
     <div class="d-flex gap-2">

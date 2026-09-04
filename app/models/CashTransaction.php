@@ -49,6 +49,10 @@ class CashTransaction extends Model
             // Stok dicatat atas NAMA BARANG MASTER (kalau tertaut) supaya cocok
             // dengan join items.item_name di Stok Barang / Laporan Stok Barang.
             $stockName = !empty($row['master_item_name']) ? $row['master_item_name'] : $row['uraian'];
+            // Jenis Stok ikut master Barang (baris stok Kas wajib tertaut master);
+            // fallback dari scope untuk baris tanpa master.
+            $stockType = (new Item())->stockTypeByName($stockName)
+                ?? ($scope === 'kantor' ? 'inventory_kantor' : 'stok_proyek');
             $inv->creditStock(
                 $stockName,
                 (string) ($row['unit'] ?? ''),
@@ -58,7 +62,8 @@ class CashTransaction extends Model
                 $trxId,
                 (string) $header['trx_date'],
                 currentUserId(),
-                $scope
+                $scope,
+                $stockType
             );
             $this->db->query(
                 "UPDATE cash_transaction_items SET stock_posted_at = NOW() WHERE id = :id",

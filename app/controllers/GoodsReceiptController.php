@@ -165,6 +165,7 @@ class GoodsReceiptController extends Controller
                 'offline_purchase_id' => $data['offline_purchase_id'] ?: null,
                 'receipt_type'      => $data['receipt_type'],
                 'stock_scope'       => $data['stock_scope'],
+                'stock_type'        => $data['stock_type'],
                 'project_id'        => $data['project_id'] ?: null,
                 'source_detail'     => $data['source_detail'],
                 'receipt_number'    => $this->receiptModel->generateReceiptNumber(),
@@ -314,6 +315,7 @@ class GoodsReceiptController extends Controller
         $data['offline_purchase_id'] = (int) $existing['offline_purchase_id'];
         $data['receipt_type']  = $existing['receipt_type'];
         $data['stock_scope']   = $existing['stock_scope'];
+        $data['stock_type']    = $existing['stock_type'] ?? 'stok_proyek';
         $data['project_id']    = $existing['project_id'];
         $data['source_detail'] = $existing['source_detail'];
         $errors = $this->validateInput($data, $id);
@@ -655,16 +657,29 @@ class GoodsReceiptController extends Controller
         $isSourced = $receiptType === 'purchase_order' || $receiptType === 'offline_purchase';
         $mismatchItems = $isSourced ? $this->collectMismatchItems() : [];
 
+        $projectId = (int) ($_POST['project_id'] ?? 0);
+
+        // Jenis Stok: alur PO/Pembelian Offline dihitung PER ITEM dari master saat
+        // validasi (lihat ValidationController), jadi di sini cukup default. Alur
+        // Pemakai/Internal: ikut pilihan "Jenis Stok" di form (jadi default untuk
+        // barang bebas yang tidak ada di master).
+        $stockType = $receiptType === 'pemakai'
+            ? normalizeStockType($_POST['stock_type'] ?? 'stok_proyek')
+            : 'stok_proyek';
+
+        // stock_scope (kolom lama) -- PO/Offline selalu terikat project; Pemakai
+        // diturunkan dari ada/tidaknya Project (Project kini opsional).
         $stockScope = $receiptType === 'pemakai'
-            ? (($_POST['stock_scope'] ?? 'proyek') === 'kantor' ? 'kantor' : 'proyek')
-            : 'proyek'; // penerimaan dari PO/Pembelian Offline selalu terikat project
+            ? ($projectId > 0 ? 'proyek' : 'kantor')
+            : 'proyek';
 
         return [
             'purchase_order_id'   => (int) ($_POST['purchase_order_id'] ?? 0),
             'offline_purchase_id' => (int) ($_POST['offline_purchase_id'] ?? 0),
             'receipt_type'      => $receiptType,
             'stock_scope'       => $stockScope,
-            'project_id'        => (int) ($_POST['project_id'] ?? 0),
+            'stock_type'        => $stockType,
+            'project_id'        => $projectId,
             'source_detail'     => trim($_POST['source_detail'] ?? ''),
             'receipt_date'      => $_POST['receipt_date'] ?? '',
             'receiver_name'     => trim($_POST['receiver_name'] ?? ''),
@@ -796,8 +811,8 @@ class GoodsReceiptController extends Controller
                 $errors[] = 'Minimal harus ada 1 item dengan qty diterima lebih dari 0 (item Pembelian Offline atau barang tidak sesuai).';
             }
         } else {
-            if ($data['project_id'] <= 0 && $data['stock_scope'] === 'proyek') {
-                $errors[] = 'Project wajib dipilih untuk penerimaan kategori Stok Proyek.';
+            if ($data['project_id'] <= 0 && $data['stock_type'] === 'stok_proyek') {
+                $errors[] = 'Project wajib dipilih untuk Jenis Stok "Stok Proyek".';
             }
             if ($data['source_detail'] === '') {
                 $errors[] = 'Nama pemakai/departemen sumber barang wajib diisi.';

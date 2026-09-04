@@ -5,6 +5,7 @@ require_once ROOT_PATH . '/app/models/GoodsReceiptItem.php';
 require_once ROOT_PATH . '/app/models/PurchaseOrderHistory.php';
 require_once ROOT_PATH . '/app/models/Project.php';
 require_once ROOT_PATH . '/app/models/Inventory.php';
+require_once ROOT_PATH . '/app/models/Item.php';
 require_once ROOT_PATH . '/app/models/PurchaseOrder.php';
 require_once ROOT_PATH . '/app/models/OfflinePurchase.php';
 
@@ -14,6 +15,7 @@ class ValidationController extends Controller
     private PurchaseOrderHistory $historyModel;
     private Project $projectModel;
     private Inventory $inventoryModel;
+    private Item $itemMasterModel;
     private PurchaseOrder $poModel;
     private OfflinePurchase $offlinePurchaseModel;
 
@@ -28,6 +30,7 @@ class ValidationController extends Controller
         $this->historyModel   = new PurchaseOrderHistory();
         $this->projectModel   = new Project();
         $this->inventoryModel = new Inventory();
+        $this->itemMasterModel = new Item();
         $this->poModel        = new PurchaseOrder();
         $this->offlinePurchaseModel = new OfflinePurchase();
     }
@@ -107,6 +110,13 @@ class ValidationController extends Controller
             $isNowValid = in_array($status, self::STOCK_VALID_STATUSES, true);
 
             if ($isNowValid && !$wasPosted) {
+                // Jenis Stok = ikut master Barang (cocokkan nama); barang bebas /
+                // "Barang Lain" tanpa master -> pakai pilihan Jenis Stok di header
+                // Penerimaan (gr.stock_type), fallback terakhir dari stock_scope.
+                $stockType = $this->itemMasterModel->stockTypeByName($item['item_name'])
+                    ?? ($item['stock_type']
+                        ?? (($item['stock_scope'] ?? 'proyek') === 'kantor' ? 'inventory_kantor' : 'stok_proyek'));
+
                 $this->inventoryModel->creditStock(
                     $item['item_name'],
                     $item['unit'],
@@ -116,7 +126,8 @@ class ValidationController extends Controller
                     (int) $item['goods_receipt_id'],
                     date('Y-m-d'),
                     currentUserId(),
-                    $item['stock_scope']
+                    $item['stock_scope'],
+                    $stockType
                 );
                 $this->itemModel->markStockPosted($id, true);
             } elseif (!$isNowValid && $wasPosted) {

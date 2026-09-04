@@ -49,7 +49,8 @@ class Inventory extends Model
         int $referenceId,
         string $transactionDate,
         ?int $userId,
-        string $stockScope = 'proyek'
+        string $stockScope = 'proyek',
+        string $stockType = 'stok_proyek'
     ): void {
         if ($qty <= 0) {
             return;
@@ -60,7 +61,13 @@ class Inventory extends Model
         if ($existing) {
             $qtyBefore = (float) $existing['qty_available'];
             $qtyAfter = $qtyBefore + $qty;
-            $this->updateById((int) $existing['id'], ['qty_available' => $qtyAfter]);
+            $patch = ['qty_available' => $qtyAfter];
+            // stock_type = atribut deskriptif (BUKAN kunci bucket). Selaraskan baris
+            // lama ke klasifikasi terbaru dari master saat ada mutasi masuk.
+            if (($existing['stock_type'] ?? '') !== $stockType) {
+                $patch['stock_type'] = $stockType;
+            }
+            $this->updateById((int) $existing['id'], $patch);
             $inventoryId = (int) $existing['id'];
         } else {
             $qtyBefore = 0;
@@ -70,6 +77,7 @@ class Inventory extends Model
                 'unit'          => $unit,
                 'project_id'    => $projectId,
                 'stock_scope'   => $stockScope,
+                'stock_type'    => $stockType,
                 'qty_available' => $qtyAfter,
                 'min_stock'     => 0,
                 'created_by'    => $userId,
@@ -301,16 +309,17 @@ class Inventory extends Model
      * tidak pernah muncul sebagai dasar Stock Opname. Method ini menangani eksplisit
      * kedua bucket sesuai stock_scope yang sama dipakai di Inventory & Goods Receipt.
      */
-    public function forOpname(string $stockScope, ?int $projectId): array
+    public function forOpname(string $stockType, ?int $projectId): array
     {
-        $sql = "SELECT * FROM inventory WHERE deleted_at IS NULL AND stock_scope = :stock_scope";
-        $params = ['stock_scope' => $stockScope];
+        $sql = "SELECT * FROM inventory WHERE deleted_at IS NULL AND stock_type = :stock_type";
+        $params = ['stock_type' => $stockType];
 
+        // Project OPSIONAL untuk semua jenis stok (keputusan 2026-09-12 "boleh
+        // dua-duanya"): kalau project dipilih -> batasi ke project itu; kalau
+        // tidak -> hitung SEMUA baris jenis stok ini (lintas project + kantor).
         if ($projectId !== null) {
             $sql .= " AND project_id = :project_id";
             $params['project_id'] = $projectId;
-        } else {
-            $sql .= " AND project_id IS NULL";
         }
 
         $sql .= " ORDER BY item_name ASC";
@@ -391,12 +400,11 @@ class Inventory extends Model
             $sql .= " AND inv.stock_scope = :stock_scope";
             $params['stock_scope'] = $filters['stock_scope'];
         }
-        // Filter Kategori (jenis stok master Barang: stok_proyek / stok_lampu /
-        // inventory_kantor). Dipakai HANYA di tampilan layar Laporan Stok Barang
-        // (ReportController::buildReport 'inventory') -- stockFilters() untuk
-        // Cetak/Export TIDAK mengirim key ini, jadi cetak & ekspor tak terpengaruh.
+        // Filter Jenis Stok (stok_proyek / stok_lampu / inventory_kantor).
+        // Dibaca dari inv.stock_type (kolom sejak 2026_09_12) supaya barang tanpa
+        // entri master pun ikut terfilter -- bukan lagi lewat join i.stock_type.
         if (!empty($filters['stock_type'])) {
-            $sql .= " AND i.stock_type = :stock_type";
+            $sql .= " AND inv.stock_type = :stock_type";
             $params['stock_type'] = $filters['stock_type'];
         }
         if (!empty($filters['keyword'])) {

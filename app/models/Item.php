@@ -19,6 +19,21 @@ class Item extends Model
         );
     }
 
+    /**
+     * Jenis Stok (stock_type) master untuk satu nama barang -- dipakai saat
+     * mengkreditkan stok (Validasi Barang / Kas) supaya baris inventory langsung
+     * terklasifikasi sama dengan Master Data > Barang. NULL kalau nama tidak ada
+     * di master (barang bebas / "Barang Lain") -- pemanggil pakai fallback sendiri.
+     */
+    public function stockTypeByName(string $itemName): ?string
+    {
+        $row = $this->db->fetchOne(
+            "SELECT stock_type FROM items WHERE item_name = :name AND deleted_at IS NULL LIMIT 1",
+            ['name' => $itemName]
+        );
+        return $row['stock_type'] ?? null;
+    }
+
     public function nameExists(string $name, ?int $excludeId = null): bool
     {
         $sql = "SELECT id FROM items WHERE item_name = :name AND deleted_at IS NULL";

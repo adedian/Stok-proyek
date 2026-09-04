@@ -15,19 +15,19 @@
         <div class="card-body">
             <div class="row g-3">
                 <div class="col-md-6">
-                    <label class="form-label">Kategori Stok <span class="text-danger">*</span></label>
-                    <select name="stock_scope" id="stockScopeSelect" class="form-select">
-                        <?php foreach ($scopeLabels as $key => $label): ?>
-                            <option value="<?= e($key) ?>" <?= $selectedStockScope === $key ? 'selected' : '' ?>><?= e($label) ?></option>
+                    <label class="form-label">Jenis Stok <span class="text-danger">*</span></label>
+                    <select name="stock_type" id="stockTypeSelect" class="form-select">
+                        <?php foreach ($stockTypeLabels as $key => $label): ?>
+                            <option value="<?= e($key) ?>" <?= $selectedStockType === $key ? 'selected' : '' ?>><?= e($label) ?></option>
                         <?php endforeach; ?>
                     </select>
-                    <div class="form-text">Stok Kantor tidak selalu terikat project (lihat Penerimaan Barang "Pemakai/Internal").</div>
+                    <div class="form-text">Sama dengan "Jenis Stok" di Master Data &raquo; Barang.</div>
                 </div>
                 <div class="col-md-6" id="projectFieldWrapper">
-                    <label class="form-label">Project <span class="text-danger" id="projectRequiredMark">*</span></label>
+                    <label class="form-label">Project</label>
                     <div class="input-group">
                         <select name="project_id" id="projectSelect" class="form-select">
-                            <option value="">-- Pilih Project --</option>
+                            <option value="">-- Semua Project + Kantor --</option>
                             <?php foreach ($projects as $p): ?>
                                 <option value="<?= (int) $p['id'] ?>" <?= (string) $selectedProjectId === (string) $p['id'] ? 'selected' : '' ?>>
                                     <?= e($p['project_name']) ?>
@@ -40,7 +40,7 @@
                             </button>
                         <?php endif; ?>
                     </div>
-                    <div class="form-text" id="projectOptionalNote" style="display:none;">Opsional untuk Stok Kantor -- kosongkan kalau stok kantor ini tidak terikat project tertentu.</div>
+                    <div class="form-text">Opsional. Kosongkan untuk menghitung semua barang jenis stok ini (lintas project + kantor).</div>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Tanggal Opname <span class="text-danger">*</span></label>
@@ -59,7 +59,7 @@
             <h6 class="mb-3">Hitung Fisik Barang</h6>
             <div id="itemsContainer">
                 <?php if (empty($items)): ?>
-                    <p class="text-muted small mb-0" id="emptyNotice">Pilih Kategori Stok/Project untuk memuat daftar barang.</p>
+                    <p class="text-muted small mb-0" id="emptyNotice">Belum ada data stok barang untuk jenis stok ini.</p>
                 <?php endif; ?>
                 <div class="table-responsive">
                     <table class="table table-sm align-middle entry-cards" id="itemsTable" style="<?= empty($items) ? 'display:none;' : '' ?>">
@@ -105,39 +105,19 @@
 
 <script>
 (function () {
-    const stockScopeSelect = document.getElementById('stockScopeSelect');
+    const stockTypeSelect = document.getElementById('stockTypeSelect');
     const projectSelect = document.getElementById('projectSelect');
-    const projectRequiredMark = document.getElementById('projectRequiredMark');
-    const projectOptionalNote = document.getElementById('projectOptionalNote');
     const itemsBody = document.getElementById('itemsBody');
     const itemsTable = document.getElementById('itemsTable');
     const emptyNotice = document.getElementById('emptyNotice');
 
-    function applyScope() {
-        const isKantor = stockScopeSelect.value === 'kantor';
-        projectSelect.required = !isKantor;
-        if (projectRequiredMark) projectRequiredMark.style.display = isKantor ? 'none' : '';
-        if (projectOptionalNote) projectOptionalNote.style.display = isKantor ? '' : 'none';
-    }
-
     function loadItems() {
-        const stockScope = stockScopeSelect.value;
+        const stockType = stockTypeSelect.value;
         const projectId = projectSelect.value;
         itemsBody.innerHTML = '';
 
-        // Stok Proyek wajib pilih project dulu; Stok Kantor boleh langsung dimuat
-        // (project opsional -- lihat root cause fix forOpname()).
-        if (stockScope !== 'kantor' && !projectId) {
-            itemsTable.style.display = 'none';
-            if (emptyNotice) {
-                emptyNotice.textContent = 'Pilih project untuk memuat daftar barang.';
-                emptyNotice.style.display = '';
-            }
-            return;
-        }
-
         const url = '<?= BASE_URL ?>/index.php?module=inventory&action=ajaxItemsByProject'
-            + '&stock_scope=' + encodeURIComponent(stockScope)
+            + '&stock_type=' + encodeURIComponent(stockType)
             + '&project_id=' + encodeURIComponent(projectId);
 
         fetch(url)
@@ -146,7 +126,7 @@
                 if (!data.items || data.items.length === 0) {
                     itemsTable.style.display = 'none';
                     if (emptyNotice) {
-                        emptyNotice.textContent = 'Belum ada data stok barang untuk bucket ini.';
+                        emptyNotice.textContent = 'Belum ada data stok barang untuk jenis stok ini.';
                         emptyNotice.style.display = '';
                     }
                     return;
@@ -172,12 +152,7 @@
             });
     }
 
-    stockScopeSelect.addEventListener('change', function () {
-        applyScope();
-        loadItems();
-    });
+    stockTypeSelect.addEventListener('change', loadItems);
     projectSelect.addEventListener('change', loadItems);
-
-    applyScope();
 })();
 </script>

@@ -27,11 +27,12 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label small text-muted mb-1">Kategori Stok</label>
-                <select name="stock_scope" class="form-select form-select-sm">
+                <label class="form-label small text-muted mb-1">Jenis Stok</label>
+                <select name="stock_type" class="form-select form-select-sm">
                     <option value="">Semua</option>
-                    <option value="proyek" <?= $filters['stock_scope'] === 'proyek' ? 'selected' : '' ?>>Stok Proyek</option>
-                    <option value="kantor" <?= $filters['stock_scope'] === 'kantor' ? 'selected' : '' ?>>Stok Kantor</option>
+                    <?php foreach (stockTypeLabels() as $stKey => $stLabel): ?>
+                        <option value="<?= e($stKey) ?>" <?= ($filters['stock_type'] ?? '') === $stKey ? 'selected' : '' ?>><?= e($stLabel) ?></option>
+                    <?php endforeach; ?>
                 </select>
             </div>
             <div class="col-md-2">
@@ -94,7 +95,10 @@
                             }
                         ?>
                         <tr>
-                            <td><?= e($item['item_name']) ?></td>
+                            <td>
+                                <?= e($item['item_name']) ?>
+                                <span class="badge text-bg-light border ms-1"><?= e(stockTypeLabel($item['stock_type'] ?? '')) ?></span>
+                            </td>
                             <td>
                                 <?php if ($item['stock_scope'] === 'kantor'): ?>
                                     <span class="badge bg-secondary">Kantor</span>

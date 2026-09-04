@@ -18,6 +18,10 @@ class ItemController extends Controller
     /**
      * Jenis Stok (items.stock_type) -> kelompok Master Kode (code_configs.entity_type)
      * -- lihat app/models/CodeConfig.php untuk kenapa Barang dipecah 3 kelompok kode.
+     * NILAI HARUS SAMA dengan helper global stockTypeLabels() (sumber tunggal yang
+     * dipakai Stok Opname / Penerimaan Barang / Laporan Stok Barang). PHP tidak
+     * mengizinkan pemanggilan fungsi di ekspresi const, jadi didefinisikan ulang
+     * di sini sebagai cermin enum `items.stock_type`.
      */
     public const STOCK_TYPE_LABELS = [
         'stok_proyek'      => 'Stok Proyek',

@@ -39,7 +39,7 @@ class InventoryController extends Controller
     {
         $filters = [
             'project_id'    => $_GET['project_id'] ?? '',
-            'stock_scope'   => $_GET['stock_scope'] ?? '',
+            'stock_type'    => $_GET['stock_type'] ?? '',
             'keyword'       => $_GET['keyword'] ?? '',
             'stock_filter'  => $_GET['stock_filter'] ?? '',
         ];
@@ -84,7 +84,7 @@ class InventoryController extends Controller
     {
         $filters = [
             'project_id'  => $_GET['project_id'] ?? '',
-            'stock_scope' => $_GET['stock_scope'] ?? '',
+            'stock_type'  => $_GET['stock_type'] ?? '',
             'status'      => $_GET['status'] ?? '',
         ];
 
@@ -98,38 +98,36 @@ class InventoryController extends Controller
             'filters'          => $filters,
             'statusLabels'     => $this->opnameModel->statusLabels,
             'statusBadgeClass' => $this->opnameModel->statusBadgeClass,
-            'scopeLabels'      => $this->opnameModel->scopeLabels,
+            'stockTypeLabels'  => $this->opnameModel->stockTypeLabels,
         ]);
     }
 
     /**
-     * Form tambah opname. Pilih Kategori Stok (Proyek/Kantor) + project (wajib untuk
-     * Proyek, opsional untuk Kantor) -> semua item inventory bucket itu di-prefill
-     * sebagai baris input qty_actual (qty_system diambil otomatis dari Inventory,
-     * sumber kebenaran yang sama dengan halaman Stok Barang).
+     * Form tambah opname. Pilih Jenis Stok (Stok Proyek / Stok Lampu / Inventory
+     * Kantor) + Project OPSIONAL -> semua baris inventory jenis itu di-prefill
+     * sebagai input qty_actual (qty_system diambil otomatis dari Inventory,
+     * sumber kebenaran yang sama dengan halaman Stok Barang). Tanpa Project =
+     * hitung semua baris jenis stok itu lintas project + kantor.
      */
     public function opnameCreate()
     {
         Middleware::requirePermission('inventory', 'create');
 
-        $stockScope = ($_GET['stock_scope'] ?? 'proyek') === 'kantor' ? 'kantor' : 'proyek';
+        $stockType = normalizeStockType($_GET['stock_type'] ?? 'stok_proyek');
         $projectId = (int) ($_GET['project_id'] ?? 0);
         $projectIdOrNull = $projectId > 0 ? $projectId : null;
 
-        $items = [];
-        if ($stockScope === 'kantor' || $projectIdOrNull !== null) {
-            $items = $this->inventoryModel->forOpname($stockScope, $projectIdOrNull);
-        }
+        $items = $this->inventoryModel->forOpname($stockType, $projectIdOrNull);
 
         $this->view('inventory/opname_form', [
             'pageTitle'   => 'Tambah Stok Opname',
             'opnameNumber' => $this->opnameModel->previewOpnameNumber(),
             'projects'    => $this->projectModel->activeList(),
-            'selectedStockScope' => $stockScope,
+            'selectedStockType'  => $stockType,
             'selectedProjectId'  => $projectId,
             'items'       => $items,
             'picUsers'    => $this->userModel->activeList(),
-            'scopeLabels' => $this->opnameModel->scopeLabels,
+            'stockTypeLabels' => $this->opnameModel->stockTypeLabels,
         ]);
     }
 
@@ -142,9 +140,12 @@ class InventoryController extends Controller
         }
         verifyCsrf();
 
-        $stockScope = ($_POST['stock_scope'] ?? 'proyek') === 'kantor' ? 'kantor' : 'proyek';
+        $stockType = normalizeStockType($_POST['stock_type'] ?? 'stok_proyek');
         $projectId = (int) ($_POST['project_id'] ?? 0);
         $projectIdOrNull = $projectId > 0 ? $projectId : null;
+        // stock_scope (kolom lama) diturunkan dari ada/tidaknya Project -- Project
+        // kini opsional untuk SEMUA jenis stok.
+        $stockScope = $projectId > 0 ? 'proyek' : 'kantor';
         $opnameDate = $_POST['opname_date'] ?? '';
         $notes = trim($_POST['notes'] ?? '');
         // array_unique: jaga-jaga terhadap submit ganda (mis. double-click / replay form)
@@ -159,9 +160,6 @@ class InventoryController extends Controller
         }
 
         $errors = [];
-        if ($stockScope === 'proyek' && $projectId <= 0) {
-            $errors[] = 'Project wajib dipilih untuk Stok Proyek.';
-        }
         if (empty($opnameDate)) {
             $errors[] = 'Tanggal opname wajib diisi.';
         }
@@ -177,10 +175,10 @@ class InventoryController extends Controller
 
         if (!empty($errors)) {
             setFlash('error', implode(' ', $errors));
-            $this->redirect('inventory', 'opnameCreate', ['stock_scope' => $stockScope, 'project_id' => $projectId]);
+            $this->redirect('inventory', 'opnameCreate', ['stock_type' => $stockType, 'project_id' => $projectId]);
         }
 
-        assertPeriodOpen('stock_opname', $opnameDate, 'inventory', 'opnameCreate', ['stock_scope' => $stockScope, 'project_id' => $projectId]);
+        assertPeriodOpen('stock_opname', $opnameDate, 'inventory', 'opnameCreate', ['stock_type' => $stockType, 'project_id' => $projectId]);
 
         $pdo = getPDO();
         try {
@@ -190,6 +188,7 @@ class InventoryController extends Controller
                 'opname_number' => $this->opnameModel->generateOpnameNumber(),
                 'project_id'    => $projectIdOrNull,
                 'stock_scope'   => $stockScope,
+                'stock_type'    => $stockType,
                 'opname_date'   => $opnameDate,
                 'status'        => 'draft',
                 'notes'         => $notes,
@@ -217,7 +216,7 @@ class InventoryController extends Controller
                 ]);
             }
 
-            $scopeDesc = $stockScope === 'kantor' ? 'Stok Kantor' : "project #{$projectId}";
+            $scopeDesc = stockTypeLabel($stockType) . ($projectId > 0 ? " (project #{$projectId})" : ' (semua project + kantor)');
             $this->activityLog->log(
                 currentUserId(),
                 'stock_opname',
@@ -233,7 +232,7 @@ class InventoryController extends Controller
             $pdo->rollBack();
             error_log('Stock opname store error: ' . $e->getMessage());
             setFlash('error', 'Gagal menyimpan stok opname. Silakan coba lagi.');
-            $this->redirect('inventory', 'opnameCreate', ['stock_scope' => $stockScope, 'project_id' => $projectId]);
+            $this->redirect('inventory', 'opnameCreate', ['stock_type' => $stockType, 'project_id' => $projectId]);
         }
     }
 
@@ -255,7 +254,7 @@ class InventoryController extends Controller
             'items'            => $items,
             'statusLabels'     => $this->opnameModel->statusLabels,
             'statusBadgeClass' => $this->opnameModel->statusBadgeClass,
-            'scopeLabels'      => $this->opnameModel->scopeLabels,
+            'stockTypeLabels'  => $this->opnameModel->stockTypeLabels,
         ]);
     }
 
@@ -502,19 +501,17 @@ class InventoryController extends Controller
     }
 
     /**
-     * AJAX: ambil daftar item inventory untuk satu bucket Stock Opname (dipakai form
-     * opname saat user ganti Kategori Stok/project tanpa reload halaman). Kategori
-     * 'kantor' tidak mewajibkan project (lihat root cause fix forOpname()).
+     * AJAX: ambil daftar baris inventory untuk form Stok Opname (dipakai saat user
+     * ganti Jenis Stok / Project tanpa reload). Project opsional: tanpa Project =
+     * semua baris jenis stok itu (lintas project + kantor).
      */
     public function ajaxItemsByProject()
     {
-        $stockScope = ($_GET['stock_scope'] ?? 'proyek') === 'kantor' ? 'kantor' : 'proyek';
+        $stockType = normalizeStockType($_GET['stock_type'] ?? 'stok_proyek');
         $projectId = (int) ($_GET['project_id'] ?? 0);
         $projectIdOrNull = $projectId > 0 ? $projectId : null;
 
-        $items = ($stockScope === 'kantor' || $projectIdOrNull !== null)
-            ? $this->inventoryModel->forOpname($stockScope, $projectIdOrNull)
-            : [];
+        $items = $this->inventoryModel->forOpname($stockType, $projectIdOrNull);
 
         $this->json(['items' => $items]);
     }

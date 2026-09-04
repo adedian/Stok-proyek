@@ -62,6 +62,7 @@
                 <thead class="table-light">
                     <tr>
                         <th>Barang</th>
+                        <th>Kategori</th>
                         <th>Project</th>
                         <th class="text-end">Stok Tersedia</th>
                         <th class="text-end">Stok Minimum</th>
@@ -71,7 +72,7 @@
                 </thead>
                 <tbody>
                     <?php if (empty($items)): ?>
-                        <tr><td colspan="6" class="p-0">
+                        <tr><td colspan="7" class="p-0">
                             <div class="empty-state">
                                 <i class="bi bi-clipboard-data empty-icon"></i>
                                 <div class="empty-title">Belum ada data stok</div>
@@ -95,10 +96,8 @@
                             }
                         ?>
                         <tr>
-                            <td>
-                                <?= e($item['item_name']) ?>
-                                <span class="badge text-bg-light border ms-1"><?= e(stockTypeLabel($item['stock_type'] ?? '')) ?></span>
-                            </td>
+                            <td><?= e($item['item_name']) ?></td>
+                            <td><span class="badge text-bg-light border"><?= e(stockTypeLabel($item['stock_type'] ?? '')) ?></span></td>
                             <td>
                                 <?php if ($item['stock_scope'] === 'kantor'): ?>
                                     <span class="badge bg-secondary">Kantor</span>

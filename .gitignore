@@ -10,7 +10,7 @@
 !/public/uploads/.gitkeep
 !/public/uploads/.htaccess
 
-# Dump / backup database di root repo (mis. dibuat saat deploy -- lihat DEPLOY.md).
+# Dump / backup database di root repo (mis. dibuat saat deploy -- lihat README.md).
 # Skema & migrasi tetap di database/ dan ikut ter-track.
 /*.sql
 /*.sql.gz

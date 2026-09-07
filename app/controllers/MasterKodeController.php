@@ -174,23 +174,31 @@ class MasterKodeController extends Controller
      */
     public function quickAddPrefix()
     {
-        // Super Admin (master_kode.edit) boleh untuk semua kelompok. Pengguna
-        // 'item'.'quick_add' (Purchase/Accounting/PIC/Admin Project) boleh juga,
-        // TAPI hanya untuk kelompok Barang (item_*) -- dari modal quick-add Barang.
-        $canMasterKode = can('master_kode', 'edit');
-        $canItemQuickAdd = can('item', 'quick_add');
-        if (!$canMasterKode && !$canItemQuickAdd) {
-            $this->json(['errors' => ['Anda tidak berhak menambah prefix kode.']], 403);
-        }
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->json(['errors' => ['Metode tidak diizinkan.']], 405);
         }
         verifyCsrf();
 
         $type = trim($_POST['entity_type'] ?? '');
-        if (!$canMasterKode && strpos($type, 'item_') !== 0) {
-            $this->json(['errors' => ['Anda hanya boleh menambah prefix kelompok Barang.']], 403);
+
+        // Super Admin (master_kode.edit) boleh untuk SEMUA kelompok. Selain itu,
+        // pengguna yang boleh quick-add entity terkait boleh menambah prefix
+        // kelompok itu juga -- lewat tombol "+" di modal quick-add-nya:
+        //   item_*     -> 'item'.'quick_add'
+        //   supplier   -> 'supplier'.'quick_add'
+        //   client     -> 'client'.'quick_add'
+        //   warehouse  -> 'warehouse'.'quick_add'
+        //   project    -> 'project'.'quick_add'
+        $canMasterKode = can('master_kode', 'edit');
+        $qaModule = (strpos($type, 'item_') === 0)
+            ? 'item'
+            : (in_array($type, ['supplier', 'client', 'warehouse', 'project'], true) ? $type : null);
+        $canQuickAdd = $qaModule !== null && can($qaModule, 'quick_add');
+
+        if (!$canMasterKode && !$canQuickAdd) {
+            $this->json(['errors' => ['Anda tidak berhak menambah prefix kode.']], 403);
         }
+
         $meta = $this->codeConfig->entityMeta($type);
         if (!$meta) {
             $this->json(['errors' => ['Kelompok Master Kode tidak dikenal.']], 422);

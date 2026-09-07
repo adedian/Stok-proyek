@@ -2,7 +2,17 @@
 /**
  * Modal quick-add Supplier. Include di halaman manapun yang punya
  * <select id="supplier_id">. Butuh permission 'supplier'.'quick_add'.
+ *
+ * Kode Supplier mengikuti prefix yang dipilih (Master Kode > Supplier),
+ * format PREFIX.NOMOR.MASTERCODE. Tombol "+" di samping dropdown "Prefix Kode"
+ * menambah prefix baru tanpa pindah halaman (butuh 'supplier'.'quick_add'
+ * atau 'master_kode'.'edit').
  */
+require_once ROOT_PATH . '/app/models/CodeConfig.php';
+$__qaSupCode          = new CodeConfig();
+$__qaSupPrefixes      = $__qaSupCode->configsForEntity('supplier');
+$__qaSupMaster        = $__qaSupCode->masterCodeForEntity('supplier');
+$__qaSupCanAddPrefix  = function_exists('can') && (can('master_kode', 'edit') || can('supplier', 'quick_add'));
 ?>
 <div class="modal fade" id="modalQuickAddSupplier" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
@@ -18,6 +28,18 @@
                     <div class="mb-3">
                         <label class="form-label">Nama Supplier <span class="text-danger">*</span></label>
                         <input type="text" name="supplier_name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <?php
+                        $codePrefixes      = $__qaSupPrefixes;
+                        $codeMasterCode    = $__qaSupMaster;
+                        $codeEntityType    = 'supplier';
+                        $codeEntityLabel   = 'Supplier';
+                        $codePrefixFieldId = 'quickAddSupplierPrefix';
+                        $codePrefixHideAdd = false;
+                        $codePrefixCanAdd  = $__qaSupCanAddPrefix;
+                        require ROOT_PATH . '/app/views/partials/code_preview.php';
+                        ?>
                     </div>
                     <div class="row g-3">
                         <div class="col-md-6">
@@ -58,5 +80,20 @@ document.addEventListener('DOMContentLoaded', function () {
         selectEl: 'supplier_id',
         endpoint: '<?= BASE_URL ?>/index.php?module=supplier&action=quickStore',
     });
+
+    // Preview kode ikut ter-refresh tiap modal dibuka (form.reset() sebelumnya
+    // mengembalikan dropdown prefix ke opsi pertama tanpa memicu 'change').
+    var supModalEl = document.getElementById('modalQuickAddSupplier');
+    if (supModalEl) {
+        supModalEl.addEventListener('shown.bs.modal', function () {
+            var pf = supModalEl.querySelector('select.js-cp-prefix');
+            if (pf) pf.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+    }
 });
 </script>
+
+<?php /* Tombol "+" prefix di dalam code_preview butuh modal ini ikut termuat. */ ?>
+<?php if ($__qaSupCanAddPrefix): ?>
+    <?php require ROOT_PATH . '/app/views/partials/quick_add_prefix_modal.php'; ?>
+<?php endif; ?>

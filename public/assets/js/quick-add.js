@@ -141,6 +141,47 @@ function notifyError(message) {
 }
 
 /**
+ * Dukungan modal BERTUMPUK (mis. tombol "+" tambah prefix di dalam modal
+ * quick-add Supplier/Client/Gudang/Project/Barang).
+ *
+ * Bootstrap 5 tidak menaikkan z-index modal & backdrop kedua, jadi modal anak
+ * bisa tampil DI BELAKANG modal induk kalau markup-nya lebih dulu di DOM.
+ * Handler ini mendorong modal anak (beserta backdrop-nya) ke depan, dan
+ * mengembalikan scroll-lock <body> saat modal anak ditutup.
+ */
+(function () {
+    var Z_MODAL = 1055; // $zindex-modal Bootstrap 5.3
+
+    document.addEventListener('show.bs.modal', function (e) {
+        var openCount = document.querySelectorAll('.modal.show').length;
+        if (openCount === 0) {
+            return; // modal pertama -- biarkan default Bootstrap
+        }
+        var z = Z_MODAL + openCount * 20;
+        e.target.style.zIndex = String(z);
+        // Backdrop untuk modal ini baru dibuat SETELAH event 'show' -- geser di
+        // tick berikutnya. Backdrop terakhir di DOM selalu milik modal ini.
+        window.setTimeout(function () {
+            var backdrops = document.querySelectorAll('.modal-backdrop');
+            var last = backdrops[backdrops.length - 1];
+            if (last) {
+                last.style.zIndex = String(z - 10);
+            }
+        }, 0);
+    });
+
+    document.addEventListener('hidden.bs.modal', function (e) {
+        e.target.style.zIndex = '';
+        // Bootstrap melepas 'modal-open' dari <body> begitu SATU modal ditutup,
+        // walau masih ada modal induk terbuka -- pasang lagi supaya halaman
+        // tidak bisa di-scroll di belakang modal.
+        if (document.querySelectorAll('.modal.show').length > 0) {
+            document.body.classList.add('modal-open');
+        }
+    });
+})();
+
+/**
  * Ganti native confirm() dengan SweetAlert kalau tersedia -- dipakai modul baru
  * untuk konfirmasi hapus/nonaktifkan. Mengembalikan Promise<boolean>.
  */

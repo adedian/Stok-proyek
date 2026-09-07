@@ -57,7 +57,7 @@ $codePrefixCanAdd  = $codePrefixCanAdd ?? (function_exists('can') && can('master
             </div>
         </div>
         <div class="col-sm-8">
-            <label class="form-label small mb-1">Kode Barang <span class="text-muted">(otomatis)</span></label>
+            <label class="form-label small mb-1">Kode <?= e(preg_replace('/\s*[-\x{2013}].*$/u', '', $codeEntityLabel)) ?> <span class="text-muted">(otomatis)</span></label>
             <input type="text" class="form-control form-control-sm fw-bold js-cp-out" value="" readonly>
         </div>
     </div>

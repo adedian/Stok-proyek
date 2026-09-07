@@ -4,8 +4,16 @@
  * di samping dropdown "Prefix Kode" (lihat code_preview.php). Karena form Barang
  * punya beberapa kartu prefix (satu per Jenis Stok), target <select> + entity_type
  * di-resolve dinamis lewat window.__quickAddPrefixTarget saat tombol diklik.
- * Butuh permission 'master_kode'.'edit'.
+ *
+ * Boleh dipakai dari beberapa modal quick-add sekaligus di satu halaman
+ * (mis. form PO: Supplier + Gudang + Project + Barang) -- guard di bawah
+ * memastikan markup + script-nya hanya sekali per halaman; handler tombol
+ * "+" (.js-cp-add-prefix) di-bind ke SEMUA tombol di halaman.
  */
+if (!empty($GLOBALS['__quickAddPrefixModalRendered'])) {
+    return;
+}
+$GLOBALS['__quickAddPrefixModalRendered'] = true;
 ?>
 <div class="modal fade" id="modalQuickAddPrefix" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-sm">

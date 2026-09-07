@@ -2,9 +2,20 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title><?= isset($pageTitle) ? e($pageTitle) . ' - ' : '' ?><?= e(APP_NAME) ?></title>
     <link rel="icon" type="image/png" href="<?= assetUrl('/assets/img/logo-hme.png') ?>">
+
+    <?php /* ---- PWA (Progressive Web App) ---- */ ?>
+    <link rel="manifest" href="<?= BASE_URL ?>/manifest.webmanifest">
+    <meta name="theme-color" content="#1E3C72">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Stok Proyek">
+    <link rel="apple-touch-icon" href="<?= BASE_URL ?>/assets/img/pwa/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="<?= BASE_URL ?>/assets/img/pwa/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="<?= BASE_URL ?>/assets/img/pwa/favicon-16.png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link href="<?= assetUrl('/assets/css/variables.css') ?>" rel="stylesheet">

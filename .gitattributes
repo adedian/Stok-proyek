@@ -1,0 +1,24 @@
+# Normalisasi akhir baris.
+# Default: biarkan git yang urus untuk file teks.
+* text=auto
+
+# File yang DIJALANKAN di server Linux WAJIB pakai LF (kalau CRLF -> bash error
+# "$'\r': command not found", .htaccess & service worker bisa rusak).
+*.sh            text eol=lf
+deploy/*        text eol=lf
+*.htaccess      text eol=lf
+.htaccess       text eol=lf
+bin/*           text eol=lf
+*.webmanifest   text eol=lf
+public/sw.js    text eol=lf
+
+# File biner: jangan pernah diutak-atik.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.ico  binary
+*.pdf  binary
+*.woff  binary
+*.woff2 binary

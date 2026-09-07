@@ -54,4 +54,14 @@ Options -Indexes -MultiViews
     Header set X-Frame-Options "SAMEORIGIN"
     Header set Referrer-Policy "strict-origin-when-cross-origin"
     Header unset X-Powered-By
+
+    # PWA: service worker & manifest tidak boleh di-cache lama oleh browser,
+    # supaya update ke-deploy langsung kebaca.
+    <FilesMatch "^(sw\.js|manifest\.webmanifest)$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+    </FilesMatch>
+</IfModule>
+
+<IfModule mod_mime.c>
+    AddType application/manifest+json .webmanifest
 </IfModule>

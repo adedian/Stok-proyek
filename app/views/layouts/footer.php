@@ -12,5 +12,21 @@
     <script src="<?= assetUrl('/assets/js/currency-input.js') ?>"></script>
     <script src="<?= assetUrl('/assets/js/checkbox-select-all.js') ?>"></script>
     <script src="<?= assetUrl('/assets/js/responsive-tables.js') ?>"></script>
+
+    <?php /* ---- PWA: daftarkan Service Worker (hanya di HTTPS / localhost) ---- */ ?>
+    <script>
+    (function () {
+        if (!('serviceWorker' in navigator)) return;
+        var secure = location.protocol === 'https:'
+            || location.hostname === 'localhost'
+            || location.hostname === '127.0.0.1';
+        if (!secure) return;
+        var swUrl = <?= json_encode(BASE_URL . '/sw.js') ?>;
+        var swScope = <?= json_encode(APP_BASE_PATH === '' ? '/' : APP_BASE_PATH . '/') ?>;
+        window.addEventListener('load', function () {
+            navigator.serviceWorker.register(swUrl, { scope: swScope }).catch(function () { /* abaikan */ });
+        });
+    })();
+    </script>
 </body>
 </html>

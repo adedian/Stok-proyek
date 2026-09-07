@@ -742,44 +742,117 @@
 }
 
 /* ============================================================
-   9. MODAL
+   9. MODAL / POP-UP
+   Di HP (<576px) SEMUA pop-up jadi lembar penuh layar yang
+   konsisten: header tetap di atas, tombol aksi tetap di bawah
+   (aman dari notch/home-bar), isi form menggulir di tengah &
+   selalu 1 kolom. Berlaku untuk semua modal Bootstrap tanpa
+   perlu menambah class per-modal (quick-add, edit bank,
+   validasi, hapus rentang, tinjau kas, dll).
    ============================================================ */
 @media (max-width: 575.98px) {
-    .modal-dialog {
-        margin: .5rem;
-        max-width: calc(100% - 1rem);
+    .modal {
+        padding: 0 !important; /* buang padding scrollbar inline Bootstrap */
     }
 
-    .modal-content {
-        max-height: calc(100dvh - 1rem);
-    }
-
-    .modal-body {
-        padding: 1rem;
-        overflow-y: auto;
-    }
-
-    .modal-header,
-    .modal-footer {
-        padding: .8rem 1rem;
-    }
-
-    .modal-footer {
-        position: sticky;
-        bottom: 0;
-        background: var(--surface);
-        flex-wrap: wrap;
-        gap: .5rem;
-    }
-
-    .modal-footer > .btn {
-        flex: 1 1 auto;
+    /* Lembar penuh layar (pola sama seperti .modal-fullscreen bawaan Bootstrap):
+       .modal-content jadi kolom flex -> header tetap di atas, .modal-body yang
+       menggulir, footer tetap di bawah (aman dari notch/home-bar). */
+    .modal-dialog,
+    .modal-dialog.modal-sm,
+    .modal-dialog.modal-lg,
+    .modal-dialog.modal-xl {
+        width: 100%;
+        max-width: none;
+        height: 100%;
         margin: 0;
     }
 
-    .modal-body .row [class*="col-"] {
+    .modal-content {
+        height: 100%;
+        max-height: 100%;
+        border: 0;
+        border-radius: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Header/body/footer di app ini dibungkus <form> di dalam .modal-content,
+       jadi <form>-lah yang harus jadi kolom flex sebenarnya (kalau tak ada
+       <form>, .modal-content sendiri yang jadi kolomnya -- lihat aturan atas). */
+    .modal-content > form {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+
+    .modal-header {
+        flex: 0 0 auto;
+        padding: .85rem 1rem;
+        background: var(--brand-50);
+    }
+
+    .modal-body {
+        /* flex-basis 0 -> tinggi body = sisa ruang setelah header+footer,
+           bukan setinggi isinya; jadi isi panjang menggulir di dalam body
+           & footer TIDAK pernah terpotong (lebih andal dari shrink 1 1 auto). */
+        flex: 1 1 0%;
+        min-height: 0;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 1rem;
+    }
+
+    .modal-footer {
+        flex: 0 0 auto;
+        flex-wrap: wrap;
+        gap: .5rem;
+        background: var(--surface);
+        border-top: 1px solid var(--border-soft);
+        padding: .75rem 1rem calc(.75rem + env(safe-area-inset-bottom, 0px));
+    }
+
+    /* tombol aksi: berbagi baris rata (2 tombol -> 50/50), cukup tinggi
+       untuk jari; kalau kepanjangan otomatis membungkus ke baris berikut */
+    .modal-footer > .btn {
+        flex: 1 1 auto;
+        min-width: 8rem;
+        min-height: 44px;
+        margin: 0;
+    }
+
+    /* isi form dalam modal: selalu 1 kolom + jarak antar-field lebih rapat */
+    .modal-body .row > [class*="col-"] {
         flex: 0 0 100%;
         max-width: 100%;
+    }
+
+    .modal-body .row {
+        --bs-gutter-y: .75rem;
+    }
+
+    .modal-body > .mb-3:not(:last-child),
+    .modal-body .mb-3 {
+        margin-bottom: .85rem;
+    }
+
+    /* animasi: lembar naik dari bawah (bukan turun dari atas) */
+    .modal.fade .modal-dialog {
+        transform: translateY(100%);
+        transition: transform .25s ease-out;
+    }
+    .modal.show .modal-dialog {
+        transform: none;
+    }
+}
+
+/* Tablet (576-991px): modal besar jangan mepet tepi layar */
+@media (min-width: 576px) and (max-width: 991.98px) {
+    .modal-lg,
+    .modal-xl {
+        max-width: calc(100% - 2rem);
     }
 }
 

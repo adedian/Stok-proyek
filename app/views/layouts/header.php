@@ -50,6 +50,19 @@
         $initials .= mb_substr($part, 0, 1);
     }
     $initials = mb_strtoupper(mb_substr($initials, 0, 2));
+    $avatarPhoto = function_exists('currentUserPhoto') ? currentUserPhoto() : null;
+?>
+<?php
+/* Avatar user: foto profil kalau ada, kalau tidak fallback ke inisial. */
+if (!function_exists('renderTopbarAvatar')) {
+    function renderTopbarAvatar(?string $photo, string $initials): string
+    {
+        if ($photo) {
+            return '<img src="' . BASE_URL . '/' . e($photo) . '" alt="" class="app-user-avatar">';
+        }
+        return '<span class="app-user-avatar">' . e($initials) . '</span>';
+    }
+}
 ?>
 <nav class="navbar navbar-dark app-topbar px-3 sticky-top">
     <div class="d-flex align-items-center gap-3 min-w-0">
@@ -104,7 +117,7 @@
         <div class="dropdown">
             <button class="btn btn-sm d-flex align-items-center gap-2 text-light border-0 bg-transparent" type="button"
                     data-bs-toggle="dropdown" aria-expanded="false">
-                <span class="app-user-avatar"><?= e($initials) ?></span>
+                <?= renderTopbarAvatar($avatarPhoto, $initials) ?>
                 <span class="d-none d-sm-block text-start">
                     <span class="d-block small lh-1"><?= e(currentUserName()) ?></span>
                     <span class="d-block" style="font-size:.68rem; opacity:.75;"><?= e(roleSubtitle(currentUserRole())) ?></span>
@@ -113,7 +126,7 @@
             </button>
             <div class="dropdown-menu dropdown-menu-end topbar-dropdown-menu">
                 <div class="profile-dropdown-header">
-                    <span class="app-user-avatar"><?= e($initials) ?></span>
+                    <?= renderTopbarAvatar($avatarPhoto, $initials) ?>
                     <span>
                         <span class="d-block fw-semibold"><?= e(currentUserName()) ?></span>
                         <span class="d-block small text-muted"><?= e(roleSubtitle(currentUserRole())) ?></span>

@@ -100,23 +100,43 @@ class AccountController extends Controller
             $this->redirect('account', 'index');
         }
 
+        $existing = $this->userModel->find($userId);
+        $oldPhoto = $existing['profile_photo'] ?? null;
+        $removePhoto = !empty($_POST['remove_photo']);
+
         $updateData = [
             'full_name' => $fullName,
             'email'     => $email,
             'phone'     => $phone !== '' ? $phone : null,
         ];
+        // Upload foto baru menang atas centang "hapus" kalau keduanya terkirim.
         if ($photoPath !== null) {
             $updateData['profile_photo'] = $photoPath;
+        } elseif ($removePhoto) {
+            $updateData['profile_photo'] = null;
         }
 
         $this->userModel->updateById($userId, $updateData);
 
-        // Sinkronkan session supaya nama baru langsung tampil di topbar tanpa logout
+        // Sinkronkan session supaya nama & foto langsung tampil di topbar tanpa logout.
         $_SESSION['full_name'] = $fullName;
+        if (array_key_exists('profile_photo', $updateData)) {
+            $_SESSION['profile_photo'] = $updateData['profile_photo']; // path baru atau null
+            // Bersihkan file lama dari disk kalau memang berganti / dihapus.
+            if ($oldPhoto && $oldPhoto !== $updateData['profile_photo']) {
+                deleteUploadedFile($oldPhoto);
+            }
+        }
 
-        $this->activityLog->log($userId, 'account', 'update_profile', 'Profil akun diperbarui');
+        $photoRemoved = $removePhoto && $photoPath === null;
+        $this->activityLog->log(
+            $userId,
+            'account',
+            'update_profile',
+            $photoRemoved ? 'Profil akun diperbarui (foto profil dihapus)' : 'Profil akun diperbarui'
+        );
 
-        setFlash('success', 'Profil berhasil diperbarui.');
+        setFlash('success', $photoRemoved ? 'Foto profil dihapus & profil disimpan.' : 'Profil berhasil diperbarui.');
         $this->redirect('account', 'index');
     }
 

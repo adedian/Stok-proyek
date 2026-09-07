@@ -182,6 +182,40 @@ function handleFileUpload(
 }
 
 /**
+ * Hapus file hasil handleFileUpload() dari disk berdasarkan path relatif yang
+ * tersimpan di DB (mis. "uploads/profile_photos/xxx.jpg").
+ *
+ * Aman: hanya menghapus file yang benar-benar berada DI DALAM UPLOAD_PATH
+ * (tolak path absolut, "..", atau di luar folder uploads). Diam kalau file
+ * sudah tidak ada. Return true kalau file terhapus (atau memang sudah tidak ada).
+ */
+function deleteUploadedFile(?string $relPath): bool
+{
+    $relPath = trim((string) $relPath);
+    if ($relPath === '') {
+        return false;
+    }
+    $relPath = ltrim(str_replace('\\', '/', $relPath), '/');
+    if (strpos($relPath, 'uploads/') !== 0 || strpos($relPath, '..') !== false) {
+        return false;
+    }
+
+    // path DB "uploads/sub/file" -> file fisik di public/uploads/sub/file
+    $abs = ROOT_PATH . '/public/' . $relPath;
+    if (!is_file($abs)) {
+        return true; // sudah tidak ada -- anggap sukses
+    }
+
+    $real = realpath($abs);
+    $base = realpath(UPLOAD_PATH);
+    if ($real === false || $base === false || strpos($real, $base . DIRECTORY_SEPARATOR) !== 0) {
+        return false; // di luar folder uploads -- jangan sentuh
+    }
+
+    return @unlink($real);
+}
+
+/**
  * Pesan ramah untuk kode error upload PHP (tanpa membocorkan detail server).
  */
 function uploadErrorMessage(int $code): string

@@ -79,10 +79,16 @@ $kasCanSetup = $kasCanSetup ?? false;
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Foto Profil</label>
-                            <input type="file" name="profile_photo" class="form-control" accept=".jpg,.jpeg,.png,.webp">
+                            <input type="file" name="profile_photo" id="profilePhotoInput" class="form-control" accept=".jpg,.jpeg,.png,.webp">
                             <?php if (!empty($user['profile_photo'])): ?>
                                 <div class="form-text">
                                     Foto saat ini: <a href="<?= BASE_URL ?>/<?= e($user['profile_photo']) ?>" target="_blank">lihat foto</a>
+                                </div>
+                                <div class="form-check mt-2">
+                                    <input type="checkbox" class="form-check-input" id="removeProfilePhoto" name="remove_photo" value="1">
+                                    <label class="form-check-label small text-danger" for="removeProfilePhoto">
+                                        Hapus foto profil (kembali ke inisial)
+                                    </label>
                                 </div>
                             <?php endif; ?>
                         </div>
@@ -195,6 +201,18 @@ $kasCanSetup = $kasCanSetup ?? false;
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    // Foto profil: centang "Hapus" & pilih file baru saling meniadakan.
+    var photoInput = document.getElementById('profilePhotoInput');
+    var removePhoto = document.getElementById('removeProfilePhoto');
+    if (photoInput && removePhoto) {
+        photoInput.addEventListener('change', function () {
+            if (photoInput.files.length) { removePhoto.checked = false; }
+        });
+        removePhoto.addEventListener('change', function () {
+            if (removePhoto.checked) { photoInput.value = ''; }
+        });
+    }
+
     var form = document.getElementById('changePasswordForm');
     if (!form) { return; }
     form.addEventListener('submit', function (e) {

@@ -93,6 +93,12 @@
     flex: none;
 }
 
+/* varian <img> (foto profil) -- ukuran & bentuk ikut .app-user-avatar */
+img.app-user-avatar {
+    object-fit: cover;
+    display: block;
+}
+
 .app-topbar .btn-outline-light {
     border-color: rgba(255, 255, 255, .35);
     transition: background-color var(--transition-fast);

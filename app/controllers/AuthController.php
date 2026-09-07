@@ -85,6 +85,7 @@ class AuthController extends Controller
         $_SESSION['role_id']    = $user['role_id'];
         $_SESSION['role_name']  = $user['role_name'];
         $_SESSION['role_slug']  = $user['role_slug'];
+        $_SESSION['profile_photo'] = $user['profile_photo'] ?? null;
         $_SESSION['last_activity'] = time();
 
         $this->userModel->updateLastLogin($user['id']);

@@ -76,6 +76,14 @@
     </div>
 </div>
 
+<?php
+// Modal validasi dikumpulkan di sini lalu dirender DI LUAR <table> (bawah).
+// Alasan: <div> di dalam <tbody> di-"foster parent" oleh parser HTML, dan di HP
+// wrapper .table-responsive dapat class .rt-hide-table (display:none) saat tabel
+// jadi kartu -- modal yang ada di dalamnya jadi tidak bisa dibuka. Pola sama
+// seperti cash_validation/list.php.
+$modals = '';
+?>
 <div class="card border-0 shadow-sm">
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -130,7 +138,7 @@
                                 </button>
                             </td>
                         </tr>
-
+                        <?php ob_start(); ?>
                         <!-- Modal validasi per item -->
                         <div class="modal fade" id="validateModal<?= (int) $item['id'] ?>" tabindex="-1">
                             <div class="modal-dialog">
@@ -172,9 +180,12 @@
                                 </div>
                             </div>
                         </div>
+                        <?php $modals .= ob_get_clean(); ?>
                     <?php endforeach; ?>
                 </tbody>
             </table>
         </div>
     </div>
 </div>
+
+<?= $modals ?>

@@ -22,6 +22,12 @@
     </div>
 </div>
 
+<?php
+// Modal edit dikumpulkan lalu dirender DI LUAR <table> (bawah) -- lihat catatan
+// yang sama di validation/list.php & cash_validation/list.php (di HP wrapper
+// .table-responsive di-display:none saat tabel jadi kartu).
+$bankModals = '';
+?>
 <div class="card border-0 shadow-sm">
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -85,7 +91,7 @@
                                 </div>
                             </td>
                         </tr>
-
+                        <?php ob_start(); ?>
                         <div class="modal fade" id="modalEditBank<?= (int) $b['id'] ?>" tabindex="-1" aria-hidden="true">
                             <div class="modal-dialog">
                                 <div class="modal-content">
@@ -118,12 +124,15 @@
                                 </div>
                             </div>
                         </div>
+                        <?php $bankModals .= ob_get_clean(); ?>
                     <?php endforeach; ?>
                 </tbody>
             </table>
         </div>
     </div>
 </div>
+
+<?= $bankModals ?>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {

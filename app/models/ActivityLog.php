@@ -28,14 +28,12 @@ class ActivityLog extends Model
     }
 
     /**
-     * Daftar aktivitas + nama user, untuk halaman audit trail di modul Laporan.
+     * Bangun klausa WHERE + params dari filter audit trail (dipakai bareng
+     * listWithFilters() & countWithFilters()).
      */
-    public function listWithFilters(array $filters = []): array
+    private function buildFilterWhere(array $filters): array
     {
-        $sql = "SELECT al.*, u.full_name
-                FROM activity_logs al
-                LEFT JOIN users u ON u.id = al.user_id
-                WHERE 1=1";
+        $sql = " WHERE 1=1";
         $params = [];
 
         if (!empty($filters['user_id'])) {
@@ -55,9 +53,40 @@ class ActivityLog extends Model
             $params['date_to'] = $filters['date_to'] . ' 23:59:59';
         }
 
-        $sql .= " ORDER BY al.created_at DESC LIMIT 500";
+        return [$sql, $params];
+    }
+
+    /**
+     * Daftar aktivitas + nama user, untuk halaman audit trail di modul Laporan.
+     *
+     * $limit/$offset diisi -> mode paginasi (tampilan layar). Dibiarkan null ->
+     * mode lama: ambil maksimal 500 baris terbaru (dipakai Export Excel/PDF
+     * supaya satu file berisi banyak data sekaligus).
+     */
+    public function listWithFilters(array $filters = [], ?int $limit = null, ?int $offset = null): array
+    {
+        [$where, $params] = $this->buildFilterWhere($filters);
+        $sql = "SELECT al.*, u.full_name
+                FROM activity_logs al
+                LEFT JOIN users u ON u.id = al.user_id"
+            . $where
+            . " ORDER BY al.created_at DESC";
+
+        if ($limit !== null) {
+            $sql .= " LIMIT " . max(1, $limit) . " OFFSET " . max(0, (int) $offset);
+        } else {
+            $sql .= " LIMIT 500";
+        }
 
         return $this->db->fetchAll($sql, $params);
+    }
+
+    /** Jumlah total baris audit trail yang cocok dengan filter (untuk paginasi). */
+    public function countWithFilters(array $filters = []): int
+    {
+        [$where, $params] = $this->buildFilterWhere($filters);
+        $row = $this->db->fetchOne("SELECT COUNT(*) AS c FROM activity_logs al" . $where, $params);
+        return (int) ($row['c'] ?? 0);
     }
 
     /**

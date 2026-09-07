@@ -161,6 +161,12 @@
 
 <?php require ROOT_PATH . '/app/views/report/_table.php'; ?>
 
+<?php if (!empty($pagination)): ?>
+    <div class="no-print">
+        <?php require ROOT_PATH . '/app/views/partials/pagination.php'; ?>
+    </div>
+<?php endif; ?>
+
 <?php if ($reportKey === 'inventory'): ?>
 <script>
 (function () {

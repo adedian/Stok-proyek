@@ -85,7 +85,7 @@
                                     <input type="checkbox" class="form-check-input stock-row-check" name="ids[]" value="<?= (int) $row['id'] ?>">
                                 </td>
                             <?php endif; ?>
-                            <td><?= $rowIndex + 1 ?></td>
+                            <td><?= $rowIndex + 1 + ($rowNumOffset ?? 0) ?></td>
                             <?php foreach ($columns as $col): ?>
                                 <td class="<?= ($col['align'] ?? '') === 'end' ? 'text-end' : '' ?>">
                                     <?= e(formatReportValue($row[$col['field']] ?? null, $col['format'] ?? 'text')) ?>

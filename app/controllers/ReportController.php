@@ -406,25 +406,35 @@ class ReportController extends Controller
 
     private function renderReport(string $type): void
     {
-        $report = $this->buildReport($type, $_GET);
+        // $paginate = true -> laporan yang mendukung paginasi (mis. Riwayat
+        // Aktivitas) hanya mengambil satu halaman untuk tampilan layar. Export
+        // Excel/PDF tetap memanggil buildReport() tanpa flag ini (ambil banyak
+        // data sekaligus).
+        $report = $this->buildReport($type, $_GET, true);
 
         $this->view('report/_view', [
-            'pageTitle'   => $report['title'],
-            'reportKey'   => $type,
-            'columns'     => $report['columns'],
-            'rows'        => $report['rows'],
-            'filterForm'  => $report['filterForm'],
-            'filters'     => $report['filters'],
-            'exportQuery' => $report['exportQuery'],
-            'projects'    => (new Project())->activeList(),
+            'pageTitle'     => $report['title'],
+            'reportKey'     => $type,
+            'columns'       => $report['columns'],
+            'rows'          => $report['rows'],
+            'filterForm'    => $report['filterForm'],
+            'filters'       => $report['filters'],
+            'exportQuery'   => $report['exportQuery'],
+            'pagination'    => $report['pagination'] ?? null,
+            'baseQuery'     => $report['baseQuery'] ?? '',
+            'rowNumOffset'  => $report['rowNumOffset'] ?? 0,
+            'projects'      => (new Project())->activeList(),
         ]);
     }
 
     /**
      * Bangun definisi satu laporan: judul, kolom, baris data, dan info filter yang dipakai ulang
      * oleh tampilan layar, export CSV, dan export PDF supaya hasilnya selalu konsisten.
+     *
+     * $paginate hanya berpengaruh untuk jenis laporan yang mendukung paginasi
+     * (saat ini: activityLog). Export Excel/PDF memanggil tanpa flag ini.
      */
-    private function buildReport(string $type, array $get): array
+    private function buildReport(string $type, array $get, bool $paginate = false): array
     {
         $projectModel = new Project();
         $dateFrom = trim($get['date_from'] ?? '');
@@ -695,7 +705,29 @@ class ReportController extends Controller
                 // router untuk routing (?module=report), jadi tidak boleh dipakai ulang di sini.
                 $module = trim($get['log_module'] ?? '');
                 $filters = ['date_from' => $dateFrom, 'date_to' => $dateTo, 'user_id' => $userId, 'module' => $module];
-                $rows = $model->listWithFilters($filters);
+
+                // Tampilan layar: paginasi 50/halaman. Export Excel/PDF ($paginate=false):
+                // ambil banyak sekaligus (perilaku lama, LIMIT 500 di model).
+                $pagination = null;
+                $baseQuery = '';
+                $rowNumOffset = 0;
+                if ($paginate) {
+                    $page = max(1, (int) ($get['page'] ?? 1));
+                    $totalRows = $model->countWithFilters($filters);
+                    $pagination = paginationInfo($totalRows, $page, 50);
+                    $rows = $model->listWithFilters($filters, $pagination['perPage'], $pagination['offset']);
+                    $rowNumOffset = $pagination['offset'];
+                    $baseQuery = http_build_query(array_filter([
+                        'module'    => 'report',
+                        'action'    => 'activityLog',
+                        'date_from' => $dateFrom,
+                        'date_to'   => $dateTo,
+                        'user_id'   => $userId,
+                        'log_module' => $module,
+                    ], fn($v) => $v !== '' && $v !== null));
+                } else {
+                    $rows = $model->listWithFilters($filters);
+                }
                 // Ganti slug modul/aksi jadi label manusiawi (tabel & filter).
                 foreach ($rows as &$logRow) {
                     $logRow['module'] = activityLogModuleLabel((string) $logRow['module']);
@@ -722,6 +754,9 @@ class ReportController extends Controller
                     'filterForm' => ['date' => true, 'user' => $userModel->activeList(), 'module' => $moduleFilterOptions],
                     'filters' => compact('dateFrom', 'dateTo', 'userId', 'module'),
                     'exportQuery' => $this->buildExportQuery($get),
+                    'pagination' => $pagination,
+                    'baseQuery' => $baseQuery,
+                    'rowNumOffset' => $rowNumOffset,
                 ];
 
             default:
@@ -838,7 +873,8 @@ class ReportController extends Controller
         $params = $get;
         // 'stock_type' = filter Kategori Laporan Stok Barang: sengaja TIDAK ikut
         // ke tombol Cetak/Export supaya cetak & ekspor selalu lengkap semua jenis stok.
-        unset($params['module'], $params['action'], $params['type'], $params['stock_type']);
+        // 'page' = penanda halaman paginasi tampilan layar -- Cetak/Export tidak dipaginasi.
+        unset($params['module'], $params['action'], $params['type'], $params['stock_type'], $params['page']);
         $query = http_build_query($params);
         return $query ? '&' . $query : '';
     }

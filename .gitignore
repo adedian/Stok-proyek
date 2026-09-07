@@ -9,3 +9,9 @@
 /public/uploads/*
 !/public/uploads/.gitkeep
 !/public/uploads/.htaccess
+
+# Dump / backup database di root repo (mis. dibuat saat deploy -- lihat DEPLOY.md).
+# Skema & migrasi tetap di database/ dan ikut ter-track.
+/*.sql
+/*.sql.gz
+/*.tgz

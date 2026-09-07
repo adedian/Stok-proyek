@@ -23,8 +23,25 @@ class AuthController extends Controller
             $this->redirect('dashboard', 'index');
         }
 
+        // Sisa waktu kunci login (untuk mem-freeze form + hitung mundur).
+        // Sumber 1: percobaan barusan yang kena kunci (disimpan di sesi oleh
+        // authenticate()). Sumber 2: cek ulang kunci per-IP tiap render (mis.
+        // user refresh / datang langsung saat IP masih terkunci).
+        $lockRemaining = 0;
+        if (!empty($_SESSION['login_lock_until'])) {
+            $lockRemaining = max(0, (int) $_SESSION['login_lock_until'] - time());
+            if ($lockRemaining <= 0) {
+                unset($_SESSION['login_lock_until']);
+            }
+        }
+        $ipRemain = $this->activityLog->ipLockRemaining($_SERVER['REMOTE_ADDR'] ?? '');
+        if ($ipRemain > $lockRemaining) {
+            $lockRemaining = $ipRemain;
+        }
+
         $this->viewPlain('auth/login', [
-            'expired' => isset($_GET['expired']),
+            'expired'       => isset($_GET['expired']),
+            'lockRemaining' => $lockRemaining,
         ]);
     }
 
@@ -51,6 +68,7 @@ class AuthController extends Controller
         $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
         if ($this->activityLog->countRecentFailedLogins($ip, 15) >= 8) {
             $this->activityLog->log(null, 'auth', 'login_blocked', "IP {$ip} diblokir sementara: percobaan login berlebihan");
+            $_SESSION['login_lock_until'] = time() + max(1, $this->activityLog->ipLockRemaining($ip));
             setFlash('error', 'Terlalu banyak percobaan login gagal. Silakan coba lagi dalam 15 menit.');
             $this->redirect('auth', 'login');
         }
@@ -62,6 +80,7 @@ class AuthController extends Controller
         // per-IP (8) sudah membatasi kecepatan penyerang mengumpulkan kegagalan.
         if ($this->activityLog->countRecentFailedLoginsByUser($username, 15) >= 5) {
             $this->activityLog->log(null, 'auth', 'login_blocked', "Akun '{$username}' dikunci sementara: percobaan login berlebihan");
+            $_SESSION['login_lock_until'] = time() + max(1, $this->activityLog->userLockRemaining($username));
             setFlash('error', 'Akun ini dikunci sementara karena terlalu banyak percobaan gagal. Coba lagi dalam 15 menit.');
             $this->redirect('auth', 'login');
         }
@@ -77,6 +96,7 @@ class AuthController extends Controller
         }
 
         // Sukses login -> regenerate session ID (cegah session fixation)
+        unset($_SESSION['login_lock_until']);
         regenerateSession();
 
         $_SESSION['user_id']    = $user['id'];

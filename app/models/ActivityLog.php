@@ -125,6 +125,41 @@ class ActivityLog extends Model
     }
 
     /**
+     * Sisa detik sampai kunci login lepas (0 = tidak terkunci).
+     * Ambil waktu kegagalan ke-$threshold PALING BARU dalam jendela; kunci lepas
+     * $minutes setelah itu. Dipakai untuk menampilkan hitung mundur di form login.
+     * $col = kolom pembeda internal ('ip_address' | 'description') -- BUKAN input user.
+     */
+    private function lockRemaining(string $col, string $val, int $minutes, int $threshold): int
+    {
+        $since = date('Y-m-d H:i:s', time() - ($minutes * 60));
+        $offset = max(0, $threshold - 1);
+        $row = $this->db->fetchOne(
+            "SELECT created_at FROM activity_logs
+             WHERE module = 'auth' AND action = 'login_failed'
+               AND {$col} = :v AND created_at >= :since
+             ORDER BY created_at DESC LIMIT 1 OFFSET {$offset}",
+            ['v' => $val, 'since' => $since]
+        );
+        if (!$row) {
+            return 0; // kegagalan < $threshold -> tidak terkunci
+        }
+        return max(0, (strtotime($row['created_at']) + $minutes * 60) - time());
+    }
+
+    /** Sisa detik kunci per-IP (0 = tidak terkunci). */
+    public function ipLockRemaining(string $ip, int $minutes = 15, int $threshold = 8): int
+    {
+        return $this->lockRemaining('ip_address', $ip, $minutes, $threshold);
+    }
+
+    /** Sisa detik kunci per-akun (0 = tidak terkunci). */
+    public function userLockRemaining(string $username, int $minutes = 15, int $threshold = 5): int
+    {
+        return $this->lockRemaining('description', 'Percobaan login gagal: ' . $username, $minutes, $threshold);
+    }
+
+    /**
      * Daftar module unik yang pernah tercatat -- dipakai untuk dropdown filter.
      */
     public function distinctModules(): array

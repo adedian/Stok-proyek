@@ -62,28 +62,42 @@
                 <small class="text-muted">Silakan login untuk melanjutkan</small>
             </div>
 
-            <?php if (!empty($expired)): ?>
+            <?php
+                $lockRemaining = (int) ($lockRemaining ?? 0);
+                $isLocked = $lockRemaining > 0;
+                $lockUntilMs = $isLocked ? (time() + $lockRemaining) * 1000 : 0;
+                $flash = getFlash(); // selalu konsumsi flash
+            ?>
+
+            <?php if (!empty($expired) && !$isLocked): ?>
                 <div class="alert alert-warning py-2">Sesi Anda telah berakhir, silakan login kembali.</div>
             <?php endif; ?>
 
-            <?php $flash = getFlash(); ?>
-            <?php if ($flash): ?>
+            <?php if ($isLocked): ?>
+                <div class="alert alert-danger py-2" id="lockBox">
+                    Akun/perangkat ini dikunci sementara karena terlalu banyak percobaan gagal.
+                    Coba lagi dalam <strong id="lockCountdown">&hellip;</strong>.
+                </div>
+            <?php elseif ($flash): ?>
                 <div class="alert alert-<?= $flash['type'] === 'error' ? 'danger' : e($flash['type']) ?> py-2">
                     <?= e($flash['message']) ?>
                 </div>
             <?php endif; ?>
 
-            <form method="POST" action="<?= BASE_URL ?>/index.php?module=auth&action=authenticate">
+            <form method="POST" action="<?= BASE_URL ?>/index.php?module=auth&action=authenticate"
+                  id="loginForm" data-lock-until="<?= $lockUntilMs ?>">
                 <?= csrfField() ?>
                 <div class="mb-3">
                     <label class="form-label">Username</label>
-                    <input type="text" name="username" class="form-control" required autofocus autocomplete="username">
+                    <input type="text" name="username" class="form-control" required
+                           <?= $isLocked ? '' : 'autofocus' ?> autocomplete="username" <?= $isLocked ? 'disabled' : '' ?>>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Password</label>
-                    <input type="password" name="password" class="form-control" required autocomplete="current-password">
+                    <input type="password" name="password" class="form-control" required
+                           autocomplete="current-password" <?= $isLocked ? 'disabled' : '' ?>>
                 </div>
-                <button type="submit" class="btn btn-primary w-100">
+                <button type="submit" class="btn btn-primary w-100" <?= $isLocked ? 'disabled' : '' ?>>
                     <i class="bi bi-box-arrow-in-right"></i> Login
                 </button>
             </form>
@@ -92,5 +106,51 @@
     <footer class="login-footer">
         &copy; PT. Hexa Multi Energi. All rights reserved. Designed by Ade Dian Sukmana
     </footer>
+
+    <script>
+    // Freeze form login selama masih terkunci + hitung mundur. Kalau JS mati,
+    // atribut disabled dari server tetap membekukan form (perlu refresh setelah
+    // waktunya habis). Server tetap penegak kunci yang sebenarnya.
+    (function () {
+        var form = document.getElementById('loginForm');
+        if (!form) return;
+        var until = parseInt(form.getAttribute('data-lock-until') || '0', 10);
+        var controls = form.querySelectorAll('input:not([type="hidden"]), button');
+        var cd = document.getElementById('lockCountdown');
+        var box = document.getElementById('lockBox');
+
+        function setLocked(on) {
+            controls.forEach(function (el) { el.disabled = on; });
+        }
+        function fmt(s) {
+            var m = Math.floor(s / 60), ss = s % 60;
+            return m + ':' + (ss < 10 ? '0' : '') + ss;
+        }
+        function tick() {
+            var left = Math.ceil((until - Date.now()) / 1000);
+            if (left > 0) {
+                if (cd) cd.textContent = fmt(left);
+                setTimeout(tick, 1000);
+            } else {
+                setLocked(false);
+                if (box) {
+                    box.className = 'alert alert-success py-2';
+                    box.textContent = 'Kunci sudah berakhir. Silakan login kembali.';
+                }
+                var u = form.querySelector('input[name="username"]');
+                if (u) u.focus();
+            }
+        }
+
+        form.addEventListener('submit', function (e) {
+            if (Date.now() < until) e.preventDefault();
+        });
+
+        if (Date.now() < until) {
+            setLocked(true);
+            tick();
+        }
+    })();
+    </script>
 </body>
 </html>

@@ -88,6 +88,7 @@ Skrip pendukung di folder [`deploy/`](deploy/):
 | `setup.sh` | **1×** di VPS baru — pasang semua + deploy pertama |
 | `update.sh` | tiap ada perubahan kode (`git push`) |
 | `backup.sh` | dijadwalkan cron harian |
+| `cleanup.sh` | dijadwalkan cron mingguan — buang backup DB & file lama |
 | `migrate-server.sh` | saat pindah VPS lama → VPS baru |
 
 ---
@@ -495,6 +496,32 @@ Tarik ke laptop berkala:
 scp -i $env:USERPROFILE\.ssh\id_ed25519 -r ubuntu@IP_VPS:/var/backups/stok C:\backup-stok\
 ```
 
+### Pembersih file lama (cron mingguan)
+
+Menu **Pengaturan Sistem → Backup Database** menyimpan file `.sql` di
+`storage/backups/` dan **tidak pernah menghapusnya sendiri** — lama-lama
+memakan kuota disk hosting. Skrip `deploy/cleanup.sh` membereskannya
+(plus arsip log lama & sisa file sementara Dompdf).
+
+Tambahkan di `crontab -e`, di bawah baris `backup.sh`:
+
+```
+30 3 * * 0  /var/www/stok/deploy/cleanup.sh >> $HOME/stok-cleanup.log 2>&1
+```
+
+Setiap **Minggu jam 03:30**: hapus backup DB > 30 hari **tapi selalu
+sisakan 7 yang terbaru**, hapus arsip `logs/error.log.*` > 30 hari, dan
+buang file `dompdf_*` nyangkut di folder temp.
+
+Uji dulu tanpa menghapus apa pun:
+
+```bash
+DRY_RUN=1 bash /var/www/stok/deploy/cleanup.sh
+```
+
+Ubah ambang lewat env var, mis. simpan lebih lama:
+`DAYS=60 KEEP=10 bash /var/www/stok/deploy/cleanup.sh`.
+
 ---
 
 ## 6. Pindah dari VPS gratis ke VPS berbayar
@@ -592,7 +619,8 @@ semua pengguna pindah.
 ├── storage/backups/           ← backup dari menu Pengaturan Sistem
 ├── bin/migrate.php            ← runner migrasi DB
 ├── bin/reset_user_password.php ← reset password user (darurat)
-└── deploy/                    ← setup.sh / update.sh / backup.sh / migrate-server.sh
+├── bin/cleanup.php            ← pembersih backup/log/temp lama
+└── deploy/                    ← setup.sh / update.sh / backup.sh / cleanup.sh / migrate-server.sh
 
 /etc/apache2/sites-available/stok.conf   ← konfigurasi VirtualHost
 /var/log/apache2/stok_error.log          ← log Apache

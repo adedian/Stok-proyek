@@ -39,6 +39,13 @@ $__activeUsers = $__isSA ? (new User())->activeList() : [];
                         <input type="text" name="pic_name" class="form-control" required>
                     </div>
                     <div class="mb-2">
+                        <label class="form-label">Prefix Kas <span class="text-danger">*</span></label>
+                        <input type="text" name="kas_prefix" class="form-control text-uppercase font-monospace"
+                               maxlength="6" pattern="[A-Za-z][A-Za-z0-9]{1,5}" autocomplete="off" required
+                               placeholder="mis. AD">
+                        <div class="form-text">Dipakai untuk No Bukti Kas otomatis (AD-0001). Harus unik antar akun.</div>
+                    </div>
+                    <div class="mb-2">
                         <label class="form-label">Username Kas <span class="text-muted">(opsional)</span></label>
                         <input type="text" name="pic_username" class="form-control" autocomplete="off"
                                placeholder="untuk login modul Kas (boleh dikosongkan)">

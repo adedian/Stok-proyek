@@ -15,6 +15,11 @@
         if (raw === '') {
             return '';
         }
+        // Tanda minus di AWAL dipertahankan (nominal boleh negatif, mis. koreksi
+        // Kas "-5,000.00"). Minus di tengah/lebih dari satu diabaikan.
+        var negative = raw.charAt(0) === '-';
+        var sign = negative ? '-' : '';
+
         // Titik pertama yang ditemukan dianggap batas desimal; titik lain (kalau
         // ada, dari input yang tidak rapi) ikut dibuang bersama karakter non-digit.
         var dotIndex = raw.indexOf('.');
@@ -24,11 +29,16 @@
         intPart = intPart.replace(/[^\d]/g, '');
         intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
+        // "-" sendiri (user baru mengetik tanda minus) -> biarkan apa adanya.
+        if (intPart === '' && decPart === '') {
+            return sign;
+        }
+
         if (dotIndex === -1) {
-            return intPart;
+            return sign + intPart;
         }
         decPart = decPart.replace(/[^\d]/g, '').slice(0, 2);
-        return intPart + '.' + decPart;
+        return sign + intPart + '.' + decPart;
     }
 
     document.addEventListener('input', function (e) {

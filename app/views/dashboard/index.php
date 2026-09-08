@@ -12,23 +12,25 @@
 
 <?php
     $alertCards = [];
-    // Audiens tiap alert dibatasi ke role yang BENAR-BENAR bisa membuka halaman
-    // tujuannya (lihat config/permissions.php) -- supaya tombolnya tidak 403.
-    if ($notifFlags['selisih_barang'] && !empty($stats['selisih_belum_validasi']) && hasRole([ROLE_SUPER_ADMIN, ROLE_ACCOUNTING, ROLE_PIC_PROJECT])) {
+    // Audiens tiap alert = SIAPA PUN yang boleh membuka halaman tujuannya,
+    // diperiksa lewat can() (matrix permission DB/file + override per-user) --
+    // BUKAN daftar role hardcode. Kalau user tidak boleh view halaman itu,
+    // kartunya tidak dirender (dan URL langsung tetap ditolak backend 403).
+    if ($notifFlags['selisih_barang'] && !empty($stats['selisih_belum_validasi']) && can('validation', 'view')) {
         $alertCards[] = [
             'variant' => 'warning', 'icon' => 'bi-exclamation-triangle-fill', 'title' => 'Selisih Barang',
             'desc'    => (int) $stats['selisih_belum_validasi'] . ' item penerimaan barang dengan selisih belum divalidasi.',
             'url'     => route('validation'), 'cta' => 'Validasi Sekarang',
         ];
     }
-    if ($notifFlags['stok_minimum'] && !empty($belowMinStockItems) && hasRole([ROLE_SUPER_ADMIN, ROLE_ACCOUNTING])) {
+    if ($notifFlags['stok_minimum'] && !empty($belowMinStockItems) && can('inventory', 'view')) {
         $alertCards[] = [
             'variant' => 'danger', 'icon' => 'bi-exclamation-octagon-fill', 'title' => 'Stok Minimum',
             'desc'    => count($belowMinStockItems) . ' barang dengan stok di bawah batas minimum.',
             'url'     => route('inventory', 'index', ['stock_filter' => 'low']), 'cta' => 'Lihat Stok Barang',
         ];
     }
-    if ($notifFlags['po_belum_diproses'] && !empty($stats['po_belum_diproses']) && hasRole([ROLE_SUPER_ADMIN, ROLE_ACCOUNTING, ROLE_PURCHASE])) {
+    if ($notifFlags['po_belum_diproses'] && !empty($stats['po_belum_diproses']) && can('purchase_order', 'view')) {
         $alertCards[] = [
             'variant' => 'info', 'icon' => 'bi-hourglass-split', 'title' => 'PO Belum Diproses',
             'desc'    => (int) $stats['po_belum_diproses'] . ' Purchase Order masih menunggu approval.',
@@ -64,19 +66,35 @@
     $trendDiterima = $stats['diterima_hari_ini'] <=> $stats['diterima_kemarin'];
     $trendKeluar = $stats['keluar_hari_ini'] <=> $stats['keluar_kemarin'];
     $today = date('Y-m-d');
-    $kpis = [
-        ['icon' => 'bi-cart-check', 'color' => 'brand', 'label' => 'Total PO', 'value' => (int) $stats['total_po'],
-            'url' => route('purchase_order')],
-        ['icon' => 'bi-hourglass-split', 'color' => 'warning', 'label' => 'Barang Menunggu Datang', 'value' => (int) $stats['menunggu_datang'],
-            'url' => route('purchase_order')],
-        ['icon' => 'bi-box-seam', 'color' => 'success', 'label' => 'Barang Diterima Hari Ini', 'value' => (int) $stats['diterima_hari_ini'], 'trend' => $trendDiterima,
-            'url' => route('goods_receipt', 'index', ['date_from' => $today, 'date_to' => $today])],
-        ['icon' => 'bi-box-arrow-up', 'color' => 'danger', 'label' => 'Barang Keluar Hari Ini', 'value' => (int) $stats['keluar_hari_ini'], 'trend' => $trendKeluar,
-            'url' => route('stock_out', 'index', ['date_from' => $today, 'date_to' => $today])],
-        ['icon' => 'bi-clipboard-data', 'color' => 'info', 'label' => 'Stok Tersedia', 'breakdown' => $stats['stok_tersedia_per_satuan'],
-            'url' => route('inventory')],
-    ];
-    if ($notifFlags['invoice_pending'] && hasRole([ROLE_SUPER_ADMIN, ROLE_ACCOUNTING])) {
+
+    // Setiap KPI dirender HANYA kalau user boleh membuka halaman tujuannya
+    // (can(module,'view')). Ini menutup celah lama: kartu seperti "Stok
+    // Tersedia" (-> inventory, cuma SA/Accounting) atau "Total PO" tampil ke
+    // semua role lalu 403 saat diklik. Backend tiap modul tetap punya gate
+    // sendiri -- ini murni supaya kartunya tidak menyesatkan.
+    $kpis = [];
+    if (can('purchase_order', 'view')) {
+        $kpis[] = ['icon' => 'bi-cart-check', 'color' => 'brand', 'label' => 'Total PO', 'value' => (int) $stats['total_po'],
+            'url' => route('purchase_order')];
+        // "Barang Menunggu Datang" -> daftar PO yang sudah disetujui tapi barang
+        // belum lengkap datang (status approved / partial_received), BUKAN daftar
+        // PO polos. Filter 'menunggu_datang' ditangani PurchaseOrder::listWithRelations().
+        $kpis[] = ['icon' => 'bi-hourglass-split', 'color' => 'warning', 'label' => 'Barang Menunggu Datang', 'value' => (int) $stats['menunggu_datang'],
+            'url' => route('purchase_order', 'index', ['status' => 'menunggu_datang'])];
+    }
+    if (can('goods_receipt', 'view')) {
+        $kpis[] = ['icon' => 'bi-box-seam', 'color' => 'success', 'label' => 'Barang Diterima Hari Ini', 'value' => (int) $stats['diterima_hari_ini'], 'trend' => $trendDiterima,
+            'url' => route('goods_receipt', 'index', ['date_from' => $today, 'date_to' => $today])];
+    }
+    if (can('stock_out', 'view')) {
+        $kpis[] = ['icon' => 'bi-box-arrow-up', 'color' => 'danger', 'label' => 'Barang Keluar Hari Ini', 'value' => (int) $stats['keluar_hari_ini'], 'trend' => $trendKeluar,
+            'url' => route('stock_out', 'index', ['date_from' => $today, 'date_to' => $today])];
+    }
+    if (can('inventory', 'view')) {
+        $kpis[] = ['icon' => 'bi-clipboard-data', 'color' => 'info', 'label' => 'Stok Tersedia', 'breakdown' => $stats['stok_tersedia_per_satuan'],
+            'url' => route('inventory')];
+    }
+    if ($notifFlags['invoice_pending'] && can('sales_invoice', 'view')) {
         $kpis[] = ['icon' => 'bi-receipt', 'color' => 'purple', 'label' => 'Invoice Belum Tertagih', 'value' => (int) $stats['invoice_pending'],
             'url' => route('sales_invoice', 'index', ['billing_status' => 'belum_tertagih'])];
     }
@@ -84,7 +102,7 @@
         $kpis[] = ['icon' => 'bi-shop', 'color' => 'brand', 'label' => 'Pembelian Offline', 'value' => (int) $stats['pembelian_offline'],
             'url' => route('offline_purchase')];
     }
-    if ($paymentProgress !== null) {
+    if ($paymentProgress !== null && can('payment', 'view')) {
         $kpis[] = [
             'icon' => 'bi-credit-card', 'color' => 'purple', 'label' => 'Sisa Tagihan PO',
             'value' => formatRupiah($paymentProgress['remaining']),

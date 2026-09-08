@@ -147,8 +147,8 @@ function fileUrl(?string $relPath): string
  *   route('purchase_order', 'create')           -> {BASE_URL}/purchase_order/create
  *   route('purchase_order', 'edit', ['id'=>5])  -> {BASE_URL}/purchase_order/edit/5
  *   route('settings', 'index', ['tab'=>'bank']) -> {BASE_URL}/settings?tab=bank
- *   route('report', 'export', ['type'=>'po','format'=>'pdf'])
- *                                               -> {BASE_URL}/report/export?type=po&format=pdf
+ *   route('report', 'exportPdf', ['type'=>'po'])
+ *                                               -> {BASE_URL}/report/exportPdf?type=po
  *
  * `id` numerik jadi segmen path; param lain jadi query string. Router tetap
  * menerima format lama (index.php?module=..&action=..) sebagai fallback.
@@ -413,4 +413,120 @@ function normalizeStockType($value, string $default = 'stok_proyek'): string
 {
     $value = is_string($value) ? trim($value) : '';
     return array_key_exists($value, stockTypeLabels()) ? $value : $default;
+}
+
+/**
+ * Angka -> kata Indonesia ("terbilang"). Dipakai di voucher cetak Kas
+ * (BUKTI KAS KELUAR / MASUK). Menangani nilai NEGATIF ("minus ...") dan
+ * pecahan 2 desimal ("... koma xx"). Hasil huruf kecil; pemanggil boleh
+ * ucfirst() sendiri.
+ *
+ *   terbilang(15000)     => "lima belas ribu"
+ *   terbilang(-5000)     => "minus lima ribu"
+ *   terbilang(1500.5)    => "seribu lima ratus koma lima nol"
+ */
+function terbilang($number): string
+{
+    $number = (float) $number;
+    $prefix = '';
+    if ($number < 0) {
+        $prefix = 'minus ';
+        $number = abs($number);
+    }
+
+    $int  = (int) floor($number + 1e-9);
+    $frac = (int) round(($number - $int) * 100);
+
+    $words = trim(preg_replace('/\s+/', ' ', _terbilangInt($int)));
+    if ($words === '') {
+        $words = 'nol';
+    }
+
+    if ($frac > 0) {
+        $digits = str_pad((string) $frac, 2, '0', STR_PAD_LEFT);
+        $satuan = ['nol', 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan'];
+        $spoken = [];
+        foreach (str_split($digits) as $d) {
+            $spoken[] = $satuan[(int) $d];
+        }
+        $words .= ' koma ' . implode(' ', $spoken);
+    }
+
+    return $prefix . $words;
+}
+
+/** Bagian bilangan bulat untuk terbilang() -- rekursif, gaya Indonesia. */
+function _terbilangInt(int $n): string
+{
+    $satuan = ['', 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan', 'sepuluh', 'sebelas'];
+
+    if ($n < 12) {
+        return ' ' . $satuan[$n];
+    }
+    if ($n < 20) {
+        return _terbilangInt($n - 10) . ' belas';
+    }
+    if ($n < 100) {
+        return _terbilangInt((int) ($n / 10)) . ' puluh' . _terbilangInt($n % 10);
+    }
+    if ($n < 200) {
+        return ' seratus' . _terbilangInt($n - 100);
+    }
+    if ($n < 1000) {
+        return _terbilangInt((int) ($n / 100)) . ' ratus' . _terbilangInt($n % 100);
+    }
+    if ($n < 2000) {
+        return ' seribu' . _terbilangInt($n - 1000);
+    }
+    if ($n < 1000000) {
+        return _terbilangInt((int) ($n / 1000)) . ' ribu' . _terbilangInt($n % 1000);
+    }
+    if ($n < 1000000000) {
+        return _terbilangInt((int) ($n / 1000000)) . ' juta' . _terbilangInt($n % 1000000);
+    }
+    if ($n < 1000000000000) {
+        return _terbilangInt((int) ($n / 1000000000)) . ' miliar' . _terbilangInt($n % 1000000000);
+    }
+    return _terbilangInt((int) ($n / 1000000000000)) . ' triliun' . _terbilangInt($n % 1000000000000);
+}
+
+/**
+ * Saran prefix Kas (2-4 huruf) dari sebuah nama, MENGHINDARI daftar prefix
+ * yang sudah dipakai ($taken, uppercase). Bukan otoritatif -- form tetap
+ * memvalidasi keunikan lewat UserPicAssignment::prefixExists() + UNIQUE index.
+ * Contoh: "Ade" + taken ["AD"] -> "ADE"; "Adam" + ["AD","ADE"] -> "ADA".
+ */
+function suggestKasPrefix(string $name, array $taken = []): string
+{
+    $taken = array_map('strtoupper', $taken);
+    $clean = strtoupper(preg_replace('/[^A-Za-z]/', '', $name));
+    if ($clean === '') {
+        $clean = 'PIC';
+    }
+
+    $cands = [];
+    $cands[] = substr($clean, 0, 2);
+    if (strlen($clean) >= 3) {
+        $cands[] = substr($clean, 0, 3);
+        $cands[] = substr($clean, 0, 1) . substr($clean, -2);
+    }
+    if (strlen($clean) >= 4) {
+        $cands[] = substr($clean, 0, 4);
+    }
+    $cands[] = substr($clean, 0, 1) . substr($clean, -1);
+
+    foreach ($cands as $c) {
+        if (strlen($c) >= 2 && preg_match('/^[A-Z][A-Z0-9]{1,5}$/', $c) && !in_array($c, $taken, true)) {
+            return $c;
+        }
+    }
+    // Semua kandidat bentrok -> tambahkan angka.
+    $base = substr($clean, 0, 2);
+    for ($i = 2; $i <= 99; $i++) {
+        $c = $base . $i;
+        if (strlen($c) <= 6 && !in_array($c, $taken, true)) {
+            return $c;
+        }
+    }
+    return $base . '9';
 }

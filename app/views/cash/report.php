@@ -9,14 +9,20 @@ $qs = http_build_query(array_filter([
 ]));
 $rp = static fn($v) => number_format((float) $v, 0, ',', '.');
 $qtyFmt = static fn($v) => rtrim(rtrim(number_format((float) $v, 2, ',', '.'), '0'), ',');
+$canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saja
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2 no-print">
     <div>
         <h4 class="mb-0">Laporan Kas</h4>
         <small class="text-muted">Buku kas &mdash; Saldo Awal, mutasi masuk/keluar, dan saldo berjalan</small>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 flex-wrap">
         <a href="<?= BASE_URL ?>/report" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Kembali</a>
+        <?php if ($canCetakVoucher): ?>
+        <button type="button" id="btnCetakTerpilih" class="btn btn-outline-primary" disabled>
+            <i class="bi bi-printer"></i> Cetak Terpilih <span class="badge text-bg-primary" id="pilihCount">0</span>
+        </button>
+        <?php endif; ?>
         <button type="button" class="btn btn-outline-dark" onclick="window.print()"><i class="bi bi-printer"></i> Cetak</button>
         <a href="<?= BASE_URL ?>/index.php?module=cash&action=printReport<?= $qs ? '&' . e($qs) : '' ?>" class="btn btn-outline-danger" target="_blank"><i class="bi bi-file-earmark-pdf"></i> PDF</a>
         <a href="<?= BASE_URL ?>/index.php?module=cash&action=exportReport<?= $qs ? '&' . e($qs) : '' ?>" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i> Excel</a>
@@ -80,6 +86,11 @@ $qtyFmt = static fn($v) => rtrim(rtrim(number_format((float) $v, 2, ',', '.'), '
             <table class="table table-sm table-bordered align-middle mb-0">
                 <thead class="table-light text-center">
                     <tr>
+                        <?php if ($canCetakVoucher): ?>
+                        <th class="no-print" style="width:38px;">
+                            <input type="checkbox" id="kasSelectAll" class="form-check-input" title="Pilih semua">
+                        </th>
+                        <?php endif; ?>
                         <th>Tgl</th>
                         <th>No Bukti</th>
                         <th>Uraian</th>
@@ -92,25 +103,36 @@ $qtyFmt = static fn($v) => rtrim(rtrim(number_format((float) $v, 2, ',', '.'), '
                 </thead>
                 <tbody>
                     <tr class="fw-bold">
+                        <?php if ($canCetakVoucher): ?><td class="no-print"></td><?php endif; ?>
                         <td colspan="7" class="text-center">Saldo Awal</td>
                         <td class="text-end"><?= $rp($ledger['saldo_awal']) ?></td>
                     </tr>
                     <?php if (empty($ledger['rows'])): ?>
-                        <tr><td colspan="8" class="text-center text-muted py-3">Tidak ada transaksi Kas pada filter ini.</td></tr>
+                        <tr><td colspan="<?= $canCetakVoucher ? 9 : 8 ?>" class="text-center text-muted py-3">Tidak ada transaksi Kas pada filter ini.</td></tr>
                     <?php endif; ?>
                     <?php foreach ($ledger['rows'] as $row): ?>
                         <tr>
+                            <?php if ($canCetakVoucher): ?>
+                            <td class="no-print text-center">
+                                <?php if (!empty($row['trx_id'])): ?>
+                                    <input type="checkbox" class="form-check-input kas-row-check"
+                                           value="<?= (int) $row['trx_id'] ?>"
+                                           data-label="<?= e($row['no_bukti']) ?>">
+                                <?php endif; ?>
+                            </td>
+                            <?php endif; ?>
                             <td><?= $row['trx_date'] !== '' ? e(date('j-M-y', strtotime($row['trx_date']))) : '' ?></td>
                             <td><?= e($row['no_bukti']) ?></td>
                             <td><?= e($row['uraian']) ?></td>
                             <td class="text-end"><?= $qtyFmt($row['qty']) ?></td>
                             <td class="text-end"><?= $rp($row['satuan']) ?></td>
-                            <td class="text-end"><?= $row['masuk'] > 0 ? $rp($row['masuk']) : '' ?></td>
-                            <td class="text-end"><?= $row['keluar'] > 0 ? $rp($row['keluar']) : '' ?></td>
+                            <td class="text-end<?= $row['masuk'] < 0 ? ' text-danger' : '' ?>"><?= $row['masuk'] != 0 ? $rp($row['masuk']) : '' ?></td>
+                            <td class="text-end<?= $row['keluar'] < 0 ? ' text-danger' : '' ?>"><?= $row['keluar'] != 0 ? $rp($row['keluar']) : '' ?></td>
                             <td class="text-end"><?= $rp($row['saldo']) ?></td>
                         </tr>
                     <?php endforeach; ?>
                     <tr class="fw-bold table-light">
+                        <?php if ($canCetakVoucher): ?><td class="no-print"></td><?php endif; ?>
                         <td colspan="7" class="text-end">Saldo Akhir</td>
                         <td class="text-end"><?= $rp($ledger['saldo_akhir']) ?></td>
                     </tr>
@@ -122,3 +144,58 @@ $qtyFmt = static fn($v) => rtrim(rtrim(number_format((float) $v, 2, ',', '.'), '
         </div>
     </div>
 </div>
+
+<script>
+// DOMContentLoaded: helper wireSelectAllCheckbox dimuat di footer.php (SETELAH
+// view ini), jadi tunggu semua script siap dulu.
+document.addEventListener('DOMContentLoaded', function () {
+    var btn     = document.getElementById('btnCetakTerpilih');
+    var countEl = document.getElementById('pilihCount');
+    if (!btn) { return; }
+
+    function checkedIds() {
+        return Array.prototype.filter.call(document.querySelectorAll('.kas-row-check'), function (b) { return b.checked; })
+            .map(function (b) { return b.value; });
+    }
+
+    // Pakai helper bersama (public/assets/js/checkbox-select-all.js) -- sinkron
+    // dua arah, perbaikan kanonik untuk bug "Select All nyangkut".
+    function refresh() {
+        var n = checkedIds().length;
+        countEl.textContent = String(n);
+        btn.disabled = (n === 0);
+    }
+    if (window.wireSelectAllCheckbox) {
+        wireSelectAllCheckbox('#kasSelectAll', '.kas-row-check', refresh);
+    } else {
+        // Fallback minimal (dua arah) kalau helper gagal dimuat.
+        var sa = document.getElementById('kasSelectAll');
+        if (sa) {
+            sa.addEventListener('change', function () {
+                document.querySelectorAll('.kas-row-check').forEach(function (c) { c.checked = sa.checked; });
+                refresh();
+            });
+        }
+        document.addEventListener('change', function (e) {
+            if (e.target && e.target.matches && e.target.matches('.kas-row-check')) {
+                var all = document.querySelectorAll('.kas-row-check');
+                var n = checkedIds().length;
+                if (sa) { sa.checked = n === all.length && n > 0; sa.indeterminate = n > 0 && n < all.length; }
+                refresh();
+            }
+        });
+    }
+
+    btn.addEventListener('click', function () {
+        var ids = checkedIds();
+        if (ids.length === 0) {
+            if (window.notifyError) { notifyError('Silakan pilih minimal satu transaksi untuk dicetak.'); }
+            else { alert('Silakan pilih minimal satu transaksi untuk dicetak.'); }
+            return;
+        }
+        window.open('<?= BASE_URL ?>/index.php?module=cash&action=printVoucher&from=report&ids=' + encodeURIComponent(ids.join(',')), '_blank');
+    });
+
+    refresh();
+});
+</script>

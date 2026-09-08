@@ -14,12 +14,19 @@ require_once ROOT_PATH . '/core/Middleware.php';
  */
 class FileController extends Controller
 {
-    /** Folder sensitif -> daftar role_slug yang boleh melihat isinya. */
+    /**
+     * Folder upload sensitif -> MODUL yang izin 'view'-nya menentukan siapa
+     * boleh melihat file di folder itu. Pakai matrix permission yang sama
+     * dengan halaman modulnya (config/permissions.php + override per-user)
+     * lewat can() -- BUKAN daftar role hardcode (dulu masih menyebut role
+     * 'finance'/'gudang' yang sudah dinonaktifkan, sehingga Accounting/
+     * Purchase malah tidak bisa melihat bukti/invoice yang mereka unggah).
+     */
     private const GATED = [
-        'payments'           => [ROLE_SUPER_ADMIN, ROLE_FINANCE],
-        'bukti_pembelian'    => [ROLE_SUPER_ADMIN, ROLE_FINANCE, ROLE_GUDANG, ROLE_PROJECT_MANAGER],
-        'invoice_penerimaan' => [ROLE_SUPER_ADMIN, ROLE_GUDANG, ROLE_FINANCE],
-        'invoice'            => [ROLE_SUPER_ADMIN, ROLE_FINANCE],
+        'payments'           => 'payment',
+        'bukti_pembelian'    => 'offline_purchase',
+        'invoice_penerimaan' => 'goods_receipt',
+        'invoice'            => 'sales_invoice',
     ];
 
     public function __construct()
@@ -44,7 +51,7 @@ class FileController extends Controller
             exit;
         }
 
-        if (!in_array(currentUserRole(), self::GATED[$folder], true)) {
+        if (!can(self::GATED[$folder], 'view')) {
             $this->deny(403);
         }
 

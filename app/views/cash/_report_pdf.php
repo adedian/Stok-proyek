@@ -60,8 +60,8 @@ $qtyFmt = static function ($v) {
                     <td><?= e($row['uraian']) ?></td>
                     <td class="end"><?= $qtyFmt($row['qty']) ?></td>
                     <td class="end"><?= $rp($row['satuan']) ?></td>
-                    <td class="end"><?= $row['masuk'] > 0 ? $rp($row['masuk']) : '' ?></td>
-                    <td class="end"><?= $row['keluar'] > 0 ? $rp($row['keluar']) : '' ?></td>
+                    <td class="end"><?= $row['masuk'] != 0 ? $rp($row['masuk']) : '' ?></td>
+                    <td class="end"><?= $row['keluar'] != 0 ? $rp($row['keluar']) : '' ?></td>
                     <td class="end"><?= $rp($row['saldo']) ?></td>
                 </tr>
             <?php endforeach; ?>

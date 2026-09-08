@@ -4,6 +4,7 @@ require_once ROOT_PATH . '/core/Middleware.php';
 require_once ROOT_PATH . '/app/models/UserPicAssignment.php';
 require_once ROOT_PATH . '/app/models/User.php';
 require_once ROOT_PATH . '/app/models/ActivityLog.php';
+require_once ROOT_PATH . '/app/models/CashNumber.php';
 
 /**
  * Master Data > PIC Kas (Revisi 9).
@@ -34,11 +35,31 @@ class UserPicController extends Controller
     public function index()
     {
         $this->view('user_pic/list', [
-            'pageTitle'    => 'PIC Kas',
-            'assignments'  => $this->picModel->listWithUserAndCredential(),
-            'users'        => $this->userModel->activeList(),
-            'needsPicKas'  => $this->picModel->usersNeedingPicKas(),
+            'pageTitle'      => 'PIC Kas',
+            'assignments'    => $this->picModel->listWithUserAndCredential(),
+            'users'          => $this->userModel->activeList(),
+            'needsPicKas'    => $this->picModel->usersNeedingPicKas(),
+            'takenPrefixes'  => $this->picModel->takenPrefixes(),
         ]);
+    }
+
+    /**
+     * Validasi 1 prefix Kas. Return string error atau '' kalau OK.
+     * $excludeId = baris mapping yang sedang diedit (biar tidak bentrok dgn diri sendiri).
+     */
+    private function validatePrefix(string $raw, ?int $excludeId = null): string
+    {
+        $prefix = CashNumber::normalizePrefix($raw);
+        if ($prefix === '') {
+            return 'Prefix Kas wajib diisi.';
+        }
+        if (!CashNumber::isValidPrefix($prefix)) {
+            return 'Format Prefix Kas tidak valid (2-6 huruf/angka, harus diawali huruf).';
+        }
+        if ($this->picModel->prefixExists($prefix, $excludeId)) {
+            return 'Prefix sudah digunakan oleh akun lain.';
+        }
+        return '';
     }
 
     /**
@@ -60,10 +81,17 @@ class UserPicController extends Controller
         $pass     = (string) ($_POST['kas_password'] ?? '');
         $passConf = (string) ($_POST['kas_password_confirm'] ?? '');
         $isActive = ($_POST['is_active'] ?? '1') === '1';
+        $prefixRaw = trim($_POST['kas_prefix'] ?? '');
+        $prefix    = CashNumber::normalizePrefix($prefixRaw);
 
         $errors = [];
         if (!$row) {
             $errors[] = 'Mapping PIC tidak ditemukan.';
+        }
+        // Prefix boleh dikosongkan HANYA kalau baris ini memang belum punya
+        // (belum wajib retroaktif). Kalau diisi -> divalidasi & disimpan.
+        if ($prefixRaw !== '' && ($err = $this->validatePrefix($prefixRaw, $id)) !== '') {
+            $errors[] = $err;
         }
         // Password wajib hanya kalau PIC ini belum punya password sama sekali.
         $needPass = !$row || empty($row['pic_password']) || $pass !== '';
@@ -85,11 +113,18 @@ class UserPicController extends Controller
 
         $hash = ($pass !== '') ? password_hash($pass, PASSWORD_DEFAULT) : (string) $row['pic_password'];
         $this->picModel->setCredential($id, $username ?: null, $hash, $isActive);
+
+        $prefixNote = '';
+        if ($prefixRaw !== '' && $prefix !== (string) ($row['kas_prefix'] ?? '')) {
+            $this->picModel->setPrefix($id, $prefix);
+            $prefixNote = "; Prefix Kas '" . ($row['kas_prefix'] ?? '-') . "' -> '{$prefix}'";
+        }
+
         $this->activityLog->log(
             currentUserId(),
             'user_pic',
             'pic_credential_set',
-            "Kredensial Kas PIC '{$row['pic_name']}' (user #{$row['user_id']}) di-set/reset; status=" . ($isActive ? 'aktif' : 'nonaktif')
+            "Kredensial Kas PIC '{$row['pic_name']}' (user #{$row['user_id']}) di-set/reset; status=" . ($isActive ? 'aktif' : 'nonaktif') . $prefixNote
         );
         setFlash('success', 'Kredensial Kas PIC diperbarui.');
         $this->redirect('user_pic', 'index');
@@ -162,6 +197,8 @@ class UserPicController extends Controller
         $username = trim($post['pic_username'] ?? '');
         $pass     = (string) ($post['kas_password'] ?? '');
         $passConf = (string) ($post['kas_password_confirm'] ?? '');
+        $prefixRaw = trim($post['kas_prefix'] ?? '');
+        $prefix    = CashNumber::normalizePrefix($prefixRaw);
 
         $errors = [];
         if ($userId <= 0 || !$this->userModel->find($userId)) {
@@ -171,6 +208,10 @@ class UserPicController extends Controller
             $errors[] = 'Nama PIC wajib diisi.';
         } elseif ($userId > 0 && $this->picModel->exists($userId, $picName)) {
             $errors[] = 'Mapping user + PIC ini sudah ada.';
+        }
+        // Prefix Kas WAJIB untuk PIC baru (No Bukti Kas otomatis mengikutinya).
+        if (($err = $this->validatePrefix($prefixRaw)) !== '') {
+            $errors[] = $err;
         }
         if (mb_strlen($pass) < 6) {
             $errors[] = 'Password Kas minimal 6 karakter.';
@@ -190,6 +231,7 @@ class UserPicController extends Controller
             'created_by' => currentUserId(),
         ]);
         $this->picModel->setCredential($id, $username ?: null, password_hash($pass, PASSWORD_DEFAULT), true);
+        $this->picModel->setPrefix($id, $prefix);
         return [$id, []];
     }
 

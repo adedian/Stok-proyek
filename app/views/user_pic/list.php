@@ -1,5 +1,6 @@
-<?php /** @var array $assignments @var array $users @var array $needsPicKas */
+<?php /** @var array $assignments @var array $users @var array $needsPicKas @var array $takenPrefixes */
 $needsPicKas = $needsPicKas ?? [];
+$takenPrefixes = $takenPrefixes ?? [];
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
@@ -60,9 +61,16 @@ $needsPicKas = $needsPicKas ?? [];
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <label class="form-label small text-muted mb-1">Nama PIC</label>
                 <input type="text" name="pic_name" id="picNameInput" class="form-control form-control-sm" required>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small text-muted mb-1">Prefix Kas</label>
+                <input type="text" name="kas_prefix" id="picPrefixInput" class="form-control form-control-sm text-uppercase"
+                       maxlength="6" pattern="[A-Za-z][A-Za-z0-9]{1,5}" autocomplete="off" required
+                       placeholder="mis. AD">
+                <div class="form-text">Untuk No Bukti Kas otomatis (AD-0001). Unik antar akun.</div>
             </div>
             <div class="col-md-3">
                 <label class="form-label small text-muted mb-1">Username Kas <span class="text-muted">(opsional)</span></label>
@@ -96,6 +104,7 @@ $needsPicKas = $needsPicKas ?? [];
                         <th>User</th>
                         <th>Role</th>
                         <th>PIC</th>
+                        <th>Prefix Kas</th>
                         <th>Username Kas</th>
                         <th>Login Kas</th>
                         <th class="text-center no-print">Aksi</th>
@@ -103,7 +112,7 @@ $needsPicKas = $needsPicKas ?? [];
                 </thead>
                 <tbody>
                     <?php if (empty($assignments)): ?>
-                        <tr><td colspan="6" class="p-0">
+                        <tr><td colspan="7" class="p-0">
                             <div class="empty-state">
                                 <i class="bi bi-person-badge empty-icon"></i>
                                 <div class="empty-title">Belum ada mapping PIC</div>
@@ -120,6 +129,13 @@ $needsPicKas = $needsPicKas ?? [];
                             <td><?= e($a['full_name']) ?> <span class="text-muted small">(<?= e($a['username']) ?>)</span></td>
                             <td><span class="badge bg-light text-dark border"><?= e($a['role_name']) ?></span></td>
                             <td><?= e($a['pic_name']) ?></td>
+                            <td>
+                                <?php if (!empty($a['kas_prefix'])): ?>
+                                    <span class="badge bg-dark-subtle text-dark border font-monospace"><?= e($a['kas_prefix']) ?></span>
+                                <?php else: ?>
+                                    <span class="badge text-bg-warning" title="Belum bisa membuat transaksi Kas sampai prefix diisi">Belum di-set</span>
+                                <?php endif; ?>
+                            </td>
                             <td><?= $a['pic_username'] !== null && $a['pic_username'] !== '' ? e($a['pic_username']) : '<span class="text-muted">&mdash;</span>' ?></td>
                             <td>
                                 <?php if (!$hasCred): ?>
@@ -148,10 +164,16 @@ $needsPicKas = $needsPicKas ?? [];
                         </tr>
                         <?php if (can('user_pic', 'edit')): ?>
                         <tr class="collapse no-print" id="cred<?= (int) $a['id'] ?>">
-                            <td colspan="6" class="bg-light">
+                            <td colspan="7" class="bg-light">
                                 <form method="POST" action="<?= BASE_URL ?>/index.php?module=user_pic&action=setCredential" class="row g-2 align-items-end">
                                     <?= csrfField() ?>
                                     <input type="hidden" name="id" value="<?= (int) $a['id'] ?>">
+                                    <div class="col-md-2">
+                                        <label class="form-label small text-muted mb-1">Prefix Kas</label>
+                                        <input type="text" name="kas_prefix" class="form-control form-control-sm text-uppercase font-monospace"
+                                               maxlength="6" pattern="[A-Za-z][A-Za-z0-9]{1,5}" autocomplete="off"
+                                               value="<?= e($a['kas_prefix'] ?? '') ?>" placeholder="mis. AD">
+                                    </div>
                                     <div class="col-md-3">
                                         <label class="form-label small text-muted mb-1">Username Kas (opsional)</label>
                                         <input type="text" name="pic_username" class="form-control form-control-sm" value="<?= e($a['pic_username'] ?? '') ?>">
@@ -195,6 +217,31 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         });
     });
+
+    // Saran Prefix Kas dari Nama PIC (form Tambah). Hanya mengisi kalau user
+    // belum menyentuh field prefix -- server tetap yang memvalidasi keunikan.
+    (function () {
+        var taken = <?= json_encode(array_map('strtoupper', $takenPrefixes)) ?>;
+        var nameEl = document.getElementById('picNameInput');
+        var prefEl = document.getElementById('picPrefixInput');
+        if (!nameEl || !prefEl) { return; }
+        var touched = false;
+        prefEl.addEventListener('input', function () { touched = true; });
+        nameEl.addEventListener('input', function () {
+            if (touched) { return; }
+            var clean = (nameEl.value || '').toUpperCase().replace(/[^A-Z]/g, '');
+            if (clean.length < 2) { prefEl.value = ''; return; }
+            var cands = [clean.slice(0, 2), clean.slice(0, 3), clean.slice(0, 1) + clean.slice(-2), clean.slice(0, 1) + clean.slice(-1)];
+            var pick = cands.find(function (c) { return c.length >= 2 && c.length <= 6 && taken.indexOf(c) === -1; });
+            if (!pick) {
+                for (var i = 2; i <= 99 && !pick; i++) {
+                    var c = clean.slice(0, 2) + i;
+                    if (c.length <= 6 && taken.indexOf(c) === -1) { pick = c; }
+                }
+            }
+            prefEl.value = pick || clean.slice(0, 2);
+        });
+    })();
 
     // "Siapkan" -> prefill form Tambah PIC untuk user yang belum punya PIC Kas.
     document.querySelectorAll('.js-prep-pic').forEach(function (btn) {

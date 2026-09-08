@@ -4,6 +4,7 @@ require_once ROOT_PATH . '/core/Middleware.php';
 require_once ROOT_PATH . '/app/models/CashTransaction.php';
 require_once ROOT_PATH . '/app/models/CashTransactionItem.php';
 require_once ROOT_PATH . '/app/models/CashCategory.php';
+require_once ROOT_PATH . '/app/models/CashNumber.php';
 require_once ROOT_PATH . '/app/models/UserPicAssignment.php';
 require_once ROOT_PATH . '/app/models/User.php';
 require_once ROOT_PATH . '/app/models/SystemSetting.php';
@@ -194,10 +195,25 @@ class CashController extends Controller
         $picUser  = trim($_POST['pic_username'] ?? '');
         $pass     = (string) ($_POST['kas_password'] ?? '');
         $passConf = (string) ($_POST['kas_password_confirm'] ?? '');
+        $prefixRaw = trim($_POST['kas_prefix'] ?? '');
+        $prefix    = CashNumber::normalizePrefix($prefixRaw);
+        $existing  = $this->picModel->rowByUserAndName($uid, $picName);
 
         $errors = [];
         if ($picName === '') {
             $errors[] = 'Nama PIC wajib diisi.';
+        }
+        // Prefix Kas wajib -- KECUALI kalau menautkan password ke PIC lama yang
+        // SUDAH punya prefix (biarkan kosong = pakai yang lama).
+        $needPrefix = !($existing && !empty($existing['kas_prefix']) && $prefixRaw === '');
+        if ($needPrefix) {
+            if ($prefix === '') {
+                $errors[] = 'Prefix Kas wajib diisi.';
+            } elseif (!CashNumber::isValidPrefix($prefix)) {
+                $errors[] = 'Format Prefix Kas tidak valid (2-6 huruf/angka, harus diawali huruf).';
+            } elseif ($this->picModel->prefixExists($prefix, $existing ? (int) $existing['id'] : null)) {
+                $errors[] = 'Prefix sudah digunakan oleh akun lain.';
+            }
         }
         if (mb_strlen($pass) < 6) {
             $errors[] = 'Password Kas minimal 6 karakter.';
@@ -215,12 +231,14 @@ class CashController extends Controller
         }
 
         $hash = password_hash($pass, PASSWORD_DEFAULT);
-        $existing = $this->picModel->rowByUserAndName($uid, $picName);
 
         if ($existing) {
             $this->picModel->setCredential((int) $existing['id'], $picUser ?: null, $hash, true);
+            if ($needPrefix && $prefix !== '') {
+                $this->picModel->setPrefix((int) $existing['id'], $prefix);
+            }
         } else {
-            $this->picModel->create([
+            $newId = $this->picModel->create([
                 'user_id'      => $uid,
                 'pic_name'     => $picName,
                 'pic_username' => $picUser ?: null,
@@ -228,9 +246,10 @@ class CashController extends Controller
                 'is_active'    => 1,
                 'created_by'   => $uid,
             ]);
+            $this->picModel->setPrefix((int) $newId, $prefix);
         }
 
-        $this->activityLog->log($uid, 'user_pic', 'pic_created', "PIC Kas '{$picName}' dibuat/di-set kredensialnya oleh akun sendiri");
+        $this->activityLog->log($uid, 'user_pic', 'pic_created', "PIC Kas '{$picName}' (prefix '{$prefix}') dibuat/di-set kredensialnya oleh akun sendiri");
         setFlash('success', 'PIC Kas berhasil dibuat. Silakan verifikasi untuk masuk.');
         $this->redirect('cash', 'kasLogin');
     }
@@ -316,6 +335,7 @@ class CashController extends Controller
     public function printReport(): void
     {
         [$ledger, $meta] = $this->buildReportData();
+        $this->activityLog->log(currentUserId(), 'cash', 'print', 'Cetak PDF Laporan Kas (' . $meta['period'] . ')');
         ob_start();
         $company = $meta['company'];
         $periodText = $meta['period'];
@@ -327,6 +347,7 @@ class CashController extends Controller
     public function exportReport(): void
     {
         [$ledger, $meta] = $this->buildReportData();
+        $this->activityLog->log(currentUserId(), 'cash', 'export', 'Export Excel Laporan Kas (' . $meta['period'] . ')');
         streamCashReportExcel(
             $ledger,
             $meta['company'],
@@ -335,11 +356,86 @@ class CashController extends Controller
         );
     }
 
+    /**
+     * CETAK TERPILIH. Terima daftar id transaksi Kas dari halaman Kas /
+     * Laporan Kas, tampilkan halaman PRATINJAU (SATU voucher BUKTI KAS
+     * KELUAR/MASUK per No Bukti, mengikuti Gambar 1) di dalam layout aplikasi
+     * -- persis pola "Cetak Purchase Order": pengguna melihat dulu, lalu
+     * menekan tombol "Cetak" (window.print()).
+     *
+     * Scoping tetap dihormati: transaksi di luar cakupan PIC / divisi user
+     * di-skip diam-diam (bukan 403 seluruh cetakan).
+     */
+    public function printVoucher(): void
+    {
+        // Cetak voucher Kas terpilih -- KHUSUS Super Admin & Accounting
+        // (config/permissions.php: cash.print_voucher). Ditegakkan backend
+        // di sini, bukan cuma disembunyikan di view.
+        Middleware::requirePermission('cash', 'print_voucher');
+
+        // Baca id: ?ids=1,2,3  atau  ?ids[]=1&ids[]=2
+        $raw = $_GET['ids'] ?? '';
+        $ids = is_array($raw) ? $raw : explode(',', (string) $raw);
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), fn($v) => $v > 0)));
+
+        $scope    = $this->scopePics();
+        $divScope = kasDivisionScope();
+        $divOk    = $divScope === null ? null : array_flip($divScope);
+
+        $vouchers = [];
+        foreach ($ids as $id) {
+            $header = $this->cashModel->findWithRelations($id);
+            if (!$header) {
+                continue;
+            }
+            if ($scope !== null && !in_array($header['pic'], $scope, true)) {
+                continue;
+            }
+            if ($divOk !== null && !isset($divOk[$header['division']])) {
+                continue;
+            }
+            $vouchers[] = [
+                'header' => $header,
+                'items'  => $this->itemModel->byTransaction($id),
+            ];
+        }
+
+        if (empty($vouchers)) {
+            setFlash('error', 'Silakan pilih minimal satu transaksi Kas yang valid untuk dicetak.');
+            $this->redirect('cash', 'index');
+        }
+
+        $this->activityLog->log(
+            currentUserId(),
+            'cash',
+            'print',
+            'Pratinjau/cetak voucher Kas terpilih: ' . implode(', ', array_map(fn($v) => $v['header']['no_bukti'], $vouchers))
+        );
+
+        // "Kembali" mengikuti asal (Laporan Kas vs daftar Kas).
+        $from    = ($_GET['from'] ?? '') === 'report' ? 'report' : 'index';
+        $backUrl = $from === 'report'
+            ? BASE_URL . '/index.php?module=cash&action=report'
+            : BASE_URL . '/cash';
+
+        $this->view('cash/voucher_preview', [
+            'pageTitle' => 'Cetak Voucher Kas',
+            'vouchers'  => $vouchers,
+            'vCompany'  => ((new SystemSetting())->getGroup('company')['company_name']) ?: 'Perusahaan',
+            'backUrl'   => $backUrl,
+        ]);
+    }
+
     // ===================== CREATE =====================
 
     public function create(): void
     {
         Middleware::requirePermission('cash', 'create');
+
+        $picOptions = $this->picFieldOptions();
+        // Untuk role ber-PIC tunggal (sesi Kas) nomor bisa dipratinjau langsung.
+        // Role lihat-semua: kosong dulu, diisi via AJAX saat PIC dipilih.
+        $previewPic = count($picOptions) === 1 ? $picOptions[0] : '';
 
         $this->view('cash/form', [
             'pageTitle'      => 'Tambah Kas',
@@ -347,12 +443,42 @@ class CashController extends Controller
             'cash'           => null,
             'items'          => [],
             'categories'     => $this->categoryModel->activeList(),
-            'picOptions'     => $this->picFieldOptions(),
+            'picOptions'     => $picOptions,
             'projects'       => $this->projectModel->activeList(),
             'units'          => $this->unitModel->activeList(),
             'itemCatalog'    => $this->barangModel->activeList(),
             'itemCategories' => $this->barangCategoryModel->activeList(),
+            'noBuktiPreview' => $previewPic !== '' ? $this->previewNoBuktiFor($previewPic) : '',
         ]);
+    }
+
+    /**
+     * Pratinjau No Bukti untuk sebuah nama PIC. String kosong kalau PIC
+     * belum punya Prefix Kas (form akan menampilkan peringatan).
+     */
+    private function previewNoBuktiFor(string $picName): string
+    {
+        $prefix = $this->picModel->prefixForPicName($picName);
+        if (!$prefix || !CashNumber::isValidPrefix($prefix)) {
+            return '';
+        }
+        return (new CashNumber())->preview($prefix);
+    }
+
+    /** AJAX: pratinjau No Bukti saat PIC dipilih di form Tambah Kas. */
+    public function previewNoBukti(): void
+    {
+        Middleware::requirePermission('cash', 'create');
+        $picName = trim($_GET['pic'] ?? '');
+        $scope = $this->scopePics();
+        if ($picName === '' || ($scope !== null && !in_array($picName, $scope, true))) {
+            $this->json(['preview' => '', 'error' => 'PIC tidak valid.']);
+        }
+        $prefix = $this->picModel->prefixForPicName($picName);
+        if (!$prefix) {
+            $this->json(['preview' => '', 'error' => "PIC '{$picName}' belum memiliki Prefix Kas. Hubungi Super Admin (Master Data → PIC Kas)."]);
+        }
+        $this->json(['preview' => (new CashNumber())->preview($prefix), 'prefix' => $prefix]);
     }
 
     public function store(): void
@@ -374,15 +500,35 @@ class CashController extends Controller
 
         assertPeriodOpen('cash', $data['trx_date'], 'cash', 'create');
 
+        // Prefix Kas WAJIB ada di PIC terpilih (server yang menentukan, bukan
+        // input user). validateInput() sudah mengecek ini, tapi ambil ulang di
+        // sini sebagai sumber kebenaran untuk generate nomor.
+        $prefix = $this->picModel->prefixForPicName($data['pic']);
+        if (!$prefix) {
+            setFlash('error', "PIC '{$data['pic']}' belum memiliki Prefix Kas. Minta Super Admin mengaturnya di Master Data → PIC Kas.");
+            $this->redirect('cash', 'create');
+        }
+
         $pdo = getPDO();
         try {
             $pdo->beginTransaction();
+
+            // No Bukti dibuat SERVER-SIDE & ATOMIC di dalam transaction ini
+            // (CashNumber::next ikut transaction lewat SELECT ... FOR UPDATE).
+            // Nilai apa pun yang dikirim client diabaikan.
+            $noBukti = (new CashNumber())->next($prefix);
+            // Sabuk pengaman ekstra: kalau entah bagaimana nomor sudah terpakai
+            // (mis. data lama free-text kebetulan sama), naikkan sampai bebas.
+            $guard = 0;
+            while ($this->cashModel->noBuktiExists($noBukti) && $guard++ < 50) {
+                $noBukti = (new CashNumber())->next($prefix);
+            }
 
             $trxId = $this->cashModel->create([
                 'trx_date'      => $data['trx_date'],
                 'pic'           => $data['pic'],
                 'division'      => $this->resolveDivision($data['pic']),
-                'no_bukti'      => $data['no_bukti'],
+                'no_bukti'      => $noBukti,
                 'mutasi'        => $data['mutasi'],
                 'total_amount'  => $this->sumItems($items),
                 'created_by'    => currentUserId(),
@@ -396,7 +542,7 @@ class CashController extends Controller
                 currentUserId(),
                 'cash',
                 'create',
-                "Kas {$data['mutasi']} '{$data['no_bukti']}' (PIC {$data['pic']}) dibuat, "
+                "Kas {$data['mutasi']} '{$noBukti}' (PIC {$data['pic']}) dibuat otomatis [prefix {$prefix}], "
                     . count($items) . ' item, total ' . formatRupiah($this->sumItems($items)) . $stockNote
             );
 
@@ -438,6 +584,7 @@ class CashController extends Controller
             'units'          => $this->unitModel->activeList(),
             'itemCatalog'    => $this->barangModel->activeList(),
             'itemCategories' => $this->barangCategoryModel->activeList(),
+            'noBuktiPreview' => $row['no_bukti'],
         ]);
     }
 
@@ -480,11 +627,13 @@ class CashController extends Controller
             // menyentuh stok.
             $this->cashModel->applyStockReverse($id);
 
+            // No Bukti TIDAK pernah dibuat ulang saat edit -- nomor resmi hanya
+            // lahir sekali di store(). Pertahankan nilai lama apa adanya.
             $this->cashModel->updateById($id, [
                 'trx_date'      => $data['trx_date'],
                 'pic'           => $data['pic'],
                 'division'      => $this->resolveDivision($data['pic']),
-                'no_bukti'      => $data['no_bukti'],
+                'no_bukti'      => $existing['no_bukti'],
                 'mutasi'        => $data['mutasi'],
                 'total_amount'  => $this->sumItems($items),
             ]);
@@ -498,7 +647,7 @@ class CashController extends Controller
                 $this->cashModel->resetValidationToPending($id);
             }
 
-            $this->activityLog->log(currentUserId(), 'cash', 'update', "Kas #{$id} ('{$data['no_bukti']}') diperbarui"
+            $this->activityLog->log(currentUserId(), 'cash', 'update', "Kas #{$id} ('{$existing['no_bukti']}') diperbarui"
                 . ($n > 0 ? ' (stok disesuaikan ulang)' : ''));
 
             $pdo->commit();
@@ -731,10 +880,11 @@ class CashController extends Controller
 
     private function collectInput(): array
     {
+        // No Bukti SENGAJA tidak dibaca dari POST -- server yang menentukan
+        // (CashNumber::next di store(); nilai lama dipertahankan di update()).
         return [
             'trx_date' => trim($_POST['trx_date'] ?? ''),
             'pic'      => trim($_POST['pic'] ?? ''),
-            'no_bukti' => trim($_POST['no_bukti'] ?? ''),
             'mutasi'   => ($_POST['mutasi'] ?? '') === 'masuk' ? 'masuk'
                 : (($_POST['mutasi'] ?? '') === 'keluar' ? 'keluar' : ''),
         ];
@@ -763,7 +913,11 @@ class CashController extends Controller
             $q   = (float) ($qty[$i] ?? 0);
             $s   = parseCurrencyInput($satuan[$i] ?? 0);
             $cid = !empty($catIds[$i]) ? (int) $catIds[$i] : null;
-            if ($u === '' && $q <= 0 && $s <= 0 && $cid === null) {
+            // Harga satuan BOLEH negatif (koreksi/refund Kas). Baris dianggap
+            // kosong hanya bila benar-benar tidak ada isi -- harga satuan yang
+            // negatif (mis. -5000) tidak lagi dianggap "kosong" & tidak dibuang
+            // diam-diam; kalau uraian/kategori belum diisi, validasi yang menegur.
+            if ($u === '' && $q <= 0 && abs($s) < 0.005 && $cid === null) {
                 continue; // baris kosong -> abaikan
             }
             $out[] = [
@@ -828,12 +982,10 @@ class CashController extends Controller
             $errors[] = 'PIC wajib diisi.';
         } elseif ($scope !== null && !in_array($d['pic'], $scope, true)) {
             $errors[] = 'PIC tidak valid untuk akun Anda.';
-        }
-
-        if ($d['no_bukti'] === '') {
-            $errors[] = 'No Bukti wajib diisi.';
-        } elseif ($this->cashModel->noBuktiExists($d['no_bukti'], $excludeId)) {
-            $errors[] = 'No Bukti sudah dipakai transaksi lain.';
+        } elseif ($excludeId === null && !$this->picModel->prefixForPicName($d['pic'])) {
+            // Hanya relevan saat BUAT baru -- No Bukti otomatis butuh Prefix Kas
+            // di PIC. Saat edit, no_bukti lama dipertahankan (tidak butuh prefix).
+            $errors[] = "PIC '{$d['pic']}' belum memiliki Prefix Kas. Minta Super Admin mengaturnya di Master Data → PIC Kas sebelum membuat transaksi.";
         }
 
         if ($d['mutasi'] === '') {
@@ -853,8 +1005,10 @@ class CashController extends Controller
                 if ($it['qty'] <= 0) {
                     $errors[] = "Baris {$n}: Qty harus lebih dari 0.";
                 }
-                if ($it['satuan'] < 0) {
-                    $errors[] = "Baris {$n}: Harga satuan tidak valid.";
+                // Harga satuan boleh negatif (koreksi/refund) -- tidak ada batas
+                // bawah. Hanya nilai yang benar-benar tak masuk akal ditolak.
+                if (abs((float) $it['satuan']) > 1.0e13) {
+                    $errors[] = "Baris {$n}: Harga satuan di luar batas wajar.";
                 }
 
                 $cid = (int) ($it['cash_category_id'] ?? 0);

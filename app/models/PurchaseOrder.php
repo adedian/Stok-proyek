@@ -53,8 +53,15 @@ class PurchaseOrder extends Model
         $params = [];
 
         if (!empty($filters['status'])) {
-            $sql .= " AND po.status = :status";
-            $params['status'] = $filters['status'];
+            if ($filters['status'] === 'menunggu_datang') {
+                // Filter virtual (dipakai kartu Dashboard "Barang Menunggu
+                // Datang") -- PO sudah disetujui tapi barang belum lengkap
+                // datang. Sinkron dgn DashboardStat::barangMenungguDatang().
+                $sql .= " AND po.status IN ('approved', 'partial_received')";
+            } else {
+                $sql .= " AND po.status = :status";
+                $params['status'] = $filters['status'];
+            }
         }
         if (!empty($filters['project_id'])) {
             $sql .= " AND po.project_id = :project_id";

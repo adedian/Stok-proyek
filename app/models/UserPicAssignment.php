@@ -76,6 +76,55 @@ class UserPicAssignment extends Model
         );
     }
 
+    // ===================== Prefix No Bukti Kas (per PIC) =====================
+
+    /**
+     * Prefix Kas untuk sebuah NAMA PIC (yang disimpan di cash_transactions.pic).
+     * NULL kalau PIC itu belum di-set prefix. Kalau satu nama PIC kebetulan
+     * dipetakan ke >1 akun, ambil baris yang punya prefix.
+     */
+    public function prefixForPicName(string $picName): ?string
+    {
+        $row = $this->db->fetchOne(
+            "SELECT kas_prefix FROM user_pic_assignments
+              WHERE pic_name = :pn AND kas_prefix IS NOT NULL AND kas_prefix <> ''
+           ORDER BY id ASC LIMIT 1",
+            ['pn' => $picName]
+        );
+        return $row['kas_prefix'] ?? null;
+    }
+
+    /** Prefix sudah dipakai baris lain? (UNIQUE lintas akun) */
+    public function prefixExists(string $prefix, ?int $excludeId = null): bool
+    {
+        $sql = "SELECT id FROM user_pic_assignments WHERE kas_prefix = :p";
+        $params = ['p' => $prefix];
+        if ($excludeId) {
+            $sql .= " AND id <> :ex";
+            $params['ex'] = $excludeId;
+        }
+        return (bool) $this->db->fetchOne($sql, $params);
+    }
+
+    /** Set / kosongkan prefix Kas untuk satu baris mapping. */
+    public function setPrefix(int $id, ?string $prefix): int
+    {
+        return $this->updateById($id, ['kas_prefix' => ($prefix !== null && $prefix !== '') ? $prefix : null]);
+    }
+
+    /**
+     * Semua prefix yang sudah terpakai + saran prefix bebas dari sebuah nama.
+     * Dipakai untuk auto-suggest di form (server-side, bukan otoritatif --
+     * uniqueness tetap ditegakkan DB + prefixExists()).
+     */
+    public function takenPrefixes(): array
+    {
+        $rows = $this->db->fetchAll(
+            "SELECT DISTINCT kas_prefix FROM user_pic_assignments WHERE kas_prefix IS NOT NULL AND kas_prefix <> ''"
+        );
+        return array_map('strval', array_column($rows, 'kas_prefix'));
+    }
+
     // ===================== Second-level auth Kas =====================
 
     /** Ada PIC (apa pun) untuk user ini? */

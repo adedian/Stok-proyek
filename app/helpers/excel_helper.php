@@ -436,6 +436,9 @@ function streamCashReportExcel(array $ledger, string $companyName, string $perio
         ->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
 
     $money = '#,##0';
+    // Format nominal yang bisa bernilai negatif: minus + merah supaya koreksi
+    // Kas kelihatan jelas di Excel.
+    $moneyNeg = '#,##0;[Red]-#,##0';
     $row = $headerRow + 1;
 
     // Saldo Awal
@@ -443,7 +446,7 @@ function streamCashReportExcel(array $ledger, string $companyName, string $perio
     $sheet->mergeCells("A{$row}:G{$row}");
     $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
     $sheet->setCellValue('H' . $row, (float) $ledger['saldo_awal']);
-    $sheet->getStyle('H' . $row)->getNumberFormat()->setFormatCode($money);
+    $sheet->getStyle('H' . $row)->getNumberFormat()->setFormatCode($moneyNeg);
     $sheet->getStyle("A{$row}:H{$row}")->getFont()->setBold(true);
     $row++;
 
@@ -453,15 +456,17 @@ function streamCashReportExcel(array $ledger, string $companyName, string $perio
         $sheet->setCellValue('C' . $row, $r['uraian']);
         $sheet->setCellValue('D' . $row, (float) $r['qty']);
         $sheet->setCellValue('E' . $row, (float) $r['satuan']);
-        if ((float) $r['masuk'] > 0) {
+        // Nominal Kas boleh negatif (koreksi/refund) -> tampilkan apa pun yang
+        // bukan nol, termasuk nilai minus.
+        if ((float) $r['masuk'] != 0.0) {
             $sheet->setCellValue('F' . $row, (float) $r['masuk']);
         }
-        if ((float) $r['keluar'] > 0) {
+        if ((float) $r['keluar'] != 0.0) {
             $sheet->setCellValue('G' . $row, (float) $r['keluar']);
         }
         $sheet->setCellValue('H' . $row, (float) $r['saldo']);
         $sheet->getStyle("D{$row}")->getNumberFormat()->setFormatCode('#,##0.##');
-        $sheet->getStyle("E{$row}:H{$row}")->getNumberFormat()->setFormatCode($money);
+        $sheet->getStyle("E{$row}:H{$row}")->getNumberFormat()->setFormatCode($moneyNeg);
         $row++;
     }
 
@@ -470,7 +475,7 @@ function streamCashReportExcel(array $ledger, string $companyName, string $perio
     $sheet->mergeCells("A{$row}:G{$row}");
     $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
     $sheet->setCellValue('H' . $row, (float) $ledger['saldo_akhir']);
-    $sheet->getStyle('H' . $row)->getNumberFormat()->setFormatCode($money);
+    $sheet->getStyle('H' . $row)->getNumberFormat()->setFormatCode($moneyNeg);
     $sheet->getStyle("A{$row}:H{$row}")->getFont()->setBold(true);
 
     $lastDataRow = $row;

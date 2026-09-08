@@ -190,6 +190,10 @@ return [
         // Project Manager melihat HANYA saldo divisi mereka sendiri (mis.
         // Purchase -> "Saldo Kas Purchase", role project -> "Saldo Kas Project").
         'view_balance' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING, ROLE_PURCHASE, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT, ROLE_PROJECT_MANAGER],
+        // "Cetak Terpilih" -> voucher BUKTI KAS KELUAR/MASUK (halaman Kas &
+        // Laporan Kas). HANYA Super Admin & Accounting. Ditegakkan backend di
+        // CashController::printVoucher() + disembunyikan di kedua view.
+        'print_voucher' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
     ],
 
     // Master Kategori Kas -- Accounting boleh kelola (view/create/edit) tapi

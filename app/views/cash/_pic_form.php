@@ -23,6 +23,15 @@ $existingNames = $existingNames ?? [];
         <input type="text" name="pic_name" class="form-control" required>
     </div>
     <div class="mb-3">
+        <label class="form-label">Prefix Kas <span class="text-danger">*</span></label>
+        <input type="text" name="kas_prefix" class="form-control text-uppercase font-monospace"
+               maxlength="6" pattern="[A-Za-z][A-Za-z0-9]{1,5}" required autocomplete="off" placeholder="mis. AD">
+        <div class="form-text">
+            2&ndash;6 huruf/angka, diawali huruf. Dipakai untuk No Bukti Kas otomatis
+            (mis. <strong>AD-0001</strong>) dan harus unik antar akun.
+        </div>
+    </div>
+    <div class="mb-3">
         <label class="form-label">Username / Nama Login PIC</label>
         <input type="text" name="pic_username" class="form-control" placeholder="opsional">
         <div class="form-text">Boleh dikosongkan &mdash; login bisa memakai Nama PIC.</div>

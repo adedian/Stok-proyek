@@ -32,6 +32,9 @@
                 <label class="form-label small text-muted mb-1">Status</label>
                 <select name="status" class="form-select form-select-sm">
                     <option value="">Semua Status</option>
+                    <option value="menunggu_datang" <?= ($filters['status'] ?? '') === 'menunggu_datang' ? 'selected' : '' ?>>
+                        Menunggu Barang Datang
+                    </option>
                     <?php foreach ($statusLabels as $key => $label): ?>
                         <option value="<?= e($key) ?>" <?= $filters['status'] === $key ? 'selected' : '' ?>>
                             <?= e($label) ?>

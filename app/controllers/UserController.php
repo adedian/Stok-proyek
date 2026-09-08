@@ -6,6 +6,7 @@ require_once ROOT_PATH . '/app/models/Role.php';
 require_once ROOT_PATH . '/app/models/ActivityLog.php';
 require_once ROOT_PATH . '/app/models/UserPermission.php';
 require_once ROOT_PATH . '/app/models/UserPicAssignment.php';
+require_once ROOT_PATH . '/app/models/CashNumber.php';
 
 class UserController extends Controller
 {
@@ -128,11 +129,18 @@ class UserController extends Controller
         ]);
         $pic->setCredential($id, $picUsername, password_hash($plainPassword, PASSWORD_DEFAULT), true);
 
+        // Prefix Kas otomatis (unik) supaya No Bukti Kas langsung bisa dibuat.
+        // Admin tetap bisa mengubahnya di Master Data -> PIC Kas.
+        $autoPrefix = suggestKasPrefix($picName, $pic->takenPrefixes());
+        if (CashNumber::isValidPrefix($autoPrefix) && !$pic->prefixExists($autoPrefix)) {
+            $pic->setPrefix($id, $autoPrefix);
+        }
+
         $this->activityLog->log(
             currentUserId(),
             'user_pic',
             'create',
-            "PIC Kas '{$picName}' otomatis dibuat untuk user baru '{$username}' (Password Kas awal = password login)"
+            "PIC Kas '{$picName}' otomatis dibuat untuk user baru '{$username}' (Password Kas awal = password login; Prefix Kas '{$autoPrefix}')"
         );
         return true;
     }

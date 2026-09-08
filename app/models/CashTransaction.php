@@ -333,6 +333,8 @@ class CashTransaction extends Model
                 $keluar = $t['mutasi'] === 'keluar' ? $jumlah : 0.0;
                 $saldo += $masuk - $keluar;
                 $rows[] = [
+                    'trx_id'    => $first ? (int) $t['id'] : 0,
+                    'mutasi'    => $t['mutasi'],
                     'trx_date'  => $first ? $t['trx_date'] : '',
                     'no_bukti'  => $first ? $t['no_bukti'] : '',
                     'kategori'  => $it['category_name'] ?? '',

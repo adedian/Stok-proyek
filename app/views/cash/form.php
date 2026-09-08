@@ -5,6 +5,7 @@ $isEdit = $mode === 'edit';
 $actionUrl = $isEdit ? 'update' : 'store';
 $val = static fn(string $k, $d = '') => e($cash[$k] ?? $d);
 $curPic = $cash['pic'] ?? '';
+$noBuktiPreview = $noBuktiPreview ?? ($cash['no_bukti'] ?? '');
 // Partial baris memakai $cashCategories / $units / $projects.
 $cashCategories = $categories;
 ?>
@@ -108,8 +109,17 @@ $cashCategories = $categories;
                 </div>
 
                 <div class="col-md-3">
-                    <label class="form-label">No Bukti <span class="text-danger">*</span></label>
-                    <input type="text" name="no_bukti" class="form-control" value="<?= $val('no_bukti') ?>" required>
+                    <label class="form-label">No Bukti</label>
+                    <input type="text" id="cash_no_bukti" class="form-control bg-light"
+                           value="<?= e($noBuktiPreview) ?>"
+                           placeholder="<?= $isEdit ? '' : 'otomatis saat disimpan' ?>" readonly>
+                    <div class="form-text" id="cash_no_bukti_hint">
+                        <?php if ($isEdit): ?>
+                            Nomor tidak berubah saat transaksi diedit.
+                        <?php else: ?>
+                            Dibuat otomatis mengikuti <strong>Prefix Kas</strong> milik PIC yang dipilih.
+                        <?php endif; ?>
+                    </div>
                 </div>
 
                 <div class="col-md-3">
@@ -340,3 +350,40 @@ $cashCategories = $categories;
     recalcAll();
 })();
 </script>
+
+<?php if (!$isEdit): ?>
+<script>
+// Pratinjau No Bukti otomatis saat PIC dipilih (Tambah Kas). Nomor RESMI tetap
+// dibuat server-side saat disimpan -- ini hanya label bantu.
+(function () {
+    var picSel = document.getElementById('cash_pic');
+    var out  = document.getElementById('cash_no_bukti');
+    var hint = document.getElementById('cash_no_bukti_hint');
+    if (!picSel || !out) { return; }
+
+    function refresh() {
+        var pic = picSel.value;
+        if (!pic) { out.value = ''; out.placeholder = 'otomatis saat disimpan'; return; }
+        fetch('<?= BASE_URL ?>/index.php?module=cash&action=previewNoBukti&pic=' + encodeURIComponent(pic))
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (d && d.preview) {
+                    out.value = d.preview;
+                    if (hint) hint.classList.remove('text-danger');
+                } else {
+                    out.value = '';
+                    out.placeholder = 'otomatis saat disimpan';
+                    if (hint && d && d.error) {
+                        hint.textContent = d.error;
+                        hint.classList.add('text-danger');
+                    }
+                }
+            })
+            .catch(function () { /* diamkan -- nomor tetap dibuat server saat simpan */ });
+    }
+
+    picSel.addEventListener('change', refresh);
+    if (picSel.value) { refresh(); }
+})();
+</script>
+<?php endif; ?>

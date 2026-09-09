@@ -1,9 +1,10 @@
 <?php
 /**
  * Voucher cetak Kas -- SATU dokumen per transaksi (No Bukti), mengikuti
- * "Gambar 1" (BUKTI KAS KELUAR). Kolom "Perkiraan" DIHILANGKAN (revisi 4.1).
- * Blok tanda tangan Pembukuan / Mengetahui / Kasir / Penerima DIHILANGKAN
- * (revisi lanjutan) -- voucher berakhir di CATATAN.
+ * "Gambar 1" (BUKTI KAS KELUAR). Kolom "Perkiraan" & kolom vertikal
+ * "KEPERLUAN" DIHILANGKAN -- grid tinggal URAIAN + JUMLAH.
+ * Blok tanda tangan Pembukuan / Mengetahui / Kasir / Penerima ada sebagai
+ * ruang kosong -- TIDAK ada field input tambahan di form Kas.
  *
  * Partial markup satu voucher. Di-loop oleh app/views/cash/voucher_preview.php
  * (halaman pratinjau di dalam layout aplikasi; CSS + @media print ada di sana),
@@ -40,12 +41,6 @@ if ($total < 0) {
 
 $minRows  = 8;
 $padCount = max(0, $minRows - count($vItems));
-
-// "KEPERLUAN" vertikal -- Dompdf tak mendukung writing-mode/rotate, jadi
-// ditumpuk per huruf di sel kiri baris pertama saja (tanpa rowspan supaya
-// aman di Dompdf).
-$vertLabel = implode('<br>', str_split('KEPERLUAN'));
-$firstCol  = '<span class="vert">' . $vertLabel . '</span>';
 ?>
 <div class="voucher">
     <div class="company"><em><?= e($vCompany) ?> &mdash; Kas Project</em></div>
@@ -69,16 +64,13 @@ $firstCol  = '<span class="vert">' . $vertLabel . '</span>';
     <table class="grid">
         <thead>
             <tr>
-                <th class="c-keperluan">&nbsp;</th>
                 <th class="c-uraian">U R A I A N</th>
                 <th class="c-jumlah">J u m l a h</th>
             </tr>
         </thead>
         <tbody>
-            <?php $rowNo = 0; ?>
-            <?php foreach ($vItems as $it): $rowNo++; ?>
+            <?php foreach ($vItems as $it): ?>
                 <tr>
-                    <td class="keperluan"><?= $rowNo === 1 ? $firstCol : '&nbsp;' ?></td>
                     <td class="uraian">
                         <?= e($it['uraian']) ?>
                         <?php
@@ -94,20 +86,17 @@ $firstCol  = '<span class="vert">' . $vertLabel . '</span>';
                     <td class="jumlah <?= (float) $it['jumlah'] < 0 ? 'neg' : '' ?>"><?= $rp($it['jumlah']) ?></td>
                 </tr>
             <?php endforeach; ?>
-            <?php for ($i = 0; $i < $padCount; $i++): $rowNo++; ?>
+            <?php for ($i = 0; $i < $padCount; $i++): ?>
                 <tr>
-                    <td class="keperluan"><?= $rowNo === 1 ? $firstCol : '&nbsp;' ?></td>
                     <td class="uraian">&nbsp;</td>
                     <td class="jumlah">&nbsp;</td>
                 </tr>
             <?php endfor; ?>
             <tr class="row-ch">
-                <td class="keperluan">&nbsp;</td>
                 <td class="uraian">Ch/G.B. No. :</td>
                 <td class="jumlah">&nbsp;</td>
             </tr>
             <tr class="row-total">
-                <td class="keperluan">&nbsp;</td>
                 <td class="uraian">TOTAL :</td>
                 <td class="jumlah <?= $total < 0 ? 'neg' : '' ?>">Rp <?= $rp($total) ?></td>
             </tr>
@@ -119,6 +108,11 @@ $firstCol  = '<span class="vert">' . $vertLabel . '</span>';
     </table>
 
     <table class="catatan"><tr><td>CATATAN :</td></tr></table>
+
+    <table class="ttd">
+        <tr><th>Pembukuan</th><th>Mengetahui</th><th>Kasir</th><th>Penerima</th></tr>
+        <tr class="space"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+    </table>
 
     <div class="foot">Dibuat oleh: <?= e($vHeader['created_by_name'] ?? '-') ?> &nbsp;&middot;&nbsp; <?= e(printedAtLabel()) ?></div>
 </div>

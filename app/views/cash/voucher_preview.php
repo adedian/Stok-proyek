@@ -49,10 +49,7 @@ $backUrl  = $backUrl ?? (BASE_URL . '/cash');
     .kas-voucher-print table.grid { width: 100%; border-collapse: collapse; }
     .kas-voucher-print table.grid th, .kas-voucher-print table.grid td { border: 1px solid #843C0C; padding: 4px 7px; vertical-align: top; }
     .kas-voucher-print table.grid thead th { background: #C55A11; color: #fff; text-align: center; font-weight: bold; letter-spacing: 2px; }
-    .kas-voucher-print table.grid .c-keperluan { width: 26px; padding: 0; }
     .kas-voucher-print table.grid .c-jumlah { width: 130px; }
-    .kas-voucher-print table.grid td.keperluan { text-align: center; padding: 2px 0; background: #F7CBAC; }
-    .kas-voucher-print table.grid td.keperluan .vert { font-size: 8px; line-height: 1.15; letter-spacing: 0; color: #843C0C; font-weight: bold; }
     .kas-voucher-print table.grid td.uraian .sub { font-size: 9px; color: #666; margin-top: 2px; }
     .kas-voucher-print table.grid td.jumlah { text-align: right; white-space: nowrap; }
     .kas-voucher-print table.grid td.jumlah.neg { color: #b00020; }
@@ -66,6 +63,11 @@ $backUrl  = $backUrl ?? (BASE_URL . '/cash');
     .kas-voucher-print table.terbilang td.k { width: 70px; font-weight: bold; background: #F7CBAC; white-space: nowrap; }
     .kas-voucher-print table.terbilang td.v { font-style: italic; }
     .kas-voucher-print table.catatan td { border: 1px solid #843C0C; border-top: 0; padding: 5px 7px 22px; font-weight: bold; }
+
+    .kas-voucher-print table.ttd { width: 100%; border-collapse: collapse; margin-top: 6px; }
+    .kas-voucher-print table.ttd th, .kas-voucher-print table.ttd td { border: 1px solid #843C0C; text-align: center; padding: 4px; width: 25%; }
+    .kas-voucher-print table.ttd th { background: #C55A11; color: #fff; font-weight: bold; }
+    .kas-voucher-print table.ttd tr.space td { height: 66px; }
 
     .kas-voucher-print .foot { margin-top: 8px; font-size: 9px; color: #999; text-align: right; }
 

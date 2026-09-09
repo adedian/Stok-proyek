@@ -3,6 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <script>
+        /* Tandai mode aplikasi SEBELUM render pertama -> tanpa kedip. */
+        (function () {
+            try {
+                if ((window.matchMedia && (matchMedia('(display-mode: standalone)').matches
+                        || matchMedia('(display-mode: minimal-ui)').matches))
+                    || navigator.standalone === true) {
+                    document.documentElement.classList.add('pwa-standalone');
+                }
+            } catch (e) { /* abaikan */ }
+        })();
+    </script>
     <title><?= isset($pageTitle) ? e($pageTitle) . ' - ' : '' ?><?= e(APP_NAME) ?></title>
     <link rel="icon" type="image/png" href="<?= assetUrl('/assets/img/logo-hme.png') ?>">
 
@@ -32,6 +44,7 @@
     <link href="<?= assetUrl('/assets/css/alerts.css') ?>" rel="stylesheet">
     <link href="<?= assetUrl('/assets/css/utilities.css') ?>" rel="stylesheet">
     <link href="<?= assetUrl('/assets/css/responsive.css') ?>" rel="stylesheet">
+    <link href="<?= assetUrl('/assets/css/pwa.css') ?>" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 </head>

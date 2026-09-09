@@ -3,6 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <script>
+        (function () {
+            try {
+                if ((window.matchMedia && (matchMedia('(display-mode: standalone)').matches
+                        || matchMedia('(display-mode: minimal-ui)').matches))
+                    || navigator.standalone === true) {
+                    document.documentElement.classList.add('pwa-standalone');
+                }
+            } catch (e) { /* abaikan */ }
+        })();
+    </script>
     <title>Login - <?= e(APP_NAME) ?></title>
     <link rel="icon" type="image/png" href="<?= assetUrl('/assets/img/logo-hme.png') ?>">
 
@@ -27,6 +38,7 @@
     <link href="<?= assetUrl('/assets/css/badges.css') ?>" rel="stylesheet">
     <link href="<?= assetUrl('/assets/css/alerts.css') ?>" rel="stylesheet">
     <link href="<?= assetUrl('/assets/css/utilities.css') ?>" rel="stylesheet">
+    <link href="<?= assetUrl('/assets/css/pwa.css') ?>" rel="stylesheet">
     <style>
         /* =========================================================
            LOGIN -- corporate, compact, mobile-first.
@@ -334,5 +346,6 @@
         });
     })();
     </script>
+    <script src="<?= assetUrl('/assets/js/pwa.js') ?>"></script>
 </body>
 </html>

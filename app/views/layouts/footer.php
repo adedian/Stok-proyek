@@ -12,6 +12,7 @@
     <script src="<?= assetUrl('/assets/js/currency-input.js') ?>"></script>
     <script src="<?= assetUrl('/assets/js/checkbox-select-all.js') ?>"></script>
     <script src="<?= assetUrl('/assets/js/responsive-tables.js') ?>"></script>
+    <script src="<?= assetUrl('/assets/js/pwa.js') ?>"></script>
 
     <?php /* ---- PWA: daftarkan Service Worker (hanya di HTTPS / localhost) ---- */ ?>
     <script>

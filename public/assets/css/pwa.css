@@ -1,0 +1,109 @@
+/* =========================================================================
+ * PWA / MODE APLIKASI -- polesan sentuh biar terasa seperti aplikasi HP.
+ *
+ *  - Blok "GLOBAL SENTUH" aman untuk semua perangkat; desktop tak terpengaruh.
+ *  - Blok ".pwa-standalone ..." HANYA aktif saat aplikasi dibuka dari ikon
+ *    home screen (display-mode: standalone). Di browser biasa tetap normal.
+ * ========================================================================= */
+
+/* ---- Global: hilangkan kilau tap biru & auto-zoom teks iOS ---- */
+* {
+    -webkit-tap-highlight-color: transparent;
+}
+html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
+/* ---- Hanya saat berjalan sebagai aplikasi terpasang ---- */
+
+/* Matikan pull-to-refresh & efek pantul saat scroll mentok. */
+.pwa-standalone,
+.pwa-standalone body {
+    overscroll-behavior-y: none;
+}
+
+/* "Chrome" aplikasi (topbar, menu, tombol, footer) tidak bisa diseleksi
+   atau ditekan-lama -- persis aplikasi native. */
+.pwa-standalone .app-topbar,
+.pwa-standalone .sidebar,
+.pwa-standalone .app-breadcrumb,
+.pwa-standalone .app-footer,
+.pwa-standalone .btn,
+.pwa-standalone .btn-sidebar-toggle,
+.pwa-standalone .topbar-icon-btn,
+.pwa-standalone .app-user-avatar,
+.pwa-standalone .nav-link,
+.pwa-standalone .page-link,
+.pwa-standalone .dropdown-item {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* Isi halaman tetap bisa diseleksi / disalin (angka, tabel, catatan, dsb). */
+.pwa-standalone .main-content,
+.pwa-standalone input,
+.pwa-standalone textarea,
+.pwa-standalone [contenteditable] {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+/* Scroll di dalam kontainer terasa "melayang" seperti native (iOS lama). */
+.pwa-standalone .table-responsive,
+.pwa-standalone .modal-body,
+.pwa-standalone .sidebar {
+    -webkit-overflow-scrolling: touch;
+}
+
+/* =========================================================================
+ * Tombol "Pasang Aplikasi" mengambang (Android/Chrome; muncul lewat pwa.js)
+ * ========================================================================= */
+.pwa-install-fab {
+    position: fixed;
+    left: 50%;
+    bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%);
+    z-index: 1080;
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .6rem 1.1rem;
+    border: 0;
+    border-radius: 999px;
+    background: var(--brand-700, #1E3C72);
+    color: #fff;
+    font-size: .9rem;
+    font-weight: 600;
+    line-height: 1;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, .28);
+    cursor: pointer;
+    animation: pwaFabIn .25s ease;
+}
+.pwa-install-fab i {
+    font-size: 1rem;
+}
+.pwa-install-fab .pwa-install-x {
+    margin-left: .35rem;
+    padding-left: .35rem;
+    border-left: 1px solid rgba(255, 255, 255, .35);
+    font-size: 1.05rem;
+    font-weight: 400;
+    opacity: .85;
+}
+@keyframes pwaFabIn {
+    from { opacity: 0; transform: translate(-50%, 12px); }
+    to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* Kalau sudah jadi aplikasi terpasang, tombol tak perlu tampil. */
+.pwa-standalone .pwa-install-fab {
+    display: none !important;
+}
+
+@media print {
+    .pwa-install-fab {
+        display: none !important;
+    }
+}

@@ -1005,6 +1005,45 @@
 }
 
 /* ============================================================
+   15b. SAFE-AREA -- notch / Dynamic Island / home indicator
+   PWA iOS (apple-mobile-web-app-status-bar-style = black-translucent)
+   membuat konten memakai SELURUH layar termasuk di belakang status
+   bar & home indicator. env(safe-area-inset-*) memberi jarak aman.
+   Fallback 0px -> tanpa efek di perangkat tanpa notch (semua desktop
+   & mayoritas Android). Diletakkan SEBELUM blok landscape (14) supaya
+   min-height topbar landscape-pendek (46px) tetap menang.
+   ============================================================ */
+
+/* Topbar: latar tumbuh menutup area notch, isinya tetap di bawah status bar. */
+.navbar.app-topbar {
+    padding-top: calc(.6rem + env(safe-area-inset-top, 0px));
+    padding-left: calc(1rem + env(safe-area-inset-left, 0px));
+    padding-right: calc(1rem + env(safe-area-inset-right, 0px));
+    min-height: calc(var(--topbar-height) + env(safe-area-inset-top, 0px));
+}
+
+/* Menu samping (offcanvas) di HP: item paling atas & bawah tidak tertutup. */
+@media (max-width: 991.98px) {
+    .sidebar {
+        padding-top: env(safe-area-inset-top, 0px);
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+}
+
+/* Dasar halaman: footer & konten terakhir tidak tertutup home indicator. */
+body {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Landscape HP dengan notch di sisi: konten tidak masuk ke lekukan layar. */
+@media (max-width: 991.98px) and (orientation: landscape) {
+    .main-content {
+        padding-left: max(1rem, env(safe-area-inset-left, 0px));
+        padding-right: max(1rem, env(safe-area-inset-right, 0px));
+    }
+}
+
+/* ============================================================
    14. LANDSCAPE HP (tinggi <500px) -- rapatkan vertikal
    ============================================================ */
 @media (max-width: 991.98px) and (max-height: 500px) and (orientation: landscape) {

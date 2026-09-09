@@ -38,7 +38,9 @@ return [
     ],
 
     'purchase_order' => [
-        'view'   => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PROJECT_MANAGER],
+        // Project Manager SENGAJA tidak lagi punya akses PO (Revisi 2026-09-09) --
+        // PM tidak mengurus pembelian; menu PO disembunyikan untuk role ini.
+        'view'   => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING],
         'create' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING],
         'edit'   => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING],
         'delete' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE],
@@ -59,8 +61,8 @@ return [
     ],
 
     'validation' => [
-        'view'     => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_PROJECT_MANAGER],
-        'validate' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING, ROLE_PIC_PROJECT],
+        'view'     => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_PROJECT_MANAGER],
+        'validate' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT],
     ],
 
     'stock_out' => [
@@ -95,6 +97,12 @@ return [
         // Boleh melihat kolom HARGA di Laporan Stok Barang (Cetak/Export) +
         // memilih toggle Tampilkan/Tanpa harga. Role lain: output selalu tanpa harga.
         'stock_price' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        // Boleh membuka "Laporan Stok Barang" TANPA harus punya akses modul
+        // Stok & Opname (inventory.view). Dipakai tim Purchase: lihat kartu stok
+        // saja, output SELALU tanpa harga (stock_price di atas tetap SA & AC).
+        // Role project & Accounting sudah dapat lewat jalur lain -- didaftarkan
+        // di sini juga supaya matrix Hak Akses menampilkan kondisi sebenarnya.
+        'stock_report' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_PROJECT_MANAGER],
     ],
 
     // Tutup Bulan (Laporan -> Tutup Bulan) -- SUPER ADMIN ONLY, terkunci
@@ -148,8 +156,10 @@ return [
     ],
 
     // Invoice Keluar (AR/Sales Invoice) -- HME menagih ke client.
+    // Project Manager SENGAJA tidak punya akses (Revisi 2026-09-09) -- PM tidak
+    // mengurus penagihan; menu Invoice Keluar disembunyikan untuk role ini.
     'sales_invoice' => [
-        'view'   => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PROJECT_MANAGER],
+        'view'   => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING],
         'create' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING],
         'edit'   => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING],
         'delete' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE],

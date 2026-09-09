@@ -65,7 +65,7 @@
                     <?php if (!empty($po['notes'])): ?>
                         <div class="col-12">
                             <div class="text-muted small">Catatan</div>
-                            <div><?= e($po['notes']) ?></div>
+                            <div><?= nl2br(e($po['notes'])) ?></div>
                         </div>
                     <?php endif; ?>
                 </div>

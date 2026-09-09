@@ -70,6 +70,14 @@ class ReportController extends Controller
             }
             return;
         }
+        // "Laporan Stok Barang" boleh dibuka lewat izin khusus report.stock_report
+        // (mis. tim Purchase) TANPA akses penuh modul Stok & Opname. Hanya berlaku
+        // untuk type 'inventory' -- Laporan Stok Opname ('stockOpname') tetap butuh
+        // inventory.view. Output Cetak/Export tetap dipaksa tanpa harga di
+        // stockFilters() untuk role tanpa report.stock_price.
+        if ($type === 'inventory' && can('report', 'stock_report')) {
+            return;
+        }
         $needs = self::REPORT_MODULE_PERMS[$type] ?? null;
         if ($needs !== null && !can($needs, 'view')) {
             denyAccess('Anda tidak punya akses ke laporan ini.');
@@ -148,6 +156,11 @@ class ReportController extends Controller
             $out = array_values(array_filter($all, function ($r) use ($role) {
                 if ($r['key'] === 'activityLog') {
                     return in_array($role, [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING], true);
+                }
+                // Kartu "Stok Barang" muncul juga lewat izin khusus report.stock_report
+                // (tim Purchase) walau tak punya inventory.view.
+                if ($r['key'] === 'inventory' && can('report', 'stock_report')) {
+                    return true;
                 }
                 $mod = self::REPORT_MODULE_PERMS[$r['key']] ?? null;
                 return $mod === null ? true : can($mod, 'view');

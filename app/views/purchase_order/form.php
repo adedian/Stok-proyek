@@ -142,8 +142,8 @@ $actionUrl = $isEdit ? 'update' : 'store';
                 </div>
                 <div class="col-md-8">
                     <label class="form-label">Catatan</label>
-                    <input type="text" name="notes" class="form-control"
-                           value="<?= e($po['notes'] ?? '') ?>" placeholder="Opsional">
+                    <textarea name="notes" class="form-control" rows="3"
+                              placeholder="Opsional -- tekan Enter untuk baris baru (mis. catatan bernomor 1, 2, 3)"><?= e($po['notes'] ?? '') ?></textarea>
                 </div>
             </div>
         </div>

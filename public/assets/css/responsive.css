@@ -788,9 +788,15 @@
         min-height: 0;
     }
 
+    /* padding-top menyerap tinggi status bar iOS (notch/Dynamic Island) ->
+       judul modal TIDAK lagi ketiban jam & indikator baterai. Latar
+       --brand-50 ikut tumbuh menutup area itu (pola sama seperti topbar). */
     .modal-header {
         flex: 0 0 auto;
-        padding: .85rem 1rem;
+        padding: calc(.85rem + env(safe-area-inset-top, 0px))
+                 max(1rem, env(safe-area-inset-right, 0px))
+                 .85rem
+                 max(1rem, env(safe-area-inset-left, 0px));
         background: var(--brand-50);
     }
 
@@ -802,7 +808,7 @@
         min-height: 0;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
-        padding: 1rem;
+        padding: 1rem max(1rem, env(safe-area-inset-right, 0px)) 1rem max(1rem, env(safe-area-inset-left, 0px));
     }
 
     .modal-footer {
@@ -811,7 +817,10 @@
         gap: .5rem;
         background: var(--surface);
         border-top: 1px solid var(--border-soft);
-        padding: .75rem 1rem calc(.75rem + env(safe-area-inset-bottom, 0px));
+        padding: .75rem
+                 max(1rem, env(safe-area-inset-right, 0px))
+                 calc(.75rem + env(safe-area-inset-bottom, 0px))
+                 max(1rem, env(safe-area-inset-left, 0px));
     }
 
     /* tombol aksi: berbagi baris rata (2 tombol -> 50/50), cukup tinggi

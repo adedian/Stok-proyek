@@ -135,13 +135,16 @@ atau menampilkan hash commit terkirim.
 #### A2. Buat dump (salinan) database lokal
 
 ```powershell
-& "C:\xampp\mysql\bin\mysqldump.exe" -u root --databases db_stok_proyek --add-drop-database --result-file=C:\xampp\htdocs\stok-proyek\db_stok_proyek.sql
+& "C:\xampp\mysql\bin\mysqldump.exe" -u root db_stok_proyek --add-drop-table --no-tablespaces --skip-lock-tables --single-transaction --default-character-set=utf8mb4 --result-file=C:\xampp\htdocs\stok-proyek\db_hexastok.sql
 ```
 
 - Perintah ini **tidak menampilkan output** kalau berhasil.
-- Cek: file `db_stok_proyek.sql` muncul, ukuran > 100 KB.
-- File ini berisi **skema + data + riwayat migrasi**. Sudah otomatis di-*ignore*
-  git, jadi tidak akan ke-commit.
+- Cek: file `db_hexastok.sql` muncul, ukuran > 100 KB.
+- File ini berisi **tabel + data + riwayat migrasi**, **tanpa** `CREATE DATABASE` /
+  `USE` — jadi bisa langsung di-import ke database cPanel yang namanya beda
+  (`u5658505_hexastok`). Sudah otomatis di-*ignore* git.
+- **Ulangi perintah ini setiap kali ada perubahan data/skema di lokal** yang mau
+  dibawa ke server (file lama ditimpa).
 
 > **Mau produksi mulai bersih tanpa data uji?** Lewati langkah ini. Nanti di
 > [C4](#c4-import-database) import `database/schema.sql` lalu jalankan
@@ -253,15 +256,18 @@ Simpan: `Ctrl+O` → Enter → `Ctrl+X`.
 
 #### C4. Import database
 
-**Punya dump lengkap** (dari A2) — upload dulu file `db_stok_proyek.sql` ke
+**Punya dump lengkap** (dari A2) — upload dulu file `db_hexastok.sql` ke
 `~/stok-proyek/` lewat cPanel **File Manager** (atau `scp` kalau SSH aktif), lalu:
 
 ```bash
-mysql -u USER_stok -p USER_stokproyek < ~/stok-proyek/db_stok_proyek.sql
+mysql -u u5658505_hexastok -p u5658505_hexastok < ~/stok-proyek/db_hexastok.sql
 PHP bin/migrate.php --baseline     # tandai migrasi lama = sudah jalan
 PHP bin/migrate.php                # jalankan yang benar-benar baru
-rm ~/stok-proyek/db_stok_proyek.sql
+rm ~/stok-proyek/db_hexastok.sql
 ```
+
+> Dump dari A2 **sudah tanpa** `CREATE DATABASE`/`USE`, jadi aman di-import ke
+> `u5658505_hexastok` walau nama database lokalnya `db_stok_proyek`.
 
 **Mulai bersih** (tanpa data uji):
 
@@ -396,6 +402,14 @@ PHP bin/make_pwa_icons.php    # hanya kalau ikon PWA berubah
 ```
 
 - Aman diulang. Tidak perlu reload Apache di shared hosting.
+- **Perubahan struktur database** = cukup di sini: file migrasi `database/migrations/*`
+  ikut ter-*push*, lalu `PHP bin/migrate.php` di server yang menjalankannya.
+  **Tidak perlu** dump/import ulang.
+- **Butuh dump/import ulang HANYA** kalau kamu mau menyalin *isi data* dari lokal
+  ke server (jarang setelah live): ulang [A2](#a2-buat-dump-salinan-database-lokal)
+  di laptop, upload `db_hexastok.sql`, lalu di server
+  `mysql -u u5658505_hexastok -p u5658505_hexastok < db_hexastok.sql` →
+  `PHP bin/migrate.php`. ⚠️ ini **menimpa** data yang sudah ada di server.
 - Kalau perubahan belum kelihatan: cPanel → **Select PHP Version** buka-tutup, atau
   tunggu beberapa menit (OPcache biasanya refresh sendiri).
 - **Kalau `git pull` ditolak** (`local changes would be overwritten`) — ada yang

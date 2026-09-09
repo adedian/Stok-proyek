@@ -71,6 +71,37 @@ $backUrl  = $backUrl ?? (BASE_URL . '/cash');
 
     .kas-voucher-print .foot { margin-top: 8px; font-size: 9px; color: #999; text-align: right; }
 
+    /* ---- Pratinjau di HP: A4 tidak muat, jadi lembar di-reflow (tidak
+       menyentuh hasil cetak -- @media screen tidak berlaku saat print) ---- */
+    @media screen and (max-width: 640px) {
+        .kas-voucher-print .voucher { padding: 14px 12px; font-size: 12px; }
+
+        /* Header 3 sel ditumpuk vertikal supaya "BUKTI KAS KELUAR" & Nomor/Tanggal
+           dapat lebar penuh, tidak terpotong. */
+        .kas-voucher-print table.head,
+        .kas-voucher-print table.head > tbody,
+        .kas-voucher-print table.head > tbody > tr { display: block; }
+        .kas-voucher-print table.head > tbody > tr > td {
+            display: block;
+            width: auto !important;
+            border: 1.5px solid #843C0C;
+            border-top: 0;
+        }
+        .kas-voucher-print table.head > tbody > tr > td.head-left { border-top: 1.5px solid #843C0C; }
+        .kas-voucher-print .head-left .val { margin-top: 2px; }
+        .kas-voucher-print .head-mid { font-size: 16px; padding: 8px 7px; }
+        .kas-voucher-print table.nomor td.k { width: 64px; }
+
+        .kas-voucher-print table.grid th,
+        .kas-voucher-print table.grid td { padding: 5px 6px; }
+        .kas-voucher-print table.grid thead th { letter-spacing: 1px; }
+        .kas-voucher-print table.grid .c-jumlah { width: 92px; }
+
+        .kas-voucher-print table.ttd th,
+        .kas-voucher-print table.ttd td { padding: 4px 2px; font-size: 10px; }
+        .kas-voucher-print table.ttd tr.space td { height: 46px; }
+    }
+
     @page { size: A4; margin: 10mm; }
     @media print {
         .kas-voucher-print { max-width: none; }

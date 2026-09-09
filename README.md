@@ -1,4 +1,4 @@
-# HME STOK — PT. Hexa Multi Energi
+# HEXA STOK — PT. Hexa Multi Energi
 
 Aplikasi web internal untuk kontrol stok proyek: Purchase Order, Penerimaan &
 Pengeluaran Barang, Stok Opname, Kas, Invoice Keluar / Surat Jalan / Tanda Terima,

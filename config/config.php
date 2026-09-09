@@ -13,7 +13,7 @@
 // TIDAK mengonversi/mengubah data historis yang sudah tersimpan.
 date_default_timezone_set('Asia/Jakarta');
 
-define('APP_NAME', 'HME STOK');
+define('APP_NAME', 'HEXA STOK');
 
 // ---------------------------------------------------------------------------
 // Konfigurasi lokal / per-server (config/local.php -- TIDAK di-commit).

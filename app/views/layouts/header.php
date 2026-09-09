@@ -12,7 +12,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="HME STOK">
+    <meta name="apple-mobile-web-app-title" content="HEXA STOK">
     <link rel="apple-touch-icon" href="<?= BASE_URL ?>/assets/img/pwa/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="<?= BASE_URL ?>/assets/img/pwa/favicon-32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="<?= BASE_URL ?>/assets/img/pwa/favicon-16.png">
@@ -83,7 +83,7 @@ if (!function_exists('renderTopbarAvatar')) {
         <span class="navbar-brand mb-0 h1 d-none d-md-flex align-items-center gap-2">
             <img src="<?= assetUrl('/assets/img/logo-hme.png') ?>" alt="Logo HME" class="navbar-brand-logo">
             <span class="brand-full"><?= e(APP_NAME) ?></span>
-            <span class="brand-short">HME</span>
+            <span class="brand-short">HEXA</span>
         </span>
         <nav class="app-breadcrumb" aria-label="breadcrumb">
             <?php if ($topbarGroup): ?>

@@ -238,29 +238,144 @@
        A4 aslinya lalu perkecil UTUH pakai CSS zoom, supaya identik dengan
        hasil cetak. Tidak mereflow apa pun. Di-reset saat >=768px & saat
        benar-benar mencetak.
+
+       Aplikasi mematikan zoom di seluruh halaman (viewport user-scalable=no),
+       JADI pratinjau cetak diberi kontrol zoom SENDIRI: toolbar - / % / +
+       plus double-tap. Saat 100% ("pas layar") perilaku persis seperti dulu;
+       saat di-zoom, halaman dibungkus .print-zoom-viewport yang bisa digeser
+       (pan) dua arah.
        --------------------------------------------------------------------- */
     var MQ_PRINT_PREVIEW = window.matchMedia('(max-width: 767.98px)');
+    var printUserZoom = 1;
+    var PRINT_ZOOM_MIN = 1;
+    var PRINT_ZOOM_MAX = 4;
+    var PRINT_ZOOM_STEP = 1.25;
+    var printZoomBar = null;
+
+    function printPreviewPages() {
+        return document.querySelectorAll('.main-content [class*="print-page"]');
+    }
+
+    // Bungkus SEMUA halaman pratinjau dalam SATU viewport pannable (mereka
+    // tetap adjacent sibling di dalamnya -> selector "A + A" di CSS cetak
+    // tiap modul tetap jalan). Idempoten.
+    function ensurePrintZoomViewport(pages) {
+        if (!pages.length) return null;
+        var existing = pages[0].parentNode;
+        if (existing && existing.classList.contains('print-zoom-viewport')) return existing;
+        var vp = document.createElement('div');
+        vp.className = 'print-zoom-viewport';
+        pages[0].parentNode.insertBefore(vp, pages[0]);
+        Array.prototype.forEach.call(pages, function (pg) { vp.appendChild(pg); });
+        return vp;
+    }
+
+    function currentPrintViewport() {
+        return document.querySelector('.main-content .print-zoom-viewport');
+    }
+
+    function removePrintZoomViewport() {
+        var vp = currentPrintViewport();
+        if (!vp) return;
+        var parent = vp.parentNode;
+        while (vp.firstChild) parent.insertBefore(vp.firstChild, vp);
+        parent.removeChild(vp);
+    }
 
     function scalePrintPreviews() {
         var mobile = MQ_PRINT_PREVIEW.matches;
-        var pages = document.querySelectorAll('.main-content [class*="print-page"]');
+        var pages = printPreviewPages();
+
+        if (!mobile || !pages.length) {
+            Array.prototype.forEach.call(pages, function (pg) {
+                pg.style.zoom = '';
+                pg.style.width = '';
+            });
+            if (!pages.length || !mobile) removePrintZoomViewport();
+            updatePrintZoomBar(false);
+            return;
+        }
+
+        var vp = ensurePrintZoomViewport(pages);
+
         Array.prototype.forEach.call(pages, function (pg) {
             pg.style.zoom = '';
             pg.style.width = '';
-            if (!mobile) return;
-
-            // lebar blok natural di kontainer (mis. 343 di layar 375)
-            var target = pg.offsetWidth;
-            // paksa ke lebar A4 desain lalu ukur (mis. 794 = 210mm @96dpi)
-            pg.style.width = '210mm';
+            var target = pg.offsetWidth;              // lebar terbatas di kontainer
+            pg.style.width = '210mm';                 // paksa ke lebar A4 lalu ukur
             var natW = pg.offsetWidth;
             if (!natW || !target) { pg.style.width = ''; return; }
 
-            var scale = target / natW;
-            if (scale >= 0.999) { pg.style.width = ''; return; }
-            pg.style.zoom = scale;
+            var fit = target / natW;
+            pg.dataset.fitScale = fit;
+            var z = fit * printUserZoom;
+            if (printUserZoom === 1 && z >= 0.999) {
+                pg.style.width = '';                  // muat pas -> biarkan natural
+            } else {
+                pg.style.zoom = z;
+            }
         });
+
+        if (vp) vp.classList.toggle('is-zoomed', printUserZoom > 1);
+        updatePrintZoomBar(true);
     }
+
+    function setPrintZoom(z, resetScroll) {
+        printUserZoom = Math.min(PRINT_ZOOM_MAX, Math.max(PRINT_ZOOM_MIN, z));
+        scalePrintPreviews();
+        if (resetScroll) {
+            var vp = currentPrintViewport();
+            if (vp && vp.scrollTo) { vp.scrollTo(0, 0); }
+        }
+    }
+
+    function buildPrintZoomBar() {
+        if (printZoomBar) return printZoomBar;
+        var bar = document.createElement('div');
+        bar.className = 'print-zoom-bar no-print';
+        bar.innerHTML =
+            '<button type="button" data-act="out" aria-label="Perkecil">−</button>'
+            + '<span class="print-zoom-val">100%</span>'
+            + '<button type="button" data-act="in" aria-label="Perbesar">+</button>'
+            + '<button type="button" data-act="fit" aria-label="Pas layar">'
+            + '<i class="bi bi-arrows-angle-contract"></i></button>';
+        bar.addEventListener('click', function (e) {
+            var b = e.target.closest ? e.target.closest('button') : null;
+            if (!b) return;
+            if (b.dataset.act === 'in') setPrintZoom(printUserZoom * PRINT_ZOOM_STEP, false);
+            else if (b.dataset.act === 'out') setPrintZoom(printUserZoom / PRINT_ZOOM_STEP, printUserZoom / PRINT_ZOOM_STEP <= 1);
+            else setPrintZoom(1, true);
+        });
+        document.body.appendChild(bar);
+        printZoomBar = bar;
+        return bar;
+    }
+
+    function updatePrintZoomBar(show) {
+        if (!show) { if (printZoomBar) printZoomBar.hidden = true; return; }
+        var bar = buildPrintZoomBar();
+        bar.hidden = false;
+        bar.querySelector('.print-zoom-val').textContent = Math.round(printUserZoom * 100) + '%';
+        bar.querySelector('[data-act=out]').disabled = printUserZoom <= PRINT_ZOOM_MIN + 0.001;
+        bar.querySelector('[data-act=in]').disabled = printUserZoom >= PRINT_ZOOM_MAX - 0.001;
+    }
+
+    // Double-tap di area pratinjau -> toggle pas-layar <-> 2.5x.
+    (function () {
+        var lastTap = 0;
+        document.addEventListener('touchend', function (e) {
+            var vp = e.target.closest ? e.target.closest('.print-zoom-viewport') : null;
+            if (!vp) { lastTap = 0; return; }
+            var now = Date.now();
+            if (now - lastTap > 0 && now - lastTap < 300) {
+                setPrintZoom(printUserZoom > 1 ? 1 : 2.5, printUserZoom > 1);
+                e.preventDefault();
+                lastTap = 0;
+            } else {
+                lastTap = now;
+            }
+        }, { passive: false });
+    })();
 
     /* ---------------------------------------------------------------------
        Tabel entri ber-class .entry-cards: isi atribut data-label tiap <td>
@@ -350,11 +465,18 @@
         };
     })());
 
-    /* Saat dialog cetak dibuka dari HP: kembalikan dokumen ke ukuran penuh
-       (CSS @media print juga sudah memaksa zoom:1, ini jaring pengaman). */
+    /* Saat dialog cetak dibuka dari HP: kembalikan dokumen ke ukuran penuh &
+       lepas mode zoom (CSS @media print juga sudah menetralkan, ini jaring
+       pengaman supaya hasil cetak tidak pernah terpotong / ter-skala). */
     function unscaleForPrint() {
-        var pages = document.querySelectorAll('.main-content [class*="print-page"]');
-        Array.prototype.forEach.call(pages, function (pg) { pg.style.zoom = ''; pg.style.width = ''; });
+        printUserZoom = 1;
+        var vp = currentPrintViewport();
+        if (vp) { vp.classList.remove('is-zoomed'); }
+        Array.prototype.forEach.call(printPreviewPages(), function (pg) {
+            pg.style.zoom = '';
+            pg.style.width = '';
+        });
+        if (printZoomBar) { printZoomBar.hidden = true; }
     }
     window.addEventListener('beforeprint', unscaleForPrint);
     window.addEventListener('afterprint', scalePrintPreviews);

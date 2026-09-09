@@ -64,7 +64,7 @@ cat <<DONE
 
  Langkah manual berikutnya:
    1) Di VPS baru: pasang SSL untuk subdomain FINAL:
-        sudo certbot --apache -d stok.hexamultienergi.com
+        sudo certbot --apache -d hexastok.hexamultienergi.com
    2) Verifikasi aplikasi di VPS baru (akses lewat IP / entri /etc/hosts).
    3) Ubah A record subdomain -> IP VPS baru (TTL sudah 300 dtk sebelumnya).
    4) Setelah yakin: matikan VPS lama, naikkan TTL DNS ke 3600.

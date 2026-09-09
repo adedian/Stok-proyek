@@ -13,7 +13,7 @@ Laporan, dan Master Data. Bisa di-*install* sebagai aplikasi di HP (PWA).
 
 | Fase | Di mana | Kapan |
 |---|---|---|
-| **FASE 1 — sekarang** | Subdomain `stok.hexamultienergi.com` di **hosting cPanel** yang sudah ada (kode + database + folder upload semua di sana) | langsung, murah, cukup untuk mulai |
+| **FASE 1 — sekarang** | Subdomain `hexastok.hexamultienergi.com` di **hosting cPanel** yang sudah ada (kode + database + folder upload semua di sana) | langsung, murah, cukup untuk mulai |
 | **FASE 2 — nanti** | **VPS Hostinger** (khusus aplikasi ini) | kalau kuota disk cPanel mulai sesak di tengah jalan (lihat [Bagian 4](#4-kapasitas-penyimpanan--kapan-pindah-ke-vps)) |
 
 Kode & alur kerja **tidak berubah** antar fase — pindah = salin data + ganti DNS.
@@ -93,7 +93,7 @@ Istilah singkat:
 - **Document Root** = folder yang "ditunjuk" oleh sebuah domain/subdomain. Untuk
   aplikasi ini harus diarahkan ke folder **`public/`** (bukan folder atasnya),
   supaya `config/`, `app/`, `logs/` tidak bisa dibuka dari web.
-- **DNS / A record** = "buku alamat" yang menghubungkan `stok.hexamultienergi.com`
+- **DNS / A record** = "buku alamat" yang menghubungkan `hexastok.hexamultienergi.com`
   ke server. Kalau subdomain dibuat langsung di cPanel domain utama, DNS-nya
   otomatis.
 - **AutoSSL** = HTTPS gratis yang cPanel pasang sendiri untuk tiap subdomain.
@@ -106,7 +106,7 @@ Skrip di folder [`deploy/`](deploy/) (`setup.sh`, `update.sh`, `backup.sh`,
 
 ## 3. FASE 1 — Deploy ke subdomain hosting (cPanel)
 
-Target: `https://stok.hexamultienergi.com`, kode di `~/stok-proyek`, Document Root
+Target: `https://hexastok.hexamultienergi.com`, kode di `~/stok-proyek`, Document Root
 subdomain menunjuk ke `~/stok-proyek/public`.
 
 Total waktu pertama kali: **± 45–60 menit** (paling lama nunggu AutoSSL & Composer).
@@ -156,7 +156,7 @@ cPanel → **Domains** (atau **Subdomains** di cPanel lama) → **Create A New D
 
 | Kolom | Isi |
 |---|---|
-| Domain | `stok.hexamultienergi.com` |
+| Domain | `hexastok.hexamultienergi.com` |
 | Document Root | **`/home/USER_KAMU/stok-proyek/public`** |
 
 - Ganti `USER_KAMU` dengan nama user cPanel (lihat pojok kanan cPanel, atau
@@ -167,7 +167,7 @@ cPanel → **Domains** (atau **Subdomains** di cPanel lama) → **Create A New D
 
 #### B2. Set versi PHP + ekstensi
 
-1. cPanel → **MultiPHP Manager** → centang `stok.hexamultienergi.com` → set
+1. cPanel → **MultiPHP Manager** → centang `hexastok.hexamultienergi.com` → set
    **PHP 8.1** (atau 8.2 / 8.3) → **Apply**.
 2. cPanel → **Select PHP Version** (atau **MultiPHP INI Editor**) → tab
    **Extensions** → pastikan **aktif**:
@@ -288,12 +288,12 @@ tidak perlu `chown www-data`.
 
 #### D1. HTTPS (AutoSSL)
 
-cPanel → **SSL/TLS Status** → cari `stok.hexamultienergi.com`. Biasanya sudah
+cPanel → **SSL/TLS Status** → cari `hexastok.hexamultienergi.com`. Biasanya sudah
 **hijau** dalam beberapa menit. Kalau belum: centang subdomainnya → **Run AutoSSL**.
 Aplikasi memaksa `https://` sendiri di mode produksi, jadi setelah sertifikat aktif
 semua `http://` otomatis dialihkan.
 
-Buka **`https://stok.hexamultienergi.com`** → halaman login + ikon gembok. 🎉
+Buka **`https://hexastok.hexamultienergi.com`** → halaman login + ikon gembok. 🎉
 
 #### D2. Amankan akun bawaan
 
@@ -468,7 +468,7 @@ bash /tmp/skp/deploy/setup.sh
 
 | Pertanyaan | Isi |
 |---|---|
-| Subdomain | `stok.hexamultienergi.com` (sama seperti sekarang) |
+| Subdomain | `hexastok.hexamultienergi.com` (sama seperti sekarang) |
 | Password DB `stok` | password kuat baru, catat |
 | Path dump `.sql` | **Enter (kosong)** — data diisi di 7.3 |
 
@@ -508,11 +508,11 @@ sudo chown -R www-data:www-data public/uploads storage logs
 ### 7.4 HTTPS di VPS
 
 ```bash
-sudo certbot --apache -d stok.hexamultienergi.com
+sudo certbot --apache -d hexastok.hexamultienergi.com
 ```
 
 (Kalau `ServerName` di `/etc/apache2/sites-available/stok.conf` belum
-`stok.hexamultienergi.com`, betulkan dulu → `sudo systemctl reload apache2`.)
+`hexastok.hexamultienergi.com`, betulkan dulu → `sudo systemctl reload apache2`.)
 
 ### 7.5 Verifikasi VPS **sebelum** ganti DNS
 
@@ -520,10 +520,10 @@ Di laptop, **Notepad sebagai Administrator** →
 `C:\Windows\System32\drivers\etc\hosts` → tambah baris:
 
 ```
-IP_VPS   stok.hexamultienergi.com
+IP_VPS   hexastok.hexamultienergi.com
 ```
 
-Buka `https://stok.hexamultienergi.com` → jalankan **checklist D3**. Semua OK →
+Buka `https://hexastok.hexamultienergi.com` → jalankan **checklist D3**. Semua OK →
 **hapus lagi baris `hosts`** itu.
 
 ### 7.6 Alihkan trafik
@@ -612,7 +612,7 @@ bash /var/www/stok/deploy/backup.sh                        # backup manual
 | `composer` command not found | Pakai `/opt/cpanel/composer/bin/composer`, atau `PHP /opt/cpanel/composer/bin/composer ...`. |
 | Kuota disk penuh | cPanel → **Disk Usage**. Biasanya email, bukan aplikasi. Lihat [Bagian 4](#4-kapasitas-penyimpanan--kapan-pindah-ke-vps). |
 | Login **kena kunci** terus | Normal setelah 5 gagal/akun atau 8 gagal/IP dalam 15 menit. Tunggu, atau `PHP bin/reset_user_password.php <username> --yes`. |
-| **PWA** tidak bisa di-install di HP | Belum HTTPS (cek **SSL/TLS Status**), atau `sw.js` balas 404 → `curl -I https://stok.hexamultienergi.com/sw.js` harus `200`. |
+| **PWA** tidak bisa di-install di HP | Belum HTTPS (cek **SSL/TLS Status**), atau `sw.js` balas 404 → `curl -I https://hexastok.hexamultienergi.com/sw.js` harus `200`. |
 | Sudah `git pull` tapi HP masih tampilan lama | Cache service worker. Di laptop: naikkan `VERSION` di `public/sw.js`, commit, push, `git pull` di hosting, lalu di HP tutup-buka app 2×. |
 
 ### VPS (FASE 2)
@@ -621,7 +621,7 @@ bash /var/www/stok/deploy/backup.sh                        # backup manual
 |---|---|
 | SSH `Connection timed out` / `Permission denied (publickey)` | IP/kunci salah, atau firewall provider. Pakai `-i` ke file kunci yang benar; cek user (`root` / `ubuntu`). |
 | `http://IP_VPS` tidak kebuka padahal Apache `active` | Firewall provider / OS. Di Oracle: buka **Security List** + `iptables`. Hostinger biasanya sudah terbuka. |
-| `certbot` gagal *Timeout* / *NXDOMAIN* | DNS belum menunjuk ke IP VPS (`nslookup stok.hexamultienergi.com`), Cloudflare masih "Proxied" (set "DNS only"), atau port 80 tertutup. |
+| `certbot` gagal *Timeout* / *NXDOMAIN* | DNS belum menunjuk ke IP VPS (`nslookup hexastok.hexamultienergi.com`), Cloudflare masih "Proxied" (set "DNS only"), atau port 80 tertutup. |
 | Halaman putih / **HTTP 500** | `sudo tail -f /var/log/apache2/stok_error.log /var/www/stok/logs/error.log`. Sering: `config/local.php` salah, `composer install` gagal. |
 | Upload foto gagal / tidak tampil | `sudo chown -R www-data:www-data /var/www/stok/public/uploads /var/www/stok/storage /var/www/stok/logs && sudo chmod -R 775` folder-folder itu. |
 | Menu **Backup** gagal | `mysqldump` tidak di PATH → set `'mysqldump_path' => 'mysqldump'` di `config/local.php`. |

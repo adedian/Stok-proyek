@@ -35,7 +35,7 @@ $GLOBALS['__APP_LOCAL'] = $APP_LOCAL;
 // APP_BASE_PATH = bagian path tempat aplikasi "duduk", dihitung otomatis dari
 // lokasi front controller:
 //   - diakses via sub-folder  -> "/stok-proyek/public"
-//   - DocumentRoot = folder public/ (mis. stok.hexamultienergi.com) -> ""
+//   - DocumentRoot = folder public/ (mis. hexastok.hexamultienergi.com) -> ""
 // Dipakai Router untuk memotong prefix path, dan route()/BASE_URL untuk
 // menyusun URL bersih tanpa "index.php?module=".
 if (PHP_SAPI === 'cli') {

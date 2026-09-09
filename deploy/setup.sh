@@ -26,7 +26,7 @@ warn() { printf '\033[1;33m!  %s\033[0m\n' "$*"; }
 
 [ "$(id -u)" -eq 0 ] && { echo "Jangan jalankan sebagai root. Pakai user biasa + sudo."; exit 1; }
 
-read -rp "Subdomain (mis. stok-test.hexamultienergi.com): " DOMAIN
+read -rp "Subdomain (mis. hexastok.hexamultienergi.com): " DOMAIN
 [ -z "${DOMAIN}" ] && { echo "Domain wajib diisi."; exit 1; }
 read -rsp "Password untuk user DB '${DB_USER}': " DB_PASS; echo
 [ -z "${DB_PASS}" ] && { echo "Password DB wajib diisi."; exit 1; }

@@ -303,9 +303,10 @@ class SettingsController extends Controller
     }
 
     /**
-     * Backup manual: jalankan mysqldump lewat proc_open (bukan shell redirect `>`,
-     * supaya portable), simpan file di luar public/ supaya tidak bisa diakses
-     * langsung lewat URL -- download HARUS lewat backupDownload() yang terkontrol.
+     * Backup manual: dump seluruh database jadi 1 file .sql PURE-PHP (lewat PDO),
+     * TANPA memanggil mysqldump / shell. Alasan: hosting cPanel meng-disable
+     * exec/shell_exec/escapeshellarg dkk, jadi jalur shell selalu gagal.
+     * File disimpan di luar public/ -- download HARUS lewat backupDownload().
      */
     public function backupCreate()
     {
@@ -317,7 +318,7 @@ class SettingsController extends Controller
         verifyCsrf();
 
         try {
-            $filename = $this->runMysqldump();
+            $filename = $this->dumpDatabase();
             $filePath = BACKUP_PATH . '/' . $filename;
 
             $this->backupModel->create([
@@ -328,7 +329,7 @@ class SettingsController extends Controller
 
             $this->activityLog->log(currentUserId(), 'settings', 'backup', "Backup database dibuat: {$filename}");
             setFlash('success', 'Backup database berhasil dibuat.');
-        } catch (RuntimeException $e) {
+        } catch (Throwable $e) {
             error_log('Backup database gagal: ' . $e->getMessage());
             setFlash('error', 'Gagal membuat backup: ' . $e->getMessage());
         }
@@ -363,46 +364,96 @@ class SettingsController extends Controller
 
     // ================= Helper privat =================
 
-    private function runMysqldump(): string
+    /**
+     * Dump seluruh database ke 1 file .sql, murni PHP + PDO (tanpa shell).
+     * Hasilnya kompatibel untuk di-import lagi lewat phpMyAdmin / mysql CLI:
+     * DROP TABLE IF EXISTS + CREATE TABLE + INSERT batch, FK check dimatikan
+     * selama restore. Aman untuk DB ukuran aplikasi ini (puluhan tabel, ribuan
+     * baris) -- ditulis streaming ke file, tidak menumpuk di memori.
+     *
+     * @return string nama file yang dibuat di BACKUP_PATH
+     */
+    private function dumpDatabase(): string
     {
-        if (!is_dir(BACKUP_PATH)) {
-            mkdir(BACKUP_PATH, 0755, true);
+        if (!is_dir(BACKUP_PATH) && !mkdir(BACKUP_PATH, 0755, true) && !is_dir(BACKUP_PATH)) {
+            throw new RuntimeException('Folder backup tidak bisa dibuat: ' . BACKUP_PATH);
         }
 
         $filename = 'backup_' . DB_NAME . '_' . date('Ymd_His') . '.sql';
         $filePath = BACKUP_PATH . '/' . $filename;
 
-        $cmdParts = [MYSQLDUMP_PATH, '-h', DB_HOST, '-u', DB_USER];
-        if (DB_PASS !== '') {
-            $cmdParts[] = '-p' . DB_PASS;
-        }
-        $cmdParts[] = DB_NAME;
-
-        $cmdString = implode(' ', array_map('escapeshellarg', $cmdParts));
-
-        $descriptors = [
-            0 => ['pipe', 'r'],
-            1 => ['pipe', 'w'],
-            2 => ['pipe', 'w'],
-        ];
-
-        $process = proc_open($cmdString, $descriptors, $pipes);
-        if (!is_resource($process)) {
-            throw new RuntimeException('Tidak bisa menjalankan mysqldump.');
+        $pdo = getPDO();
+        $fh = fopen($filePath, 'wb');
+        if ($fh === false) {
+            throw new RuntimeException('Tidak bisa menulis file backup.');
         }
 
-        fclose($pipes[0]);
-        $output = stream_get_contents($pipes[1]);
-        $errorOutput = stream_get_contents($pipes[2]);
-        fclose($pipes[1]);
-        fclose($pipes[2]);
-        $exitCode = proc_close($process);
+        try {
+            fwrite($fh, "-- HEXA STOK -- backup database `" . DB_NAME . "`\n");
+            fwrite($fh, "-- Dibuat: " . date('Y-m-d H:i:s') . " (pure-PHP dump)\n");
+            fwrite($fh, "SET NAMES utf8mb4;\n");
+            fwrite($fh, "SET FOREIGN_KEY_CHECKS=0;\n");
+            fwrite($fh, "SET SQL_MODE='NO_AUTO_VALUE_ON_ZERO';\n\n");
 
-        if ($exitCode !== 0 || trim($output) === '') {
-            throw new RuntimeException(trim($errorOutput) !== '' ? trim($errorOutput) : 'mysqldump tidak menghasilkan output.');
+            // Hanya BASE TABLE (lewati VIEW).
+            $tables = $pdo->query(
+                "SELECT table_name FROM information_schema.tables
+                  WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE'
+                  ORDER BY table_name"
+            )->fetchAll(PDO::FETCH_COLUMN);
+
+            foreach ($tables as $table) {
+                $qTable = '`' . str_replace('`', '``', $table) . '`';
+
+                fwrite($fh, "-- ----------------------------\n-- Struktur tabel {$qTable}\n-- ----------------------------\n");
+                fwrite($fh, "DROP TABLE IF EXISTS {$qTable};\n");
+                $create = $pdo->query("SHOW CREATE TABLE {$qTable}")->fetch(PDO::FETCH_ASSOC);
+                fwrite($fh, ($create['Create Table'] ?? $create['Create View'] ?? '') . ";\n\n");
+
+                // Data: batch INSERT (maks ~200 baris / statement).
+                $stmt = $pdo->query("SELECT * FROM {$qTable}");
+                $cols = null;
+                $rowBuf = [];
+                $written = false;
+                $flush = function () use (&$rowBuf, $fh, $qTable, &$cols, &$written) {
+                    if (!$rowBuf) {
+                        return;
+                    }
+                    fwrite($fh, "INSERT INTO {$qTable} (" . implode(', ', $cols) . ") VALUES\n");
+                    fwrite($fh, implode(",\n", $rowBuf) . ";\n");
+                    $rowBuf = [];
+                    $written = true;
+                };
+
+                while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                    if ($cols === null) {
+                        $cols = array_map(static function ($c) {
+                            return '`' . str_replace('`', '``', $c) . '`';
+                        }, array_keys($row));
+                    }
+                    $vals = array_map(static function ($v) use ($pdo) {
+                        return $v === null ? 'NULL' : $pdo->quote((string) $v);
+                    }, array_values($row));
+                    $rowBuf[] = '(' . implode(', ', $vals) . ')';
+                    if (count($rowBuf) >= 200) {
+                        $flush();
+                    }
+                }
+                $flush();
+                if ($written) {
+                    fwrite($fh, "\n");
+                }
+            }
+
+            fwrite($fh, "SET FOREIGN_KEY_CHECKS=1;\n");
+        } finally {
+            fclose($fh);
         }
 
-        file_put_contents($filePath, $output);
+        if (!filesize($filePath)) {
+            @unlink($filePath);
+            throw new RuntimeException('File backup kosong.');
+        }
 
         return $filename;
     }

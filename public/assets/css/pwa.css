@@ -13,16 +13,32 @@
 html {
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
-    /* matikan double-tap-to-zoom (tetap boleh scroll/geser). Bareng
-       viewport user-scalable=no -> aplikasi tidak bisa di-zoom sama sekali,
-       terasa seperti aplikasi native. */
+}
+
+/* Matikan double-tap-to-zoom HANYA di elemen yang memang di-tap
+   (tombol/link/field). JANGAN taruh touch-action di <html>/<body> --
+   di sebagian Android/WebView itu ikut mem-block scroll dokumen.
+   Pinch-zoom halaman sudah dimatikan lewat viewport user-scalable=no. */
+a,
+button,
+.btn,
+.nav-link,
+.page-link,
+.dropdown-item,
+[role="button"],
+label,
+input,
+select,
+textarea {
     touch-action: manipulation;
 }
 
 /* ---- Hanya saat berjalan sebagai aplikasi terpasang ---- */
 
-/* Matikan pull-to-refresh & efek pantul saat scroll mentok. */
-.pwa-standalone,
+/* Matikan pull-to-refresh & efek pantul saat scroll mentok.
+   overscroll-behavior HANYA di <body> (bentuk kanonik yang dipakai
+   PWA besar) -- TIDAK mempengaruhi kemampuan scroll, hanya menghentikan
+   scroll-chaining & bounce di batas. */
 .pwa-standalone body {
     overscroll-behavior-y: none;
 }

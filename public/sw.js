@@ -12,7 +12,7 @@
  * Cara memaksa update SW: naikkan VERSION di bawah lalu deploy.
  * ========================================================================= */
 
-const VERSION = 'skp-2026-09-09-4';
+const VERSION = 'skp-2026-09-09-5';
 const RUNTIME = 'runtime-' + VERSION;
 const PRECACHE = 'precache-' + VERSION;
 

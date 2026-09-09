@@ -19,6 +19,7 @@ if (file_exists(ROOT_PATH . '/vendor/autoload.php')) {
 require_once ROOT_PATH . '/app/helpers/functions.php';
 require_once ROOT_PATH . '/app/helpers/auth_helper.php';
 require_once ROOT_PATH . '/app/helpers/image_helper.php';
+require_once ROOT_PATH . '/app/helpers/pdf_compress_helper.php';
 require_once ROOT_PATH . '/app/helpers/upload_helper.php';
 require_once ROOT_PATH . '/app/helpers/pdf_helper.php';
 require_once ROOT_PATH . '/app/helpers/excel_helper.php';

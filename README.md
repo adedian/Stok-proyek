@@ -6,7 +6,7 @@ Laporan, dan Master Data. Bisa di-*install* sebagai aplikasi di HP (PWA).
 
 - **Stack**: PHP 8.1+ (tanpa framework, MVC sendiri) · MySQL / MariaDB · Apache
   (`.htaccess` + `mod_rewrite`) · Bootstrap 5 · Composer (Dompdf untuk PDF,
-  PhpSpreadsheet untuk Excel).
+  PhpSpreadsheet untuk Excel) · Ghostscript opsional (kompres PDF upload).
 - **Repo**: `https://github.com/adedian/Stok-proyek` (publik).
 
 ---
@@ -296,7 +296,9 @@ Path file dump .sql untuk di-restore (Enter = lewati): /tmp/db_stok_proyek.sql
 
 Lalu skrip jalan otomatis **± 3–8 menit**, menampilkan langkah `==> 1/7` sampai `==> 7/7`:
 
-1. update sistem + pasang **Apache, MariaDB, PHP 8, ekstensi, git**
+1. update sistem + pasang **Apache, MariaDB, PHP 8, ekstensi, Ghostscript, git**
+   (Ghostscript = kompres otomatis PDF hasil scan saat diunggah; opsional — tanpa
+   itu PDF tetap tersimpan, hanya tidak dikecilkan)
 2. aktifkan modul Apache (`rewrite`, `headers`, `ssl`, `mime`)
 3. pasang **Composer**
 4. buat database `db_stok_proyek` + user `stok`
@@ -683,6 +685,7 @@ bash /var/www/stok/deploy/migrate-server.sh ubuntu@IP_BARU
 | Upload foto gagal / foto tidak tampil | Izin folder: `sudo chown -R www-data:www-data /var/www/stok/public/uploads /var/www/stok/storage /var/www/stok/logs` lalu `sudo chmod -R 775` folder-folder itu. |
 | Export **PDF / Excel** error | `composer install --no-dev` belum sukses → `bash /var/www/stok/deploy/update.sh`. |
 | Menu **Backup** (Pengaturan Sistem) gagal | `mysqldump` tidak ada di PATH → di `config/local.php` set `'mysqldump_path' => 'mysqldump'` (biasanya sudah otomatis). |
+| **PDF upload tidak mengecil** | Ghostscript belum terpasang → `sudo apt install ghostscript` (cek: `gs --version`). Kalau path-nya tidak standar, set `'ghostscript_path'` di `config/local.php`. Tanpa ini upload tetap jalan, PDF hanya tidak dikompres. |
 | Login **kena kunci** terus | Normal setelah 5 gagal/akun atau 8 gagal/IP dalam 15 menit. Tunggu hitung mundur, atau reset: `php /var/www/stok/bin/reset_user_password.php <username> --yes`. |
 | **PWA** tidak bisa di-install di HP | Belum HTTPS, atau `manifest.webmanifest` / `sw.js` balas 404 → cek `curl -I https://SUBDOMAIN/sw.js` (harus `200`). |
 | Sudah `update.sh` tapi HP masih tampilan lama | Cache service worker. Di laptop: naikkan angka `VERSION` di `public/sw.js`, commit, push, `update.sh`, lalu di HP tutup-buka app 2×. |

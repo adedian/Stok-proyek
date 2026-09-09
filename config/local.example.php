@@ -38,4 +38,17 @@ return [
     //   Linux hosting : 'mysqldump'  (biasanya sudah ada di PATH)
     // Kosongkan untuk memakai default otomatis sesuai OS.
     'mysqldump_path' => '',
+
+    // --- Kompresi PDF upload (opsional) ---
+    // Kalau Ghostscript terpasang, PDF hasil scan (bukti bayar / invoice / surat
+    // jalan) otomatis dikecilkan saat diunggah. Tanpa Ghostscript, PDF disimpan
+    // apa adanya -- fitur lain tidak terganggu.
+    //   Linux (VPS)   : sudo apt install ghostscript   -> path cukup 'gs'
+    //   Windows/XAMPP : install dari ghostscript.com    -> mis. 'gswin64c'
+    // Kosongkan untuk memakai default per-OS ('gs' / 'gswin64c').
+    'ghostscript_path'   => '',
+    // Preset kualitas: '/screen' (paling kecil) | '/ebook' (seimbang) | '/printer' (tajam).
+    'pdf_compress_preset' => '/ebook',
+    // Plafon ukuran PDF sebelum dikompres (MB). Default 25.
+    'pdf_max_upload_mb'   => 25,
 ];

@@ -38,6 +38,7 @@ sudo apt-get upgrade -y
 sudo apt-get install -y \
   apache2 mariadb-server \
   php php-cli php-mysql php-mbstring php-xml php-zip php-gd php-curl php-intl \
+  ghostscript \
   git unzip curl ca-certificates
 
 PHP_VER="$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')"

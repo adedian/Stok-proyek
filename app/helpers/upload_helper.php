@@ -18,7 +18,8 @@
  *      PDF   : magic byte "%PDF-"
  *   9. Nama file final = 32 hex acak + ekstensi DARI MIME (bukan dari input user)
  *  10. GAMBAR -> di-resize/kompres/normalisasi EXIF/strip metadata (image_helper.php)
- *      PDF    -> disimpan apa adanya (TIDAK dikompres)
+ *      PDF    -> dikompres Ghostscript kalau tersedia (pdf_compress_helper.php);
+ *               kalau tidak, disimpan apa adanya -- isi tidak pernah dirusak
  *
  * FORMAT GAMBAR YANG DIIZINKAN: jpg, jpeg, png, webp (saja).
  * Format dokumen (pdf) hanya diterima jika 'pdf' eksplisit ada di $allowedExt.
@@ -65,9 +66,24 @@ function handleFileUpload(
     }
 
     // --- 4. Ukuran maksimum (sebelum diproses) ---
-    $maxBytes = $maxSizeMB * 1024 * 1024;
-    if ($file['size'] <= 0 || $file['size'] > $maxBytes) {
-        throw new RuntimeException("Ukuran file harus antara 1 byte dan {$maxSizeMB}MB.");
+    // PDF punya plafon lebih longgar (PDF_MAX_UPLOAD_MB) karena akan dikompres
+    // Ghostscript sebagai proses terpisah -- tidak membebani memori PHP seperti
+    // dekode gambar GD. $peekExt hanya untuk memilih plafon & pesan; validasi
+    // ekstensi/MIME yang sebenarnya tetap di langkah 6-7.
+    $peekExt = strtolower(pathinfo((string) $file['name'], PATHINFO_EXTENSION));
+    $ceilingMB = ($peekExt === 'pdf' && defined('PDF_MAX_UPLOAD_MB'))
+        ? (int) PDF_MAX_UPLOAD_MB
+        : $maxSizeMB;
+    $maxBytes = $ceilingMB * 1024 * 1024;
+    if ($file['size'] <= 0) {
+        throw new RuntimeException('File kosong atau tidak terbaca, silakan ulangi.');
+    }
+    if ($file['size'] > $maxBytes) {
+        throw new RuntimeException(
+            "Ukuran file melebihi batas {$ceilingMB}MB. " . ($peekExt === 'pdf'
+                ? 'Pindai ulang dokumen di resolusi lebih rendah lalu unggah lagi.'
+                : 'Perkecil resolusi foto atau kompres file lalu unggah lagi.')
+        );
     }
 
     // --- 5. Nama file: tolak pola berbahaya & path traversal ---
@@ -166,16 +182,16 @@ function handleFileUpload(
     $newFileName = bin2hex(random_bytes(16)) . '.' . $canonExt;
     $destPath = $destDir . '/' . $newFileName;
 
-    // --- 10. Simpan: gambar -> kompres; PDF -> apa adanya ---
+    // --- 10. Simpan: gambar -> kompres GD; PDF -> kompres Ghostscript (best-effort) ---
     if ($isImage) {
         // compressImageFile() menulis langsung ke $destPath dari tmp upload.
         compressImageFile($file['tmp_name'], $mime, $destPath);
         // tmp file dibersihkan otomatis oleh PHP di akhir request.
     } else {
-        if (!move_uploaded_file($file['tmp_name'], $destPath)) {
-            throw new RuntimeException('Gagal menyimpan file ke server.');
-        }
-        @chmod($destPath, 0644);
+        // compressPdfFile() men-downsample gambar di dalam PDF kalau Ghostscript
+        // tersedia; kalau tidak (atau hasilnya tidak lebih kecil) file asli
+        // disalin apa adanya. Dijamin $destPath berisi PDF valid saat kembali.
+        compressPdfFile($file['tmp_name'], $destPath);
     }
 
     return 'uploads/' . $safeSub . '/' . $newFileName;

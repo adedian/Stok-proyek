@@ -101,6 +101,7 @@ $selectedPoId = $selectedPo['id'] ?? ($payment['purchase_order_id'] ?? '');
                 <div class="col-md-6">
                     <label class="form-label">Bukti Transfer <?= $isEdit ? '(kosongkan jika tidak ganti)' : '' ?></label>
                     <input type="file" name="proof_file" class="form-control" accept=".jpg,.jpeg,.png,.webp,.pdf">
+                    <div class="form-text">Foto (JPG/PNG/WEBP) maks. 5 MB, atau PDF maks. 25 MB. PDF hasil scan otomatis dikecilkan saat diunggah.</div>
                     <?php if ($isEdit && !empty($payment['proof_file'])): ?>
                         <div class="form-text">
                             File saat ini:

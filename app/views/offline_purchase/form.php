@@ -62,6 +62,7 @@ $itemsLocked = $itemsLocked ?? false;
                 <div class="col-md-6">
                     <label class="form-label">Bukti Pembelian</label>
                     <input type="file" name="proof_file" class="form-control" accept=".jpg,.jpeg,.png,.webp,.pdf">
+                    <div class="form-text">Foto (JPG/PNG/WEBP) maks. 5 MB, atau PDF maks. 25 MB. PDF hasil scan otomatis dikecilkan saat diunggah.</div>
                     <?php if ($isEdit && !empty($purchase['proof_file'])): ?>
                         <div class="form-text">
                             Saat ini: <a href="<?= e(fileUrl($purchase['proof_file'])) ?>" target="_blank">lihat bukti</a>

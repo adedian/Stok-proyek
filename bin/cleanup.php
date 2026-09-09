@@ -16,6 +16,9 @@
  *   3. <temp dir>/dompdf_*     -> file sementara Dompdf yang nyangkut kalau
  *      sebuah render PDF gagal di tengah jalan.
  *
+ *   4. public/uploads/<sub>/<nama>.gs -> sisa file kompres PDF (Ghostscript)
+ *      yang nyangkut kalau prosesnya mati di tengah jalan.
+ *
  * CATATAN: export PDF/Excel/CSV di modul Laporan di-stream langsung ke
  * browser, TIDAK disimpan ke disk -- jadi tidak ada yang perlu dibersihkan
  * di sana.
@@ -263,6 +266,33 @@ foreach ($stray as $path) {
 }
 o($n ? sprintf('   -> %d dihapus, %s dibebaskan', $n, humanBytes($b))
      : '   (tidak ada sisa temp Dompdf lebih tua dari ' . $tmpDays . ' hari)');
+$totalFiles += $n;
+$totalBytes += $b;
+
+// ---------------------------------------------------------------------------
+// 4. Sisa file kompres PDF Ghostscript: public/uploads/<sub>/<nama>.gs
+// ---------------------------------------------------------------------------
+o('');
+o('4) Sisa temp kompres PDF  (' . UPLOAD_PATH . ')');
+
+$strayGs = glob(UPLOAD_PATH . '/*/*.gs') ?: [];
+$n = 0;
+$b = 0;
+foreach ($strayGs as $path) {
+    if (!is_file($path) || filemtime($path) >= $tmpCut) {
+        continue;
+    }
+    $size = (int) filesize($path);
+    o(sprintf('   %s hapus  %s  (%s)',
+        $dryRun ? '[dry]' : '  -  ', basename($path), humanBytes($size)));
+    if (!$dryRun && !@unlink($path)) {
+        continue; // race dengan proses lain -- abaikan diam-diam
+    }
+    $n++;
+    $b += $size;
+}
+o($n ? sprintf('   -> %d dihapus, %s dibebaskan', $n, humanBytes($b))
+     : '   (tidak ada sisa .gs lebih tua dari ' . $tmpDays . ' hari)');
 $totalFiles += $n;
 $totalBytes += $b;
 

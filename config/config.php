@@ -134,3 +134,18 @@ $mysqldumpDefault = (DIRECTORY_SEPARATOR === '\\')
     : 'mysqldump';
 define('MYSQLDUMP_PATH', !empty($APP_LOCAL['mysqldump_path']) ? $APP_LOCAL['mysqldump_path'] : $mysqldumpDefault);
 define('BACKUP_PATH', ROOT_PATH . '/storage/backups');
+
+// --- Kompresi PDF upload (bukti bayar / invoice penerimaan / surat jalan) ---
+// PDF hasil scan sering besar. Kalau Ghostscript tersedia di server, PDF
+// dikecilkan otomatis saat diunggah supaya pengguna tidak perlu mengompres
+// sendiri. Tidak ada Ghostscript / proc_open dimatikan hosting -> PDF disimpan
+// apa adanya, tanpa error (lihat app/helpers/pdf_compress_helper.php).
+//   Path binari:  1) config/local.php 'ghostscript_path'  2) default per-OS.
+$ghostscriptDefault = (DIRECTORY_SEPARATOR === '\\') ? 'gswin64c' : 'gs';
+define('GHOSTSCRIPT_PATH', !empty($APP_LOCAL['ghostscript_path']) ? $APP_LOCAL['ghostscript_path'] : $ghostscriptDefault);
+// Preset kualitas Ghostscript: /screen (paling kecil) | /ebook (seimbang) | /printer (tajam).
+define('PDF_COMPRESS_PRESET', in_array(($APP_LOCAL['pdf_compress_preset'] ?? ''), ['/screen', '/ebook', '/printer'], true)
+    ? $APP_LOCAL['pdf_compress_preset'] : '/ebook');
+// Plafon ukuran PDF SEBELUM dikompres (MB). Lebih longgar dari gambar karena
+// kompresi PDF jalan sebagai proses terpisah, tidak membebani memori PHP.
+define('PDF_MAX_UPLOAD_MB', max(3, (int) ($APP_LOCAL['pdf_max_upload_mb'] ?? 25)));

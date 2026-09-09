@@ -13,6 +13,10 @@
 html {
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
+    /* matikan double-tap-to-zoom (tetap boleh scroll/geser). Bareng
+       viewport user-scalable=no -> aplikasi tidak bisa di-zoom sama sekali,
+       terasa seperti aplikasi native. */
+    touch-action: manipulation;
 }
 
 /* ---- Hanya saat berjalan sebagai aplikasi terpasang ---- */

@@ -13,8 +13,8 @@ $menus = appMenus();
         <a href="<?= BASE_URL ?>/dashboard" class="sidebar-brand text-decoration-none d-none d-lg-flex">
             <span class="sidebar-brand-icon"><img src="<?= assetUrl('/assets/img/logo-hme.png') ?>" alt="Logo HME"></span>
             <span class="sidebar-brand-text">
-                <span class="title d-block">STOK PROYEK</span>
-                <span class="subtitle d-block">Sistem Kontrol Stok</span>
+                <span class="title d-block"><?= e(APP_NAME) ?></span>
+                <span class="subtitle d-block">Kontrol Stok Proyek</span>
             </span>
         </a>
         <ul class="nav nav-pills flex-column gap-1">

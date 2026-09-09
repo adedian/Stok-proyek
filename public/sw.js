@@ -1,5 +1,5 @@
 /* =========================================================================
- * Service Worker -- Sistem Kontrol Stok Proyek (PWA)
+ * Service Worker -- HME STOK (PWA)
  *
  * Prinsip (aplikasi PHP ber-login, multi-halaman):
  *   - HALAMAN HTML tidak pernah di-cache (bisa bocor antar user / basi).
@@ -12,7 +12,7 @@
  * Cara memaksa update SW: naikkan VERSION di bawah lalu deploy.
  * ========================================================================= */
 
-const VERSION = 'skp-2026-09-07-1';
+const VERSION = 'skp-2026-09-09-1';
 const RUNTIME = 'runtime-' + VERSION;
 const PRECACHE = 'precache-' + VERSION;
 

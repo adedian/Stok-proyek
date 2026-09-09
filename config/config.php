@@ -13,7 +13,7 @@
 // TIDAK mengonversi/mengubah data historis yang sudah tersimpan.
 date_default_timezone_set('Asia/Jakarta');
 
-define('APP_NAME', 'Sistem Kontrol Stok Proyek');
+define('APP_NAME', 'HME STOK');
 
 // ---------------------------------------------------------------------------
 // Konfigurasi lokal / per-server (config/local.php -- TIDAK di-commit).

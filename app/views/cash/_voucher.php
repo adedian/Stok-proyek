@@ -42,7 +42,7 @@ if ($total < 0) {
 $minRows  = 8;
 $padCount = max(0, $minRows - count($vItems));
 ?>
-<div class="voucher">
+<div class="voucher print-page">
     <div class="company"><em><?= e($vCompany) ?> &mdash; Kas Project</em></div>
 
     <table class="head">

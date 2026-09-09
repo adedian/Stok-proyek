@@ -247,7 +247,7 @@ class SettingsController extends Controller
         }
         verifyCsrf();
 
-        $keys = ['notify_selisih_barang', 'notify_invoice_pending', 'notify_stok_minimum', 'notify_po_belum_diproses'];
+        $keys = ['notify_selisih_barang', 'notify_cash_validation', 'notify_invoice_pending', 'notify_stok_minimum', 'notify_po_belum_diproses'];
         foreach ($keys as $key) {
             $value = !empty($_POST[$key]) ? '1' : '0';
             $this->settingModel->set($key, $value, 'notification', currentUserId());

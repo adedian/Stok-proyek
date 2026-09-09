@@ -2,6 +2,7 @@
 require_once ROOT_PATH . '/core/Database.php';
 require_once ROOT_PATH . '/app/models/SystemSetting.php';
 require_once ROOT_PATH . '/app/models/Item.php';
+require_once ROOT_PATH . '/app/models/CashTransaction.php';
 
 /**
  * DashboardStat
@@ -171,6 +172,20 @@ class DashboardStat
                     'desc' => "{$count} item penerimaan barang dengan selisih belum divalidasi.",
                     'url' => route('validation'),
                     'cta' => 'Validasi Sekarang',
+                ];
+            }
+        }
+
+        if ($settingModel->getBool('notify_cash_validation', true) && can('cash_validation', 'view')) {
+            $divisions = kasValidatableDivisions(currentUserRole());
+            $count = (new CashTransaction())->countPendingValidation($divisions);
+            if ($count > 0) {
+                $items[] = [
+                    'icon' => 'bi-cash-stack', 'variant' => 'warning',
+                    'title' => 'Validasi Kas',
+                    'desc' => "{$count} transaksi Kas menunggu validasi Anda.",
+                    'url' => route('cash_validation'),
+                    'cta' => 'Validasi Kas',
                 ];
             }
         }

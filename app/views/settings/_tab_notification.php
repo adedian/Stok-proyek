@@ -1,6 +1,7 @@
 <?php
 $notifItems = [
     'notify_selisih_barang'     => ['label' => 'Selisih Barang', 'desc' => 'Banner peringatan di dashboard saat ada penerimaan barang dengan selisih yang belum divalidasi.'],
+    'notify_cash_validation'    => ['label' => 'Validasi Kas', 'desc' => 'Peringatan (lonceng + dashboard) saat ada transaksi Kas menunggu validasi -- hanya tampil ke pengguna yang berwenang memvalidasi divisi terkait.'],
     'notify_invoice_pending'    => ['label' => 'Invoice Belum Tertagih', 'desc' => 'Kartu jumlah Invoice Keluar yang belum ada Tanda Terima (belum tertagih) di dashboard.'],
     'notify_stok_minimum'       => ['label' => 'Stok Minimum', 'desc' => 'Banner peringatan saat ada barang dengan stok di bawah batas minimum.'],
     'notify_po_belum_diproses'  => ['label' => 'PO Belum Diproses', 'desc' => 'Banner peringatan saat ada Purchase Order yang masih menunggu approval.'],

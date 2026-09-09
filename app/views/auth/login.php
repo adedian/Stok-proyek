@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Login - <?= e(APP_NAME) ?></title>
     <link rel="icon" type="image/png" href="<?= assetUrl('/assets/img/logo-hme.png') ?>">
+
+    <?php /* ---- PWA (sama seperti layout utama, supaya bisa di-install dari halaman login) ---- */ ?>
+    <link rel="manifest" href="<?= BASE_URL ?>/manifest.webmanifest">
+    <meta name="theme-color" content="#1E3C72">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="HEXA STOK">
+    <link rel="apple-touch-icon" href="<?= BASE_URL ?>/assets/img/pwa/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="<?= BASE_URL ?>/assets/img/pwa/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="<?= BASE_URL ?>/assets/img/pwa/favicon-16.png">
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link href="<?= assetUrl('/assets/css/variables.css') ?>" rel="stylesheet">
@@ -38,7 +50,12 @@
             min-height: 100dvh;
             display: flex;
             flex-direction: column;
-            padding: clamp(16px, 5vh, 44px) 16px 0;
+            /* +env(safe-area-inset-top): di PWA iOS (status bar translucent) isi
+               tidak ketimpa jam/notch. Fallback 0px -> tanpa efek di device biasa. */
+            padding: calc(clamp(16px, 5vh, 44px) + env(safe-area-inset-top, 0px))
+                     max(16px, env(safe-area-inset-right, 0px))
+                     0
+                     max(16px, env(safe-area-inset-left, 0px));
         }
         .login-center {
             flex: 1 0 auto;
@@ -160,7 +177,7 @@
 
         /* Layar pendek (mis. iPhone SE, split-screen) -- rapatkan vertikal. */
         @media (max-height: 720px) {
-            .login-viewport { padding-top: clamp(12px, 3vh, 24px); }
+            .login-viewport { padding-top: calc(clamp(12px, 3vh, 24px) + env(safe-area-inset-top, 0px)); }
             .login-card { padding: 22px 20px; }
             .login-head { margin-bottom: 14px; }
             .login-logo { width: 48px; height: 48px; margin-bottom: 9px; }
@@ -299,6 +316,22 @@
             setLocked(true);
             tick();
         }
+    })();
+    </script>
+
+    <?php /* ---- PWA: daftarkan Service Worker dari halaman login juga (HTTPS/localhost) ---- */ ?>
+    <script>
+    (function () {
+        if (!('serviceWorker' in navigator)) return;
+        var secure = location.protocol === 'https:'
+            || location.hostname === 'localhost'
+            || location.hostname === '127.0.0.1';
+        if (!secure) return;
+        var swUrl = <?= json_encode(BASE_URL . '/sw.js') ?>;
+        var swScope = <?= json_encode(APP_BASE_PATH === '' ? '/' : APP_BASE_PATH . '/') ?>;
+        window.addEventListener('load', function () {
+            navigator.serviceWorker.register(swUrl, { scope: swScope }).catch(function () { /* abaikan */ });
+        });
     })();
     </script>
 </body>

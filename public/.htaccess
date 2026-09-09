@@ -21,6 +21,12 @@ Options -Indexes -MultiViews
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
+    # --- ACME / Let's Encrypt (AutoSSL) HTTP-01 challenge ---------------
+    # Berkas di /.well-known/ dilayani apa adanya: JANGAN di-redirect ke
+    # https dan JANGAN diarahkan ke front controller, supaya penerbitan &
+    # perpanjangan sertifikat SSL tidak gagal.
+    RewriteRule ^\.well-known/ - [L]
+
     # --- Paksa HTTPS -- HANYA untuk domain publik ------------------------
     # Redirect 301 http->https, KECUALI untuk akses lokal / LAN yang memang
     # dipakai lewat http (localhost, IP privat 10/172.16-31/192.168, nama

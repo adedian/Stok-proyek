@@ -389,17 +389,31 @@ cd C:\xampp\htdocs\stok-proyek
 git add -A
 git commit -m "penjelasan singkat perubahan"
 git push origin master
+ssh hexastok "bash ~/update-hexastok.sh"
 ```
 
-**Terapkan di hosting cPanel** — buka **Terminal**:
+Baris terakhir menjalankan skrip deploy di server (alias `hexastok` sudah ada di
+`~/.ssh/config`: host `srv183.niagahoster.com`, **port 65002**, plus
+`IPQoS none` + `MACs hmac-sha2-512-etm@openssh.com` — tanpa itu koneksi gagal
+"Corrupted MAC").
+
+**Isi `~/update-hexastok.sh` di server** (dibuat sekali; jalan idempoten):
 
 ```bash
+#!/bin/bash
+set -e
 cd ~/stok-proyek
+git config core.fileMode false        # abaikan bit +x yang di-set cPanel pada .htaccess
+git checkout -- . 2>/dev/null || true  # buang perubahan tak sengaja pada file tracked
 git pull --ff-only
-composer install --no-dev --optimize-autoloader --no-interaction
-PHP bin/migrate.php
-PHP bin/make_pwa_icons.php    # hanya kalau ikon PWA berubah
+php -d memory_limit=-1 /usr/local/bin/composer install --no-dev --optimize-autoloader --no-interaction
+php bin/migrate.php
+echo "OK -> $(git rev-parse --short HEAD) : $(git log -1 --pretty=%s)"
 ```
+
+> **Jangan** jalankan `bin/make_pwa_icons.php` di server — ikon PWA ikut ter-*commit*;
+> regenerasi cukup di laptop saat logo berubah, lalu commit PNG-nya. Menjalankannya
+> di server malah bikin file tracked berubah → `git pull` berikutnya gagal.
 
 - Aman diulang. Tidak perlu reload Apache di shared hosting.
 - **Perubahan struktur database** = cukup di sini: file migrasi `database/migrations/*`

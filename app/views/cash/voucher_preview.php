@@ -67,11 +67,6 @@ $backUrl  = $backUrl ?? (BASE_URL . '/cash');
     .kas-voucher-print table.terbilang td.v { font-style: italic; }
     .kas-voucher-print table.catatan td { border: 1px solid #843C0C; border-top: 0; padding: 5px 7px 22px; font-weight: bold; }
 
-    .kas-voucher-print table.ttd { width: 100%; border-collapse: collapse; margin-top: 6px; }
-    .kas-voucher-print table.ttd th, .kas-voucher-print table.ttd td { border: 1px solid #843C0C; text-align: center; padding: 4px; width: 25%; }
-    .kas-voucher-print table.ttd th { background: #C55A11; color: #fff; font-weight: bold; }
-    .kas-voucher-print table.ttd tr.space td { height: 66px; }
-
     .kas-voucher-print .foot { margin-top: 8px; font-size: 9px; color: #999; text-align: right; }
 
     @page { size: A4; margin: 10mm; }

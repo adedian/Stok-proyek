@@ -2,8 +2,8 @@
 /**
  * Voucher cetak Kas -- SATU dokumen per transaksi (No Bukti), mengikuti
  * "Gambar 1" (BUKTI KAS KELUAR). Kolom "Perkiraan" DIHILANGKAN (revisi 4.1).
- * Bagian tanda tangan Pembukuan / Mengetahui / Kasir / Penerima tetap ada
- * sebagai ruang kosong -- TIDAK ada field input tambahan di form Kas.
+ * Blok tanda tangan Pembukuan / Mengetahui / Kasir / Penerima DIHILANGKAN
+ * (revisi lanjutan) -- voucher berakhir di CATATAN.
  *
  * Partial markup satu voucher. Di-loop oleh app/views/cash/voucher_preview.php
  * (halaman pratinjau di dalam layout aplikasi; CSS + @media print ada di sana),
@@ -119,11 +119,6 @@ $firstCol  = '<span class="vert">' . $vertLabel . '</span>';
     </table>
 
     <table class="catatan"><tr><td>CATATAN :</td></tr></table>
-
-    <table class="ttd">
-        <tr><th>Pembukuan</th><th>Mengetahui</th><th>Kasir</th><th>Penerima</th></tr>
-        <tr class="space"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
-    </table>
 
     <div class="foot">Dibuat oleh: <?= e($vHeader['created_by_name'] ?? '-') ?> &nbsp;&middot;&nbsp; <?= e(printedAtLabel()) ?></div>
 </div>

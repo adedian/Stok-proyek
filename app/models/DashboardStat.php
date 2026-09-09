@@ -143,20 +143,26 @@ class DashboardStat
     }
 
     /**
-     * Ringkasan peringatan untuk notification bell di topbar -- versi ringkas
-     * dari alert yang sama dipakai di dashboard, dicek ulang di sini supaya
-     * muncul di SEMUA halaman (bukan cuma saat buka dashboard). Dibatasi role
-     * yang relevan dan bisa dimatikan lewat Pengaturan Notifikasi.
+     * SATU sumber peringatan untuk lonceng topbar DAN kartu "Peringatan &
+     * Informasi Penting" di dashboard -- keduanya memanggil method ini supaya
+     * isinya selalu identik.
+     *
+     * Tiap peringatan hanya muncul kalau SEMUA syarat ini terpenuhi:
+     *   1. Toggle-nya aktif di Pengaturan > Notifikasi (notify_*).
+     *   2. User boleh membuka halaman tujuannya -> can(module,'view')
+     *      (matrix permission DB/file + override per-user), BUKAN daftar role
+     *      hardcode. Jadi kalau akses user dicabut/ditambah lewat Hak Akses,
+     *      lonceng & dashboard ikut menyesuaikan, dan link tidak pernah 403.
+     *   3. Angkanya > 0.
+     *
+     * 'cta' = label tombol di kartu dashboard; lonceng mengabaikannya.
      */
-    public function topbarSummary(): array
+    public function activeAlerts(): array
     {
         $settingModel = new SystemSetting();
         $items = [];
 
-        // Audiens tiap peringatan = role yang BENAR-BENAR bisa membuka halaman
-        // tujuannya (config/permissions.php) -- konsisten dg kartu alert di
-        // dashboard/index.php supaya link tidak pernah 403.
-        if ($settingModel->getBool('notify_selisih_barang', true) && hasRole([ROLE_SUPER_ADMIN, ROLE_ACCOUNTING, ROLE_PIC_PROJECT])) {
+        if ($settingModel->getBool('notify_selisih_barang', true) && can('validation', 'view')) {
             $count = $this->barangSelisihBelumValidasi();
             if ($count > 0) {
                 $items[] = [
@@ -164,11 +170,12 @@ class DashboardStat
                     'title' => 'Selisih Barang',
                     'desc' => "{$count} item penerimaan barang dengan selisih belum divalidasi.",
                     'url' => route('validation'),
+                    'cta' => 'Validasi Sekarang',
                 ];
             }
         }
 
-        if ($settingModel->getBool('notify_invoice_pending', true) && hasRole([ROLE_SUPER_ADMIN, ROLE_ACCOUNTING])) {
+        if ($settingModel->getBool('notify_invoice_pending', true) && can('sales_invoice', 'view')) {
             $count = $this->invoiceBelumTertagih();
             if ($count > 0) {
                 $items[] = [
@@ -176,11 +183,12 @@ class DashboardStat
                     'title' => 'Invoice Belum Tertagih',
                     'desc' => "{$count} Invoice Keluar belum ada Tanda Terima.",
                     'url' => route('sales_invoice', 'index', ['billing_status' => 'belum_tertagih']),
+                    'cta' => 'Lihat Invoice',
                 ];
             }
         }
 
-        if ($settingModel->getBool('notify_stok_minimum', true) && hasRole([ROLE_SUPER_ADMIN, ROLE_ACCOUNTING])) {
+        if ($settingModel->getBool('notify_stok_minimum', true) && can('inventory', 'view')) {
             $count = (new Item())->belowMinStockCount();
             if ($count > 0) {
                 $items[] = [
@@ -188,11 +196,12 @@ class DashboardStat
                     'title' => 'Stok Minimum',
                     'desc' => "{$count} barang dengan stok di bawah batas minimum.",
                     'url' => route('inventory', 'index', ['stock_filter' => 'low']),
+                    'cta' => 'Lihat Stok Barang',
                 ];
             }
         }
 
-        if ($settingModel->getBool('notify_po_belum_diproses', true) && hasRole([ROLE_SUPER_ADMIN, ROLE_ACCOUNTING, ROLE_PURCHASE])) {
+        if ($settingModel->getBool('notify_po_belum_diproses', true) && can('purchase_order', 'view')) {
             $count = $this->poBelumDiproses();
             if ($count > 0) {
                 $items[] = [
@@ -200,11 +209,18 @@ class DashboardStat
                     'title' => 'PO Belum Diproses',
                     'desc' => "{$count} Purchase Order masih menunggu approval.",
                     'url' => route('purchase_order', 'index', ['status' => 'waiting_approval']),
+                    'cta' => 'Lihat PO',
                 ];
             }
         }
 
         return $items;
+    }
+
+    /** @deprecated pakai activeAlerts() -- alias dipertahankan utk pemanggil lama. */
+    public function topbarSummary(): array
+    {
+        return $this->activeAlerts();
     }
 
     /**

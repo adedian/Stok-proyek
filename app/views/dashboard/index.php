@@ -11,32 +11,10 @@
 </div>
 
 <?php
-    $alertCards = [];
-    // Audiens tiap alert = SIAPA PUN yang boleh membuka halaman tujuannya,
-    // diperiksa lewat can() (matrix permission DB/file + override per-user) --
-    // BUKAN daftar role hardcode. Kalau user tidak boleh view halaman itu,
-    // kartunya tidak dirender (dan URL langsung tetap ditolak backend 403).
-    if ($notifFlags['selisih_barang'] && !empty($stats['selisih_belum_validasi']) && can('validation', 'view')) {
-        $alertCards[] = [
-            'variant' => 'warning', 'icon' => 'bi-exclamation-triangle-fill', 'title' => 'Selisih Barang',
-            'desc'    => (int) $stats['selisih_belum_validasi'] . ' item penerimaan barang dengan selisih belum divalidasi.',
-            'url'     => route('validation'), 'cta' => 'Validasi Sekarang',
-        ];
-    }
-    if ($notifFlags['stok_minimum'] && !empty($belowMinStockItems) && can('inventory', 'view')) {
-        $alertCards[] = [
-            'variant' => 'danger', 'icon' => 'bi-exclamation-octagon-fill', 'title' => 'Stok Minimum',
-            'desc'    => count($belowMinStockItems) . ' barang dengan stok di bawah batas minimum.',
-            'url'     => route('inventory', 'index', ['stock_filter' => 'low']), 'cta' => 'Lihat Stok Barang',
-        ];
-    }
-    if ($notifFlags['po_belum_diproses'] && !empty($stats['po_belum_diproses']) && can('purchase_order', 'view')) {
-        $alertCards[] = [
-            'variant' => 'info', 'icon' => 'bi-hourglass-split', 'title' => 'PO Belum Diproses',
-            'desc'    => (int) $stats['po_belum_diproses'] . ' Purchase Order masih menunggu approval.',
-            'url'     => route('purchase_order', 'index', ['status' => 'waiting_approval']), 'cta' => 'Lihat PO',
-        ];
-    }
+    // Kartu peringatan = PERSIS isi lonceng topbar. Dibangun sekali di
+    // DashboardStat::activeAlerts() (difilter can(view) + toggle notifikasi +
+    // count>0) lalu dipakai bersama, supaya dashboard & lonceng tak pernah beda.
+    $alertCards = $alerts ?? [];
 ?>
 <?php if (!empty($alertCards)): ?>
 <div class="mb-4">

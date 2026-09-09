@@ -67,7 +67,7 @@
     $topbarCurrentModule = $activeModuleOverride ?? ($_GET['module'] ?? 'dashboard');
     $topbarGroup = menuGroupForModule($topbarCurrentModule);
     $topbarPageLabel = $pageTitle ?? (menuLabelForModule($topbarCurrentModule) ?? 'Dashboard');
-    $topbarAlerts = isLoggedIn() ? (new DashboardStat())->topbarSummary() : [];
+    $topbarAlerts = isLoggedIn() ? (new DashboardStat())->activeAlerts() : [];
 
     $initials = '';
     foreach (explode(' ', trim(currentUserName())) as $part) {

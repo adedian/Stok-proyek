@@ -53,11 +53,6 @@ class DashboardController extends Controller
             'po_belum_diproses' => $settingModel->getBool('notify_po_belum_diproses', true),
         ];
 
-        $belowMinStockItems = [];
-        if ($notifFlags['stok_minimum']) {
-            $belowMinStockItems = (new Item())->belowMinStockList();
-        }
-
         $recentActivities = array_slice((new ActivityLog())->listWithFilters(), 0, 8);
         foreach ($recentActivities as &$activity) {
             $activity['icon'] = self::ACTIVITY_ICONS[$activity['module']] ?? 'bi-info-circle';
@@ -72,9 +67,12 @@ class DashboardController extends Controller
         $this->view('dashboard/index', [
             'stats'              => $stats,
             'notifFlags'         => $notifFlags,
-            'belowMinStockItems' => $belowMinStockItems,
             'recentActivities'   => $recentActivities,
             'paymentProgress'    => $paymentProgress,
+            // Kartu "Peringatan & Informasi Penting" -- SUMBER SAMA dg lonceng
+            // topbar (DashboardStat::activeAlerts): sudah difilter can(view) +
+            // toggle notifikasi + count>0, jadi keduanya selalu identik.
+            'alerts'             => $statModel->activeAlerts(),
         ]);
     }
 

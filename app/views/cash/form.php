@@ -77,6 +77,25 @@ $cashCategories = $categories;
     </a>
 </div>
 
+<?php if ($isEdit && ($cash['validation_status'] ?? '') === 'ditolak'): ?>
+    <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert">
+        <i class="bi bi-x-octagon-fill fs-5 flex-shrink-0"></i>
+        <div>
+            <div class="fw-semibold">
+                Transaksi ini DITOLAK
+                <?php if (!empty($cash['validated_by_name'])): ?>oleh <?= e($cash['validated_by_name']) ?><?php endif; ?>
+                <?php if (!empty($cash['validated_at'])): ?> &middot; <?= formatTanggal($cash['validated_at']) ?><?php endif; ?>
+            </div>
+            <?php if (!empty($cash['validation_note'])): ?>
+                <div class="mt-1">Alasan: <em>&ldquo;<?= e($cash['validation_note']) ?>&rdquo;</em></div>
+            <?php endif; ?>
+            <div class="small text-danger-emphasis mt-1">
+                Perbaiki sesuai catatan di atas, lalu simpan &mdash; status otomatis kembali ke <strong>Menunggu</strong> untuk divalidasi ulang.
+            </div>
+        </div>
+    </div>
+<?php endif; ?>
+
 <form method="POST" action="<?= BASE_URL ?>/index.php?module=cash&action=<?= $actionUrl ?>" id="cashForm">
     <?= csrfField() ?>
     <?php if ($isEdit): ?>

@@ -224,7 +224,12 @@ $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saj
                             <td><?= e($r['created_by_name'] ?? '-') ?></td>
                             <td>
                                 <?php [$vc, $vl] = $valBadge[$r['validation_status'] ?? 'menunggu'] ?? ['secondary', $r['validation_status'] ?? '-']; ?>
-                                <span class="badge bg-<?= $vc ?>" <?= !empty($r['validation_note']) ? 'title="' . e($r['validation_note']) . '"' : '' ?>><?= $vl ?></span>
+                                <span class="badge bg-<?= $vc ?>"><?= $vl ?></span>
+                                <?php if (($r['validation_status'] ?? '') === 'ditolak' && !empty($r['validation_note'])): ?>
+                                    <div class="small fst-italic text-danger mt-1" style="max-width: 16rem;">
+                                        <i class="bi bi-chat-left-quote"></i> <?= e($r['validation_note']) ?>
+                                    </div>
+                                <?php endif; ?>
                             </td>
                             <td class="text-center no-print">
                                 <?php $rowLocked = isPeriodClosed('cash', $r['trx_date']); ?>

@@ -66,8 +66,11 @@ class CashCategory extends Model
         $sql = "{$select} FROM cash_categories WHERE deleted_at IS NULL";
         $params = [];
         if (!empty($filters['keyword'])) {
-            $sql .= " AND category_name LIKE :kw";
-            $params['kw'] = '%' . $filters['keyword'] . '%';
+            [$ssSql, $ssParams] = SmartSearch::clause($filters['keyword'], ['category_name'], [], 'cckw');
+            if ($ssSql !== '') {
+                $sql .= " AND {$ssSql}";
+                $params += $ssParams;
+            }
         }
         return [$sql, $params];
     }

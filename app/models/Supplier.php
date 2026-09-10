@@ -38,7 +38,16 @@ class Supplier extends Model
         [$sql, $params] = $this->buildListQuery($filters);
         $sort = in_array($sort, $this->sortWhitelist, true) ? $sort : 'supplier_name';
         $dir = strtolower($dir) === 'desc' ? 'DESC' : 'ASC';
-        $sql .= " ORDER BY {$sort} {$dir} LIMIT {$limit} OFFSET {$offset}";
+        $orderBy = "{$sort} {$dir}";
+        if (!empty($filters['keyword'])) {
+            // Hasil paling relevan (kode/nama paling cocok) naik ke atas.
+            [$rel, $relParams] = SmartSearch::relevanceExpr($filters['keyword'], 'supplier_code', 'supplier_name', 'srel');
+            if ($rel !== '0') {
+                $orderBy = "{$rel} DESC, {$orderBy}";
+                $params += $relParams;
+            }
+        }
+        $sql .= " ORDER BY {$orderBy} LIMIT {$limit} OFFSET {$offset}";
         return $this->db->fetchAll($sql, $params);
     }
 
@@ -49,13 +58,16 @@ class Supplier extends Model
         $params = [];
 
         if (!empty($filters['keyword'])) {
-            [$codeSql, $codeParams] = codeSearchClause('supplier_code', $filters['keyword'], 'skw');
-            $sql .= " AND (supplier_name LIKE :kw1 OR supplier_code LIKE :kw2 OR contact_person LIKE :kw3{$codeSql})";
-            $kw = '%' . $filters['keyword'] . '%';
-            $params['kw1'] = $kw;
-            $params['kw2'] = $kw;
-            $params['kw3'] = $kw;
-            $params = array_merge($params, $codeParams);
+            [$ssSql, $ssParams] = SmartSearch::clause(
+                $filters['keyword'],
+                ['supplier_name', 'contact_person'],
+                ['supplier_code'],
+                'skw'
+            );
+            if ($ssSql !== '') {
+                $sql .= " AND {$ssSql}";
+                $params += $ssParams;
+            }
         }
         if (!empty($filters['status'])) {
             $sql .= " AND status = :status";

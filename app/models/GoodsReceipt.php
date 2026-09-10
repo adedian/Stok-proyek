@@ -60,11 +60,16 @@ class GoodsReceipt extends Model
             $params['stock_scope'] = $filters['stock_scope'];
         }
         if (!empty($filters['keyword'])) {
-            $sql .= " AND (gr.receipt_number LIKE :kw1 OR po.po_number LIKE :kw2 OR s.supplier_name LIKE :kw3)";
-            $kw = '%' . $filters['keyword'] . '%';
-            $params['kw1'] = $kw;
-            $params['kw2'] = $kw;
-            $params['kw3'] = $kw;
+            [$ssSql, $ssParams] = SmartSearch::clause(
+                $filters['keyword'],
+                ['s.supplier_name'],
+                ['gr.receipt_number', 'po.po_number'],
+                'grkw'
+            );
+            if ($ssSql !== '') {
+                $sql .= " AND {$ssSql}";
+                $params += $ssParams;
+            }
         }
         if (!empty($filters['date_from'])) {
             $sql .= " AND gr.receipt_date >= :date_from";

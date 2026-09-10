@@ -37,11 +37,16 @@ class StockOut extends Model
             $params['project_id'] = $filters['project_id'];
         }
         if (!empty($filters['keyword'])) {
-            $sql .= " AND (inv.item_name LIKE :kw1 OR so.destination LIKE :kw2 OR so.pic_name LIKE :kw3)";
-            $kw = '%' . $filters['keyword'] . '%';
-            $params['kw1'] = $kw;
-            $params['kw2'] = $kw;
-            $params['kw3'] = $kw;
+            [$ssSql, $ssParams] = SmartSearch::clause(
+                $filters['keyword'],
+                ['inv.item_name', 'so.destination', 'so.pic_name'],
+                [],
+                'sokw'
+            );
+            if ($ssSql !== '') {
+                $sql .= " AND {$ssSql}";
+                $params += $ssParams;
+            }
         }
         if (!empty($filters['date_from'])) {
             $sql .= " AND so.out_date >= :date_from";

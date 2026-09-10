@@ -46,8 +46,11 @@ class ItemCategory extends Model
         $sql = "{$select} FROM item_categories WHERE deleted_at IS NULL";
         $params = [];
         if (!empty($filters['keyword'])) {
-            $sql .= " AND category_name LIKE :kw";
-            $params['kw'] = '%' . $filters['keyword'] . '%';
+            [$ssSql, $ssParams] = SmartSearch::clause($filters['keyword'], ['category_name'], [], 'ickw');
+            if ($ssSql !== '') {
+                $sql .= " AND {$ssSql}";
+                $params += $ssParams;
+            }
         }
         return [$sql, $params];
     }

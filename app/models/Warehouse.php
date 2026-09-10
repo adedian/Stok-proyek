@@ -38,7 +38,15 @@ class Warehouse extends Model
         [$sql, $params] = $this->buildListQuery($filters);
         $sort = in_array($sort, $this->sortWhitelist, true) ? $sort : 'warehouse_name';
         $dir = strtolower($dir) === 'desc' ? 'DESC' : 'ASC';
-        $sql .= " ORDER BY {$sort} {$dir} LIMIT {$limit} OFFSET {$offset}";
+        $orderBy = "{$sort} {$dir}";
+        if (!empty($filters['keyword'])) {
+            [$rel, $relParams] = SmartSearch::relevanceExpr($filters['keyword'], 'warehouse_code', 'warehouse_name', 'wrel');
+            if ($rel !== '0') {
+                $orderBy = "{$rel} DESC, {$orderBy}";
+                $params += $relParams;
+            }
+        }
+        $sql .= " ORDER BY {$orderBy} LIMIT {$limit} OFFSET {$offset}";
         return $this->db->fetchAll($sql, $params);
     }
 
@@ -49,10 +57,16 @@ class Warehouse extends Model
         $params = [];
 
         if (!empty($filters['keyword'])) {
-            $sql .= " AND (warehouse_name LIKE :kw1 OR warehouse_code LIKE :kw2)";
-            $kw = '%' . $filters['keyword'] . '%';
-            $params['kw1'] = $kw;
-            $params['kw2'] = $kw;
+            [$ssSql, $ssParams] = SmartSearch::clause(
+                $filters['keyword'],
+                ['warehouse_name', 'pic_name'],
+                ['warehouse_code'],
+                'wkw'
+            );
+            if ($ssSql !== '') {
+                $sql .= " AND {$ssSql}";
+                $params += $ssParams;
+            }
         }
         if (!empty($filters['status'])) {
             $sql .= " AND status = :status";

@@ -36,11 +36,16 @@ class DeliveryNote extends Model
         $params = [];
 
         if (!empty($filters['keyword'])) {
-            $sql .= " AND (dn.delivery_number LIKE :kw1 OR dn.destination_name LIKE :kw2 OR c.client_name LIKE :kw3)";
-            $kw = '%' . $filters['keyword'] . '%';
-            $params['kw1'] = $kw;
-            $params['kw2'] = $kw;
-            $params['kw3'] = $kw;
+            [$ssSql, $ssParams] = SmartSearch::clause(
+                $filters['keyword'],
+                ['dn.destination_name', 'c.client_name'],
+                ['dn.delivery_number'],
+                'dnkw'
+            );
+            if ($ssSql !== '') {
+                $sql .= " AND {$ssSql}";
+                $params += $ssParams;
+            }
         }
         if (!empty($filters['date_from'])) {
             $sql .= " AND dn.delivery_date >= :date_from";

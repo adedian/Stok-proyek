@@ -440,8 +440,11 @@ class Inventory extends Model
             $params['stock_type'] = $filters['stock_type'];
         }
         if (!empty($filters['keyword'])) {
-            $sql .= " AND inv.item_name LIKE :kw";
-            $params['kw'] = '%' . $filters['keyword'] . '%';
+            [$ssSql, $ssParams] = SmartSearch::clause($filters['keyword'], ['inv.item_name'], [], 'invkw');
+            if ($ssSql !== '') {
+                $sql .= " AND {$ssSql}";
+                $params += $ssParams;
+            }
         }
         // 'zero'/'nonzero' khusus Laporan Stok Barang (requirement filter "Stok = 0"/"Stok != 0").
         if (($filters['stock_filter'] ?? '') === 'low') {

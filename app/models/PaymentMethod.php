@@ -46,8 +46,11 @@ class PaymentMethod extends Model
         $sql = "{$select} FROM payment_methods WHERE deleted_at IS NULL";
         $params = [];
         if (!empty($filters['keyword'])) {
-            $sql .= " AND method_name LIKE :kw";
-            $params['kw'] = '%' . $filters['keyword'] . '%';
+            [$ssSql, $ssParams] = SmartSearch::clause($filters['keyword'], ['method_name'], [], 'pmkw');
+            if ($ssSql !== '') {
+                $sql .= " AND {$ssSql}";
+                $params += $ssParams;
+            }
         }
         return [$sql, $params];
     }

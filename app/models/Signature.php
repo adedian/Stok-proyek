@@ -56,9 +56,11 @@ class Signature extends Model
         $sql = "{$select} FROM signatures WHERE deleted_at IS NULL";
         $params = [];
         if (!empty($filters['keyword'])) {
-            $sql .= " AND (name LIKE :kw1 OR position LIKE :kw2)";
-            $params['kw1'] = '%' . $filters['keyword'] . '%';
-            $params['kw2'] = '%' . $filters['keyword'] . '%';
+            [$ssSql, $ssParams] = SmartSearch::clause($filters['keyword'], ['name', 'position'], [], 'sigkw');
+            if ($ssSql !== '') {
+                $sql .= " AND {$ssSql}";
+                $params += $ssParams;
+            }
         }
         return [$sql, $params];
     }

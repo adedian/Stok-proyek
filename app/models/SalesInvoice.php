@@ -62,10 +62,16 @@ class SalesInvoice extends Model
         $params = [];
 
         if (!empty($filters['keyword'])) {
-            $sql .= " AND (si.invoice_number LIKE :kw1 OR c.client_name LIKE :kw2)";
-            $kw = '%' . $filters['keyword'] . '%';
-            $params['kw1'] = $kw;
-            $params['kw2'] = $kw;
+            [$ssSql, $ssParams] = SmartSearch::clause(
+                $filters['keyword'],
+                ['c.client_name'],
+                ['si.invoice_number'],
+                'sikw'
+            );
+            if ($ssSql !== '') {
+                $sql .= " AND {$ssSql}";
+                $params += $ssParams;
+            }
         }
         if (!empty($filters['client_id'])) {
             $sql .= " AND si.client_id = :client_id";

@@ -69,7 +69,15 @@ class Item extends Model
         [$sql, $params] = $this->buildListQuery($filters);
         $sort = in_array($sort, $this->sortWhitelist, true) ? "i.{$sort}" : 'i.item_name';
         $dir = strtolower($dir) === 'desc' ? 'DESC' : 'ASC';
-        $sql .= " ORDER BY {$sort} {$dir} LIMIT {$limit} OFFSET {$offset}";
+        $orderBy = "{$sort} {$dir}";
+        if (!empty($filters['keyword'])) {
+            [$rel, $relParams] = SmartSearch::relevanceExpr($filters['keyword'], 'i.item_code', 'i.item_name', 'irel');
+            if ($rel !== '0') {
+                $orderBy = "{$rel} DESC, {$orderBy}";
+                $params += $relParams;
+            }
+        }
+        $sql .= " ORDER BY {$orderBy} LIMIT {$limit} OFFSET {$offset}";
         return $this->db->fetchAll($sql, $params);
     }
 
@@ -90,12 +98,16 @@ class Item extends Model
         $params = [];
 
         if (!empty($filters['keyword'])) {
-            [$codeSql, $codeParams] = codeSearchClause('i.item_code', $filters['keyword'], 'ikw');
-            $sql .= " AND (i.item_name LIKE :kw1 OR i.item_code LIKE :kw2{$codeSql})";
-            $kw = '%' . $filters['keyword'] . '%';
-            $params['kw1'] = $kw;
-            $params['kw2'] = $kw;
-            $params = array_merge($params, $codeParams);
+            [$ssSql, $ssParams] = SmartSearch::clause(
+                $filters['keyword'],
+                ['i.item_name'],
+                ['i.item_code'],
+                'ikw'
+            );
+            if ($ssSql !== '') {
+                $sql .= " AND {$ssSql}";
+                $params += $ssParams;
+            }
         }
         if (!empty($filters['category_id'])) {
             $sql .= " AND i.category_id = :category_id";

@@ -38,7 +38,15 @@ class Client extends Model
         [$sql, $params] = $this->buildListQuery($filters);
         $sort = in_array($sort, $this->sortWhitelist, true) ? $sort : 'client_name';
         $dir = strtolower($dir) === 'desc' ? 'DESC' : 'ASC';
-        $sql .= " ORDER BY {$sort} {$dir} LIMIT {$limit} OFFSET {$offset}";
+        $orderBy = "{$sort} {$dir}";
+        if (!empty($filters['keyword'])) {
+            [$rel, $relParams] = SmartSearch::relevanceExpr($filters['keyword'], 'client_code', 'client_name', 'crel');
+            if ($rel !== '0') {
+                $orderBy = "{$rel} DESC, {$orderBy}";
+                $params += $relParams;
+            }
+        }
+        $sql .= " ORDER BY {$orderBy} LIMIT {$limit} OFFSET {$offset}";
         return $this->db->fetchAll($sql, $params);
     }
 
@@ -49,13 +57,16 @@ class Client extends Model
         $params = [];
 
         if (!empty($filters['keyword'])) {
-            [$codeSql, $codeParams] = codeSearchClause('client_code', $filters['keyword'], 'ckw');
-            $sql .= " AND (client_name LIKE :kw1 OR client_code LIKE :kw2 OR contact_person LIKE :kw3{$codeSql})";
-            $kw = '%' . $filters['keyword'] . '%';
-            $params['kw1'] = $kw;
-            $params['kw2'] = $kw;
-            $params['kw3'] = $kw;
-            $params = array_merge($params, $codeParams);
+            [$ssSql, $ssParams] = SmartSearch::clause(
+                $filters['keyword'],
+                ['client_name', 'contact_person'],
+                ['client_code'],
+                'ckw'
+            );
+            if ($ssSql !== '') {
+                $sql .= " AND {$ssSql}";
+                $params += $ssParams;
+            }
         }
         if (!empty($filters['status'])) {
             $sql .= " AND status = :status";

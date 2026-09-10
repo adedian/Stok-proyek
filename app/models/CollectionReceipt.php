@@ -34,10 +34,16 @@ class CollectionReceipt extends Model
         $params = [];
 
         if (!empty($filters['keyword'])) {
-            $sql .= " AND (cr.receipt_number LIKE :kw1 OR c.client_name LIKE :kw2)";
-            $kw = '%' . $filters['keyword'] . '%';
-            $params['kw1'] = $kw;
-            $params['kw2'] = $kw;
+            [$ssSql, $ssParams] = SmartSearch::clause(
+                $filters['keyword'],
+                ['c.client_name'],
+                ['cr.receipt_number'],
+                'crkw'
+            );
+            if ($ssSql !== '') {
+                $sql .= " AND {$ssSql}";
+                $params += $ssParams;
+            }
         }
         if (!empty($filters['date_from'])) {
             $sql .= " AND cr.receipt_date >= :date_from";

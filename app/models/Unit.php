@@ -46,8 +46,11 @@ class Unit extends Model
         $sql = "{$select} FROM units WHERE deleted_at IS NULL";
         $params = [];
         if (!empty($filters['keyword'])) {
-            $sql .= " AND unit_name LIKE :kw";
-            $params['kw'] = '%' . $filters['keyword'] . '%';
+            [$ssSql, $ssParams] = SmartSearch::clause($filters['keyword'], ['unit_name'], [], 'unkw');
+            if ($ssSql !== '') {
+                $sql .= " AND {$ssSql}";
+                $params += $ssParams;
+            }
         }
         return [$sql, $params];
     }

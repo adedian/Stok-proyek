@@ -68,10 +68,16 @@ class PurchaseOrder extends Model
             $params['project_id'] = $filters['project_id'];
         }
         if (!empty($filters['keyword'])) {
-            $sql .= " AND (po.po_number LIKE :kw1 OR s.supplier_name LIKE :kw2)";
-            $kw = '%' . $filters['keyword'] . '%';
-            $params['kw1'] = $kw;
-            $params['kw2'] = $kw;
+            [$ssSql, $ssParams] = SmartSearch::clause(
+                $filters['keyword'],
+                ['s.supplier_name'],
+                ['po.po_number'],
+                'pokw'
+            );
+            if ($ssSql !== '') {
+                $sql .= " AND {$ssSql}";
+                $params += $ssParams;
+            }
         }
         if (!empty($filters['date_from'])) {
             $sql .= " AND po.po_date >= :date_from";
@@ -184,10 +190,16 @@ class PurchaseOrder extends Model
             $params['project_id'] = $filters['project_id'];
         }
         if (!empty($filters['keyword'])) {
-            $sql .= " AND (po.po_number LIKE :kw1 OR s.supplier_name LIKE :kw2)";
-            $kw = '%' . $filters['keyword'] . '%';
-            $params['kw1'] = $kw;
-            $params['kw2'] = $kw;
+            [$ssSql, $ssParams] = SmartSearch::clause(
+                $filters['keyword'],
+                ['s.supplier_name'],
+                ['po.po_number'],
+                'pokw'
+            );
+            if ($ssSql !== '') {
+                $sql .= " AND {$ssSql}";
+                $params += $ssParams;
+            }
         }
         if (!empty($filters['date_from'])) {
             $sql .= " AND po.po_date >= :date_from";

@@ -155,8 +155,16 @@ class CashTransaction extends Model
             $params['st'] = $status;
         }
         if (!empty($filters['keyword'])) {
-            $where .= " AND (c.no_bukti LIKE :kw OR c.pic LIKE :kw)";
-            $params['kw'] = '%' . $filters['keyword'] . '%';
+            [$ssSql, $ssParams] = SmartSearch::clause(
+                $filters['keyword'],
+                ['c.pic', 'c.division'],
+                ['c.no_bukti'],
+                'cvkw'
+            );
+            if ($ssSql !== '') {
+                $where .= " AND {$ssSql}";
+                $params += $ssParams;
+            }
         }
         if (!empty($filters['date_from'])) {
             $where .= " AND c.trx_date >= :df";
@@ -459,6 +467,21 @@ class CashTransaction extends Model
         if (!empty($filters['pic'])) {
             $sql .= " AND c.pic LIKE :pic";
             $params['pic'] = '%' . $filters['pic'] . '%';
+        }
+        if (!empty($filters['keyword'])) {
+            [$ssSql, $ssParams] = SmartSearch::clause(
+                $filters['keyword'],
+                ['c.pic', 'c.division'],
+                ['c.no_bukti'],
+                'ckkw'
+            );
+            if ($ssSql !== '') {
+                $sql .= " AND ({$ssSql}"
+                    . " OR EXISTS (SELECT 1 FROM cash_transaction_items cti_kw"
+                    . " WHERE cti_kw.cash_transaction_id = c.id AND LOWER(cti_kw.uraian) LIKE :ckkw_ur))";
+                $params += $ssParams;
+                $params['ckkw_ur'] = '%' . strtolower(trim($filters['keyword'])) . '%';
+            }
         }
         if (!empty($filters['category_id'])) {
             $sql .= " AND EXISTS (SELECT 1 FROM cash_transaction_items cti

@@ -58,7 +58,15 @@ class Project extends Model
         [$sql, $params] = $this->buildListQuery($filters);
         $sort = in_array($sort, $this->sortWhitelist, true) ? "p.{$sort}" : 'p.project_name';
         $dir = strtolower($dir) === 'desc' ? 'DESC' : 'ASC';
-        $sql .= " ORDER BY {$sort} {$dir} LIMIT {$limit} OFFSET {$offset}";
+        $orderBy = "{$sort} {$dir}";
+        if (!empty($filters['keyword'])) {
+            [$rel, $relParams] = SmartSearch::relevanceExpr($filters['keyword'], 'p.project_code', 'p.project_name', 'prel');
+            if ($rel !== '0') {
+                $orderBy = "{$rel} DESC, {$orderBy}";
+                $params += $relParams;
+            }
+        }
+        $sql .= " ORDER BY {$orderBy} LIMIT {$limit} OFFSET {$offset}";
         return $this->db->fetchAll($sql, $params);
     }
 
@@ -69,13 +77,16 @@ class Project extends Model
         $params = [];
 
         if (!empty($filters['keyword'])) {
-            [$codeSql, $codeParams] = codeSearchClause('p.project_code', $filters['keyword'], 'pkw');
-            $sql .= " AND (p.project_name LIKE :kw1 OR p.project_code LIKE :kw2 OR p.location LIKE :kw3{$codeSql})";
-            $kw = '%' . $filters['keyword'] . '%';
-            $params['kw1'] = $kw;
-            $params['kw2'] = $kw;
-            $params['kw3'] = $kw;
-            $params = array_merge($params, $codeParams);
+            [$ssSql, $ssParams] = SmartSearch::clause(
+                $filters['keyword'],
+                ['p.project_name', 'p.location'],
+                ['p.project_code'],
+                'pkw'
+            );
+            if ($ssSql !== '') {
+                $sql .= " AND {$ssSql}";
+                $params += $ssParams;
+            }
         }
         if (!empty($filters['status'])) {
             $sql .= " AND p.status = :status";

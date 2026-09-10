@@ -174,13 +174,16 @@ class GoodsReceiptItem extends Model
             $params['status'] = $filters['status'];
         }
         if (!empty($filters['keyword'])) {
-            $sql .= " AND (gr.receipt_number LIKE :kw1 OR po.po_number LIKE :kw2
-                           OR poi.item_name LIKE :kw3 OR gri.actual_item_name LIKE :kw4)";
-            $kw = '%' . $filters['keyword'] . '%';
-            $params['kw1'] = $kw;
-            $params['kw2'] = $kw;
-            $params['kw3'] = $kw;
-            $params['kw4'] = $kw;
+            [$ssSql, $ssParams] = SmartSearch::clause(
+                $filters['keyword'],
+                ['poi.item_name', 'gri.actual_item_name'],
+                ['gr.receipt_number', 'po.po_number'],
+                'grikw'
+            );
+            if ($ssSql !== '') {
+                $sql .= " AND {$ssSql}";
+                $params += $ssParams;
+            }
         }
 
         $sql .= " ORDER BY gr.receipt_date DESC, gri.id DESC";
@@ -277,12 +280,16 @@ class GoodsReceiptItem extends Model
             $params['project_id'] = $filters['project_id'];
         }
         if (!empty($filters['keyword'])) {
-            $sql .= " AND (gr.receipt_number LIKE :kw1 OR po.po_number LIKE :kw2 OR poi.item_name LIKE :kw3 OR gri.actual_item_name LIKE :kw4)";
-            $kw = '%' . $filters['keyword'] . '%';
-            $params['kw1'] = $kw;
-            $params['kw2'] = $kw;
-            $params['kw3'] = $kw;
-            $params['kw4'] = $kw;
+            [$ssSql, $ssParams] = SmartSearch::clause(
+                $filters['keyword'],
+                ['poi.item_name', 'gri.actual_item_name'],
+                ['gr.receipt_number', 'po.po_number'],
+                'grikw'
+            );
+            if ($ssSql !== '') {
+                $sql .= " AND {$ssSql}";
+                $params += $ssParams;
+            }
         }
         if (!empty($filters['date_from'])) {
             $sql .= " AND gr.receipt_date >= :date_from";

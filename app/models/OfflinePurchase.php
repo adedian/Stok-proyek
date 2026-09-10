@@ -51,12 +51,19 @@ class OfflinePurchase extends Model
             $params['project_id'] = $filters['project_id'];
         }
         if (!empty($filters['keyword'])) {
-            $sql .= " AND (op.purchase_number LIKE :kw1 OR op.supplier_name LIKE :kw2
-                           OR EXISTS (SELECT 1 FROM offline_purchase_items opi2 WHERE opi2.offline_purchase_id = op.id AND opi2.item_name LIKE :kw3))";
-            $kw = '%' . $filters['keyword'] . '%';
-            $params['kw1'] = $kw;
-            $params['kw2'] = $kw;
-            $params['kw3'] = $kw;
+            [$ssSql, $ssParams] = SmartSearch::clause(
+                $filters['keyword'],
+                ['op.supplier_name'],
+                ['op.purchase_number'],
+                'opkw'
+            );
+            if ($ssSql !== '') {
+                $sql .= " AND ({$ssSql}"
+                    . " OR EXISTS (SELECT 1 FROM offline_purchase_items opi2"
+                    . " WHERE opi2.offline_purchase_id = op.id AND LOWER(opi2.item_name) LIKE :opkw_item))";
+                $params += $ssParams;
+                $params['opkw_item'] = '%' . strtolower(trim($filters['keyword'])) . '%';
+            }
         }
         if (!empty($filters['status'])) {
             $sql .= " AND op.status = :status";

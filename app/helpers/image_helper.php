@@ -38,6 +38,22 @@ if (!defined('IMG_WEBP_QUALITY')) {
 if (!defined('IMG_PNG_COMPRESSION')) {
     define('IMG_PNG_COMPRESSION', 6);
 }
+// Target ukuran file MAKSIMUM setelah kompresi. Kalau hasil encode masih
+// lebih besar, kualitas JPEG/WebP diturunkan bertahap (85 -> 45), lalu bila
+// perlu dimensi dikecilkan bertahap sampai muat atau menyentuh batas bawah.
+// Default 300 KB (bukti transfer/foto barang tetap jelas terbaca). Override
+// lewat config/local.php: 'img_target_max_kb' => 500
+if (!defined('IMG_TARGET_MAX_BYTES')) {
+    $__imgKb = (int) (($GLOBALS['__APP_LOCAL']['img_target_max_kb'] ?? 0));
+    define('IMG_TARGET_MAX_BYTES', ($__imgKb > 0 ? $__imgKb : 300) * 1024);
+}
+// Jangan turunkan kualitas / perkecil di bawah ini demi mengejar target.
+if (!defined('IMG_MIN_JPEG_QUALITY')) {
+    define('IMG_MIN_JPEG_QUALITY', 45);
+}
+if (!defined('IMG_MIN_DIMENSION')) {
+    define('IMG_MIN_DIMENSION', 900);
+}
 
 /**
  * MIME gambar yang bisa diproses helper ini.
@@ -101,49 +117,83 @@ function compressImageFile(string $srcTmpPath, string $mime, string $destPath): 
         $srcH = imagesy($src);
     }
 
-    // --- 4. Hitung target (resize hanya kalau lebih besar dari batas, tidak pernah memperbesar) ---
-    $scale = min(1.0, IMG_MAX_DIMENSION / max($srcW, $srcH));
-    $dstW = max(1, (int) round($srcW * $scale));
-    $dstH = max(1, (int) round($srcH * $scale));
+    // --- 4. Dimensi awal: turunkan ke sisi maks IMG_MAX_DIMENSION (tidak pernah memperbesar) ---
+    $baseW = $srcW;
+    $baseH = $srcH;
+    $startScale = min(1.0, IMG_MAX_DIMENSION / max($srcW, $srcH));
+    $dstW = max(1, (int) round($srcW * $startScale));
+    $dstH = max(1, (int) round($srcH * $startScale));
 
-    // --- 5. Resample berkualitas tinggi ---
-    $dst = imagecreatetruecolor($dstW, $dstH);
-    if ($mime === 'image/png' || $mime === 'image/webp') {
-        imagealphablending($dst, false);
-        imagesavealpha($dst, true);
-        $transparent = imagecolorallocatealpha($dst, 0, 0, 0, 127);
-        imagefilledrectangle($dst, 0, 0, $dstW, $dstH, $transparent);
-    }
-    imagecopyresampled($dst, $src, 0, 0, 0, 0, $dstW, $dstH, $srcW, $srcH);
-    imagedestroy($src);
-
-    // --- 6. Encode ke file final (metadata TIDAK ikut -- GD tidak menyalinnya) ---
+    // --- 5 & 6. Encode dengan TARGET UKURAN.
+    // Ulangi: turunkan kualitas JPEG/WebP (85 -> IMG_MIN_JPEG_QUALITY), lalu bila
+    // masih kegedean kecilkan dimensi ~15% (batas bawah IMG_MIN_DIMENSION), sampai
+    // file <= IMG_TARGET_MAX_BYTES atau sudah mentok. PNG: tak ada knob kualitas,
+    // jadi hanya dikecilkan dimensinya. Gambar yang sudah kecil -> 1x encode saja.
+    $quality = ($mime === 'image/webp') ? IMG_WEBP_QUALITY : IMG_JPEG_QUALITY;
     $ok = false;
-    switch ($mime) {
-        case 'image/jpeg':
+    $attempt = 0;
+
+    while (true) {
+        $attempt++;
+
+        $dst = imagecreatetruecolor($dstW, $dstH);
+        if ($mime === 'image/png' || $mime === 'image/webp') {
+            imagealphablending($dst, false);
+            imagesavealpha($dst, true);
+            $transparent = imagecolorallocatealpha($dst, 0, 0, 0, 127);
+            imagefilledrectangle($dst, 0, 0, $dstW, $dstH, $transparent);
+        }
+        imagecopyresampled($dst, $src, 0, 0, 0, 0, $dstW, $dstH, $baseW, $baseH);
+
+        if ($mime === 'image/jpeg') {
             $flat = imagecreatetruecolor($dstW, $dstH);
             imagefilledrectangle($flat, 0, 0, $dstW, $dstH, imagecolorallocate($flat, 255, 255, 255));
             imagecopy($flat, $dst, 0, 0, 0, 0, $dstW, $dstH);
             imagedestroy($dst);
             imageinterlace($flat, true); // progressive JPEG -> render lebih cepat
-            $ok = imagejpeg($flat, $destPath, IMG_JPEG_QUALITY);
+            $ok = imagejpeg($flat, $destPath, $quality);
             imagedestroy($flat);
-            break;
-        case 'image/png':
+        } elseif ($mime === 'image/png') {
             imagesavealpha($dst, true);
             $ok = imagepng($dst, $destPath, IMG_PNG_COMPRESSION);
             imagedestroy($dst);
-            break;
-        case 'image/webp':
-            $ok = imagewebp($dst, $destPath, IMG_WEBP_QUALITY);
+        } else { // image/webp
+            $ok = imagewebp($dst, $destPath, $quality);
             imagedestroy($dst);
+        }
+
+        if (!$ok || !is_file($destPath)) {
+            imagedestroy($src);
+            @unlink($destPath);
+            throw new RuntimeException('Gagal menyimpan gambar hasil kompresi.');
+        }
+
+        $bytes = (int) filesize($destPath);
+        if ($bytes <= IMG_TARGET_MAX_BYTES || $attempt >= 20) {
             break;
+        }
+
+        $isLossy = ($mime === 'image/jpeg' || $mime === 'image/webp');
+
+        // Langkah 1: turunkan kualitas dulu (85 -> 45) tanpa menyentuh dimensi.
+        if ($isLossy && $quality > IMG_MIN_JPEG_QUALITY) {
+            $quality = max(IMG_MIN_JPEG_QUALITY, $quality - 10);
+            continue;
+        }
+        // Langkah 2: kualitas sudah mentok -> kecilkan dimensi 20%, patok kualitas
+        // di 58 (kompromi wajar), ulangi sampai <= target atau dimensi minimum.
+        if (max($dstW, $dstH) > IMG_MIN_DIMENSION) {
+            $dstW = max(1, (int) round($dstW * 0.8));
+            $dstH = max(1, (int) round($dstH * 0.8));
+            if ($isLossy) {
+                $quality = 58;
+            }
+            continue;
+        }
+        break; // dimensi & kualitas sudah minimum -- terima apa adanya
     }
 
-    if (!$ok || !is_file($destPath)) {
-        @unlink($destPath);
-        throw new RuntimeException('Gagal menyimpan gambar hasil kompresi.');
-    }
+    imagedestroy($src);
 
     return [
         'width'  => $dstW,

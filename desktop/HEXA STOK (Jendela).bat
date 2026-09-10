@@ -10,7 +10,7 @@ REM =====================================================================
 
 set "URL=https://hexastok.hexamultienergi.com/dashboard"
 set "PROFILE=%LOCALAPPDATA%\HexaStokApp"
-set "FLAGS=--app=%URL% --user-data-dir=%PROFILE% --no-first-run --no-default-browser-check --disable-features=Translate,MediaRouter"
+set "FLAGS=--app=%URL% --user-data-dir=%PROFILE% --start-maximized --no-first-run --no-default-browser-check --disable-features=Translate,MediaRouter"
 
 set "BROWSER="
 for %%P in (

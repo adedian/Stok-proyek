@@ -4,8 +4,19 @@ HEXA STOK -- pintasan desktop (Windows)
 Isi folder:
   HEXA STOK (Layar Penuh).bat   -> layar penuh, TANPA bingkai & tanpa tombol
                                    apa pun. Keluar dengan Alt + F4.
-  HEXA STOK (Jendela).bat       -> jendela aplikasi (tanpa address bar),
-                                   tombol minimize/maximize/silang masih ada.
+  HEXA STOK (Jendela).bat       -> jendela aplikasi bersih: HANYA tombol
+                                   minimize (-), maximize/restore, dan silang (X).
+                                   TIDAK ada titik-tiga, ikon extension, panah,
+                                   address bar, atau menu HEXA STOK.
+                                   (Tulisan judul kecil di title bar Windows
+                                    tetap muncul -- itu bagian Windows sendiri,
+                                    hanya bisa hilang total lewat mode Layar
+                                    Penuh atau aplikasi terbungkus.)
+
+  Catatan: jendela PWA yang di-"install" dari Chrome MASIH menampilkan
+  titik-tiga / extension / panah. Untuk tampilan bersih, pakai file .bat
+  ini -- JANGAN pakai ikon PWA hasil "Install". Kalau sudah terlanjur
+  install, boleh di-uninstall (menu titik-tiga -> Uninstall).
 
 CARA PAKAI
 ----------

@@ -78,6 +78,33 @@ textarea {
 }
 
 /* =========================================================================
+ * WINDOW CONTROLS OVERLAY (PWA desktop) -- hilangkan title bar browser.
+ * Konten aplikasi memakai SELURUH tinggi jendela; tombol minimize/close
+ * melayang di kanan atas. Topbar aplikasi jadi area GESER jendela.
+ * Aktif hanya kalau OS/browser mendukung & app di-install sebagai desktop.
+ * ========================================================================= */
+@media (display-mode: window-controls-overlay) {
+    .app-topbar {
+        -webkit-app-region: drag;                 /* seret dari topbar utk pindah jendela */
+        padding-left: calc(env(titlebar-area-x, 0px) + 1rem);
+        /* sisakan ruang untuk tombol window di kanan (Windows) */
+        padding-right: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 1rem);
+        min-height: env(titlebar-area-height, var(--topbar-height));
+    }
+
+    /* elemen yang bisa diklik JANGAN ikut jadi area seret */
+    .app-topbar a,
+    .app-topbar button,
+    .app-topbar input,
+    .app-topbar select,
+    .app-topbar .dropdown-menu,
+    .app-topbar [role="button"],
+    .app-topbar [data-bs-toggle] {
+        -webkit-app-region: no-drag;
+    }
+}
+
+/* =========================================================================
  * Tombol "Pasang Aplikasi" mengambang (Android/Chrome; muncul lewat pwa.js)
  * ========================================================================= */
 .pwa-install-fab {

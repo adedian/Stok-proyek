@@ -16,6 +16,7 @@
         })();
     </script>
     <title><?= isset($pageTitle) ? e($pageTitle) . ' - ' : '' ?><?= e(APP_NAME) ?></title>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="icon" type="image/png" href="<?= assetUrl('/assets/img/logo-hme.png') ?>">
 
     <?php /* ---- PWA (Progressive Web App) ---- */ ?>
@@ -45,8 +46,16 @@
     <link href="<?= assetUrl('/assets/css/utilities.css') ?>" rel="stylesheet">
     <link href="<?= assetUrl('/assets/css/responsive.css') ?>" rel="stylesheet">
     <link href="<?= assetUrl('/assets/css/pwa.css') ?>" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <?php
+        // sweetalert2 dipakai di semua halaman (toast flash, confirm), tapi
+        // hanya diakses saat DOMContentLoaded -> defer supaya tidak memblok
+        // render. chart.js HANYA dipakai dashboard -> jangan bebani halaman lain.
+        $isDashboardPage = (($_GET['module'] ?? 'dashboard') === 'dashboard');
+    ?>
+    <script defer src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <?php if ($isDashboardPage): ?>
+        <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <?php endif; ?>
 </head>
 <body>
 <script>

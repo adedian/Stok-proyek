@@ -11,7 +11,10 @@ require ROOT_PATH . '/app/views/layouts/sidebar.php';
             </div>
         </noscript>
         <script>
-            (function () {
+            // Ditunda ke DOMContentLoaded: sweetalert2 kini dimuat pakai `defer`
+            // (tidak lagi memblok render). Saat DCL, window.Swal sudah siap ->
+            // toast tetap tampil cantik, bukan fallback alert biasa.
+            document.addEventListener('DOMContentLoaded', function () {
                 var type = <?= json_encode($flash['type']) ?>;
                 var message = <?= json_encode($flash['message']) ?>;
                 var icon = type === 'error' ? 'error' : (type === 'success' ? 'success' : 'info');
@@ -34,7 +37,7 @@ require ROOT_PATH . '/app/views/layouts/sidebar.php';
                     var mainContent = document.querySelector('.main-content');
                     if (mainContent) { mainContent.insertBefore(wrap, mainContent.firstChild); }
                 }
-            })();
+            });
         </script>
     <?php endif; ?>
 

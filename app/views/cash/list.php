@@ -107,6 +107,11 @@ $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saj
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
         <form method="GET" action="<?= BASE_URL ?>/cash" class="row g-2 align-items-end">
+            <div class="col-12 col-md-3">
+                <label class="form-label small text-muted mb-1">Cari</label>
+                <input type="text" name="keyword" class="form-control form-control-sm"
+                       value="<?= e($filters['keyword'] ?? '') ?>" placeholder="no bukti / PIC / uraian (mis. ad 01)">
+            </div>
             <div class="col-6 col-md-2">
                 <label class="form-label small text-muted mb-1">Dari Tanggal</label>
                 <input type="date" name="date_from" class="form-control form-control-sm" value="<?= e($filters['date_from']) ?>">

@@ -778,6 +778,7 @@ class CashController extends Controller
             'pic'         => trim($_GET['pic'] ?? ''),
             'category_id' => $_GET['category_id'] ?? '',
             'mutasi'      => $_GET['mutasi'] ?? '',
+            'keyword'     => trim($_GET['keyword'] ?? ''),
         ];
     }
 

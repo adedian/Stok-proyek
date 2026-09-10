@@ -26,7 +26,7 @@
             <div class="col-md-4">
                 <label class="form-label small text-muted mb-1">Cari (No. PO / Supplier)</label>
                 <input type="text" name="keyword" class="form-control form-control-sm"
-                       value="<?= e($filters['keyword']) ?>" placeholder="PO/2026/08/0001 atau nama supplier">
+                       value="<?= e($filters['keyword']) ?>" placeholder="potongan no PO / supplier (mis. 039 atau am 039)">
             </div>
             <div class="col-md-3">
                 <label class="form-label small text-muted mb-1">Status</label>

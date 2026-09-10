@@ -717,7 +717,7 @@ class ReportController extends Controller
                 // Nama GET param sengaja 'log_module', BUKAN 'module' -- 'module' sudah dipakai
                 // router untuk routing (?module=report), jadi tidak boleh dipakai ulang di sini.
                 $module = trim($get['log_module'] ?? '');
-                $filters = ['date_from' => $dateFrom, 'date_to' => $dateTo, 'user_id' => $userId, 'module' => $module];
+                $filters = ['date_from' => $dateFrom, 'date_to' => $dateTo, 'user_id' => $userId, 'module' => $module, 'keyword' => $keyword];
 
                 // Tampilan layar: paginasi 50/halaman. Export Excel/PDF ($paginate=false):
                 // ambil banyak sekaligus (perilaku lama, LIMIT 500 di model).
@@ -737,6 +737,7 @@ class ReportController extends Controller
                         'date_to'   => $dateTo,
                         'user_id'   => $userId,
                         'log_module' => $module,
+                        'keyword'   => $keyword,
                     ], fn($v) => $v !== '' && $v !== null));
                 } else {
                     $rows = $model->listWithFilters($filters);
@@ -764,8 +765,8 @@ class ReportController extends Controller
                         ['field' => 'ip_address', 'label' => 'IP'],
                     ],
                     'rows' => $rows,
-                    'filterForm' => ['date' => true, 'user' => $userModel->activeList(), 'module' => $moduleFilterOptions],
-                    'filters' => compact('dateFrom', 'dateTo', 'userId', 'module'),
+                    'filterForm' => ['date' => true, 'user' => $userModel->activeList(), 'module' => $moduleFilterOptions, 'keyword' => true],
+                    'filters' => compact('dateFrom', 'dateTo', 'userId', 'module', 'keyword'),
                     'exportQuery' => $this->buildExportQuery($get),
                     'pagination' => $pagination,
                     'baseQuery' => $baseQuery,

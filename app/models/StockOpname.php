@@ -78,6 +78,18 @@ class StockOpname extends Model
             $sql .= " AND so.status = :status";
             $params['status'] = $filters['status'];
         }
+        if (!empty($filters['keyword'])) {
+            [$ssSql, $ssParams] = SmartSearch::clause(
+                $filters['keyword'],
+                ['p.project_name', 'so.notes'],
+                ['so.opname_number'],
+                'opnkw'
+            );
+            if ($ssSql !== '') {
+                $sql .= " AND {$ssSql}";
+                $params += $ssParams;
+            }
+        }
         if (!empty($filters['date_from'])) {
             $sql .= " AND so.opname_date >= :date_from";
             $params['date_from'] = $filters['date_from'];

@@ -42,7 +42,7 @@ $modals = ''; // dikumpulkan lalu dirender DI LUAR <table> (form dalam <tbody> r
             <input type="hidden" name="status" value="<?= e($status) ?>">
             <div class="col-md-4">
                 <label class="form-label small text-muted mb-1">Cari (No Bukti / PIC)</label>
-                <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword']) ?>">
+                <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword']) ?>" placeholder="ketik potongan kode / nama...">
             </div>
             <div class="col-md-3">
                 <label class="form-label small text-muted mb-1">Dari Tanggal</label>

@@ -22,7 +22,7 @@
             <input type="hidden" name="action" value="approved">
             <div class="col-md-6">
                 <label class="form-label small text-muted mb-1">Cari (No. Penerimaan / No. PO / Nama Barang)</label>
-                <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword']) ?>">
+                <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword']) ?>" placeholder="ketik potongan kode / nama...">
             </div>
             <div class="col-md-2">
                 <button type="submit" class="btn btn-sm btn-outline-primary w-100">

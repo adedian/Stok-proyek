@@ -52,6 +52,18 @@ class ActivityLog extends Model
             $sql .= " AND al.created_at <= :date_to";
             $params['date_to'] = $filters['date_to'] . ' 23:59:59';
         }
+        if (!empty($filters['keyword'])) {
+            [$ssSql, $ssParams] = SmartSearch::clause(
+                $filters['keyword'],
+                ['u.full_name', 'al.module', 'al.action', 'al.description', 'al.ip_address'],
+                [],
+                'alkw'
+            );
+            if ($ssSql !== '') {
+                $sql .= " AND {$ssSql}";
+                $params += $ssParams;
+            }
+        }
 
         return [$sql, $params];
     }
@@ -85,7 +97,11 @@ class ActivityLog extends Model
     public function countWithFilters(array $filters = []): int
     {
         [$where, $params] = $this->buildFilterWhere($filters);
-        $row = $this->db->fetchOne("SELECT COUNT(*) AS c FROM activity_logs al" . $where, $params);
+        // LEFT JOIN users: dibutuhkan kalau filter keyword menyaring lewat u.full_name.
+        $row = $this->db->fetchOne(
+            "SELECT COUNT(*) AS c FROM activity_logs al LEFT JOIN users u ON u.id = al.user_id" . $where,
+            $params
+        );
         return (int) ($row['c'] ?? 0);
     }
 

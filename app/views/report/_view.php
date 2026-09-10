@@ -143,7 +143,7 @@
             <?php if (!empty($filterForm['keyword'])): ?>
                 <div class="col-md-3">
                     <label class="form-label small text-muted mb-1">Cari</label>
-                    <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword'] ?? '') ?>">
+                    <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword'] ?? '') ?>" placeholder="ketik potongan kode / nama...">
                 </div>
             <?php endif; ?>
 

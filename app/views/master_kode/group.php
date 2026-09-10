@@ -124,7 +124,7 @@ function mkPreview(array $c, string $mc): string
             <input type="hidden" name="type" value="<?= e($entityType) ?>">
             <div class="col-md-5">
                 <label class="form-label small text-muted mb-1">Cari (Kode / Nama)</label>
-                <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword']) ?>">
+                <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword']) ?>" placeholder="ketik potongan kode / nama...">
             </div>
             <div class="col-md-2 d-flex gap-2">
                 <button type="submit" class="btn btn-sm btn-outline-primary w-100"><i class="bi bi-search"></i> Cari</button>

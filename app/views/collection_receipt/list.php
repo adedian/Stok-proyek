@@ -20,7 +20,7 @@
         <form method="GET" action="<?= BASE_URL ?>/collection_receipt" class="row g-2 align-items-end">
             <div class="col-md-4">
                 <label class="form-label small text-muted mb-1">Cari (No. Tanda Terima / Client)</label>
-                <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword']) ?>">
+                <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword']) ?>" placeholder="ketik potongan kode / nama...">
             </div>
             <div class="col-md-3">
                 <label class="form-label small text-muted mb-1">Dari Tanggal</label>

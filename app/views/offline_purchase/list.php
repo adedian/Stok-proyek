@@ -25,7 +25,7 @@
         <form method="GET" action="<?= BASE_URL ?>/offline_purchase" class="row g-2 align-items-end">
             <div class="col-md-4">
                 <label class="form-label small text-muted mb-1">Cari (No. Pembelian / Barang / Supplier)</label>
-                <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword']) ?>">
+                <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword']) ?>" placeholder="ketik potongan kode / nama...">
             </div>
             <div class="col-md-3">
                 <label class="form-label small text-muted mb-1">Project</label>

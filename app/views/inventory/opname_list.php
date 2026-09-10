@@ -29,6 +29,11 @@
     <div class="card-body">
         <form method="GET" action="<?= BASE_URL ?>/inventory" class="row g-2 align-items-end">
             <input type="hidden" name="action" value="opnameIndex">
+            <div class="col-12 col-md-3">
+                <label class="form-label small text-muted mb-1">Cari</label>
+                <input type="text" name="keyword" class="form-control form-control-sm"
+                       value="<?= e($filters['keyword'] ?? '') ?>" placeholder="no opname / project / catatan">
+            </div>
             <div class="col-md-3">
                 <label class="form-label small text-muted mb-1">Jenis Stok</label>
                 <select name="stock_type" class="form-select form-select-sm">

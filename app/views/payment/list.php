@@ -72,7 +72,7 @@
             <div class="col-md-5">
                 <label class="form-label small text-muted mb-1">Cari (No. Pembayaran / No. PO / Supplier)</label>
                 <input type="text" name="keyword" class="form-control form-control-sm"
-                       value="<?= e($filters['keyword']) ?>">
+                       value="<?= e($filters['keyword']) ?>" placeholder="potongan no bayar / no PO / supplier">
             </div>
             <div class="col-md-4">
                 <label class="form-label small text-muted mb-1">Status</label>

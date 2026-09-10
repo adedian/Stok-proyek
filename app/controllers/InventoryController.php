@@ -86,6 +86,7 @@ class InventoryController extends Controller
             'project_id'  => $_GET['project_id'] ?? '',
             'stock_type'  => $_GET['stock_type'] ?? '',
             'status'      => $_GET['status'] ?? '',
+            'keyword'     => trim($_GET['keyword'] ?? ''),
         ];
 
         $opnames = $this->opnameModel->listWithRelations($filters);

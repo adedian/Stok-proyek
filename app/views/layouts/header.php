@@ -7,14 +7,11 @@
         /* Tandai mode aplikasi SEBELUM render pertama -> tanpa kedip. */
         (function () {
             try {
-                var wco = window.matchMedia && matchMedia('(display-mode: window-controls-overlay)').matches;
-                if (wco
-                    || (window.matchMedia && (matchMedia('(display-mode: standalone)').matches
+                if ((window.matchMedia && (matchMedia('(display-mode: standalone)').matches
                         || matchMedia('(display-mode: minimal-ui)').matches))
                     || navigator.standalone === true) {
                     document.documentElement.classList.add('pwa-standalone');
                 }
-                if (wco) { document.documentElement.classList.add('pwa-wco'); }
             } catch (e) { /* abaikan */ }
         })();
     </script>

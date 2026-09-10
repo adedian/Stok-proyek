@@ -49,7 +49,7 @@ foreach ($availableInvoices as $inv) {
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-sm align-middle mb-0">
+                <table class="table table-sm align-middle mb-0 entry-cards">
                     <thead class="table-light">
                         <tr>
                             <th style="width: 36px;"></th>
@@ -62,7 +62,7 @@ foreach ($availableInvoices as $inv) {
                     <tbody>
                         <?php foreach ($rows as $row): ?>
                             <tr>
-                                <td>
+                                <td data-label="Sertakan">
                                     <input type="checkbox" class="form-check-input" name="invoice_ids[]"
                                            value="<?= (int) $row['id'] ?>" <?= $row['checked'] ? 'checked' : '' ?>>
                                 </td>

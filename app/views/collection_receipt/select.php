@@ -14,7 +14,7 @@
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-sm align-middle mb-0">
+                <table class="table table-sm align-middle mb-0 entry-cards">
                     <thead class="table-light">
                         <tr>
                             <th>No. Invoice</th>

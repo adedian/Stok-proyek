@@ -32,9 +32,14 @@
 <?php endif; ?>
 
 <?php if ($pendingCount > 0): ?>
-    <div class="alert alert-warning">
+    <div class="alert alert-warning d-flex flex-wrap align-items-center gap-2">
         <i class="bi bi-exclamation-triangle-fill"></i>
-        Ada <strong><?= (int) $pendingCount ?></strong> item dengan selisih yang masih menunggu validasi.
+        <span>Ada <strong><?= (int) $pendingCount ?></strong> item dengan selisih yang masih menunggu validasi.</span>
+        <?php if (($filters['validated'] ?? '') !== 'selisih'): ?>
+            <a href="<?= BASE_URL ?>/validation?validated=selisih" class="btn btn-sm btn-warning ms-auto">
+                <i class="bi bi-funnel"></i> Tampilkan yang selisih saja
+            </a>
+        <?php endif; ?>
     </div>
 <?php endif; ?>
 
@@ -63,6 +68,7 @@
                 <label class="form-label small text-muted mb-1">Validasi</label>
                 <select name="validated" class="form-select form-select-sm">
                     <option value="no" <?= $filters['validated'] === 'no' ? 'selected' : '' ?>>Belum Divalidasi</option>
+                    <option value="selisih" <?= $filters['validated'] === 'selisih' ? 'selected' : '' ?>>Belum divalidasi &amp; ada selisih</option>
                     <option value="yes" <?= $filters['validated'] === 'yes' ? 'selected' : '' ?>>Sudah Divalidasi</option>
                     <option value="" <?= $filters['validated'] === '' ? 'selected' : '' ?>>Semua</option>
                 </select>

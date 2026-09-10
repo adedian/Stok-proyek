@@ -170,7 +170,9 @@ class DashboardStat
                     'icon' => 'bi-exclamation-triangle-fill', 'variant' => 'warning',
                     'title' => 'Selisih Barang',
                     'desc' => "{$count} item penerimaan barang dengan selisih belum divalidasi.",
-                    'url' => route('validation'),
+                    // Buka LANGSUNG ke daftar yang sudah difilter "belum divalidasi &
+                    // ada selisih" -> jumlah di list == angka notifikasi ini.
+                    'url' => route('validation', 'index', ['validated' => 'selisih']),
                     'cta' => 'Validasi Sekarang',
                 ];
             }

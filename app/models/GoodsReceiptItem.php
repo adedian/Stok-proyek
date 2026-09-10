@@ -162,6 +162,9 @@ class GoodsReceiptItem extends Model
             $sql .= " AND gri.validated_at IS NOT NULL";
         } elseif (isset($filters['validated']) && $filters['validated'] === 'no') {
             $sql .= " AND gri.validated_at IS NULL";
+        } elseif (isset($filters['validated']) && $filters['validated'] === 'selisih') {
+            // SAMA PERSIS dg countPendingSelisih() -> angka notifikasi & isi list cocok.
+            $sql .= " AND gri.validated_at IS NULL AND gri.comparison_status != 'sesuai'";
         }
         if (!empty($filters['problem'])) {
             $sql .= " AND (gri.validated_at IS NULL OR gri.comparison_status != 'sesuai')";

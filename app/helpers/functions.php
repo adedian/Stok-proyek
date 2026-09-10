@@ -117,6 +117,28 @@ function assetUrl(string $relativePath): string
 }
 
 /**
+ * URL bundel CSS aplikasi (public/assets/css/app.php) -- menggabung 15 file
+ * CSS jadi 1 request. ?v = mtime terbesar dari semua file CSS, jadi cache
+ * batal otomatis begitu salah satu CSS diubah.
+ */
+function cssAppBundleUrl(): string
+{
+    static $url = null;
+    if ($url !== null) {
+        return $url;
+    }
+    $dir = ROOT_PATH . '/public/assets/css';
+    $latest = 0;
+    foreach (glob($dir . '/*.css') ?: [] as $f) {
+        $m = filemtime($f);
+        if ($m !== false && $m > $latest) {
+            $latest = $m;
+        }
+    }
+    return $url = BASE_URL . '/assets/css/app.php?v=' . ($latest ?: time());
+}
+
+/**
  * URL untuk menampilkan file upload. Folder SENSITIF (bukti pembayaran, invoice
  * supplier, bukti pembelian offline) dialihkan lewat FileController yang
  * mengecek login + role; folder lain (foto barang, logo, tanda tangan, foto

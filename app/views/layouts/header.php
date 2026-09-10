@@ -31,21 +31,8 @@
     <link rel="icon" type="image/png" sizes="16x16" href="<?= BASE_URL ?>/assets/img/pwa/favicon-16.png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="<?= assetUrl('/assets/css/variables.css') ?>" rel="stylesheet">
-    <link href="<?= assetUrl('/assets/css/layout.css') ?>" rel="stylesheet">
-    <link href="<?= assetUrl('/assets/css/topbar.css') ?>" rel="stylesheet">
-    <link href="<?= assetUrl('/assets/css/sidebar.css') ?>" rel="stylesheet">
-    <link href="<?= assetUrl('/assets/css/dashboard.css') ?>" rel="stylesheet">
-    <link href="<?= assetUrl('/assets/css/cards.css') ?>" rel="stylesheet">
-    <link href="<?= assetUrl('/assets/css/tables.css') ?>" rel="stylesheet">
-    <link href="<?= assetUrl('/assets/css/forms.css') ?>" rel="stylesheet">
-    <link href="<?= assetUrl('/assets/css/buttons.css') ?>" rel="stylesheet">
-    <link href="<?= assetUrl('/assets/css/badges.css') ?>" rel="stylesheet">
-    <link href="<?= assetUrl('/assets/css/modals.css') ?>" rel="stylesheet">
-    <link href="<?= assetUrl('/assets/css/alerts.css') ?>" rel="stylesheet">
-    <link href="<?= assetUrl('/assets/css/utilities.css') ?>" rel="stylesheet">
-    <link href="<?= assetUrl('/assets/css/responsive.css') ?>" rel="stylesheet">
-    <link href="<?= assetUrl('/assets/css/pwa.css') ?>" rel="stylesheet">
+    <?php /* 15 file CSS aplikasi digabung jadi 1 request (public/assets/css/app.php). */ ?>
+    <link href="<?= cssAppBundleUrl() ?>" rel="stylesheet">
     <?php
         // sweetalert2 dipakai di semua halaman (toast flash, confirm), tapi
         // hanya diakses saat DOMContentLoaded -> defer supaya tidak memblok

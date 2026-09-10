@@ -23,15 +23,20 @@ a {
 
 .main-content {
     padding: 28px 32px;
+    /* Cukup tinggi untuk mendorong footer ke dasar layar pada halaman
+       berkonten pendek. dvh (dynamic viewport) mengikuti tinggi layar
+       AKTUAL di Android (URL bar muncul/hilang) -> tidak ada ruang mati
+       ekstra di bawah. vh sebagai fallback browser lama. */
     min-height: calc(100vh - var(--topbar-height));
+    min-height: calc(100dvh - var(--topbar-height));
     min-width: 0; /* biar flex child boleh menyusut & isi (tabel lebar) scroll sendiri, bukan mendorong layout */
 }
 
 /* Footer copyright global -- render sekali di app/views/layouts/footer.php, ikut
    di-include lewat main.php ke SEMUA halaman yang pakai layout utama (Controller::view()).
    BUKAN position:fixed -- mengalir normal di akhir dokumen (sibling setelah .d-flex
-   sidebar+main-content), jadi tidak pernah menutupi tabel/form. .main-content sudah
-   punya min-height:100vh (lihat inline style di main.php), jadi footer otomatis
+   sidebar+main-content), jadi tidak pernah menutupi tabel/form. .main-content
+   punya min-height 100dvh - topbar (lihat aturan di atas), jadi footer otomatis
    jatuh di sekitar akhir viewport pada halaman berkonten pendek, dan mengikuti alur
    halaman (turun lebih jauh) pada halaman berkonten panjang -- tanpa perlu restrukturisasi
    body/flex global yang berisiko ke seluruh halaman lain. .no-print (aturan sudah ada

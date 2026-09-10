@@ -22,7 +22,12 @@
     html,
     body {
         max-width: 100%;
+        /* 'hidden' di <html> membuatnya jadi scroll-container -> di Android
+           Chrome URL bar tak pernah menyusut & halaman TIDAK bisa di-scroll
+           sampai dasar. 'clip' mencegah geser horizontal TANPA efek itu.
+           Baris 'hidden' dibiarkan sbg fallback utk browser lama (<2021). */
         overflow-x: hidden;
+        overflow-x: clip;
     }
 
     .d-flex > .main-content,

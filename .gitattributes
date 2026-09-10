@@ -6,6 +6,8 @@
 # "$'\r': command not found", .htaccess & service worker bisa rusak).
 *.sh            text eol=lf
 deploy/*        text eol=lf
+*.bat           text eol=crlf
+*.cmd           text eol=crlf
 *.htaccess      text eol=lf
 .htaccess       text eol=lf
 bin/*           text eol=lf

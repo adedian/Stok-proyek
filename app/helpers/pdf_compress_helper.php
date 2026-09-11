@@ -108,11 +108,12 @@ function pdfCompressionAvailable(): bool
     }
     $ok = false;
 
-    if (!function_exists('proc_open')) {
-        return $ok;
-    }
-    $disabled = array_map('trim', explode(',', strtolower((string) ini_get('disable_functions'))));
-    if (in_array('proc_open', $disabled, true)) {
+    // function_exists() sudah otomatis false untuk fungsi yang dimatikan lewat
+    // disable_functions (dicoba di produksi: proc_open TERSEDIA tapi
+    // escapeshellarg DIMATIKAN hosting -- kalau cuma proc_open yang dicek,
+    // baris escapeshellarg() di bawah fatal error "Call to undefined function"
+    // dan meng-crash SETIAP upload PDF di seluruh app).
+    if (!function_exists('proc_open') || !function_exists('escapeshellarg')) {
         return $ok;
     }
 

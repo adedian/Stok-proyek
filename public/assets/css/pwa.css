@@ -80,46 +80,87 @@ textarea {
 /* =========================================================================
  * Tombol "Pasang Aplikasi" mengambang (Android/Chrome; muncul lewat pwa.js)
  * ========================================================================= */
+/* Bulat & kompak di pojok kanan-bawah (pola FAB standar), BUKAN pil lebar
+   di tengah-bawah. Pil lebar dengan teks "Pasang Aplikasi" selalu selebar
+   ~1 kartu KPI penuh -- di manapun ditaruh (tengah atau kanan) tetap
+   menimpa teks kartu di baliknya. Ikon bulat 48px jauh lebih kecil,
+   paling banter menutupi sudut 1 kartu saja & terbaca sebagai tombol
+   mengambang yang disengaja (bukan elemen nyasar/rusak). Label teks
+   tetap ada untuk pembaca layar (lihat .pwa-install-label). */
 .pwa-install-fab {
     position: fixed;
-    left: 50%;
+    right: max(1rem, env(safe-area-inset-right, 0px));
     bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
-    transform: translateX(-50%);
     z-index: 1080;
-    display: inline-flex;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    display: flex;
     align-items: center;
-    gap: .5rem;
-    padding: .6rem 1.1rem;
+    justify-content: center;
     border: 0;
-    border-radius: 999px;
+    border-radius: 50%;
     background: var(--brand-700, #1E3C72);
     color: #fff;
-    font-size: .9rem;
-    font-weight: 600;
-    line-height: 1;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, .28);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, .3);
     cursor: pointer;
     animation: pwaFabIn .25s ease;
 }
 .pwa-install-fab i {
-    font-size: 1rem;
+    font-size: 1.2rem;
 }
+
+/* Label "Pasang Aplikasi" -- disembunyikan secara visual (bukan display:none
+   supaya tetap terbaca pembaca layar / accessibility tree). aria-label di
+   tombolnya sendiri (diset pwa.js) jadi cadangan kalau butuh. */
+.pwa-install-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Badge "x" kecil menempel di sudut lingkaran, bukan menyatu inline
+   dengan teks (karena teksnya sudah disembunyikan). */
 .pwa-install-fab .pwa-install-x {
-    margin-left: .35rem;
-    padding-left: .35rem;
-    border-left: 1px solid rgba(255, 255, 255, .35);
-    font-size: 1.05rem;
-    font-weight: 400;
-    opacity: .85;
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #fff;
+    color: var(--brand-700, #1E3C72);
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, .25);
 }
 @keyframes pwaFabIn {
-    from { opacity: 0; transform: translate(-50%, 12px); }
-    to   { opacity: 1; transform: translate(-50%, 0); }
+    from { opacity: 0; transform: translateY(12px) scale(.85); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 /* Kalau sudah jadi aplikasi terpasang, tombol tak perlu tampil. */
 .pwa-standalone .pwa-install-fab {
     display: none !important;
+}
+
+/* Tombol ini "mengambang" di atas konten (position: fixed) -- tanpa ruang
+   ekstra di bawah, ia menimpa baris terakhir halaman (mis. kartu KPI
+   dashboard). Beri jarak aman otomatis SELAMA tombolnya ada; begitu
+   ditutup/terpasang (elemen dihapus dari DOM oleh pwa.js) jarak ini
+   otomatis hilang lagi. */
+body:has(.pwa-install-fab) {
+    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
 }
 
 @media print {

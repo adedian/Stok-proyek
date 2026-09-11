@@ -47,9 +47,10 @@
         fab = document.createElement('button');
         fab.type = 'button';
         fab.className = 'pwa-install-fab no-print';
+        fab.setAttribute('aria-label', 'Pasang Aplikasi');
         fab.innerHTML =
             '<i class="bi bi-download"></i>'
-            + '<span>Pasang Aplikasi</span>'
+            + '<span class="pwa-install-label">Pasang Aplikasi</span>'
             + '<span class="pwa-install-x" role="button" aria-label="Tutup">&times;</span>';
 
         fab.addEventListener('click', function (ev) {

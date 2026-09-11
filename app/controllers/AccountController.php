@@ -32,7 +32,11 @@ class AccountController extends Controller
         $this->picModel    = new UserPicAssignment();
     }
 
-    public function index()
+    /**
+     * Ambil data user login + info Password Kas -- dipakai bareng oleh
+     * halaman Profile dan Pengaturan Akun (dua view, satu sumber data).
+     */
+    private function loadAccountContext(): array
     {
         $user = $this->userModel->findWithRole(currentUserId());
 
@@ -48,13 +52,42 @@ class AccountController extends Controller
         // Project). Mereka boleh MEMBUAT Password Kas sendiri walau belum punya.
         $kasRoleNeedsPassword = !kasIsExemptRole($user['role_slug']);
 
-        $this->view('account/index', [
-            'pageTitle'    => 'Pengaturan Akun',
-            'user'         => $user,
+        return [
+            'user'        => $user,
             // Sudah punya PIC Kas ber-password -> form GANTI (verifikasi lama).
-            'kasPics'      => $kasPics,
+            'kasPics'     => $kasPics,
             // Belum punya tapi role-nya butuh -> form BUAT (set pertama kali).
-            'kasCanSetup'  => empty($kasPics) && $kasRoleNeedsPassword,
+            'kasCanSetup' => empty($kasPics) && $kasRoleNeedsPassword,
+        ];
+    }
+
+    /**
+     * "Profile" -- identitas & data diri (foto, nama, email, telepon).
+     * Terpisah dari "Pengaturan Akun" (keamanan: password login & Kas).
+     */
+    public function index()
+    {
+        $ctx = $this->loadAccountContext();
+
+        $this->view('account/profile', [
+            'pageTitle' => 'Profile',
+            'user'      => $ctx['user'],
+        ]);
+    }
+
+    /**
+     * "Pengaturan Akun" -- keamanan akun: ganti password login & Password Kas.
+     * Terpisah dari "Profile" (identitas/data diri).
+     */
+    public function settings()
+    {
+        $ctx = $this->loadAccountContext();
+
+        $this->view('account/settings', [
+            'pageTitle'   => 'Pengaturan Akun',
+            'user'        => $ctx['user'],
+            'kasPics'     => $ctx['kasPics'],
+            'kasCanSetup' => $ctx['kasCanSetup'],
         ]);
     }
 
@@ -147,7 +180,7 @@ class AccountController extends Controller
     public function changePassword()
     {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->redirect('account', 'index');
+            $this->redirect('account', 'settings');
         }
         verifyCsrf();
 
@@ -159,7 +192,7 @@ class AccountController extends Controller
         $user = $this->userModel->find($userId);
         if (!$user) {
             setFlash('error', 'Akun tidak ditemukan.');
-            $this->redirect('account', 'index');
+            $this->redirect('account', 'settings');
         }
 
         $errors = [];
@@ -178,7 +211,7 @@ class AccountController extends Controller
 
         if (!empty($errors)) {
             setFlash('error', implode(' ', $errors));
-            $this->redirect('account', 'index');
+            $this->redirect('account', 'settings');
         }
 
         $this->userModel->updateById($userId, [
@@ -193,7 +226,7 @@ class AccountController extends Controller
         $this->activityLog->log($userId, 'account', 'change_password', 'Password akun diganti');
 
         setFlash('success', 'Password berhasil diganti.');
-        $this->redirect('account', 'index');
+        $this->redirect('account', 'settings');
     }
 
     /**
@@ -205,7 +238,7 @@ class AccountController extends Controller
     public function changeKasPassword()
     {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->redirect('account', 'index');
+            $this->redirect('account', 'settings');
         }
         verifyCsrf();
 
@@ -223,7 +256,7 @@ class AccountController extends Controller
         }
         if (!empty($errors)) {
             setFlash('error', implode(' ', $errors));
-            $this->redirect('account', 'index');
+            $this->redirect('account', 'settings');
         }
 
         $user = $this->userModel->findWithRole($userId);
@@ -232,12 +265,12 @@ class AccountController extends Controller
         if ($mode === 'set') {
             if (kasIsExemptRole($user['role_slug'] ?? '')) {
                 setFlash('error', 'Role Anda tidak memakai Password Kas.');
-                $this->redirect('account', 'index');
+                $this->redirect('account', 'settings');
             }
             $existing = $this->picModel->firstAssignmentForUser($userId);
             if ($existing && !empty($existing['pic_password'])) {
                 setFlash('error', 'Password Kas sudah ada. Gunakan form "Ganti Password Kas".');
-                $this->redirect('account', 'index');
+                $this->redirect('account', 'settings');
             }
 
             $picName     = ($user['full_name'] ?? '') !== '' ? $user['full_name'] : $user['username'];
@@ -260,7 +293,7 @@ class AccountController extends Controller
             $this->activityLog->log($userId, 'user_pic', 'create',
                 "Password Kas PIC '{$picName}' dibuat sendiri lewat Pengaturan Akun");
             setFlash('success', "Password Kas berhasil dibuat. Anda kini bisa membuka modul Kas (verifikasi PIC '{$picName}').");
-            $this->redirect('account', 'index');
+            $this->redirect('account', 'settings');
         }
 
         // ---- MODE: GANTI (verifikasi lama) ----
@@ -270,15 +303,15 @@ class AccountController extends Controller
         $row = $this->picModel->rowForUser($picId, $userId);
         if (!$row || empty($row['pic_password'])) {
             setFlash('error', 'Data PIC Kas tidak ditemukan untuk akun Anda.');
-            $this->redirect('account', 'index');
+            $this->redirect('account', 'settings');
         }
         if (!password_verify($current, (string) $row['pic_password'])) {
             setFlash('error', 'Password Kas saat ini salah.');
-            $this->redirect('account', 'index');
+            $this->redirect('account', 'settings');
         }
         if (password_verify($new, (string) $row['pic_password'])) {
             setFlash('error', 'Password Kas baru tidak boleh sama dengan yang lama.');
-            $this->redirect('account', 'index');
+            $this->redirect('account', 'settings');
         }
 
         $this->picModel->setCredential(
@@ -292,6 +325,6 @@ class AccountController extends Controller
         $this->activityLog->log($userId, 'user_pic', 'change_password',
             "Password Kas PIC '{$row['pic_name']}' diganti sendiri lewat Pengaturan Akun");
         setFlash('success', "Password Kas untuk PIC '{$row['pic_name']}' berhasil diganti.");
-        $this->redirect('account', 'index');
+        $this->redirect('account', 'settings');
     }
 }

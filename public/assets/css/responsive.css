@@ -1039,6 +1039,22 @@
         max-height: 260px;
     }
 
+    /* Header kartu "Grafik Aktivitas Stok": judul + filter periode (btn-group
+       4 tombol) sebelumnya dipaksa 1 baris (Bootstrap flex nowrap) -- judul
+       terjepit jadi 2 baris SEMPIT & tombol filter ikut kehabisan tempat
+       (3 tombol muat, "Tahun Ini" terlempar sendirian ke baris ke-2 selebar
+       kartu). Judul turun ke baris sendiri, filter dapat baris penuh sendiri
+       di bawahnya -- rapi & keempat tombol muat sejajar (sudah kecil lewat
+       .btn-sm di markup). */
+    .chart-header {
+        flex-wrap: wrap;
+        gap: .5rem;
+    }
+
+    .chart-header .card-section-title {
+        flex: 1 1 100%;
+    }
+
     /* Alert card: latar tint lembut sesuai varian (bukan putih polos +
        garis kiri saja) supaya lebih menarik dilihat & langsung kebaca
        tingkat urgensinya. CTA jadi chip kecil rata-kanan, bukan tombol

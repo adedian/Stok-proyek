@@ -155,7 +155,7 @@ if (!function_exists('renderTopbarAvatar')) {
                 <a class="dropdown-item px-3 py-2" href="<?= BASE_URL ?>/account">
                     <i class="bi bi-person me-2"></i> Profile
                 </a>
-                <a class="dropdown-item px-3 py-2" href="<?= BASE_URL ?>/account">
+                <a class="dropdown-item px-3 py-2" href="<?= BASE_URL ?>/account/settings">
                     <i class="bi bi-gear me-2"></i> Pengaturan Akun
                 </a>
                 <div class="dropdown-divider"></div>

@@ -136,13 +136,13 @@
     <div class="col-xl-8">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-3 chart-header">
                     <div class="card-section-title">Grafik Aktivitas Stok</div>
-                    <div class="btn-group chart-period-filter" role="group">
-                        <button type="button" class="btn btn-outline-secondary active" data-period="7d">7 Hari</button>
-                        <button type="button" class="btn btn-outline-secondary" data-period="30d">30 Hari</button>
-                        <button type="button" class="btn btn-outline-secondary" data-period="month">Bulan Ini</button>
-                        <button type="button" class="btn btn-outline-secondary" data-period="year">Tahun Ini</button>
+                    <div class="btn-group btn-group-sm chart-period-filter" role="group">
+                        <button type="button" class="btn btn-sm btn-outline-secondary active" data-period="7d">7 Hari</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-period="30d">30 Hari</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-period="month">Bulan Ini</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-period="year">Tahun Ini</button>
                     </div>
                 </div>
                 <canvas id="stockActivityChart"></canvas>

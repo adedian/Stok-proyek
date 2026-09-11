@@ -12,7 +12,7 @@
  * Cara memaksa update SW: naikkan VERSION di bawah lalu deploy.
  * ========================================================================= */
 
-const VERSION = 'skp-2026-09-10-1';
+const VERSION = 'skp-2026-09-11-2';
 const RUNTIME = 'runtime-' + VERSION;
 const PRECACHE = 'precache-' + VERSION;
 
@@ -104,4 +104,46 @@ self.addEventListener('fetch', (event) => {
     }
 
     // Sisanya (AJAX ke index.php, dll) -> jaringan apa adanya.
+});
+
+/* =========================================================================
+ * PUSH NOTIFICATION -- muncul walau aplikasi sedang tertutup. Payload dari
+ * server SELALU JSON {title, body, url} (lihat app/helpers/push_helper.php).
+ * ========================================================================= */
+self.addEventListener('push', (event) => {
+    let data = { title: 'HEXA STOK', body: 'Ada pembaruan baru.', url: SCOPE };
+    try {
+        if (event.data) {
+            data = Object.assign(data, event.data.json());
+        }
+    } catch (e) { /* payload bukan JSON -- pakai default di atas */ }
+
+    event.waitUntil(
+        self.registration.showNotification(data.title, {
+            body: data.body,
+            icon: SCOPE + 'assets/img/pwa/icon-192.png',
+            badge: SCOPE + 'assets/img/pwa/icon-192.png',
+            data: { url: data.url || SCOPE },
+            tag: data.tag || undefined, // notifikasi jenis sama (mis. banyak PO) numpuk jadi 1, tidak spam
+        })
+    );
+});
+
+// Tap notifikasi -> fokus tab yang sudah terbuka (kalau ada & di app ini),
+// atau buka tab baru ke url tujuan.
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    const targetUrl = (event.notification.data && event.notification.data.url) || SCOPE;
+
+    event.waitUntil(
+        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientsArr) => {
+            for (const client of clientsArr) {
+                if (client.url.startsWith(self.location.origin) && 'focus' in client) {
+                    client.navigate(targetUrl);
+                    return client.focus();
+                }
+            }
+            return self.clients.openWindow(targetUrl);
+        })
+    );
 });

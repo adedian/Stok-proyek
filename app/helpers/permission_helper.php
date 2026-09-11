@@ -248,6 +248,37 @@ function can(string $module, string $action): bool
     return in_array($role, permissionRoles($module, $action), true);
 }
 
+/**
+ * Versi can() yang TIDAK bergantung sesi login -- dipakai push_helper.php
+ * untuk menentukan siapa saja (dari daftar SEMUA user aktif) yang berhak
+ * menerima notifikasi push suatu event, di luar konteks request user yang
+ * sedang login. Logikanya sengaja disalin persis dari can() (bukan dipanggil
+ * ulang) supaya tidak diam-diam ikut baca session/currentUserId().
+ */
+function canForUser(int $userId, ?string $role, string $module, string $action): bool
+{
+    if (!$role) {
+        return false;
+    }
+    if ($role === ROLE_SUPER_ADMIN) {
+        return true;
+    }
+
+    if (permissionIsLockedModule($module)) {
+        return in_array($role, permissionFileMatrix()[$module][$action] ?? [], true);
+    }
+
+    $effect = userPermissionMap($userId)["{$module}.{$action}"] ?? null;
+    if ($effect === 'deny') {
+        return false;
+    }
+    if ($effect === 'allow') {
+        return true;
+    }
+
+    return in_array($role, permissionRoles($module, $action), true);
+}
+
 function canView(string $module): bool
 {
     return can($module, 'view');

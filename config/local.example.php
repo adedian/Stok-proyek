@@ -51,4 +51,17 @@ return [
     'pdf_compress_preset' => '/ebook',
     // Plafon ukuran PDF sebelum dikompres (MB). Default 25.
     'pdf_max_upload_mb'   => 25,
+
+    // --- Push Notification (Web Push) ---
+    // Kosongkan ketiganya untuk mematikan fitur push (aplikasi tetap jalan
+    // normal, cuma notifikasi push tidak terkirim). Generate SEKALI per
+    // environment (jangan pakai kunci yang sama persis dengan environment
+    // lain) lewat:
+    //   php -r 'require "vendor/autoload.php"; $k = Minishlink\WebPush\VAPID::createVapidKeys(); echo $k["publicKey"]."\n".$k["privateKey"]."\n";'
+    'vapid_public_key'  => '',
+    'vapid_private_key' => '',
+    // Kontak wajib menurut spesifikasi VAPID (mailto: atau URL app) -- push
+    // service (Google/Mozilla dst) memakainya untuk menghubungi pemilik
+    // server kalau kirimannya dianggap bermasalah/spam.
+    'vapid_subject'      => 'mailto:admin@hexamultienergi.com',
 ];

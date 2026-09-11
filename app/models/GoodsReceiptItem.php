@@ -104,6 +104,17 @@ class GoodsReceiptItem extends Model
         return $totalReceivedAfter < $qtyOrder ? 'kurang' : 'lebih';
     }
 
+    /** Ada item dengan selisih (comparison_status != 'sesuai') di penerimaan ini? Dipakai push_helper. */
+    public function hasMismatchForReceipt(int $receiptId): bool
+    {
+        $row = $this->db->fetchOne(
+            "SELECT 1 FROM goods_receipt_items
+              WHERE goods_receipt_id = :rid AND comparison_status != 'sesuai' LIMIT 1",
+            ['rid' => $receiptId]
+        );
+        return $row !== null;
+    }
+
     public function itemsByReceipt(int $receiptId): array
     {
         $sql = "SELECT gri.*,

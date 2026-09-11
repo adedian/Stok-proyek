@@ -547,6 +547,22 @@ class CashController extends Controller
             );
 
             $pdo->commit();
+
+            // Push notification (best-effort -- kegagalan kirim TIDAK BOLEH menggagalkan
+            // transaksi Kas yang sudah sukses tersimpan, makanya di luar & sesudah commit).
+            try {
+                if ((new SystemSetting())->getBool('notify_cash_validation', true)) {
+                    sendPushToKasValidators(
+                        $this->resolveDivision($data['pic']),
+                        'Validasi Kas Menunggu',
+                        "Kas {$data['mutasi']} '{$noBukti}' (PIC {$data['pic']}) menunggu validasi Anda.",
+                        route('cash_validation')
+                    );
+                }
+            } catch (Throwable $e) {
+                error_log('Push cash_validation gagal: ' . $e->getMessage());
+            }
+
             setFlash('success', 'Transaksi Kas berhasil disimpan.' . ($n > 0 ? ' Stok barang otomatis bertambah.' : ''));
             $this->redirect('cash', 'index');
         } catch (Throwable $e) {

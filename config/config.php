@@ -149,3 +149,10 @@ define('PDF_COMPRESS_PRESET', in_array(($APP_LOCAL['pdf_compress_preset'] ?? '')
 // Plafon ukuran PDF SEBELUM dikompres (MB). Lebih longgar dari gambar karena
 // kompresi PDF jalan sebagai proses terpisah, tidak membebani memori PHP.
 define('PDF_MAX_UPLOAD_MB', max(3, (int) ($APP_LOCAL['pdf_max_upload_mb'] ?? 25)));
+
+// --- Push Notification (Web Push) ---
+// Kosong di ketiganya = fitur push mati (app/helpers/push_helper.php diam
+// saja, tidak error) -- tinggal isi config/local.php kapan pun siap.
+define('VAPID_PUBLIC_KEY', $APP_LOCAL['vapid_public_key'] ?? '');
+define('VAPID_PRIVATE_KEY', $APP_LOCAL['vapid_private_key'] ?? '');
+define('VAPID_SUBJECT', $APP_LOCAL['vapid_subject'] ?? 'mailto:admin@' . ($_SERVER['HTTP_HOST'] ?? 'localhost'));

@@ -208,6 +208,23 @@ class GoodsReceiptController extends Controller
 
             $pdo->commit();
 
+            // Push notification (best-effort, di luar transaction) -- hanya kalau
+            // penerimaan ini punya item selisih (comparison_status != 'sesuai').
+            try {
+                require_once ROOT_PATH . '/app/models/SystemSetting.php';
+                if ($this->receiptItemModel->hasMismatchForReceipt($receiptId)
+                    && (new SystemSetting())->getBool('notify_selisih_barang', true)) {
+                    sendPushToModuleViewers(
+                        'validation',
+                        'Selisih Barang Ditemukan',
+                        "Penerimaan {$this->receiptModel->find($receiptId)['receipt_number']} punya item dengan selisih, perlu divalidasi.",
+                        route('validation', 'index', ['validated' => 'selisih'])
+                    );
+                }
+            } catch (Throwable $e) {
+                error_log('Push selisih_barang gagal: ' . $e->getMessage());
+            }
+
             setFlash('success', 'Penerimaan barang berhasil disimpan.');
             $this->redirect('goods_receipt', 'detail', ['id' => $receiptId]);
         } catch (Throwable $e) {

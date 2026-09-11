@@ -14,6 +14,18 @@
     <script src="<?= assetUrl('/assets/js/responsive-tables.js') ?>"></script>
     <script src="<?= assetUrl('/assets/js/pwa.js') ?>"></script>
 
+    <?php if (isLoggedIn() && VAPID_PUBLIC_KEY !== ''): ?>
+        <script>
+            window.PUSH_CONFIG = {
+                vapidPublicKey: <?= json_encode(VAPID_PUBLIC_KEY) ?>,
+                subscribeUrl: <?= json_encode(BASE_URL . '/index.php?module=push&action=subscribe') ?>,
+                unsubscribeUrl: <?= json_encode(BASE_URL . '/index.php?module=push&action=unsubscribe') ?>,
+                testUrl: <?= json_encode(BASE_URL . '/index.php?module=push&action=test') ?>,
+            };
+        </script>
+        <script src="<?= assetUrl('/assets/js/push.js') ?>"></script>
+    <?php endif; ?>
+
     <?php /* ---- PWA: daftarkan Service Worker (hanya di HTTPS / localhost) ---- */ ?>
     <script>
     (function () {

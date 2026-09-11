@@ -11,6 +11,7 @@ class Router
     private array $moduleMap = [
         'auth'            => 'AuthController',
         'account'         => 'AccountController',
+        'push'            => 'PushController',
         'dashboard'       => 'DashboardController',
         'purchase_order'  => 'PurchaseOrderController',
         'payment'         => 'PaymentController',

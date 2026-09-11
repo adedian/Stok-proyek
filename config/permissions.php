@@ -37,6 +37,12 @@ return [
         'view' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT, ROLE_PROJECT_MANAGER],
     ],
 
+    // Langganan Web Push MILIK PERANGKAT SENDIRI -- sama polanya seperti 'account'
+    // (setiap role yang login boleh atur notifikasi push di HP/browsernya sendiri).
+    'push' => [
+        'view' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT, ROLE_PROJECT_MANAGER],
+    ],
+
     'purchase_order' => [
         // Project Manager SENGAJA tidak lagi punya akses PO (Revisi 2026-09-09) --
         // PM tidak mengurus pembelian; menu PO disembunyikan untuk role ini.

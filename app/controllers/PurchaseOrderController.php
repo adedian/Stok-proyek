@@ -154,8 +154,9 @@ class PurchaseOrderController extends Controller
         try {
             $pdo->beginTransaction();
 
+            $poNumber = $this->poModel->generatePoNumber();
             $poId = $this->poModel->create([
-                'po_number'   => $this->poModel->generatePoNumber(),
+                'po_number'   => $poNumber,
                 'supplier_id' => $data['supplier_id'],
                 'project_id'  => $data['project_id'],
                 'delivery_location_id' => $data['delivery_location_id'] ?: null,
@@ -175,6 +176,24 @@ class PurchaseOrderController extends Controller
             $this->historyModel->log($poId, 'created', 'Purchase Order dibuat', currentUserId());
 
             $pdo->commit();
+
+            // Push notification (best-effort, di luar transaction) -- hanya PO yang
+            // memang menunggu approval, bukan yang disimpan sebagai Draft.
+            if ($data['status'] === 'waiting_approval') {
+                try {
+                    require_once ROOT_PATH . '/app/models/SystemSetting.php';
+                    if ((new SystemSetting())->getBool('notify_po_belum_diproses', true)) {
+                        sendPushToModuleViewers(
+                            'purchase_order',
+                            'PO Menunggu Approval',
+                            "PO {$poNumber} membutuhkan persetujuan Anda.",
+                            route('purchase_order', 'detail', ['id' => $poId])
+                        );
+                    }
+                } catch (Throwable $e) {
+                    error_log('Push po_belum_diproses gagal: ' . $e->getMessage());
+                }
+            }
 
             setFlash('success', 'Purchase Order berhasil dibuat.');
             $this->redirect('purchase_order', 'detail', ['id' => $poId]);

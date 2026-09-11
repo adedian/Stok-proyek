@@ -16,6 +16,9 @@
         })();
     </script>
     <title><?= isset($pageTitle) ? e($pageTitle) . ' - ' : '' ?><?= e(APP_NAME) ?></title>
+    <?php if (isLoggedIn()): ?>
+        <meta name="csrf-token" content="<?= e(csrfToken()) ?>">
+    <?php endif; ?>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="icon" type="image/png" href="<?= assetUrl('/assets/img/logo-hme.png') ?>">
 

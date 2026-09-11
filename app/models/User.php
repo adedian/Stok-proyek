@@ -41,6 +41,21 @@ class User extends Model
     }
 
     /**
+     * Daftar user aktif + slug role & email -- dipakai push_helper.php untuk
+     * menentukan siapa saja yang berhak menerima notifikasi push suatu event
+     * (cek can() per-role di luar sesi, lihat canForUser() permission_helper.php).
+     */
+    public function activeListWithRole(): array
+    {
+        return $this->db->fetchAll(
+            "SELECT u.id, u.full_name, u.email, r.role_slug
+               FROM users u
+               JOIN roles r ON r.id = u.role_id
+              WHERE u.deleted_at IS NULL AND u.status = 'active'"
+        );
+    }
+
+    /**
      * Semua user (aktif & nonaktif, exclude soft-deleted) + nama role -- untuk User Management.
      */
     public function listWithRole(): array

@@ -22,13 +22,13 @@ KEEP="${KEEP:-14}"
 cd "${APP_DIR}"
 
 # Ambil kredensial dari config/local.php lewat PHP (sumber kebenaran tunggal).
-read -r DB_NAME DB_USER DB_PASS DB_HOST < <(php -r '
-  $c = require "config/local.php";
-  echo ($c["db_name"] ?? "db_stok_proyek") . " " .
-       ($c["db_user"] ?? "root") . " " .
-       ($c["db_pass"] ?? "") . " " .
-       ($c["db_host"] ?? "localhost");
-')
+# Sengaja 4x panggilan php terpisah (bukan satu <() process substitution) --
+# /dev/fd tidak selalu tersedia di shell terbatas (cPanel jailshell/cron),
+# jadi hindari construct yang membutuhkannya demi portabilitas.
+DB_NAME="$(php -r '$c = require "config/local.php"; echo $c["db_name"] ?? "db_stok_proyek";')"
+DB_USER="$(php -r '$c = require "config/local.php"; echo $c["db_user"] ?? "root";')"
+DB_PASS="$(php -r '$c = require "config/local.php"; echo $c["db_pass"] ?? "";')"
+DB_HOST="$(php -r '$c = require "config/local.php"; echo $c["db_host"] ?? "localhost";')"
 
 STAMP="$(date +%Y-%m-%d_%H%M)"
 DEST="${DEST_ROOT}/${STAMP}"

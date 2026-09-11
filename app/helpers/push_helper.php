@@ -162,3 +162,59 @@ function sendPushToKasValidators(string $division, string $title, string $body, 
     ));
     sendPushToUsers($userIds, $title, $body, $url, 'cash_validation.validate');
 }
+
+/**
+ * "Stok Minimum" TIDAK dipicu di setiap pengurangan stok (itu akan spam
+ * notifikasi berulang selama stok masih di bawah batas) -- hanya dipicu
+ * TEPAT SEKALI di momen TOTAL stok barang itu (lintas project/gudang,
+ * sama seperti Item::belowMinStockCount()) baru saja MELEWATI batas
+ * minimum, dari sebelumnya di atas jadi di bawah/sama dengan batas.
+ * Pengurangan berikutnya selama masih di bawah batas -> tidak kirim lagi.
+ *
+ * Dipanggil dari Inventory::debitStock() & Inventory::adjustToActual() --
+ * satu-satunya 2 tempat qty_available berkurang, jadi tidak perlu dipasang
+ * di tiap controller (Pengeluaran Barang, Stock Opname, dst).
+ *
+ * @param float $qtyBeforeRow qty_available baris ini SEBELUM ditulis
+ * @param float $qtyAfterRow  qty_available baris ini SESUDAH ditulis
+ */
+function checkAndNotifyStockMinimum(string $itemName, string $unit, float $qtyBeforeRow, float $qtyAfterRow): void
+{
+    // SELURUH isi fungsi dibungkus 1 try/catch -- dipanggil dari tengah-tengah
+    // debitStock()/adjustToActual() yang MENULIS stok, jadi kegagalan apa pun
+    // di sini (query gagal, dst) TIDAK BOLEH ikut menggagalkan penulisan stok
+    // yang sebenarnya (itu operasi yang jauh lebih penting daripada notifikasi).
+    try {
+        $rowDelta = $qtyBeforeRow - $qtyAfterRow;
+        if ($rowDelta <= 0) {
+            return; // stok baris ini bertambah/tetap, bukan berkurang -- tidak relevan
+        }
+
+        require_once ROOT_PATH . '/app/models/Item.php';
+        require_once ROOT_PATH . '/app/models/Inventory.php';
+        require_once ROOT_PATH . '/app/models/SystemSetting.php';
+
+        $minStock = (new Item())->minStockByName($itemName);
+        if ($minStock <= 0) {
+            return; // barang ini tidak diberi ambang batas minimum
+        }
+
+        $totalAfter = (new Inventory())->totalAvailableForItemName($itemName);
+        $totalBefore = $totalAfter + $rowDelta;
+
+        // Edge-trigger: SEBELUMNYA di atas batas, SEKARANG di bawah/sama (& masih >0,
+        // konsisten dengan belowMinStockCount() -- stok habis total dianggap kasus lain).
+        if ($totalBefore > $minStock && $totalAfter <= $minStock && $totalAfter > 0
+            && (new SystemSetting())->getBool('notify_stok_minimum', true)) {
+            sendPushToModuleViewers(
+                'inventory',
+                'Stok Minimum',
+                "Stok '{$itemName}' tersisa " . number_format($totalAfter, 2, ',', '.')
+                    . " {$unit}, di bawah batas minimum (" . number_format($minStock, 2, ',', '.') . ").",
+                route('inventory', 'index', ['stock_filter' => 'low'])
+            );
+        }
+    } catch (Throwable $e) {
+        error_log('Push stok_minimum gagal: ' . $e->getMessage());
+    }
+}

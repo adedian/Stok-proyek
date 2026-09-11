@@ -14,6 +14,21 @@ class Inventory extends Model
     protected bool $softDelete = true;
 
     /**
+     * Total qty_available SEMUA baris inventory untuk nama barang ini (lintas
+     * project/gudang/scope) -- "Stok Minimum" dievaluasi terhadap TOTAL ini,
+     * bukan per-baris (sama seperti Item::belowMinStockCount()). Dipakai
+     * push_helper.php untuk deteksi kapan stok baru saja turun ke bawah batas.
+     */
+    public function totalAvailableForItemName(string $itemName): float
+    {
+        $row = $this->db->fetchOne(
+            "SELECT COALESCE(SUM(qty_available), 0) AS total FROM inventory WHERE item_name = :n AND deleted_at IS NULL",
+            ['n' => $itemName]
+        );
+        return (float) ($row['total'] ?? 0);
+    }
+
+    /**
      * Cari baris inventory berdasarkan kombinasi nama barang + satuan + project + scope.
      * Item dianggap "sama" kalau nama & satuan identik dalam project & scope yang sama.
      * $projectId NULL dipakai untuk bucket stok Kantor (tidak terikat project manapun).
@@ -183,6 +198,10 @@ class Inventory extends Model
 
         $qtyAfter = $qtyBefore - $qty;
         $this->updateById($inventoryId, ['qty_available' => $qtyAfter]);
+
+        // Notifikasi push "Stok Minimum" (best-effort, cuma kirim TEPAT saat
+        // total stok barang ini baru melewati batas -- lihat push_helper.php).
+        checkAndNotifyStockMinimum($existing['item_name'], $existing['unit'], $qtyBefore, $qtyAfter);
 
         $stockTransaction = new StockTransaction();
         $stockTransaction->log(
@@ -935,6 +954,10 @@ class Inventory extends Model
         }
 
         $this->updateById($inventoryId, ['qty_available' => $qtyActual]);
+
+        // Notifikasi push "Stok Minimum" (best-effort) -- opname bisa juga
+        // menurunkan stok (hasil hitung fisik lebih sedikit dari sistem).
+        checkAndNotifyStockMinimum($existing['item_name'], $existing['unit'], $qtyBefore, $qtyActual);
 
         $stockTransaction = new StockTransaction();
         $stockTransaction->log(

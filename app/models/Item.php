@@ -34,6 +34,16 @@ class Item extends Model
         return $row['stock_type'] ?? null;
     }
 
+    /** min_stock barang (>0 kalau memang diberi ambang batas). Dipakai push_helper.php. */
+    public function minStockByName(string $itemName): float
+    {
+        $row = $this->db->fetchOne(
+            "SELECT min_stock FROM items WHERE item_name = :name AND deleted_at IS NULL LIMIT 1",
+            ['name' => $itemName]
+        );
+        return (float) ($row['min_stock'] ?? 0);
+    }
+
     public function nameExists(string $name, ?int $excludeId = null): bool
     {
         $sql = "SELECT id FROM items WHERE item_name = :name AND deleted_at IS NULL";

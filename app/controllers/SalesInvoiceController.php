@@ -140,6 +140,26 @@ class SalesInvoiceController extends Controller
             $this->activityLog->log(currentUserId(), 'sales_invoice', 'create', "Invoice Keluar {$invoiceNumber} dibuat");
 
             $pdo->commit();
+
+            // Push notification (best-effort, di luar transaction) -- SETIAP invoice
+            // baru otomatis "belum tertagih" (belum ada Tanda Terima), jadi ini aman
+            // dipicu 1x saat dibuat (bukan berulang seperti Stok Minimum yang butuh
+            // deteksi ambang batas). Penerima: yang BOLEH BUAT Tanda Terima
+            // (collection_receipt.create), bukan sekadar boleh lihat Invoice.
+            try {
+                if ((new SystemSetting())->getBool('notify_invoice_pending', true)) {
+                    sendPushToModuleViewers(
+                        'collection_receipt',
+                        'Invoice Belum Tertagih',
+                        "Invoice {$invoiceNumber} baru dibuat, belum ada Tanda Terima.",
+                        route('sales_invoice', 'index', ['billing_status' => 'belum_tertagih']),
+                        'create'
+                    );
+                }
+            } catch (Throwable $e) {
+                error_log('Push invoice_pending gagal: ' . $e->getMessage());
+            }
+
             setFlash('success', 'Invoice Keluar berhasil disimpan.');
             $this->redirect('sales_invoice', 'detail', ['id' => $invoiceId]);
         } catch (Throwable $e) {

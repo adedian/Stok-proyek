@@ -1143,3 +1143,104 @@ body {
         max-height: calc(100dvh - .5rem);
     }
 }
+
+/* ============================================================
+   16. TABLET (768px-1365.98px, portrait & landscape)
+   Target: iPad-class portrait (768-853) & landscape (1024-1280) serta
+   tablet Android/Chromebook sejenis. SENGAJA pakai (min-width: 768px)
+   supaya TIDAK PERNAH kena mobile (<768px, section 1-15 di atas), dan
+   batas atas 1365.98px supaya TIDAK PERNAH kena target regresi desktop
+   (1366x768 / 1440x900 / 1920x1080). Tabel & kartu TIDAK diubah jadi
+   kartu di sini (itu perilaku <768px) -- tablet tetap tabel asli.
+   ============================================================ */
+
+/* Tabel lebar (PO, Pembayaran, Penerimaan, Kas, dll) di tablet sering
+   butuh scroll horizontal di dalam .table-responsive (body TIDAK ikut
+   scroll -- lihat section 0). Beri affordance yang sama seperti mobile
+   supaya pengguna sadar area itu bisa digeser. */
+@media (min-width: 768px) and (max-width: 1365.98px) {
+    .table-responsive {
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+    }
+}
+
+/* Sidebar tablet LANDSCAPE (>=992px = docked/persisten seperti desktop,
+   lihat sidebar.css). Diramping sedikit supaya tabel lebar di sebelahnya
+   tidak terlalu banyak menggeser. Sidebar mobile/tablet PORTRAIT (<992px,
+   offcanvas, lebar 280px terpisah dari var ini) & desktop asli (>=1366px)
+   TIDAK terpengaruh. */
+@media (min-width: 992px) and (max-width: 1365.98px) {
+    :root {
+        --sidebar-width: 220px;
+    }
+}
+
+/* Matrix Hak Akses (Pengaturan Sistem > Hak Akses): di mobile kolom
+   "Modul" sudah dibekukan (sticky) saat scroll horizontal -- lihat
+   section 7c. Di tablet tabelnya SAMA lebarnya (banyak kolom role) dan
+   SAMA butuh scroll, tapi sebelumnya tidak ikut dibekukan sehingga baris
+   modul yang sedang dilihat hilang konteks saat digeser. Terapkan
+   perilaku sticky yang sama, disesuaikan (tanpa paksa wrap sempit
+   150px seperti mobile -- tablet punya ruang lebih). */
+@media (min-width: 768px) and (max-width: 1365.98px) {
+    .perm-matrix-hint {
+        display: block;
+        margin-bottom: .4rem;
+        font-size: .75rem;
+        color: var(--ink-faint);
+    }
+
+    .perm-matrix .perm-c-module,
+    .perm-matrix .perm-col-module {
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        background: var(--surface);
+        box-shadow: 1px 0 0 var(--border);
+    }
+
+    .perm-matrix > thead .perm-col-module {
+        z-index: 3;
+        background: var(--bg-app);
+    }
+
+    .perm-matrix > tbody > tr.table-light .perm-c-module {
+        background: #f6f8fb;
+    }
+}
+
+/* Tabel daftar (list) di tablet sering terlihat "berantakan": kolomnya
+   dipaksa sempit oleh browser sehingga teks (Tanggal "04 September 2026",
+   nama barang panjang, dst) mem-wrap jadi 3-4 baris per sel dengan tinggi
+   baris tidak rata -- PADAHAL tabelnya sendiri sudah bisa digeser
+   horizontal (affordance di atas). Cegah wrap per-sel supaya SETIAP baris
+   rapi 1 baris seragam tingginya; konsekuensinya tabel jadi sedikit lebih
+   lebar & lebih sering perlu digeser -- itu sudah OK (scroll di dalam
+   .table-responsive, body tidak ikut lebar). Konten blok (badge + baris
+   keterangan di bawahnya, dll) TETAP bertumpuk normal karena nowrap cuma
+   membatasi teks inline, bukan elemen block di dalam sel. Tabel input
+   (.entry-cards) & tabel di dalam modal (mis. banding Qty di Tinjau Kas)
+   dikecualikan -- keduanya sudah punya penanganan/lebar sendiri.
+   ============================================================ */
+@media (min-width: 768px) and (max-width: 1365.98px) {
+    .table-responsive > table.table:not(.entry-cards) td {
+        white-space: nowrap;
+    }
+
+    .modal .table-responsive > table.table td {
+        white-space: normal;
+    }
+
+    /* Kolom teks bebas panjang (mis. "Deskripsi" di Riwayat Aktivitas --
+       lihat app/views/report/_table.php yang menandai tiap sel dengan
+       data-field) dikecualikan dari nowrap: SATU baris log dengan teks
+       panjang saja bisa memaksa kolom itu melebar untuk SEMUA baris
+       (lebar kolom tabel HTML berlaku 1 kolom, bukan per-sel). Biarkan
+       kolom ini tetap wrap wajar dengan lebar maksimum yang masuk akal,
+       supaya tidak mendikte lebar seluruh tabel. */
+    .table-responsive > table.table td[data-field="description"] {
+        white-space: normal;
+        max-width: 280px;
+    }
+}

@@ -64,7 +64,7 @@
                         <?php endif; ?>
                         <th style="width: 48px;">No</th>
                         <?php foreach ($columns as $col): ?>
-                            <th class="<?= ($col['align'] ?? '') === 'end' ? 'text-end' : '' ?>"><?= e($col['label']) ?></th>
+                            <th data-field="<?= e($col['field']) ?>" class="<?= ($col['align'] ?? '') === 'end' ? 'text-end' : '' ?>"><?= e($col['label']) ?></th>
                         <?php endforeach; ?>
                     </tr>
                 </thead>
@@ -87,7 +87,7 @@
                             <?php endif; ?>
                             <td><?= $rowIndex + 1 + ($rowNumOffset ?? 0) ?></td>
                             <?php foreach ($columns as $col): ?>
-                                <td class="<?= ($col['align'] ?? '') === 'end' ? 'text-end' : '' ?>">
+                                <td data-field="<?= e($col['field']) ?>" class="<?= ($col['align'] ?? '') === 'end' ? 'text-end' : '' ?>">
                                     <?= e(formatReportValue($row[$col['field']] ?? null, $col['format'] ?? 'text')) ?>
                                 </td>
                             <?php endforeach; ?>

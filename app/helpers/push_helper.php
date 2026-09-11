@@ -118,22 +118,38 @@ function sendPushToUser(int $userId, string $title, string $body, string $url, ?
 }
 
 /**
- * Kirim ke semua user AKTIF yang lolos can($module,'view') -- dipakai event
- * yang penerimanya "siapa pun yang berhak lihat modul X" (PO, Selisih Barang,
- * dst). Untuk Kas pakai kasValidatableDivisions() dulu lalu sendPushToUsers().
+ * Kirim ke semua user AKTIF yang lolos can($module, $action) -- dipakai event
+ * yang penerimanya "siapa pun yang berwenang MENANGANI modul X" (PO, Selisih
+ * Barang, dst). Untuk Kas pakai kasValidatableDivisions() dulu lalu sendPushToUsers().
+ *
+ * $action SENGAJA default 'view', TAPI kalau modulnya punya aksi terpisah
+ * untuk benar-benar MENINDAKLANJUTI (mis. 'validate'/'edit'), caller WAJIB
+ * kirim itu -- 'view' cuma berarti "boleh lihat daftarnya", belum tentu
+ * boleh menindaklanjuti. Kalau dicampur, orang yang cuma boleh lihat (tapi
+ * di-deny aksi tindak-lanjutnya lewat override per-user) akan tetap dapat
+ * notifikasi "perlu ditindaklanjuti" padahal tombolnya tidak akan muncul
+ * buat dia -- persis kasus yang ditemukan di Validasi Kas (Anggita: view
+ * boleh, validate di-deny).
  */
-function sendPushToModuleViewers(string $module, string $title, string $body, string $url): void
+function sendPushToModuleViewers(string $module, string $title, string $body, string $url, string $action = 'view'): void
 {
     require_once ROOT_PATH . '/app/models/User.php';
     $allUsers = (new User())->activeListWithRole();
     $userIds = array_map('intval', array_column($allUsers, 'id'));
-    sendPushToUsers($userIds, $title, $body, $url, "{$module}.view");
+    sendPushToUsers($userIds, $title, $body, $url, "{$module}.{$action}");
 }
 
 /**
  * Kirim ke user yang berwenang memvalidasi transaksi Kas di $division
  * (lihat kasCanValidateDivision() -- persis logika yang sama dipakai
  * DashboardStat::activeAlerts() untuk kartu "Validasi Kas").
+ *
+ * Filter role (kasCanValidateDivision) HANYA nyaring divisi -- filter
+ * kedua di sendPushToUsers() pakai 'cash_validation.validate' (BUKAN
+ * 'view') supaya user yang boleh LIHAT daftar tapi di-deny aksi
+ * memvalidasi lewat override per-user (Hak Akses individual) tidak ikut
+ * dapat notifikasi "perlu divalidasi" -- dia memang tidak bisa apa-apa
+ * dari sana.
  */
 function sendPushToKasValidators(string $division, string $title, string $body, string $url): void
 {
@@ -144,5 +160,5 @@ function sendPushToKasValidators(string $division, string $title, string $body, 
         array_filter($allUsers, fn($u) => kasCanValidateDivision($u['role_slug'], $division)),
         'id'
     ));
-    sendPushToUsers($userIds, $title, $body, $url, 'cash_validation.view');
+    sendPushToUsers($userIds, $title, $body, $url, 'cash_validation.validate');
 }

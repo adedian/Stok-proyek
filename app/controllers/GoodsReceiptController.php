@@ -218,7 +218,8 @@ class GoodsReceiptController extends Controller
                         'validation',
                         'Selisih Barang Ditemukan',
                         "Penerimaan {$this->receiptModel->find($receiptId)['receipt_number']} punya item dengan selisih, perlu divalidasi.",
-                        route('validation', 'index', ['validated' => 'selisih'])
+                        route('validation', 'index', ['validated' => 'selisih']),
+                        'validate' // BUKAN 'view' -- lihat catatan di push_helper.php
                     );
                 }
             } catch (Throwable $e) {

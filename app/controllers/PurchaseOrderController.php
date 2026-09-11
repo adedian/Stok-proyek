@@ -187,7 +187,11 @@ class PurchaseOrderController extends Controller
                             'purchase_order',
                             'PO Menunggu Approval',
                             "PO {$poNumber} membutuhkan persetujuan Anda.",
-                            route('purchase_order', 'detail', ['id' => $poId])
+                            route('purchase_order', 'detail', ['id' => $poId]),
+                            // Tidak ada aksi 'approve' terpisah di modul ini -- status PO
+                            // (termasuk approve) diubah lewat update(), yang digerbangi
+                            // 'edit'. Pakai itu, BUKAN 'view' -- lihat catatan push_helper.php.
+                            'edit'
                         );
                     }
                 } catch (Throwable $e) {

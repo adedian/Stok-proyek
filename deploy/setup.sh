@@ -80,6 +80,7 @@ else
 fi
 cd "${APP_DIR}"
 composer install --no-dev --optimize-autoloader --no-interaction
+php bin/harden_vendor.php
 
 say "6/7  Konfigurasi per-server (config/local.php) + restore DB"
 if [ ! -f config/local.php ]; then

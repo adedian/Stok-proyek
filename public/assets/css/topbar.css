@@ -99,6 +99,13 @@ img.app-user-avatar {
     display: block;
 }
 
+/* Varian di atas background TERANG (mis. kartu putih halaman Profile) --
+   default .app-user-avatar (putih transparan + teks putih) tak terlihat
+   di luar topbar gelap. */
+.app-user-avatar.app-user-avatar-solid {
+    background: var(--brand-600);
+}
+
 .app-topbar .btn-outline-light {
     border-color: rgba(255, 255, 255, .35);
     transition: background-color var(--transition-fast);

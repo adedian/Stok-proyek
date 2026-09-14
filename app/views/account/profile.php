@@ -27,7 +27,7 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
                     <img src="<?= BASE_URL ?>/<?= e($user['profile_photo']) ?>" alt="Foto profil"
                          class="rounded-circle mb-2" style="width:88px;height:88px;object-fit:cover;">
                 <?php else: ?>
-                    <span class="app-user-avatar mb-2" style="width:88px;height:88px;font-size:1.75rem;display:inline-flex;">
+                    <span class="app-user-avatar app-user-avatar-solid mb-2" style="width:88px;height:88px;font-size:1.75rem;display:inline-flex;">
                         <?= e($initials) ?>
                     </span>
                 <?php endif; ?>

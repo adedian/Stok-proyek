@@ -1,6 +1,16 @@
 /* ============================================================
    Utilities -- kelas kecil lintas halaman
    ============================================================ */
+
+/* Atribut [hidden] HARUS selalu menang, walau elemennya juga pakai kelas
+   display Bootstrap (.d-flex, .d-grid, dst) yang memakai !important --
+   tanpa ini, toggle `el.hidden = true` lewat JS tidak benar-benar
+   menyembunyikan elemen (kejadian nyata: badge status Notifikasi Push di
+   Pengaturan Akun tetap tampil walau div pembungkusnya `hidden`). */
+[hidden] {
+    display: none !important;
+}
+
 .cursor-pointer {
     cursor: pointer;
 }

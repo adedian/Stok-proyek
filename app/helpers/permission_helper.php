@@ -68,7 +68,7 @@ function permissionLabelMaps(): array
 {
     return [
         'modules' => [
-            'dashboard' => 'Dashboard', 'account' => 'Akun Saya', 'purchase_order' => 'Purchase Order',
+            'dashboard' => 'Dashboard', 'account' => 'Akun Saya', 'push' => 'Notifikasi Push', 'purchase_order' => 'Purchase Order',
             'payment' => 'Pembayaran', 'goods_receipt' => 'Penerimaan Barang', 'validation' => 'Validasi Barang',
             'stock_out' => 'Pengeluaran Barang', 'inventory' => 'Stok & Opname', 'offline_purchase' => 'Pembelian Offline',
             'sales_invoice' => 'Invoice Keluar', 'delivery_note' => 'Surat Jalan', 'collection_receipt' => 'Tanda Terima',

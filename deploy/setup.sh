@@ -80,7 +80,12 @@ else
 fi
 cd "${APP_DIR}"
 composer install --no-dev --optimize-autoloader --no-interaction
-php bin/harden_vendor.php
+
+cat > vendor/.htaccess <<'HTACCESS'
+# Folder internal aplikasi -- tidak boleh diakses langsung lewat browser.
+# Semua request PHP masuk lewat public/index.php (front controller).
+Require all denied
+HTACCESS
 
 say "6/7  Konfigurasi per-server (config/local.php) + restore DB"
 if [ ! -f config/local.php ]; then

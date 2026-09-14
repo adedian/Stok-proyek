@@ -23,7 +23,13 @@ git pull --ff-only origin master
 
 say "Composer (production)"
 composer install --no-dev --optimize-autoloader --no-interaction
-php bin/harden_vendor.php
+
+say "Proteksi folder vendor/ (.htaccess -- folder ini di .gitignore, dibuat ulang tiap composer install)"
+cat > vendor/.htaccess <<'HTACCESS'
+# Folder internal aplikasi -- tidak boleh diakses langsung lewat browser.
+# Semua request PHP masuk lewat public/index.php (front controller).
+Require all denied
+HTACCESS
 
 say "Migrasi database"
 php bin/migrate.php --status || true

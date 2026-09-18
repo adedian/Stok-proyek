@@ -139,7 +139,7 @@
        gambar TTD tiap user berbeda-beda. */
     .po-stamp-overlay {
         position: absolute;
-        right: -28px;
+        right: -52px;
         bottom: -16px;
         height: 78px;
         width: auto;

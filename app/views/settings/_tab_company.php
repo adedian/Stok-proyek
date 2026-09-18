@@ -17,6 +17,16 @@
                     <?php endif; ?>
                 </div>
                 <div class="col-md-6">
+                    <label class="form-label">Stempel Perusahaan</label>
+                    <input type="file" name="company_stamp" class="form-control" accept=".jpg,.jpeg,.png,.webp">
+                    <?php if (!empty($company['company_stamp'])): ?>
+                        <div class="form-text">
+                            Stempel saat ini: <a href="<?= BASE_URL ?>/<?= e($company['company_stamp']) ?>" target="_blank">lihat stempel</a>
+                        </div>
+                    <?php endif; ?>
+                    <div class="form-text">Ditumpuk otomatis dekat tanda tangan saat cetak PO. Gunakan gambar background transparan (PNG).</div>
+                </div>
+                <div class="col-md-6">
                     <label class="form-label">No. Telepon</label>
                     <input type="text" name="company_phone" class="form-control" value="<?= e($company['company_phone'] ?? '') ?>">
                 </div>

@@ -96,18 +96,19 @@ $actionUrl = $isEdit ? 'update' : 'store';
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Tanda Tangan</label>
-                    <select name="signature_id" class="form-select">
-                        <option value="">-- Tanpa Tanda Tangan --</option>
-                        <?php foreach ($signatures as $sig): ?>
-                            <option value="<?= (int) $sig['id'] ?>"
-                                <?= (string) ($po['signature_id'] ?? '') === (string) $sig['id'] ? 'selected' : '' ?>>
-                                <?= e($sig['name']) ?> -- <?= e($sig['position']) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
+                    <?php if (!empty($mySignature)): ?>
+                        <div class="form-control-plaintext small">
+                            <i class="bi bi-pen text-success"></i>
+                            Otomatis: <strong><?= e($mySignature['name']) ?></strong> (<?= e($mySignature['position']) ?>)
+                        </div>
+                    <?php else: ?>
+                        <div class="form-control-plaintext small text-muted">
+                            <i class="bi bi-exclamation-circle"></i> Anda belum mengatur tanda tangan pribadi.
+                        </div>
+                    <?php endif; ?>
                     <div class="form-text">
-                        Otomatis dipasang di dokumen cetak PO. Kelola daftarnya di
-                        <a href="<?= BASE_URL ?>/signature" target="_blank">Master Data &raquo; Tanda Tangan</a>.
+                        Diambil otomatis dari tanda tangan akun Anda &mdash; atur di
+                        <a href="<?= BASE_URL ?>/account" target="_blank">Profile &raquo; Tanda Tangan Saya</a>.
                     </div>
                 </div>
                 <div class="col-md-4">

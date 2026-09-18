@@ -188,6 +188,13 @@ class SettingsController extends Controller
             if ($logo !== null) {
                 $this->settingModel->set('company_logo', $logo, 'company', currentUserId());
             }
+            // Stempel perusahaan (Revisi Kas/Bank) -- gambar tunggal, di-overlay
+            // dekat tanda tangan saat cetak PO (lihat purchase_order/print.php).
+            // Sibling dari company_logo, pola upload identik.
+            $stamp = handleFileUpload('company_stamp', 'company', ['jpg', 'jpeg', 'png', 'webp'], 2);
+            if ($stamp !== null) {
+                $this->settingModel->set('company_stamp', $stamp, 'company', currentUserId());
+            }
         } catch (RuntimeException $e) {
             setFlash('error', $e->getMessage());
             $this->redirect('settings', 'index', ['tab' => 'company']);

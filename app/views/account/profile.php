@@ -102,6 +102,42 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
                 </form>
             </div>
         </div>
+
+        <div class="card border-0 shadow-sm mt-3">
+            <div class="card-body">
+                <h6 class="mb-1"><i class="bi bi-pen"></i> Tanda Tangan Saya</h6>
+                <p class="text-muted small mb-3">
+                    Dipakai otomatis pada dokumen Purchase Order yang Anda buat &mdash;
+                    tidak perlu memilih tanda tangan manual lagi.
+                </p>
+                <form method="POST" action="<?= BASE_URL ?>/index.php?module=account&action=updateSignature" enctype="multipart/form-data">
+                    <?= csrfField() ?>
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-4">
+                            <?php if (!empty($mySignature['signature_image'])): ?>
+                                <label class="form-label small text-muted mb-1">Saat ini</label>
+                                <div class="border rounded p-2 bg-light text-center">
+                                    <img src="<?= BASE_URL ?>/<?= e($mySignature['signature_image']) ?>" alt="Tanda tangan saya" style="max-height:60px;max-width:100%;object-fit:contain;">
+                                </div>
+                            <?php else: ?>
+                                <div class="text-muted small">Belum ada tanda tangan tersimpan.</div>
+                            <?php endif; ?>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Jabatan <span class="text-danger">*</span></label>
+                            <input type="text" name="signature_position" class="form-control"
+                                   value="<?= e($mySignature['position'] ?? '') ?>" placeholder="mis. Purchase" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Gambar Tanda Tangan <?= empty($mySignature) ? '<span class="text-danger">*</span>' : '' ?></label>
+                            <input type="file" name="signature_image" class="form-control" accept=".jpg,.jpeg,.png,.webp" <?= empty($mySignature) ? 'required' : '' ?>>
+                            <div class="form-text">Kosongkan kalau tidak ingin mengganti gambar.</div>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary mt-3"><i class="bi bi-save"></i> Simpan Tanda Tangan</button>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 

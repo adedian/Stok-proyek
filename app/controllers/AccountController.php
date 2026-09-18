@@ -4,6 +4,7 @@ require_once ROOT_PATH . '/core/Middleware.php';
 require_once ROOT_PATH . '/app/models/User.php';
 require_once ROOT_PATH . '/app/models/ActivityLog.php';
 require_once ROOT_PATH . '/app/models/UserPicAssignment.php';
+require_once ROOT_PATH . '/app/models/Signature.php';
 
 /**
  * AccountController
@@ -70,9 +71,72 @@ class AccountController extends Controller
         $ctx = $this->loadAccountContext();
 
         $this->view('account/profile', [
-            'pageTitle' => 'Profile',
-            'user'      => $ctx['user'],
+            'pageTitle'    => 'Profile',
+            'user'         => $ctx['user'],
+            'mySignature'  => (new Signature())->findByUserId((int) currentUserId()),
         ]);
+    }
+
+    /**
+     * Tanda Tangan Saya (Revisi Kas/Bank) -- upload/perbarui signature milik
+     * akun sendiri (signatures.user_id = currentUserId(), TIDAK PERNAH dari
+     * input). Dipakai otomatis oleh PO (lihat PurchaseOrderController) --
+     * user tidak perlu pilih signature manual lagi saat membuat PO.
+     */
+    public function updateSignature()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('account', 'index');
+        }
+        verifyCsrf();
+
+        $userId = (int) currentUserId();
+        $position = trim($_POST['signature_position'] ?? '');
+        if ($position === '') {
+            setFlash('error', 'Jabatan wajib diisi.');
+            $this->redirect('account', 'index');
+        }
+
+        $signatureModel = new Signature();
+        $existing = $signatureModel->findByUserId($userId);
+
+        try {
+            $imagePath = handleFileUpload('signature_image', 'signatures', ['jpg', 'jpeg', 'png', 'webp'], 2);
+        } catch (RuntimeException $e) {
+            setFlash('error', $e->getMessage());
+            $this->redirect('account', 'index');
+        }
+
+        if ($imagePath === null && !$existing) {
+            setFlash('error', 'Gambar tanda tangan wajib diunggah.');
+            $this->redirect('account', 'index');
+        }
+
+        $user = $this->userModel->find($userId);
+        $data = [
+            'name'     => $user['full_name'],
+            'position' => $position,
+            'status'   => 'active',
+        ];
+        if ($imagePath !== null) {
+            $data['signature_image'] = $imagePath;
+        }
+
+        if ($existing) {
+            $signatureModel->updateById((int) $existing['id'], $data);
+            if ($imagePath !== null && !empty($existing['signature_image']) && $existing['signature_image'] !== $imagePath) {
+                deleteUploadedFile($existing['signature_image']);
+            }
+        } else {
+            $signatureModel->create(array_merge($data, [
+                'user_id'    => $userId,
+                'created_by' => $userId,
+            ]));
+        }
+
+        $this->activityLog->log($userId, 'account', 'update_profile', 'Tanda tangan pribadi diperbarui (dipakai otomatis di PO)');
+        setFlash('success', 'Tanda tangan berhasil disimpan.');
+        $this->redirect('account', 'index');
     }
 
     /**

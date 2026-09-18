@@ -116,15 +116,37 @@
         margin-bottom: 4px;
     }
     .po-signature-image-wrap {
+        position: relative;
         height: 64px;
-        display: flex;
+        /* inline-flex (shrink-to-fit) supaya lebar wrapper = lebar gambar TTD
+           yang sebenarnya (bukan lebar penuh kolom signoff) -- posisi stempel
+           di bawah dihitung relatif terhadap tepi kanan gambar TTD itu sendiri,
+           bukan terhadap kolom, apa pun rasio aspek/lebar gambar TTD-nya. */
+        display: inline-flex;
         align-items: flex-end;
         margin-bottom: 2px;
     }
-    .po-signature-image-wrap img {
+    .po-signature-image-wrap img.po-signature-img {
         max-height: 62px;
         max-width: 200px;
         object-fit: contain;
+    }
+    /* Stempel perusahaan (Revisi Kas/Bank) -- ditumpuk menumpang di sisi
+       kanan-bawah goresan tanda tangan, meniru posisi contoh yang diberikan
+       user (stempel menumpang di ujung kanan TTD, bukan berdiri sendiri di
+       bawah/samping terpisah). Diposisikan dari `right` (relatif tepi kanan
+       gambar TTD, lihat wrapper di atas) supaya overlap konsisten walau lebar
+       gambar TTD tiap user berbeda-beda. */
+    .po-stamp-overlay {
+        position: absolute;
+        right: -28px;
+        bottom: -16px;
+        height: 78px;
+        width: auto;
+        max-width: 120px;
+        object-fit: contain;
+        z-index: 1;
+        pointer-events: none;
     }
     .po-signature-placeholder {
         height: 64px;
@@ -299,7 +321,10 @@
             <div class="po-print-signoff-company"><?= e($company['company_name'] ?: 'Perusahaan') ?></div>
             <?php if (!empty($po['signature_image'])): ?>
                 <div class="po-signature-image-wrap">
-                    <img src="<?= BASE_URL ?>/<?= e($po['signature_image']) ?>" alt="TTD <?= e($po['signature_name']) ?>">
+                    <img class="po-signature-img" src="<?= BASE_URL ?>/<?= e($po['signature_image']) ?>" alt="TTD <?= e($po['signature_name']) ?>">
+                    <?php if (!empty($company['company_stamp'])): ?>
+                        <img class="po-stamp-overlay" src="<?= BASE_URL ?>/<?= e($company['company_stamp']) ?>" alt="Stempel Perusahaan">
+                    <?php endif; ?>
                 </div>
                 <div class="po-signature-name"><?= e($po['signature_name']) ?></div>
                 <div class="po-signature-position"><?= e($po['signature_position']) ?></div>

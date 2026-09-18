@@ -34,6 +34,21 @@ class Signature extends Model
         );
     }
 
+    /**
+     * Tanda tangan MILIK sebuah akun (Revisi Kas/Bank -- kolom user_id, diatur
+     * user sendiri lewat Profile > Tanda Tangan Saya). Dipakai PO untuk
+     * auto-resolve signature_id dari user yang login (created_by), TIDAK
+     * pernah dari input manual. Tidak difilter status='active' -- signature
+     * milik sendiri tetap dipakai walau untuk suatu alasan dinonaktifkan.
+     */
+    public function findByUserId(int $userId)
+    {
+        return $this->db->fetchOne(
+            "SELECT * FROM signatures WHERE user_id = :uid AND deleted_at IS NULL LIMIT 1",
+            ['uid' => $userId]
+        );
+    }
+
     public function countFiltered(array $filters): int
     {
         [$sql, $params] = $this->buildListQuery($filters, true);

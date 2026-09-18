@@ -124,7 +124,7 @@ class PurchaseOrderController extends Controller
             'itemCategories' => $this->itemCategoryModel->activeList(),
             'units'          => $this->unitModel->activeList(),
             'warehouses'     => $this->warehouseModel->activeList(),
-            'signatures'     => $this->signatureModel->activeList(),
+            'mySignature'    => $this->signatureModel->findByUserId((int) currentUserId()),
         ]);
     }
 
@@ -237,7 +237,7 @@ class PurchaseOrderController extends Controller
             'itemCategories' => $this->itemCategoryModel->activeList(),
             'units'          => $this->unitModel->activeList(),
             'warehouses'     => $this->warehouseModel->activeList(),
-            'signatures'     => $this->signatureModel->activeList(),
+            'mySignature'    => $this->signatureModel->findByUserId((int) currentUserId()),
         ]);
     }
 
@@ -512,7 +512,12 @@ class PurchaseOrderController extends Controller
             'status'      => $_POST['status'] ?? 'draft',
             'notes'       => trim($_POST['notes'] ?? ''),
             'pembuat_po'  => trim($_POST['pembuat_po'] ?? ''),
-            'signature_id' => !empty($_POST['signature_id']) ? (int) $_POST['signature_id'] : null,
+            // Signature TIDAK LAGI dipilih manual (Revisi Kas/Bank) -- otomatis
+            // dari tanda tangan pribadi user yang login (Profile > Tanda Tangan
+            // Saya). $_POST['signature_id'] sengaja tidak dibaca sama sekali.
+            // NULL kalau user belum pernah setup tanda tangan pribadi -- cetak
+            // jatuh ke fallback placeholder yang sudah ada (lihat print.php).
+            'signature_id' => $this->signatureModel->findByUserId((int) currentUserId())['id'] ?? null,
             'quote_number' => trim($_POST['quote_number'] ?? '') ?: null,
             'quote_date'   => trim($_POST['quote_date'] ?? '') ?: null,
             'items'       => $items,

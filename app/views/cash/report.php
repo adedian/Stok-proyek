@@ -1,11 +1,13 @@
 <?php
-/** @var array $ledger @var array $filters @var array $categories @var array $picOptions */
+/** @var array $ledger @var array $filters @var array $categories @var array $picOptions
+ *  @var array $projectOptions @var bool $projectGated */
 $qs = http_build_query(array_filter([
     'date_from'   => $filters['date_from'],
     'date_to'     => $filters['date_to'],
     'pic'         => $filters['pic'],
     'category_id' => $filters['category_id'],
     'mutasi'      => $filters['mutasi'],
+    'project_id'  => $filters['project_id'],
 ]));
 $rp = static fn($v) => number_format((float) $v, 0, ',', '.');
 $qtyFmt = static fn($v) => rtrim(rtrim(number_format((float) $v, 2, ',', '.'), '0'), ',');
@@ -26,6 +28,7 @@ $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saj
         <button type="button" class="btn btn-outline-dark" onclick="window.print()"><i class="bi bi-printer"></i> Cetak</button>
         <a href="<?= BASE_URL ?>/index.php?module=cash&action=printReport<?= $qs ? '&' . e($qs) : '' ?>" class="btn btn-outline-danger" target="_blank"><i class="bi bi-file-earmark-pdf"></i> PDF</a>
         <a href="<?= BASE_URL ?>/index.php?module=cash&action=exportReport<?= $qs ? '&' . e($qs) : '' ?>" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i> Excel</a>
+        <a href="<?= BASE_URL ?>/index.php?module=cash&action=printReportGrouped<?= $qs ? '&' . e($qs) : '' ?>" class="btn btn-outline-dark" target="_blank" title="Cetak seluruh transaksi sesuai filter, dikelompokkan per PIC"><i class="bi bi-people"></i> Tarik Semua</a>
     </div>
 </div>
 
@@ -70,6 +73,20 @@ $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saj
                     <option value="masuk"  <?= $filters['mutasi'] === 'masuk' ? 'selected' : '' ?>>Masuk</option>
                     <option value="keluar" <?= $filters['mutasi'] === 'keluar' ? 'selected' : '' ?>>Keluar</option>
                 </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small text-muted mb-1">Project</label>
+                <?php if ($projectGated): ?>
+                    <input type="text" class="form-control form-control-sm" value="<?= e($projectOptions[0]['project_name'] ?? '-') ?>" disabled>
+                    <input type="hidden" name="project_id" value="<?= (int) ($projectOptions[0]['id'] ?? 0) ?>">
+                <?php else: ?>
+                    <select name="project_id" class="form-select form-select-sm">
+                        <option value="">Semua Project</option>
+                        <?php foreach ($projectOptions as $p): ?>
+                            <option value="<?= (int) $p['id'] ?>" <?= (string) $filters['project_id'] === (string) $p['id'] ? 'selected' : '' ?>><?= e($p['project_name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                <?php endif; ?>
             </div>
             <div class="col-12 col-md-1 d-flex gap-2">
                 <button type="submit" class="btn btn-sm btn-outline-primary w-100"><i class="bi bi-search"></i></button>

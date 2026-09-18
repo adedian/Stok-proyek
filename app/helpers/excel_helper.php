@@ -406,29 +406,32 @@ function streamStockDetailExcel(array $groups, string $companyName, string $peri
 
 /**
  * ============================================================
- * EXPORT EXCEL LAPORAN KAS (Revisi 9) -- format buku kas sesuai contoh user:
- * Tgl | No Bukti | Uraian | Qty | Satuan | Masuk | Keluar | Saldo Akhir,
+ * EXPORT EXCEL LAPORAN KAS (Revisi 9, +PIC & judul dinamis Revisi Kas/Bank) --
+ * format buku kas sesuai contoh user:
+ * Tgl | No Bukti | Uraian | Qty | Satuan | Masuk | Keluar | Saldo Akhir | PIC,
  * dengan baris "Saldo Awal" di atas dan "Saldo Akhir" di bawah.
  *
  * @param array $ledger Hasil CashTransaction::reportLedger():
  *              ['saldo_awal'=>float, 'saldo_akhir'=>float, 'rows'=>[
- *                 ['trx_date','no_bukti','uraian','qty','satuan','masuk','keluar','saldo'], ...]]
+ *                 ['trx_date','no_bukti','uraian','qty','satuan','masuk','keluar','saldo','pic'], ...]]
+ * @param string $reportTitle Judul dinamis (mis. "LAPORAN KAS PEI HAI" / "LAPORAN KAS — SEMUA PROJECT")
+ *               -- TIDAK hard-code nama project, dihitung di CashController::reportTitle().
  * ============================================================
  */
-function streamCashReportExcel(array $ledger, string $companyName, string $periodText, string $filename): void
+function streamCashReportExcel(array $ledger, string $companyName, string $periodText, string $filename, string $reportTitle = 'Laporan Kas'): void
 {
     $spreadsheet = new Spreadsheet();
     $sheet = $spreadsheet->getActiveSheet();
     $sheet->setTitle('Laporan Kas');
 
-    $lastColLetter = 'H'; // 8 kolom
-    $headerRow = _stockExcelTitleBlock($sheet, 'Laporan Kas', $companyName, $periodText, $lastColLetter);
+    $lastColLetter = 'I'; // 9 kolom (+PIC)
+    $headerRow = _stockExcelTitleBlock($sheet, $reportTitle, $companyName, $periodText, $lastColLetter);
 
-    $labels = ['A' => 'Tgl', 'B' => 'No Bukti', 'C' => 'Uraian', 'D' => 'Qty', 'E' => 'Satuan', 'F' => 'Masuk', 'G' => 'Keluar', 'H' => 'Saldo Akhir'];
+    $labels = ['A' => 'Tgl', 'B' => 'No Bukti', 'C' => 'Uraian', 'D' => 'Qty', 'E' => 'Satuan', 'F' => 'Masuk', 'G' => 'Keluar', 'H' => 'Saldo Akhir', 'I' => 'PIC'];
     foreach ($labels as $col => $label) {
         $sheet->setCellValue($col . $headerRow, $label);
     }
-    foreach (['A' => 12, 'B' => 16, 'C' => 40, 'D' => 10, 'E' => 15, 'F' => 16, 'G' => 16, 'H' => 18] as $c => $w) {
+    foreach (['A' => 12, 'B' => 16, 'C' => 40, 'D' => 10, 'E' => 15, 'F' => 16, 'G' => 16, 'H' => 18, 'I' => 14] as $c => $w) {
         $sheet->getColumnDimension($c)->setWidth($w);
     }
     $sheet->getStyle("A{$headerRow}:{$lastColLetter}{$headerRow}")->getFont()->setBold(true);
@@ -447,7 +450,7 @@ function streamCashReportExcel(array $ledger, string $companyName, string $perio
     $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
     $sheet->setCellValue('H' . $row, (float) $ledger['saldo_awal']);
     $sheet->getStyle('H' . $row)->getNumberFormat()->setFormatCode($moneyNeg);
-    $sheet->getStyle("A{$row}:H{$row}")->getFont()->setBold(true);
+    $sheet->getStyle("A{$row}:I{$row}")->getFont()->setBold(true);
     $row++;
 
     foreach ($ledger['rows'] as $r) {
@@ -465,6 +468,7 @@ function streamCashReportExcel(array $ledger, string $companyName, string $perio
             $sheet->setCellValue('G' . $row, (float) $r['keluar']);
         }
         $sheet->setCellValue('H' . $row, (float) $r['saldo']);
+        $sheet->setCellValue('I' . $row, $r['pic'] ?? '');
         $sheet->getStyle("D{$row}")->getNumberFormat()->setFormatCode('#,##0.##');
         $sheet->getStyle("E{$row}:H{$row}")->getNumberFormat()->setFormatCode($moneyNeg);
         $row++;
@@ -476,7 +480,7 @@ function streamCashReportExcel(array $ledger, string $companyName, string $perio
     $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
     $sheet->setCellValue('H' . $row, (float) $ledger['saldo_akhir']);
     $sheet->getStyle('H' . $row)->getNumberFormat()->setFormatCode($moneyNeg);
-    $sheet->getStyle("A{$row}:H{$row}")->getFont()->setBold(true);
+    $sheet->getStyle("A{$row}:I{$row}")->getFont()->setBold(true);
 
     $lastDataRow = $row;
     $sheet->getStyle("A{$headerRow}:{$lastColLetter}{$lastDataRow}")

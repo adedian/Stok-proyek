@@ -1,9 +1,13 @@
 <?php
 /**
  * Cetak PDF Laporan Kas (Dompdf). Var: $ledger (dari CashTransaction::reportLedger()),
- * $company (nama perusahaan), $periodText.
+ * $company (nama perusahaan), $periodText, $reportTitle (judul dinamis
+ * mengikuti filter Project -- lihat CashController::reportTitle()).
  * Format buku kas: Saldo Awal + kolom Masuk / Keluar / Saldo Akhir berjalan.
+ * Kolom PIC ditambahkan di akhir (Revisi Kas/Bank) -- HANYA muncul di
+ * cetak/export, tampilan layar (cash/report.php) tidak berubah.
  */
+$reportTitle = $reportTitle ?? 'Laporan Kas';
 $rp = static fn($v) => number_format((float) $v, 0, ',', '.');
 $qtyFmt = static function ($v) {
     $v = (float) $v;
@@ -28,7 +32,7 @@ $qtyFmt = static function ($v) {
 </style>
 </head>
 <body>
-    <h2>Laporan Kas</h2>
+    <h2><?= e($reportTitle) ?></h2>
     <div class="sub"><?= e($company) ?></div>
     <div class="meta"><?= e($periodText) ?></div>
 
@@ -43,15 +47,17 @@ $qtyFmt = static function ($v) {
                 <th class="end">Masuk</th>
                 <th class="end">Keluar</th>
                 <th class="end">Saldo Akhir</th>
+                <th>PIC</th>
             </tr>
         </thead>
         <tbody>
             <tr class="awal">
                 <td colspan="7" style="text-align:center;">Saldo Awal</td>
                 <td class="end"><?= $rp($ledger['saldo_awal']) ?></td>
+                <td></td>
             </tr>
             <?php if (empty($ledger['rows'])): ?>
-                <tr><td colspan="8" style="text-align:center;">Tidak ada transaksi Kas pada periode ini.</td></tr>
+                <tr><td colspan="9" style="text-align:center;">Tidak ada transaksi Kas pada periode ini.</td></tr>
             <?php endif; ?>
             <?php foreach ($ledger['rows'] as $row): ?>
                 <tr>
@@ -63,11 +69,13 @@ $qtyFmt = static function ($v) {
                     <td class="end"><?= $row['masuk'] != 0 ? $rp($row['masuk']) : '' ?></td>
                     <td class="end"><?= $row['keluar'] != 0 ? $rp($row['keluar']) : '' ?></td>
                     <td class="end"><?= $rp($row['saldo']) ?></td>
+                    <td><?= e($row['pic'] ?? '') ?></td>
                 </tr>
             <?php endforeach; ?>
             <tr class="akhir">
                 <td colspan="7" class="end">Saldo Akhir</td>
                 <td class="end"><?= $rp($ledger['saldo_akhir']) ?></td>
+                <td></td>
             </tr>
         </tbody>
     </table>

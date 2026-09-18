@@ -128,8 +128,14 @@ return [
     ],
 
     // ================= Master Data =================
+    // Accounting ditambahkan (Revisi Kas/Bank) supaya bisa membuka hub Master
+    // Data untuk mengelola Kategori Kas/Master Bank/Master Rekening (submodul
+    // yang memang sudah/akan mengizinkan Accounting) -- hub ini SEKARANG
+    // menyaring kartu submodul sesuai can() masing-masing (lihat
+    // app/views/master_data/index.php), jadi Accounting tidak melihat
+    // submodul lain (Supplier/Client/dst) yang tetap Super Admin-only.
     'master_data' => [
-        'view' => [ROLE_SUPER_ADMIN],
+        'view' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
     ],
 
     'master_kode' => [
@@ -151,6 +157,9 @@ return [
         'edit'      => [ROLE_SUPER_ADMIN],
         'delete'    => [ROLE_SUPER_ADMIN],
         'quick_add' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT],
+        // Atur Project <-> User (siapa boleh membuka Kas project ini lewat
+        // gerbang Project+Password). Sensitif -> Super Admin saja.
+        'manage_access' => [ROLE_SUPER_ADMIN],
     ],
 
     'client' => [
@@ -228,6 +237,33 @@ return [
     'cash_validation' => [
         'view'     => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING, ROLE_PURCHASE, ROLE_PROJECT_MANAGER],
         'validate' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING, ROLE_PURCHASE, ROLE_PROJECT_MANAGER],
+    ],
+
+    // ================= BANK (Revisi Kas/Bank) =================
+    // Modul Bank -- HANYA Super Admin & Accounting (analog "Kas" tapi tanpa
+    // gerbang Project+Password, karena Accounting sudah exempt dari gerbang itu).
+    'bank' => [
+        'view'   => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'create' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'edit'   => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'delete' => [ROLE_SUPER_ADMIN],
+    ],
+
+    // Master Bank (Master Data > Master Bank) -- sumber dropdown Bank (Loan/HR).
+    'master_bank' => [
+        'view'   => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'create' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'edit'   => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'delete' => [ROLE_SUPER_ADMIN],
+    ],
+
+    // Master Rekening (Master Data > Master Rekening) -- sumber dropdown
+    // Rekening pada transaksi Kas. Beda konsep dari Master Bank di atas.
+    'master_rekening' => [
+        'view'   => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'create' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'edit'   => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'delete' => [ROLE_SUPER_ADMIN],
     ],
 
     // Mapping User -> PIC (menentukan siapa lihat Kas siapa). Sensitif =

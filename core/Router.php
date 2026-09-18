@@ -45,6 +45,9 @@ class Router
         'user_pic'           => 'UserPicController',
         'period_lock'        => 'PeriodLockController',
         'file'               => 'FileController',
+        'bank'               => 'BankController',
+        'master_bank'        => 'MasterBankController',
+        'master_rekening'    => 'MasterRekeningController',
     ];
 
     public function dispatch(): void

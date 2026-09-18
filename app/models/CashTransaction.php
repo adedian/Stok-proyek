@@ -236,9 +236,9 @@ class CashTransaction extends Model
         );
     }
 
-    public function listFiltered(array $filters, ?array $scopePics, ?array $divisionScope = null): array
+    public function listFiltered(array $filters, ?array $scopePics, ?array $divisionScope = null, ?int $projectScope = null): array
     {
-        [$where, $params] = $this->buildWhere($filters, $scopePics, $divisionScope);
+        [$where, $params] = $this->buildWhere($filters, $scopePics, $divisionScope, $projectScope);
         // Kategori sekarang per baris rincian -> tampilkan gabungan kategori
         // unik transaksi ini di kolom "Kategori" daftar Kas.
         $sql = "SELECT c.*, usr.full_name AS created_by_name,
@@ -288,14 +288,14 @@ class CashTransaction extends Model
      * Kalau tidak ada filter date_from -> 0 (laporan buku kas dari awal).
      * Filter pic/kategori tetap dihormati supaya saldo awal konsisten dengan isi laporan.
      */
-    public function saldoAwal(array $filters, ?array $scopePics, ?array $divisionScope = null): float
+    public function saldoAwal(array $filters, ?array $scopePics, ?array $divisionScope = null, ?int $projectScope = null): float
     {
         if (empty($filters['date_from'])) {
             return 0.0;
         }
         $f = $filters;
         unset($f['date_from'], $f['date_to']);
-        [$where, $params] = $this->buildWhere($f, $scopePics, $divisionScope);
+        [$where, $params] = $this->buildWhere($f, $scopePics, $divisionScope, $projectScope);
         $params['df'] = $filters['date_from'];
         $row = $this->db->fetchOne(
             "SELECT
@@ -316,12 +316,13 @@ class CashTransaction extends Model
      *
      * @return array{saldo_awal: float, saldo_akhir: float, rows: array}
      */
-    public function reportLedger(array $filters, ?array $scopePics, float $saldoAwal, ?array $divisionScope = null): array
+    public function reportLedger(array $filters, ?array $scopePics, float $saldoAwal, ?array $divisionScope = null, ?int $projectScope = null): array
     {
-        [$where, $params] = $this->buildWhere($filters, $scopePics, $divisionScope);
+        [$where, $params] = $this->buildWhere($filters, $scopePics, $divisionScope, $projectScope);
         $trx = $this->db->fetchAll(
-            "SELECT c.id, c.trx_date, c.no_bukti, c.mutasi
+            "SELECT c.id, c.trx_date, c.no_bukti, c.mutasi, c.pic, c.project_id, p.project_name
                FROM cash_transactions c
+               LEFT JOIN projects p ON p.id = c.project_id
               {$where}
            ORDER BY c.trx_date ASC, c.id ASC",
             $params
@@ -341,17 +342,20 @@ class CashTransaction extends Model
                 $keluar = $t['mutasi'] === 'keluar' ? $jumlah : 0.0;
                 $saldo += $masuk - $keluar;
                 $rows[] = [
-                    'trx_id'    => $first ? (int) $t['id'] : 0,
-                    'mutasi'    => $t['mutasi'],
-                    'trx_date'  => $first ? $t['trx_date'] : '',
-                    'no_bukti'  => $first ? $t['no_bukti'] : '',
-                    'kategori'  => $it['category_name'] ?? '',
-                    'uraian'    => $it['uraian'],
-                    'qty'       => (float) $it['qty'],
-                    'satuan'    => (float) $it['satuan'],
-                    'masuk'     => $masuk,
-                    'keluar'    => $keluar,
-                    'saldo'     => $saldo,
+                    'trx_id'       => $first ? (int) $t['id'] : 0,
+                    'mutasi'       => $t['mutasi'],
+                    'trx_date'     => $first ? $t['trx_date'] : '',
+                    'no_bukti'     => $first ? $t['no_bukti'] : '',
+                    'pic'          => $first ? $t['pic'] : '',
+                    'project_id'   => $first ? ($t['project_id'] !== null ? (int) $t['project_id'] : null) : null,
+                    'project_name' => $first ? $t['project_name'] : '',
+                    'kategori'     => $it['category_name'] ?? '',
+                    'uraian'       => $it['uraian'],
+                    'qty'          => (float) $it['qty'],
+                    'satuan'       => (float) $it['satuan'],
+                    'masuk'        => $masuk,
+                    'keluar'       => $keluar,
+                    'saldo'        => $saldo,
                 ];
                 $first = false;
             }
@@ -425,10 +429,17 @@ class CashTransaction extends Model
         return ['rows' => $rows, 'total' => $total];
     }
 
-    private function buildWhere(array $filters, ?array $scopePics, ?array $divisionScope = null): array
+    private function buildWhere(array $filters, ?array $scopePics, ?array $divisionScope = null, ?int $projectScope = null): array
     {
         $sql = "WHERE c.deleted_at IS NULL";
         $params = [];
+
+        // Gerbang Project (purchase/pic_project/admin_project, lihat
+        // CashController::scopeProjectId()) -- HANYA transaksi project ini.
+        if ($projectScope !== null) {
+            $sql .= " AND c.project_id = :project_scope_id";
+            $params['project_scope_id'] = $projectScope;
+        }
 
         if ($scopePics !== null) {
             if (count($scopePics) === 0) {
@@ -488,6 +499,13 @@ class CashTransaction extends Model
                                    WHERE cti.cash_transaction_id = c.id
                                      AND cti.cash_category_id = :category_id)";
             $params['category_id'] = (int) $filters['category_id'];
+        }
+        // Filter Project dari dropdown Laporan Kas (Semua Project / project
+        // tertentu) -- BEDA dari $projectScope di atas (yang berasal dari
+        // gerbang akses, bukan pilihan bebas user).
+        if (!empty($filters['project_id'])) {
+            $sql .= " AND c.project_id = :filter_project_id";
+            $params['filter_project_id'] = (int) $filters['project_id'];
         }
         if (!empty($filters['mutasi']) && in_array($filters['mutasi'], ['masuk', 'keluar'], true)) {
             $sql .= " AND c.mutasi = :mutasi";

@@ -13,6 +13,9 @@ function appMenus(): array
         ['label' => 'Purchase Order', 'module' => 'purchase_order', 'icon' => 'bi-cart-check', 'roles' => permissionRoles('purchase_order', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Pembayaran', 'module' => 'payment', 'icon' => 'bi-credit-card', 'roles' => permissionRoles('payment', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Kas', 'module' => 'cash', 'icon' => 'bi-cash-coin', 'roles' => permissionRoles('cash', 'view'), 'active' => true, 'group' => 'Transaksi'],
+        // Bank (Revisi Kas/Bank) -- hanya Super Admin & Accounting (permissionRoles
+        // menyaring otomatis), tampil berdampingan dengan "Kas" di sidebar.
+        ['label' => 'Bank', 'module' => 'bank', 'icon' => 'bi-bank', 'roles' => permissionRoles('bank', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Validasi Kas', 'module' => 'cash_validation', 'icon' => 'bi-cash-stack', 'roles' => permissionRoles('cash_validation', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Penerimaan Barang', 'module' => 'goods_receipt', 'icon' => 'bi-box-seam', 'roles' => permissionRoles('goods_receipt', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Validasi Barang', 'module' => 'validation', 'icon' => 'bi-check2-square', 'roles' => permissionRoles('validation', 'view'), 'active' => true, 'group' => 'Transaksi'],

@@ -104,6 +104,13 @@ function projectSortLink(string $col, string $label, string $sort, string $dir):
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
                                         </li>
+                                        <?php if (can('project', 'manage_access')): ?>
+                                        <li>
+                                            <a class="dropdown-item" href="<?= BASE_URL ?>/project/access/<?= (int) $p['id'] ?>">
+                                                <i class="bi bi-shield-lock"></i> Akses Kas
+                                            </a>
+                                        </li>
+                                        <?php endif; ?>
                                         <li>
                                             <form method="POST" action="<?= BASE_URL ?>/index.php?module=project&action=toggleStatus">
                                                 <?= csrfField() ?>

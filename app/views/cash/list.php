@@ -1,10 +1,13 @@
 <?php
 /** @var array $rows @var array $filters @var array $categories @var array $picOptions @var bool $scoped @var array $summary
- *  @var array|null $balances @var bool $kasExempt @var string|null $kasPicName */
+ *  @var array|null $balances @var bool $kasExempt @var string|null $kasPicName
+ *  @var bool $kasProjectGated @var string|null $kasProjectName */
 $balances   = $balances ?? null;
 $balanceShowTotal = $balanceShowTotal ?? false;
 $kasExempt  = $kasExempt ?? true;
 $kasPicName = $kasPicName ?? null;
+$kasProjectGated = $kasProjectGated ?? false;
+$kasProjectName  = $kasProjectName ?? null;
 $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saja
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
@@ -16,7 +19,15 @@ $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saj
         </small>
     </div>
     <div class="d-flex gap-2 align-items-center flex-wrap">
-        <?php if (!$kasExempt && $kasPicName !== null): ?>
+        <?php if ($kasProjectGated && $kasProjectName !== null): ?>
+            <span class="text-muted small">
+                <i class="bi bi-shield-check"></i> Sesi Kas &mdash; Project: <strong><?= e($kasProjectName) ?></strong>
+            </span>
+            <form method="POST" action="<?= BASE_URL ?>/index.php?module=cash&action=kasProjectLogout" class="d-inline">
+                <?= csrfField() ?>
+                <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-box-arrow-right"></i> Keluar Kas</button>
+            </form>
+        <?php elseif (!$kasExempt && $kasPicName !== null): ?>
             <span class="text-muted small">
                 <i class="bi bi-shield-check"></i> Sesi Kas: <strong><?= e($kasPicName) ?></strong>
             </span>
@@ -24,6 +35,10 @@ $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saj
                 <?= csrfField() ?>
                 <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-box-arrow-right"></i> Keluar Kas</button>
             </form>
+        <?php endif; ?>
+        <?php if (can('bank', 'view')): ?>
+            <a href="<?= BASE_URL ?>/cash" class="btn btn-dark btn-sm"><i class="bi bi-cash-coin"></i> Kas</a>
+            <a href="<?= BASE_URL ?>/bank" class="btn btn-outline-secondary btn-sm"><i class="bi bi-bank"></i> Bank</a>
         <?php endif; ?>
         <?php if ($canCetakVoucher): ?>
         <button type="button" id="kasCetakTerpilih" class="btn btn-outline-primary no-print" disabled>

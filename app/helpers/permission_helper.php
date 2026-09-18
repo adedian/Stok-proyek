@@ -73,6 +73,7 @@ function permissionLabelMaps(): array
             'stock_out' => 'Pengeluaran Barang', 'inventory' => 'Stok & Opname', 'offline_purchase' => 'Pembelian Offline',
             'sales_invoice' => 'Invoice Keluar', 'delivery_note' => 'Surat Jalan', 'collection_receipt' => 'Tanda Terima',
             'cash' => 'Kas', 'cash_validation' => 'Validasi Kas', 'cash_category' => 'Kategori Kas', 'user_pic' => 'PIC Kas',
+            'bank' => 'Bank', 'master_bank' => 'Master Bank', 'master_rekening' => 'Master Rekening',
             'report' => 'Laporan', 'user' => 'User Management', 'master_data' => 'Master Data', 'master_kode' => 'Master Kode',
             'supplier' => 'Supplier', 'client' => 'Client', 'project' => 'Project', 'item' => 'Barang',
             'item_category' => 'Kategori Barang', 'unit' => 'Satuan', 'warehouse' => 'Gudang',
@@ -85,7 +86,7 @@ function permissionLabelMaps(): array
             'restore' => 'Restore', 'force_delete' => 'Hapus Permanen', 'delete_stock' => 'Hapus Kartu Stok',
             'view_balance' => 'Lihat Saldo', 'close' => 'Tutup Periode', 'reopen' => 'Buka Kembali',
             'stock_price' => 'Lihat Harga (Laporan Stok)', 'stock_report' => 'Buka Laporan Stok Barang',
-            'print_voucher' => 'Cetak Voucher Terpilih',
+            'print_voucher' => 'Cetak Voucher Terpilih', 'manage_access' => 'Atur Akses Project',
         ],
     ];
 }

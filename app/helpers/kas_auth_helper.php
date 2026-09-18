@@ -235,3 +235,134 @@ function kasFailsRemaining(): int
 {
     return max(0, KAS_LOGIN_MAX_FAILS - (int) ($_SESSION['kas_login_fails'] ?? 0));
 }
+
+// =========================================================================
+// GERBANG PROJECT + PASSWORD (Revisi Kas/Bank, 2026-09-20)
+//
+// Role purchase / pic_project / admin_project TIDAK LAGI memakai gerbang PIC
+// Kas di atas (kasLogin/kasAuthenticate) -- dialihkan ke gerbang ini: pilih
+// Project (dari project_user_access milik akun) -> masukkan PASSWORD LOGIN
+// AKUN SENDIRI (bukan password terpisah). Kode gerbang PIC lama TETAP ADA
+// di file & controller ini (tidak dihapus), sekadar tidak lagi dipanggil
+// untuk 3 role tsb -- kolom `pic` & No Bukti per-prefix tetap dipakai apa
+// adanya saat MEMBUAT transaksi (dropdown PIC di form Kas, tidak berubah).
+//
+// Session Kas-Project (`$_SESSION['kas_project_auth']`) TERPISAH dari
+// `$_SESSION['kas_auth']` di atas -- keduanya tidak akan pernah terisi
+// bersamaan untuk 1 akun (role menentukan gerbang mana yang berlaku).
+// =========================================================================
+
+/** Role yang memakai gerbang Project+Password (bukan gerbang PIC+Password lama). */
+function kasProjectGateRoles(): array
+{
+    return [ROLE_PURCHASE, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT];
+}
+
+function kasIsProjectGateRole(?string $roleSlug): bool
+{
+    return $roleSlug !== null && in_array($roleSlug, kasProjectGateRoles(), true);
+}
+
+/** Sudah lewat verifikasi Project+Password? (role di luar gerbang ini selalu true). */
+function kasProjectAuthenticated(): bool
+{
+    if (!kasIsProjectGateRole(currentUserRole())) {
+        return true;
+    }
+    if (empty($_SESSION['kas_project_auth']['ok'])) {
+        return false;
+    }
+    if ((int) ($_SESSION['kas_project_auth']['account_id'] ?? 0) !== (int) currentUserId()) {
+        return false; // session milik akun lain -- jangan dipercaya
+    }
+    return true;
+}
+
+/**
+ * Auto-lock idle (pakai timeout yang sama dengan gerbang PIC lama --
+ * system_settings.kas_session_timeout_minutes). Return true kalau barusan expired.
+ */
+function kasProjectCheckTimeout(): bool
+{
+    if (empty($_SESSION['kas_project_auth']['ok'])) {
+        return false;
+    }
+    $last = (int) ($_SESSION['kas_project_auth']['last_activity'] ?? 0);
+    if ($last > 0 && (time() - $last) > kasSessionTimeout()) {
+        $pname = $_SESSION['kas_project_auth']['project_name'] ?? '-';
+        unset($_SESSION['kas_project_auth']);
+        if (class_exists('ActivityLog')) {
+            (new ActivityLog())->log(currentUserId(), 'cash', 'kas_session_expired', "Session Kas Project '{$pname}' kedaluwarsa (auto-lock)");
+        }
+        return true;
+    }
+    return false;
+}
+
+function kasProjectTouch(): void
+{
+    if (!empty($_SESSION['kas_project_auth']['ok'])) {
+        $_SESSION['kas_project_auth']['last_activity'] = time();
+    }
+}
+
+/** Project yang sedang dibuka lewat gerbang ini, atau null (belum/bukan role ini). */
+function kasProjectId(): ?int
+{
+    return isset($_SESSION['kas_project_auth']['project_id']) ? (int) $_SESSION['kas_project_auth']['project_id'] : null;
+}
+
+function kasProjectName(): ?string
+{
+    return $_SESSION['kas_project_auth']['project_name'] ?? null;
+}
+
+/**
+ * Cakupan project_id transaksi Kas yang boleh DILIHAT user saat ini lewat
+ * gerbang ini. null = tidak dibatasi lewat gerbang ini (role di luar
+ * kasProjectGateRoles(), scoping-nya tetap lewat kasScopePicNames() seperti
+ * sebelumnya). int = HANYA project itu.
+ */
+function kasProjectScopeId(): ?int
+{
+    if (!kasIsProjectGateRole(currentUserRole())) {
+        return null;
+    }
+    return kasProjectId();
+}
+
+// ---------------- Rate limiting login Kas-Project (per session, namespace terpisah) ----------------
+
+const KAS_PROJECT_LOGIN_MAX_FAILS    = 5;
+const KAS_PROJECT_LOGIN_LOCK_SECONDS = 900; // 15 menit
+
+function kasProjectLoginLockedUntil(): ?int
+{
+    $until = (int) ($_SESSION['kas_project_login_lock_until'] ?? 0);
+    if ($until > time()) {
+        return $until;
+    }
+    if ($until > 0) {
+        unset($_SESSION['kas_project_login_lock_until'], $_SESSION['kas_project_login_fails']);
+    }
+    return null;
+}
+
+function kasProjectRegisterFailedLogin(): void
+{
+    $n = (int) ($_SESSION['kas_project_login_fails'] ?? 0) + 1;
+    $_SESSION['kas_project_login_fails'] = $n;
+    if ($n >= KAS_PROJECT_LOGIN_MAX_FAILS) {
+        $_SESSION['kas_project_login_lock_until'] = time() + KAS_PROJECT_LOGIN_LOCK_SECONDS;
+    }
+}
+
+function kasProjectClearFailedLogin(): void
+{
+    unset($_SESSION['kas_project_login_fails'], $_SESSION['kas_project_login_lock_until']);
+}
+
+function kasProjectFailsRemaining(): int
+{
+    return max(0, KAS_PROJECT_LOGIN_MAX_FAILS - (int) ($_SESSION['kas_project_login_fails'] ?? 0));
+}

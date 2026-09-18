@@ -1,6 +1,7 @@
 <?php
 /** @var string $mode @var array|null $cash @var array $items @var array $categories @var array $picOptions
- *  @var array $projects @var array $units */
+ *  @var array $projects @var array $units @var array $rekeningOptions
+ *  @var bool $kasProjectGated @var array|null $kasGatedProject */
 $isEdit = $mode === 'edit';
 $actionUrl = $isEdit ? 'update' : 'store';
 $val = static fn(string $k, $d = '') => e($cash[$k] ?? $d);
@@ -8,6 +9,11 @@ $curPic = $cash['pic'] ?? '';
 $noBuktiPreview = $noBuktiPreview ?? ($cash['no_bukti'] ?? '');
 // Partial baris memakai $cashCategories / $units / $projects.
 $cashCategories = $categories;
+$rekeningOptions = $rekeningOptions ?? [];
+$kasProjectGated = $kasProjectGated ?? false;
+$kasGatedProject = $kasGatedProject ?? null;
+$curProjectId = $cash['project_id'] ?? ($kasGatedProject['id'] ?? '');
+$curRekeningId = $cash['rekening_id'] ?? '';
 ?>
 <style>
 /* Rincian item Kas: di layar sempit (<768px) tiap baris jadi kartu bertumpuk,
@@ -148,6 +154,33 @@ $cashCategories = $categories;
                         <option value="masuk"  <?= ($cash['mutasi'] ?? '') === 'masuk' ? 'selected' : '' ?>>Masuk</option>
                         <option value="keluar" <?= ($cash['mutasi'] ?? '') === 'keluar' ? 'selected' : '' ?>>Keluar</option>
                     </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Project</label>
+                    <?php if ($kasProjectGated): ?>
+                        <input type="text" class="form-control bg-light" value="<?= e($kasGatedProject['project_name'] ?? '-') ?>" readonly>
+                        <input type="hidden" name="project_id" value="<?= (int) $curProjectId ?>">
+                        <div class="form-text">Mengikuti sesi Kas yang sedang dibuka.</div>
+                    <?php else: ?>
+                        <select name="project_id" class="form-select">
+                            <option value="">-- Tanpa Project --</option>
+                            <?php foreach ($projects as $p): ?>
+                                <option value="<?= (int) $p['id'] ?>" <?= (string) $curProjectId === (string) $p['id'] ? 'selected' : '' ?>><?= e($p['project_name']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    <?php endif; ?>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Rekening</label>
+                    <select name="rekening_id" class="form-select">
+                        <option value="">-- Tanpa Rekening --</option>
+                        <?php foreach ($rekeningOptions as $r): ?>
+                            <option value="<?= (int) $r['id'] ?>" <?= (string) $curRekeningId === (string) $r['id'] ? 'selected' : '' ?>><?= e($r['nama_rekening']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <div class="form-text">Opsional. Sumber: Master Data &rarr; Master Rekening.</div>
                 </div>
             </div>
         </div>

@@ -4,6 +4,7 @@ require_once ROOT_PATH . '/core/Middleware.php';
 require_once ROOT_PATH . '/app/models/Project.php';
 require_once ROOT_PATH . '/app/models/ActivityLog.php';
 require_once ROOT_PATH . '/app/models/CodeConfig.php';
+require_once ROOT_PATH . '/app/models/ProjectUserAccess.php';
 
 class ProjectController extends Controller
 {
@@ -275,6 +276,55 @@ class ProjectController extends Controller
         );
 
         $this->json(['id' => $id, 'label' => $data['project_name']]);
+    }
+
+    /**
+     * Project <-> User Akses (Revisi Kas/Bank) -- Super Admin menentukan user
+     * role purchase/pic_project/admin_project mana yang boleh membuka Kas
+     * project ini lewat gerbang Project+Password (lihat kas_auth_helper.php).
+     */
+    public function access()
+    {
+        Middleware::requirePermission('project', 'manage_access');
+
+        $id = (int) ($_GET['id'] ?? 0);
+        $project = $this->projectModel->find($id);
+        if (!$project) {
+            setFlash('error', 'Project tidak ditemukan.');
+            $this->redirect('project', 'index');
+        }
+
+        $accessModel = new ProjectUserAccess();
+        $this->view('project/access', [
+            'pageTitle'       => 'Akses Project: ' . $project['project_name'],
+            'project'         => $project,
+            'assignedUserIds' => array_column($accessModel->rowsForProject($id), 'user_id'),
+            'assignableUsers' => $accessModel->assignableUsers(),
+        ]);
+    }
+
+    public function accessUpdate()
+    {
+        Middleware::requirePermission('project', 'manage_access');
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('project', 'index');
+        }
+        verifyCsrf();
+
+        $id = (int) ($_POST['id'] ?? 0);
+        $project = $this->projectModel->find($id);
+        if (!$project) {
+            setFlash('error', 'Project tidak ditemukan.');
+            $this->redirect('project', 'index');
+        }
+
+        $userIds = isset($_POST['user_ids']) && is_array($_POST['user_ids']) ? $_POST['user_ids'] : [];
+        (new ProjectUserAccess())->syncForProject($id, $userIds, (int) currentUserId());
+
+        $this->activityLog->log(currentUserId(), 'project', 'update',
+            "Akses Kas Project '{$project['project_name']}' diperbarui (" . count($userIds) . ' user)');
+        setFlash('success', 'Akses Project berhasil diperbarui.');
+        $this->redirect('project', 'access', ['id' => $id]);
     }
 
     // ================= Helper privat =================

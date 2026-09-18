@@ -1,18 +1,24 @@
 <?php
 /** @var array $rows @var array $filters @var array $categories @var array $picOptions @var bool $scoped @var array $summary
  *  @var array|null $balances @var bool $kasExempt @var string|null $kasPicName
- *  @var bool $kasProjectGated @var string|null $kasProjectName */
+ *  @var bool $kasProjectGated @var string|null $kasProjectName
+ *  @var array $projectOptions @var array $bankOptions @var bool $canBank */
 $balances   = $balances ?? null;
 $balanceShowTotal = $balanceShowTotal ?? false;
 $kasExempt  = $kasExempt ?? true;
 $kasPicName = $kasPicName ?? null;
 $kasProjectGated = $kasProjectGated ?? false;
 $kasProjectName  = $kasProjectName ?? null;
+$projectOptions = $projectOptions ?? [];
+$bankOptions = $bankOptions ?? [];
+$canBank = $canBank ?? false;
+$selectedProjectIds = array_map('strval', $filters['project_ids'] ?? []);
+$selectedBankIds = array_map('strval', $filters['bank_ids'] ?? []);
 $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saja
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
-        <h4 class="mb-0">Kas</h4>
+        <h4 class="mb-0">Kas<?= $canBank ? '/Bank' : '' ?></h4>
         <small class="text-muted">
             Catatan kas masuk &amp; kas keluar
             <?php if ($scoped): ?><span class="badge bg-light text-dark border ms-1">PIC terkait Anda</span><?php endif; ?>
@@ -36,14 +42,15 @@ $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saj
                 <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-box-arrow-right"></i> Keluar Kas</button>
             </form>
         <?php endif; ?>
-        <?php if (can('bank', 'view')): ?>
-            <a href="<?= BASE_URL ?>/cash" class="btn btn-dark btn-sm"><i class="bi bi-cash-coin"></i> Kas</a>
-            <a href="<?= BASE_URL ?>/bank" class="btn btn-outline-secondary btn-sm"><i class="bi bi-bank"></i> Bank</a>
-        <?php endif; ?>
         <?php if ($canCetakVoucher): ?>
         <button type="button" id="kasCetakTerpilih" class="btn btn-outline-primary no-print" disabled>
             <i class="bi bi-printer"></i> Cetak Terpilih <span class="badge text-bg-primary" id="kasCetakCount">0</span>
         </button>
+        <?php endif; ?>
+        <?php if (can('bank', 'create')): ?>
+            <a href="<?= BASE_URL ?>/bank/create" class="btn btn-outline-dark">
+                <i class="bi bi-bank"></i> Tambah Bank
+            </a>
         <?php endif; ?>
         <?php if (can('cash', 'create')): ?>
             <a href="<?= BASE_URL ?>/cash/create" class="btn btn-primary">
@@ -171,6 +178,52 @@ $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saj
                 <button type="submit" class="btn btn-sm btn-outline-primary w-100"><i class="bi bi-search"></i></button>
                 <a href="<?= BASE_URL ?>/cash" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-circle"></i></a>
             </div>
+
+            <?php if ($canBank): ?>
+            <div class="col-12"><hr class="my-1"></div>
+            <div class="col-6 col-md-3">
+                <label class="form-label small text-muted mb-1">Project (centang, kosong = semua)</label>
+                <?php if ($kasProjectGated): ?>
+                    <input type="text" class="form-control form-control-sm" value="<?= e($projectOptions[0]['project_name'] ?? '-') ?>" disabled>
+                    <input type="hidden" name="project_ids[]" value="<?= (int) ($projectOptions[0]['id'] ?? 0) ?>">
+                <?php else: ?>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle w-100 text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                            <?= count($selectedProjectIds) ? count($selectedProjectIds) . ' Project dipilih' : 'Semua Project' ?>
+                        </button>
+                        <div class="dropdown-menu p-2" style="max-height:260px; overflow:auto; min-width:240px;">
+                            <?php foreach ($projectOptions as $p): ?>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="project_ids[]" value="<?= (int) $p['id'] ?>"
+                                           id="listProj<?= (int) $p['id'] ?>" <?= in_array((string) $p['id'], $selectedProjectIds, true) ? 'checked' : '' ?>>
+                                    <label class="form-check-label" for="listProj<?= (int) $p['id'] ?>"><?= e($p['project_name']) ?></label>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label small text-muted mb-1">Bank (centang, kosong = semua)</label>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle w-100 text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                        <?= count($selectedBankIds) ? count($selectedBankIds) . ' Bank dipilih' : 'Semua Bank' ?>
+                    </button>
+                    <div class="dropdown-menu p-2" style="max-height:260px; overflow:auto; min-width:240px;">
+                        <?php if (empty($bankOptions)): ?>
+                            <div class="text-muted small px-2">Belum ada Master Bank.</div>
+                        <?php endif; ?>
+                        <?php foreach ($bankOptions as $b): ?>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="bank_ids[]" value="<?= (int) $b['id'] ?>"
+                                       id="listBank<?= (int) $b['id'] ?>" <?= in_array((string) $b['id'], $selectedBankIds, true) ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="listBank<?= (int) $b['id'] ?>"><?= e($b['bank_name']) ?> (<?= e(strtoupper($b['jenis'])) ?>)</label>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
         </form>
     </div>
 </div>
@@ -210,7 +263,7 @@ $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saj
                         <tr><td colspan="<?= $canCetakVoucher ? 11 : 10 ?>" class="p-0">
                             <div class="empty-state">
                                 <i class="bi bi-cash-coin empty-icon"></i>
-                                <div class="empty-title">Belum ada transaksi Kas</div>
+                                <div class="empty-title">Belum ada transaksi Kas<?= $canBank ? '/Bank' : '' ?></div>
                                 <div class="empty-desc">Catat kas masuk atau kas keluar untuk mulai.</div>
                                 <?php if (can('cash', 'create')): ?>
                                     <a href="<?= BASE_URL ?>/cash/create" class="btn btn-sm btn-primary">
@@ -221,16 +274,19 @@ $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saj
                         </td></tr>
                     <?php endif; ?>
                     <?php foreach ($rows as $i => $r): ?>
+                        <?php $isBank = ($r['source'] ?? 'kas') === 'bank'; ?>
                         <tr>
                             <?php if ($canCetakVoucher): ?>
                             <td class="no-print text-center">
-                                <input type="checkbox" class="form-check-input kas-row-check"
-                                       value="<?= (int) $r['id'] ?>" data-label="<?= e($r['no_bukti']) ?>">
+                                <?php if (!$isBank): ?>
+                                    <input type="checkbox" class="form-check-input kas-row-check"
+                                           value="<?= (int) $r['id'] ?>" data-label="<?= e($r['no_bukti']) ?>">
+                                <?php endif; ?>
                             </td>
                             <?php endif; ?>
                             <td><?= $i + 1 ?></td>
                             <td><?= formatTanggal($r['trx_date']) ?></td>
-                            <td><?= e($r['pic']) ?></td>
+                            <td><?= e($r['pic'] ?: '-') ?></td>
                             <td><?= e($r['no_bukti']) ?></td>
                             <td><?= e($r['category_name']) ?></td>
                             <td>
@@ -243,47 +299,82 @@ $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saj
                             <td class="text-end fw-semibold"><?= formatRupiah($r['total_amount']) ?></td>
                             <td><?= e($r['created_by_name'] ?? '-') ?></td>
                             <td>
-                                <?php [$vc, $vl] = $valBadge[$r['validation_status'] ?? 'menunggu'] ?? ['secondary', $r['validation_status'] ?? '-']; ?>
-                                <span class="badge bg-<?= $vc ?>"><?= $vl ?></span>
-                                <?php if (($r['validation_status'] ?? '') === 'ditolak' && !empty($r['validation_note'])): ?>
-                                    <div class="small fst-italic text-danger mt-1" style="max-width: 16rem;">
-                                        <i class="bi bi-chat-left-quote"></i> <?= e($r['validation_note']) ?>
-                                    </div>
+                                <?php if ($isBank): ?>
+                                    <span class="badge bg-light text-dark border">Bank</span>
+                                <?php else: ?>
+                                    <?php [$vc, $vl] = $valBadge[$r['validation_status'] ?? 'menunggu'] ?? ['secondary', $r['validation_status'] ?? '-']; ?>
+                                    <span class="badge bg-<?= $vc ?>"><?= $vl ?></span>
+                                    <?php if (($r['validation_status'] ?? '') === 'ditolak' && !empty($r['validation_note'])): ?>
+                                        <div class="small fst-italic text-danger mt-1" style="max-width: 16rem;">
+                                            <i class="bi bi-chat-left-quote"></i> <?= e($r['validation_note']) ?>
+                                        </div>
+                                    <?php endif; ?>
                                 <?php endif; ?>
                             </td>
                             <td class="text-center no-print">
-                                <?php $rowLocked = isPeriodClosed('cash', $r['trx_date']); ?>
-                                <?php if ($rowLocked): ?>
-                                    <span class="badge bg-secondary" title="Periode ditutup -- transaksi terkunci">
-                                        <i class="bi bi-lock-fill"></i> Terkunci
-                                    </span>
-                                <?php elseif (can('cash', 'edit') || can('cash', 'delete')): ?>
-                                <div class="dropdown row-actions">
-                                    <button type="button" class="btn btn-row-actions" data-bs-toggle="dropdown" aria-expanded="false" title="Aksi">
-                                        <i class="bi bi-three-dots-vertical"></i>
-                                    </button>
-                                    <ul class="dropdown-menu dropdown-menu-end">
-                                        <?php if (can('cash', 'edit')): ?>
-                                        <li>
-                                            <a class="dropdown-item" href="<?= BASE_URL ?>/cash/edit/<?= (int) $r['id'] ?>">
-                                                <i class="bi bi-pencil"></i> Edit
-                                            </a>
-                                        </li>
-                                        <?php endif; ?>
-                                        <?php if (can('cash', 'delete')): ?>
-                                        <li>
-                                            <form method="POST" action="<?= BASE_URL ?>/index.php?module=cash&action=delete"
-                                                  class="js-confirm-delete" data-message="Hapus transaksi Kas <?= e($r['no_bukti']) ?> ke Tempat Sampah?">
-                                                <?= csrfField() ?>
-                                                <input type="hidden" name="id" value="<?= (int) $r['id'] ?>">
-                                                <button type="submit" class="dropdown-item text-danger"><i class="bi bi-trash"></i> Hapus</button>
-                                            </form>
-                                        </li>
-                                        <?php endif; ?>
-                                    </ul>
-                                </div>
+                                <?php if ($isBank): ?>
+                                    <?php if (can('bank', 'edit') || can('bank', 'delete')): ?>
+                                    <div class="dropdown row-actions">
+                                        <button type="button" class="btn btn-row-actions" data-bs-toggle="dropdown" aria-expanded="false" title="Aksi">
+                                            <i class="bi bi-three-dots-vertical"></i>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <?php if (can('bank', 'edit')): ?>
+                                            <li>
+                                                <a class="dropdown-item" href="<?= BASE_URL ?>/bank/edit/<?= (int) $r['id'] ?>">
+                                                    <i class="bi bi-pencil"></i> Edit
+                                                </a>
+                                            </li>
+                                            <?php endif; ?>
+                                            <?php if (can('bank', 'delete')): ?>
+                                            <li>
+                                                <form method="POST" action="<?= BASE_URL ?>/index.php?module=bank&action=delete"
+                                                      class="js-confirm-delete" data-message="Hapus transaksi Bank <?= e($r['no_bukti']) ?> ke Tempat Sampah?">
+                                                    <?= csrfField() ?>
+                                                    <input type="hidden" name="id" value="<?= (int) $r['id'] ?>">
+                                                    <button type="submit" class="dropdown-item text-danger"><i class="bi bi-trash"></i> Hapus</button>
+                                                </form>
+                                            </li>
+                                            <?php endif; ?>
+                                        </ul>
+                                    </div>
+                                    <?php else: ?>
+                                        <span class="text-muted">&mdash;</span>
+                                    <?php endif; ?>
                                 <?php else: ?>
-                                    <span class="text-muted">&mdash;</span>
+                                    <?php $rowLocked = isPeriodClosed('cash', $r['trx_date']); ?>
+                                    <?php if ($rowLocked): ?>
+                                        <span class="badge bg-secondary" title="Periode ditutup -- transaksi terkunci">
+                                            <i class="bi bi-lock-fill"></i> Terkunci
+                                        </span>
+                                    <?php elseif (can('cash', 'edit') || can('cash', 'delete')): ?>
+                                    <div class="dropdown row-actions">
+                                        <button type="button" class="btn btn-row-actions" data-bs-toggle="dropdown" aria-expanded="false" title="Aksi">
+                                            <i class="bi bi-three-dots-vertical"></i>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <?php if (can('cash', 'edit')): ?>
+                                            <li>
+                                                <a class="dropdown-item" href="<?= BASE_URL ?>/cash/edit/<?= (int) $r['id'] ?>">
+                                                    <i class="bi bi-pencil"></i> Edit
+                                                </a>
+                                            </li>
+                                            <?php endif; ?>
+                                            <?php if (can('cash', 'delete')): ?>
+                                            <li>
+                                                <form method="POST" action="<?= BASE_URL ?>/index.php?module=cash&action=delete"
+                                                      class="js-confirm-delete" data-message="Hapus transaksi Kas <?= e($r['no_bukti']) ?> ke Tempat Sampah?">
+                                                    <?= csrfField() ?>
+                                                    <input type="hidden" name="id" value="<?= (int) $r['id'] ?>">
+                                                    <button type="submit" class="dropdown-item text-danger"><i class="bi bi-trash"></i> Hapus</button>
+                                                </form>
+                                            </li>
+                                            <?php endif; ?>
+                                        </ul>
+                                    </div>
+                                    <?php else: ?>
+                                        <span class="text-muted">&mdash;</span>
+                                    <?php endif; ?>
                                 <?php endif; ?>
                             </td>
                         </tr>

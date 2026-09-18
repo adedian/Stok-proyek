@@ -47,8 +47,32 @@ class BankTransaction extends Model
         return $this->db->fetchAll($sql, $params);
     }
 
+    /**
+     * Saldo Bank SEBELUM date_from -- pola sama CashTransaction::saldoAwal(),
+     * dipakai saat Laporan Kas menggabungkan Bank ke buku gabungan.
+     */
+    public function saldoAwal(array $filters): float
+    {
+        if (empty($filters['date_from'])) {
+            return 0.0;
+        }
+        $f = $filters;
+        unset($f['date_from'], $f['date_to']);
+        [$where, $params] = $this->buildWhere($f);
+        $params['df'] = $filters['date_from'];
+        $row = $this->db->fetchOne(
+            "SELECT
+               COALESCE(SUM(CASE WHEN b.mutasi='masuk'  THEN b.amount ELSE 0 END),0) AS masuk,
+               COALESCE(SUM(CASE WHEN b.mutasi='keluar' THEN b.amount ELSE 0 END),0) AS keluar
+             FROM bank_transactions b
+             {$where} AND b.trx_date < :df",
+            $params
+        );
+        return (float) ($row['masuk'] ?? 0) - (float) ($row['keluar'] ?? 0);
+    }
+
     /** Baris terurut kronologis + saldo berjalan, untuk Laporan Bank (pola sama Laporan Kas). */
-    public function reportLedger(array $filters): array
+    public function reportLedger(array $filters, float $saldoAwal = 0.0): array
     {
         [$where, $params] = $this->buildWhere($filters);
         $rows = $this->db->fetchAll(
@@ -60,7 +84,7 @@ class BankTransaction extends Model
            ORDER BY b.trx_date ASC, b.id ASC",
             $params
         );
-        $saldo = 0.0;
+        $saldo = $saldoAwal;
         $out = [];
         foreach ($rows as $r) {
             $masuk  = $r['mutasi'] === 'masuk' ? (float) $r['amount'] : 0.0;
@@ -71,7 +95,7 @@ class BankTransaction extends Model
             $r['saldo']  = $saldo;
             $out[] = $r;
         }
-        return ['saldo_akhir' => $saldo, 'rows' => $out];
+        return ['saldo_awal' => $saldoAwal, 'saldo_akhir' => $saldo, 'rows' => $out];
     }
 
     private function buildWhere(array $filters): array
@@ -86,7 +110,16 @@ class BankTransaction extends Model
             $sql .= " AND b.trx_date <= :date_to";
             $params['date_to'] = $filters['date_to'];
         }
-        if (!empty($filters['project_id'])) {
+        // project_ids[] (checklist, baru) menang atas project_id tunggal (lama,
+        // dipertahankan untuk kompatibilitas link lama).
+        if (!empty($filters['project_ids']) && is_array($filters['project_ids'])) {
+            $in = [];
+            foreach (array_values($filters['project_ids']) as $i => $pid) {
+                $in[] = ":pp{$i}";
+                $params["pp{$i}"] = (int) $pid;
+            }
+            $sql .= " AND b.project_id IN (" . implode(',', $in) . ")";
+        } elseif (!empty($filters['project_id'])) {
             $sql .= " AND b.project_id = :project_id";
             $params['project_id'] = (int) $filters['project_id'];
         }

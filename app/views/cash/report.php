@@ -1,21 +1,26 @@
 <?php
 /** @var array $ledger @var array $filters @var array $categories @var array $picOptions
- *  @var array $projectOptions @var bool $projectGated */
+ *  @var array $projectOptions @var bool $projectGated @var array $bankOptions @var bool $canBank */
+$bankOptions = $bankOptions ?? [];
+$canBank = $canBank ?? false;
 $qs = http_build_query(array_filter([
     'date_from'   => $filters['date_from'],
     'date_to'     => $filters['date_to'],
     'pic'         => $filters['pic'],
     'category_id' => $filters['category_id'],
     'mutasi'      => $filters['mutasi'],
-    'project_id'  => $filters['project_id'],
+    'project_ids' => $filters['project_ids'],
+    'bank_ids'    => $filters['bank_ids'],
 ]));
 $rp = static fn($v) => number_format((float) $v, 0, ',', '.');
 $qtyFmt = static fn($v) => rtrim(rtrim(number_format((float) $v, 2, ',', '.'), '0'), ',');
 $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saja
+$selectedProjectIds = array_map('strval', $filters['project_ids']);
+$selectedBankIds = array_map('strval', $filters['bank_ids']);
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2 no-print">
     <div>
-        <h4 class="mb-0">Laporan Kas</h4>
+        <h4 class="mb-0">Laporan Kas<?= $canBank ? '/Bank' : '' ?></h4>
         <small class="text-muted">Buku kas &mdash; Saldo Awal, mutasi masuk/keluar, dan saldo berjalan</small>
     </div>
     <div class="d-flex gap-2 flex-wrap">
@@ -28,7 +33,16 @@ $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saj
         <button type="button" class="btn btn-outline-dark" onclick="window.print()"><i class="bi bi-printer"></i> Cetak</button>
         <a href="<?= BASE_URL ?>/index.php?module=cash&action=printReport<?= $qs ? '&' . e($qs) : '' ?>" class="btn btn-outline-danger" target="_blank"><i class="bi bi-file-earmark-pdf"></i> PDF</a>
         <a href="<?= BASE_URL ?>/index.php?module=cash&action=exportReport<?= $qs ? '&' . e($qs) : '' ?>" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i> Excel</a>
-        <a href="<?= BASE_URL ?>/index.php?module=cash&action=printReportGrouped<?= $qs ? '&' . e($qs) : '' ?>" class="btn btn-outline-dark" target="_blank" title="Cetak seluruh transaksi sesuai filter, dikelompokkan per PIC"><i class="bi bi-people"></i> Tarik Semua</a>
+        <div class="btn-group">
+            <a href="<?= BASE_URL ?>/index.php?module=cash&action=printReportGrouped<?= $qs ? '&' . e($qs) : '' ?>" class="btn btn-outline-dark" target="_blank" title="Cetak seluruh transaksi sesuai filter, dikelompokkan per PIC (PDF)"><i class="bi bi-people"></i> Tarik Semua</a>
+            <button type="button" class="btn btn-outline-dark dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                <span class="visually-hidden">Pilih format Tarik Semua</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" target="_blank" href="<?= BASE_URL ?>/index.php?module=cash&action=printReportGrouped<?= $qs ? '&' . e($qs) : '' ?>"><i class="bi bi-file-earmark-pdf"></i> Tarik Semua (PDF)</a></li>
+                <li><a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=cash&action=exportReportGrouped<?= $qs ? '&' . e($qs) : '' ?>"><i class="bi bi-file-earmark-excel"></i> Tarik Semua (Excel)</a></li>
+            </ul>
+        </div>
     </div>
 </div>
 
@@ -74,31 +88,67 @@ $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saj
                     <option value="keluar" <?= $filters['mutasi'] === 'keluar' ? 'selected' : '' ?>>Keluar</option>
                 </select>
             </div>
-            <div class="col-6 col-md-2">
-                <label class="form-label small text-muted mb-1">Project</label>
-                <?php if ($projectGated): ?>
-                    <input type="text" class="form-control form-control-sm" value="<?= e($projectOptions[0]['project_name'] ?? '-') ?>" disabled>
-                    <input type="hidden" name="project_id" value="<?= (int) ($projectOptions[0]['id'] ?? 0) ?>">
-                <?php else: ?>
-                    <select name="project_id" class="form-select form-select-sm">
-                        <option value="">Semua Project</option>
-                        <?php foreach ($projectOptions as $p): ?>
-                            <option value="<?= (int) $p['id'] ?>" <?= (string) $filters['project_id'] === (string) $p['id'] ? 'selected' : '' ?>><?= e($p['project_name']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                <?php endif; ?>
-            </div>
             <div class="col-12 col-md-1 d-flex gap-2">
                 <button type="submit" class="btn btn-sm btn-outline-primary w-100"><i class="bi bi-search"></i></button>
                 <a href="<?= BASE_URL ?>/cash/report" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-circle"></i></a>
             </div>
+
+            <div class="col-12"><hr class="my-1"></div>
+
+            <div class="col-6 col-md-3">
+                <label class="form-label small text-muted mb-1">Project (centang, kosong = semua)</label>
+                <?php if ($projectGated): ?>
+                    <input type="text" class="form-control form-control-sm" value="<?= e($projectOptions[0]['project_name'] ?? '-') ?>" disabled>
+                    <input type="hidden" name="project_ids[]" value="<?= (int) ($projectOptions[0]['id'] ?? 0) ?>">
+                <?php else: ?>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle w-100 text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                            <?= count($selectedProjectIds) ? count($selectedProjectIds) . ' Project dipilih' : 'Semua Project' ?>
+                        </button>
+                        <div class="dropdown-menu p-2" style="max-height:260px; overflow:auto; min-width:240px;">
+                            <?php if (empty($projectOptions)): ?>
+                                <div class="text-muted small px-2">Tidak ada project.</div>
+                            <?php endif; ?>
+                            <?php foreach ($projectOptions as $p): ?>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="project_ids[]" value="<?= (int) $p['id'] ?>"
+                                           id="repProj<?= (int) $p['id'] ?>" <?= in_array((string) $p['id'], $selectedProjectIds, true) ? 'checked' : '' ?>>
+                                    <label class="form-check-label" for="repProj<?= (int) $p['id'] ?>"><?= e($p['project_name']) ?></label>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
+            </div>
+            <?php if ($canBank): ?>
+            <div class="col-6 col-md-3">
+                <label class="form-label small text-muted mb-1">Bank (centang, kosong = semua)</label>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle w-100 text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                        <?= count($selectedBankIds) ? count($selectedBankIds) . ' Bank dipilih' : 'Semua Bank' ?>
+                    </button>
+                    <div class="dropdown-menu p-2" style="max-height:260px; overflow:auto; min-width:240px;">
+                        <?php if (empty($bankOptions)): ?>
+                            <div class="text-muted small px-2">Belum ada Master Bank.</div>
+                        <?php endif; ?>
+                        <?php foreach ($bankOptions as $b): ?>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="bank_ids[]" value="<?= (int) $b['id'] ?>"
+                                       id="repBank<?= (int) $b['id'] ?>" <?= in_array((string) $b['id'], $selectedBankIds, true) ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="repBank<?= (int) $b['id'] ?>"><?= e($b['bank_name']) ?> (<?= e(strtoupper($b['jenis'])) ?>)</label>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
         </form>
     </div>
 </div>
 
 <div class="card border-0 shadow-sm">
     <div class="card-body">
-        <h5 class="text-center mb-3">Laporan Kas</h5>
+        <h5 class="text-center mb-3">Laporan Kas<?= $canBank ? '/Bank' : '' ?></h5>
         <div class="table-responsive">
             <table class="table table-sm table-bordered align-middle mb-0">
                 <thead class="table-light text-center">
@@ -125,24 +175,25 @@ $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saj
                         <td class="text-end"><?= $rp($ledger['saldo_awal']) ?></td>
                     </tr>
                     <?php if (empty($ledger['rows'])): ?>
-                        <tr><td colspan="<?= $canCetakVoucher ? 9 : 8 ?>" class="text-center text-muted py-3">Tidak ada transaksi Kas pada filter ini.</td></tr>
+                        <tr><td colspan="<?= $canCetakVoucher ? 9 : 8 ?>" class="text-center text-muted py-3">Tidak ada transaksi pada filter ini.</td></tr>
                     <?php endif; ?>
                     <?php foreach ($ledger['rows'] as $row): ?>
+                        <?php $isBank = ($row['source'] ?? 'kas') === 'bank'; ?>
                         <tr>
                             <?php if ($canCetakVoucher): ?>
                             <td class="no-print text-center">
-                                <?php if (!empty($row['trx_id'])): ?>
+                                <?php if (!$isBank && !empty($row['trx_id'])): ?>
                                     <input type="checkbox" class="form-check-input kas-row-check"
                                            value="<?= (int) $row['trx_id'] ?>"
                                            data-label="<?= e($row['no_bukti']) ?>">
                                 <?php endif; ?>
                             </td>
                             <?php endif; ?>
-                            <td><?= $row['trx_date'] !== '' ? e(date('j-M-y', strtotime($row['trx_date']))) : '' ?></td>
-                            <td><?= e($row['no_bukti']) ?></td>
-                            <td><?= e($row['uraian']) ?></td>
-                            <td class="text-end"><?= $qtyFmt($row['qty']) ?></td>
-                            <td class="text-end"><?= $rp($row['satuan']) ?></td>
+                            <td><?= !empty($row['is_first']) ? e(date('j-M-y', strtotime($row['trx_date_full']))) : '' ?></td>
+                            <td><?= !empty($row['is_first']) ? e($row['no_bukti_full']) : '' ?></td>
+                            <td><?= e($row['uraian']) ?><?= $isBank ? ' <span class="text-muted small">(' . e($row['kategori']) . ')</span>' : '' ?></td>
+                            <td class="text-end"><?= $isBank ? '-' : $qtyFmt($row['qty']) ?></td>
+                            <td class="text-end"><?= $isBank ? '-' : $rp($row['satuan']) ?></td>
                             <td class="text-end<?= $row['masuk'] < 0 ? ' text-danger' : '' ?>"><?= $row['masuk'] != 0 ? $rp($row['masuk']) : '' ?></td>
                             <td class="text-end<?= $row['keluar'] < 0 ? ' text-danger' : '' ?>"><?= $row['keluar'] != 0 ? $rp($row['keluar']) : '' ?></td>
                             <td class="text-end"><?= $rp($row['saldo']) ?></td>

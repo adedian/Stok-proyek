@@ -42,7 +42,7 @@ $grandSaldo = (float) $grandMasuk - (float) $grandKeluar;
     <div class="tarik-note">Tarik Semua &mdash; dikelompokkan per PIC</div>
 
     <?php if (empty($groups)): ?>
-        <table><tr><td style="text-align:center;">Tidak ada transaksi Kas pada periode/filter ini.</td></tr></table>
+        <table><tr><td style="text-align:center;">Tidak ada transaksi pada periode/filter ini.</td></tr></table>
     <?php endif; ?>
 
     <?php foreach ($groups as $g): ?>
@@ -61,9 +61,9 @@ $grandSaldo = (float) $grandMasuk - (float) $grandKeluar;
             <tbody>
                 <?php foreach ($g['rows'] as $row): ?>
                     <tr>
-                        <td><?= $row['trx_date'] !== '' ? e(date('j-M-y', strtotime($row['trx_date']))) : '' ?></td>
-                        <td><?= e($row['no_bukti']) ?></td>
-                        <td><?= e($row['project_name'] ?? '') ?: '-' ?></td>
+                        <td><?= !empty($row['trx_date_full']) ? e(date('j-M-y', strtotime($row['trx_date_full']))) : '' ?></td>
+                        <td><?= e($row['no_bukti_full'] ?? '') ?></td>
+                        <td><?= e($row['project_name_full'] ?? '') ?: '-' ?></td>
                         <td><?= e($row['uraian']) ?></td>
                         <td class="end"><?= $row['masuk'] != 0 ? $rp($row['masuk']) : '' ?></td>
                         <td class="end"><?= $row['keluar'] != 0 ? $rp($row['keluar']) : '' ?></td>

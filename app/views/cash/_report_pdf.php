@@ -57,19 +57,20 @@ $qtyFmt = static function ($v) {
                 <td></td>
             </tr>
             <?php if (empty($ledger['rows'])): ?>
-                <tr><td colspan="9" style="text-align:center;">Tidak ada transaksi Kas pada periode ini.</td></tr>
+                <tr><td colspan="9" style="text-align:center;">Tidak ada transaksi pada periode/filter ini.</td></tr>
             <?php endif; ?>
             <?php foreach ($ledger['rows'] as $row): ?>
+                <?php $isBank = ($row['source'] ?? 'kas') === 'bank'; ?>
                 <tr>
-                    <td><?= $row['trx_date'] !== '' ? e(date('j-M-y', strtotime($row['trx_date']))) : '' ?></td>
-                    <td><?= e($row['no_bukti']) ?></td>
-                    <td><?= e($row['uraian']) ?></td>
-                    <td class="end"><?= $qtyFmt($row['qty']) ?></td>
-                    <td class="end"><?= $rp($row['satuan']) ?></td>
+                    <td><?= !empty($row['is_first']) ? e(date('j-M-y', strtotime($row['trx_date_full']))) : '' ?></td>
+                    <td><?= !empty($row['is_first']) ? e($row['no_bukti_full']) : '' ?></td>
+                    <td><?= e($row['uraian']) ?><?= $isBank ? ' <span style="color:#6c757d;">(' . e($row['kategori']) . ')</span>' : '' ?></td>
+                    <td class="end"><?= $isBank ? '-' : $qtyFmt($row['qty']) ?></td>
+                    <td class="end"><?= $isBank ? '-' : $rp($row['satuan']) ?></td>
                     <td class="end"><?= $row['masuk'] != 0 ? $rp($row['masuk']) : '' ?></td>
                     <td class="end"><?= $row['keluar'] != 0 ? $rp($row['keluar']) : '' ?></td>
                     <td class="end"><?= $rp($row['saldo']) ?></td>
-                    <td><?= e($row['pic'] ?? '') ?></td>
+                    <td><?= !empty($row['is_first']) ? e($row['pic_full']) : '' ?></td>
                 </tr>
             <?php endforeach; ?>
             <tr class="akhir">

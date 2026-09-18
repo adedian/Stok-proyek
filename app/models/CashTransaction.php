@@ -356,6 +356,18 @@ class CashTransaction extends Model
                     'masuk'        => $masuk,
                     'keluar'       => $keluar,
                     'saldo'        => $saldo,
+                    // Varian TAK-DIKOSONGKAN (Revisi gabung Kas+Bank) -- dipakai
+                    // saat menggabung dgn Bank, di mana urutan tampil tidak lagi
+                    // murni per-transaksi (jadi trik "kosongkan baris lanjutan"
+                    // di atas tidak bisa diandalkan). Field lama di atas TETAP
+                    // dipertahankan apa adanya untuk Laporan Kas biasa (Kas saja).
+                    'source'          => 'kas',
+                    'parent_id'       => (int) $t['id'],
+                    'is_first'        => $first,
+                    'trx_date_full'   => $t['trx_date'],
+                    'no_bukti_full'   => $t['no_bukti'],
+                    'pic_full'        => $t['pic'],
+                    'project_name_full' => $t['project_name'],
                 ];
                 $first = false;
             }
@@ -500,10 +512,18 @@ class CashTransaction extends Model
                                      AND cti.cash_category_id = :category_id)";
             $params['category_id'] = (int) $filters['category_id'];
         }
-        // Filter Project dari dropdown Laporan Kas (Semua Project / project
-        // tertentu) -- BEDA dari $projectScope di atas (yang berasal dari
-        // gerbang akses, bukan pilihan bebas user).
-        if (!empty($filters['project_id'])) {
+        // Filter Project checklist (baru, Kas+Bank digabung) -- BEDA dari
+        // $projectScope di atas (yang berasal dari gerbang akses, bukan
+        // pilihan bebas user). project_ids[] (checklist) menang atas
+        // project_id tunggal (lama, dipertahankan utk kompatibilitas link lama).
+        if (!empty($filters['project_ids']) && is_array($filters['project_ids'])) {
+            $in = [];
+            foreach (array_values($filters['project_ids']) as $i => $pid) {
+                $in[] = ":fp{$i}";
+                $params["fp{$i}"] = (int) $pid;
+            }
+            $sql .= " AND c.project_id IN (" . implode(',', $in) . ")";
+        } elseif (!empty($filters['project_id'])) {
             $sql .= " AND c.project_id = :filter_project_id";
             $params['filter_project_id'] = (int) $filters['project_id'];
         }

@@ -46,23 +46,14 @@ class BankController extends Controller
         ];
     }
 
+    /**
+     * List Bank berdiri sendiri DIHAPUS dari navigasi (revisi lanjutan) --
+     * transaksi Bank sekarang digabung tampil di menu Kas (CashController::index(),
+     * hanya untuk can('bank','view')). Redirect supaya bookmark/link lama tidak mati.
+     */
     public function index(): void
     {
-        $filters = $this->collectFilters();
-        $rows = $this->model->listFiltered($filters);
-        $summary = ['masuk' => 0.0, 'keluar' => 0.0];
-        foreach ($rows as $r) {
-            $summary[$r['mutasi']] += (float) $r['amount'];
-        }
-
-        $this->view('bank/list', [
-            'pageTitle'  => 'Bank',
-            'rows'       => $rows,
-            'filters'    => $filters,
-            'summary'    => $summary,
-            'banks'      => $this->bankModel->activeList(),
-            'projects'   => $this->projectModel->activeList(),
-        ]);
+        $this->redirect('cash', 'index');
     }
 
     public function create(): void
@@ -107,7 +98,7 @@ class BankController extends Controller
             $this->activityLog->log(currentUserId(), 'bank', 'create', "Transaksi Bank {$data['mutasi']} '{$noBukti}' dibuat, " . formatRupiah($data['amount']));
             $pdo->commit();
             setFlash('success', 'Transaksi Bank berhasil disimpan.');
-            $this->redirect('bank', 'index');
+            $this->redirect('cash', 'index');
         } catch (Throwable $e) {
             $pdo->rollBack();
             error_log('Bank store error: ' . $e->getMessage());
@@ -123,7 +114,7 @@ class BankController extends Controller
         $row = $this->model->find($id);
         if (!$row) {
             setFlash('error', 'Transaksi Bank tidak ditemukan.');
-            $this->redirect('bank', 'index');
+            $this->redirect('cash', 'index');
         }
         $this->view('bank/form', [
             'pageTitle' => 'Edit Transaksi Bank',
@@ -138,7 +129,7 @@ class BankController extends Controller
     {
         Middleware::requirePermission('bank', 'edit');
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->redirect('bank', 'index');
+            $this->redirect('cash', 'index');
         }
         verifyCsrf();
 
@@ -146,7 +137,7 @@ class BankController extends Controller
         $existing = $this->model->find($id);
         if (!$existing) {
             setFlash('error', 'Transaksi Bank tidak ditemukan.');
-            $this->redirect('bank', 'index');
+            $this->redirect('cash', 'index');
         }
 
         $data = $this->collectInput();
@@ -159,14 +150,14 @@ class BankController extends Controller
         $this->model->updateById($id, $data);
         $this->activityLog->log(currentUserId(), 'bank', 'update', "Transaksi Bank #{$id} ('{$existing['no_bukti']}') diperbarui");
         setFlash('success', 'Transaksi Bank berhasil diperbarui.');
-        $this->redirect('bank', 'index');
+        $this->redirect('cash', 'index');
     }
 
     public function delete(): void
     {
         Middleware::requirePermission('bank', 'delete');
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->redirect('bank', 'index');
+            $this->redirect('cash', 'index');
         }
         verifyCsrf();
 
@@ -179,20 +170,16 @@ class BankController extends Controller
         } else {
             setFlash('error', 'Transaksi Bank tidak ditemukan.');
         }
-        $this->redirect('bank', 'index');
+        $this->redirect('cash', 'index');
     }
 
+    /**
+     * Laporan Bank berdiri sendiri DIHAPUS dari navigasi (revisi lanjutan) --
+     * digabung ke Laporan Kas (centang Bank di filter). Redirect saja.
+     */
     public function report(): void
     {
-        $filters = $this->collectFilters();
-        $ledger = $this->model->reportLedger($filters);
-        $this->view('bank/report', [
-            'pageTitle'  => 'Laporan Bank',
-            'ledger'     => $ledger,
-            'filters'    => $filters,
-            'banks'      => $this->bankModel->activeList(),
-            'projects'   => $this->projectModel->activeList(),
-        ]);
+        $this->redirect('cash', 'report');
     }
 
     public function printReport(): void

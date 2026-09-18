@@ -4,6 +4,7 @@ use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\PageSetup;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
@@ -406,6 +407,107 @@ function streamStockDetailExcel(array $groups, string $companyName, string $peri
 
 /**
  * ============================================================
+ * EXPORT EXCEL "TARIK SEMUA" (Revisi lanjutan poin 3) -- isi & pengelompokan
+ * SAMA PERSIS dengan versi PDF (_report_grouped_pdf.php), dibangun dari
+ * $groups yang sama (CashController::buildGroupedByPic()), cuma beda format
+ * output. Kolom: Tanggal | No Bukti | Project | Uraian | Masuk | Keluar,
+ * dikelompokkan per PIC (judul grup + subtotal), lalu Grand Total di akhir.
+ *
+ * @param array $groups ['pic' => ['pic','rows'=>[...],'masuk','keluar']]
+ * ============================================================
+ */
+function streamCashReportGroupedExcel(array $groups, string $companyName, string $periodText, string $filename, string $reportTitle = 'Laporan Kas'): void
+{
+    $spreadsheet = new Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+    $sheet->setTitle('Tarik Semua');
+
+    $lastColLetter = 'F'; // Tanggal|No Bukti|Project|Uraian|Masuk|Keluar
+    $row = _stockExcelTitleBlock($sheet, $reportTitle, $companyName, $periodText, $lastColLetter);
+
+    foreach (['A' => 12, 'B' => 16, 'C' => 22, 'D' => 40, 'E' => 16, 'F' => 16] as $c => $w) {
+        $sheet->getColumnDimension($c)->setWidth($w);
+    }
+    $money = '#,##0;[Red]-#,##0';
+    $grandMasuk = 0.0;
+    $grandKeluar = 0.0;
+
+    if (empty($groups)) {
+        $sheet->mergeCells("A{$row}:{$lastColLetter}{$row}");
+        $sheet->setCellValue('A' . $row, 'Tidak ada transaksi pada periode/filter ini.');
+        $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $row++;
+    }
+
+    foreach ($groups as $g) {
+        $sheet->mergeCells("A{$row}:{$lastColLetter}{$row}");
+        $sheet->setCellValue('A' . $row, 'PIC: ' . mb_strtoupper($g['pic']));
+        $sheet->getStyle('A' . $row)->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
+        $sheet->getStyle('A' . $row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('212529');
+        $row++;
+
+        $labels = ['A' => 'Tanggal', 'B' => 'No Bukti', 'C' => 'Project', 'D' => 'Uraian', 'E' => 'Masuk', 'F' => 'Keluar'];
+        foreach ($labels as $col => $label) {
+            $sheet->setCellValue($col . $row, $label);
+        }
+        $sheet->getStyle("A{$row}:{$lastColLetter}{$row}")->getFont()->setBold(true);
+        $sheet->getStyle("A{$row}:{$lastColLetter}{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F1F3F5');
+        $row++;
+
+        foreach ($g['rows'] as $r) {
+            $sheet->setCellValue('A' . $row, !empty($r['trx_date_full']) ? date('j-M-y', strtotime($r['trx_date_full'])) : '');
+            $sheet->setCellValue('B' . $row, $r['no_bukti_full'] ?? '');
+            $sheet->setCellValue('C' . $row, $r['project_name_full'] ?: '-');
+            $sheet->setCellValue('D' . $row, $r['uraian']);
+            if ((float) $r['masuk'] != 0.0) {
+                $sheet->setCellValue('E' . $row, (float) $r['masuk']);
+            }
+            if ((float) $r['keluar'] != 0.0) {
+                $sheet->setCellValue('F' . $row, (float) $r['keluar']);
+            }
+            $sheet->getStyle("E{$row}:F{$row}")->getNumberFormat()->setFormatCode($money);
+            $row++;
+        }
+
+        $sheet->mergeCells("A{$row}:D{$row}");
+        $sheet->setCellValue('A' . $row, 'Total PIC ' . mb_strtoupper($g['pic']));
+        $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        $sheet->setCellValue('E' . $row, (float) $g['masuk']);
+        $sheet->setCellValue('F' . $row, (float) $g['keluar']);
+        $sheet->getStyle("A{$row}:{$lastColLetter}{$row}")->getFont()->setBold(true);
+        $sheet->getStyle("A{$row}:{$lastColLetter}{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F8F9FA');
+        $sheet->getStyle("E{$row}:F{$row}")->getNumberFormat()->setFormatCode($money);
+        $grandMasuk += (float) $g['masuk'];
+        $grandKeluar += (float) $g['keluar'];
+        $row++;
+        $row++; // spasi antar kelompok PIC
+    }
+
+    $lastDataRow = $row - 1;
+
+    $row++;
+    $sheet->mergeCells("A{$row}:D{$row}");
+    $sheet->setCellValue('A' . $row, 'GRAND TOTAL');
+    $sheet->getStyle("A{$row}:{$lastColLetter}{$row}")->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
+    $sheet->getStyle("A{$row}:{$lastColLetter}{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('212529');
+    $sheet->setCellValue('E' . $row, $grandMasuk);
+    $sheet->setCellValue('F' . $row, $grandKeluar);
+    $sheet->getStyle("E{$row}:F{$row}")->getNumberFormat()->setFormatCode($money);
+    $row++;
+    $sheet->mergeCells("A{$row}:{$lastColLetter}{$row}");
+    $sheet->setCellValue('A' . $row, 'Saldo: ' . number_format($grandMasuk - $grandKeluar, 0, ',', '.'));
+    $sheet->getStyle('A' . $row)->getFont()->setBold(true);
+    $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+
+    $sheet->getStyle("A5:{$lastColLetter}{$lastDataRow}")
+        ->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+    _stockExcelNotes($sheet, $row + 3, $lastColLetter);
+
+    _stockExcelStream($spreadsheet, $filename);
+}
+
+/**
+ * ============================================================
  * EXPORT EXCEL LAPORAN KAS (Revisi 9, +PIC & judul dinamis Revisi Kas/Bank) --
  * format buku kas sesuai contoh user:
  * Tgl | No Bukti | Uraian | Qty | Satuan | Masuk | Keluar | Saldo Akhir | PIC,
@@ -454,11 +556,15 @@ function streamCashReportExcel(array $ledger, string $companyName, string $perio
     $row++;
 
     foreach ($ledger['rows'] as $r) {
-        $sheet->setCellValue('A' . $row, $r['trx_date'] !== '' ? date('j-M-y', strtotime($r['trx_date'])) : '');
-        $sheet->setCellValue('B' . $row, $r['no_bukti']);
-        $sheet->setCellValue('C' . $row, $r['uraian']);
-        $sheet->setCellValue('D' . $row, (float) $r['qty']);
-        $sheet->setCellValue('E' . $row, (float) $r['satuan']);
+        $isBank = ($r['source'] ?? 'kas') === 'bank';
+        $first  = !empty($r['is_first']);
+        $sheet->setCellValue('A' . $row, $first && !empty($r['trx_date_full']) ? date('j-M-y', strtotime($r['trx_date_full'])) : '');
+        $sheet->setCellValue('B' . $row, $first ? ($r['no_bukti_full'] ?? '') : '');
+        $sheet->setCellValue('C' . $row, $r['uraian'] . ($isBank ? ' (' . $r['kategori'] . ')' : ''));
+        if (!$isBank) {
+            $sheet->setCellValue('D' . $row, (float) $r['qty']);
+            $sheet->setCellValue('E' . $row, (float) $r['satuan']);
+        }
         // Nominal Kas boleh negatif (koreksi/refund) -> tampilkan apa pun yang
         // bukan nol, termasuk nilai minus.
         if ((float) $r['masuk'] != 0.0) {
@@ -468,7 +574,7 @@ function streamCashReportExcel(array $ledger, string $companyName, string $perio
             $sheet->setCellValue('G' . $row, (float) $r['keluar']);
         }
         $sheet->setCellValue('H' . $row, (float) $r['saldo']);
-        $sheet->setCellValue('I' . $row, $r['pic'] ?? '');
+        $sheet->setCellValue('I' . $row, $first ? ($r['pic_full'] ?? '') : '');
         $sheet->getStyle("D{$row}")->getNumberFormat()->setFormatCode('#,##0.##');
         $sheet->getStyle("E{$row}:H{$row}")->getNumberFormat()->setFormatCode($moneyNeg);
         $row++;

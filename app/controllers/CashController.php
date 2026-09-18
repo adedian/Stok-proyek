@@ -15,6 +15,8 @@ require_once ROOT_PATH . '/app/models/Item.php';
 require_once ROOT_PATH . '/app/models/ItemCategory.php';
 require_once ROOT_PATH . '/app/models/ProjectUserAccess.php';
 require_once ROOT_PATH . '/app/models/MasterRekening.php';
+require_once ROOT_PATH . '/app/models/BankTransaction.php';
+require_once ROOT_PATH . '/app/models/MasterBank.php';
 
 /**
  * Modul Kas (Revisi 9) -- catatan kas masuk & kas keluar.
@@ -42,6 +44,8 @@ class CashController extends Controller
     private ItemCategory $barangCategoryModel;
     private ProjectUserAccess $projectAccessModel;
     private MasterRekening $rekeningModel;
+    private BankTransaction $bankModel;
+    private MasterBank $masterBankModel;
 
     /** Action yang MEMBANGUN gerbang auth Kas -- boleh diakses tanpa auth Kas. */
     private const KAS_GATE_ACTIONS = [
@@ -64,6 +68,8 @@ class CashController extends Controller
         $this->barangCategoryModel = new ItemCategory();
         $this->projectAccessModel  = new ProjectUserAccess();
         $this->rekeningModel       = new MasterRekening();
+        $this->bankModel           = new BankTransaction();
+        $this->masterBankModel     = new MasterBank();
 
         $this->enforceKasAuth();
     }
@@ -366,6 +372,9 @@ class CashController extends Controller
         $divScope = kasDivisionScope();
         $projScope = $this->scopeProjectId();
         $rows     = $this->cashModel->listFiltered($filters, $scope, $divScope, $projScope);
+        // Gabung Bank (Revisi lanjutan: menu Bank berdiri sendiri dihapus) --
+        // no-op kalau user tidak punya akses 'bank.view'.
+        $rows     = $this->combinedListRows($rows, $filters);
 
         $summary = ['masuk' => 0.0, 'keluar' => 0.0];
         foreach ($rows as $r) {
@@ -412,6 +421,9 @@ class CashController extends Controller
             'kasPicName'  => kasIsExemptRole(currentUserRole()) ? null : kasPicName(),
             'kasProjectGated' => kasIsProjectGateRole(currentUserRole()),
             'kasProjectName'  => kasIsProjectGateRole(currentUserRole()) ? kasProjectName() : null,
+            'projectOptions'  => $this->reportProjectOptions(),
+            'bankOptions'     => $this->bankChecklistOptions(),
+            'canBank'         => can('bank', 'view'),
         ]);
     }
 
@@ -439,8 +451,8 @@ class CashController extends Controller
         $scope   = $this->scopePics();
         $divScope = kasDivisionScope();
         $projScope = $this->scopeProjectId();
-        $saldoAwal = $this->cashModel->saldoAwal($filters, $scope, $divScope, $projScope);
-        $ledger  = $this->cashModel->reportLedger($filters, $scope, $saldoAwal, $divScope, $projScope);
+        // Gabung Bank (Revisi lanjutan) -- no-op tanpa akses 'bank.view'.
+        $ledger  = $this->combinedLedger($filters, $scope, $divScope, $projScope);
 
         $this->view('cash/report', [
             'pageTitle'  => 'Laporan Kas',
@@ -454,6 +466,8 @@ class CashController extends Controller
             'picOptions' => $scope === null ? $this->cashModel->distinctPics(null, $divScope) : $scope,
             'projectOptions' => $this->reportProjectOptions(),
             'projectGated'   => kasIsProjectGateRole(currentUserRole()),
+            'bankOptions'    => $this->bankChecklistOptions(),
+            'canBank'        => can('bank', 'view'),
         ]);
     }
 
@@ -484,25 +498,21 @@ class CashController extends Controller
     }
 
     /**
-     * "Tarik Semua" -- semua baris sesuai filter aktif, dikelompokkan per PIC
-     * dengan subtotal masuk/keluar tiap kelompok + Grand Total di akhir.
-     * Fitur BARU (belum ada sebelumnya) -- terpisah dari "Cetak Terpilih"
-     * (printVoucher, per-baris manual via checkbox).
+     * Kelompokkan ledger gabungan (Kas [+Bank]) per PIC + subtotal, dipakai
+     * bareng oleh printReportGrouped() (PDF) & exportReportGrouped() (Excel)
+     * supaya isi keduanya SELALU sama persis (Revisi lanjutan poin 3).
+     * Pakai is_first/parent_id/pic_full/project_name_full (bukan trx_id/pic
+     * lama) supaya baris Bank ikut terkelompok benar (1 baris = 1 transaksi,
+     * beda dari Kas yang bisa banyak baris/item per transaksi).
      */
-    public function printReportGrouped(): void
+    private function buildGroupedByPic(array $ledgerRows): array
     {
-        [$ledger, $meta] = $this->buildReportData();
-        $this->activityLog->log(currentUserId(), 'cash', 'print', 'Cetak PDF Laporan Kas (Tarik Semua, dikelompokkan per PIC) (' . $meta['period'] . ')');
-
-        // reportLedger() mengembalikan 1 baris per ITEM (trx_id/pic hanya terisi
-        // di baris pertama tiap transaksi). Tarik Semua tampilkan 1 baris per
-        // TRANSAKSI (gabung uraian antar item), dikelompokkan per PIC.
         $groups = [];
         $currentPic = null;
         $currentKey = null;
-        foreach ($ledger['rows'] as $row) {
-            if ((int) $row['trx_id'] > 0) {
-                $currentPic = $row['pic'] ?: '(Tanpa PIC)';
+        foreach ($ledgerRows as $row) {
+            if (!empty($row['is_first'])) {
+                $currentPic = ($row['pic_full'] ?? '') !== '' ? $row['pic_full'] : '(Tanpa PIC)';
                 if (!isset($groups[$currentPic])) {
                     $groups[$currentPic] = ['pic' => $currentPic, 'rows' => [], 'masuk' => 0.0, 'keluar' => 0.0];
                 }
@@ -511,13 +521,27 @@ class CashController extends Controller
                 $groups[$currentPic]['keluar'] += $row['keluar'];
                 $currentKey = count($groups[$currentPic]['rows']) - 1;
             } elseif ($currentPic !== null && $currentKey !== null) {
-                // baris item ke-2/3/dst dari transaksi yang sama -> gabungkan ke
+                // Baris item ke-2/3/dst Kas dari transaksi yang sama -> gabung ke
                 // baris header-nya (Tarik Semua 1 baris per transaksi, bukan per item).
                 $groups[$currentPic]['rows'][$currentKey]['uraian'] .= '; ' . $row['uraian'];
             }
         }
         ksort($groups, SORT_NATURAL | SORT_FLAG_CASE);
+        return $groups;
+    }
 
+    /**
+     * "Tarik Semua" -- semua baris sesuai filter aktif (Kas [+Bank]),
+     * dikelompokkan per PIC dengan subtotal masuk/keluar tiap kelompok +
+     * Grand Total di akhir. Terpisah dari "Cetak Terpilih" (printVoucher,
+     * per-baris manual via checkbox, khusus Kas).
+     */
+    public function printReportGrouped(): void
+    {
+        [$ledger, $meta] = $this->buildReportData();
+        $this->activityLog->log(currentUserId(), 'cash', 'print', 'Cetak PDF Laporan Kas (Tarik Semua, dikelompokkan per PIC) (' . $meta['period'] . ')');
+
+        $groups = $this->buildGroupedByPic($ledger['rows']);
         $grandMasuk = array_sum(array_column($groups, 'masuk'));
         $grandKeluar = array_sum(array_column($groups, 'keluar'));
 
@@ -528,6 +552,25 @@ class CashController extends Controller
         require ROOT_PATH . '/app/views/cash/_report_grouped_pdf.php';
         $html = ob_get_clean();
         streamPdf($html, 'laporan_kas_tarik_semua_' . date('Ymd_His'));
+    }
+
+    /**
+     * "Tarik Semua" versi Excel -- isi & pengelompokan SAMA PERSIS dengan versi
+     * PDF di atas (buildGroupedByPic() dipakai bersama), cuma beda format output.
+     */
+    public function exportReportGrouped(): void
+    {
+        [$ledger, $meta] = $this->buildReportData();
+        $this->activityLog->log(currentUserId(), 'cash', 'export', 'Export Excel Laporan Kas (Tarik Semua, dikelompokkan per PIC) (' . $meta['period'] . ')');
+
+        $groups = $this->buildGroupedByPic($ledger['rows']);
+        streamCashReportGroupedExcel(
+            $groups,
+            $meta['company'],
+            $meta['period'],
+            'laporan_kas_tarik_semua_' . date('Ymd_His'),
+            $meta['title']
+        );
     }
 
     /**
@@ -998,6 +1041,15 @@ class CashController extends Controller
         // Filter Project: role gerbang Project TIDAK boleh mengganti lewat query
         // string (dipaksa ke project sesi-nya di buildReportData()/report()/index()
         // lewat $projScope terpisah) -- di sini sekadar dibaca untuk role lain.
+        $gated = kasIsProjectGateRole(currentUserRole());
+        $projectIds = [];
+        if (!$gated && isset($_GET['project_ids']) && is_array($_GET['project_ids'])) {
+            $projectIds = array_values(array_unique(array_filter(array_map('intval', $_GET['project_ids']), fn($v) => $v > 0)));
+        }
+        $bankIds = [];
+        if (can('bank', 'view') && isset($_GET['bank_ids']) && is_array($_GET['bank_ids'])) {
+            $bankIds = array_values(array_unique(array_filter(array_map('intval', $_GET['bank_ids']), fn($v) => $v > 0)));
+        }
         return [
             'date_from'   => $_GET['date_from'] ?? '',
             'date_to'     => $_GET['date_to'] ?? '',
@@ -1005,36 +1057,152 @@ class CashController extends Controller
             'category_id' => $_GET['category_id'] ?? '',
             'mutasi'      => $_GET['mutasi'] ?? '',
             'keyword'     => trim($_GET['keyword'] ?? ''),
-            'project_id'  => !kasIsProjectGateRole(currentUserRole()) ? ($_GET['project_id'] ?? '') : '',
+            'project_id'  => !$gated ? ($_GET['project_id'] ?? '') : '', // lama, kompat link lama
+            'project_ids' => $projectIds, // baru, checklist (Revisi gabung Kas+Bank)
+            'bank_ids'    => $bankIds,
+        ];
+    }
+
+    /** Bank checklist di filter Kas/Laporan Kas -- hanya kalau user boleh lihat Bank. */
+    private function bankChecklistOptions(): array
+    {
+        return can('bank', 'view') ? $this->masterBankModel->activeList() : [];
+    }
+
+    /** Terjemahkan filter Kas ke filter yang dipahami BankTransaction model. */
+    private function bankFiltersFrom(array $filters): array
+    {
+        return [
+            'date_from'   => $filters['date_from'],
+            'date_to'     => $filters['date_to'],
+            'project_ids' => $filters['project_ids'],
+            'bank_ids'    => $filters['bank_ids'],
+            'mutasi'      => $filters['mutasi'],
+            'keyword'     => $filters['keyword'],
         ];
     }
 
     /**
-     * Judul Laporan Kas dinamis mengikuti filter Project -- TIDAK PERNAH
-     * hard-code nama project. "Semua Project" kalau filter kosong/gerbang
-     * Project tidak aktif untuk 1 project spesifik.
+     * Gabungkan baris Kas + Bank (list, BUKAN buku/ledger) untuk halaman Kas
+     * (Revisi lanjutan: menu Bank berdiri sendiri dihapus, digabung ke sini).
+     * Tanpa akses 'bank.view' -> hanya baris Kas (tidak berubah dari sebelumnya).
+     */
+    private function combinedListRows(array $kasRows, array $filters): array
+    {
+        foreach ($kasRows as &$r) {
+            $r['source'] = 'kas';
+        }
+        unset($r);
+        if (!can('bank', 'view')) {
+            return $kasRows;
+        }
+        $bankRows = $this->bankModel->listFiltered($this->bankFiltersFrom($filters));
+        foreach ($bankRows as &$b) {
+            $b['source']            = 'bank';
+            $b['pic']                = $b['pic'] ?? '';
+            $b['category_name']      = $b['bank_name'] . ' (' . mb_strtoupper($b['bank_jenis']) . ')';
+            $b['total_amount']       = $b['amount'];
+            $b['validation_status']  = null;
+        }
+        unset($b);
+        $merged = array_merge($kasRows, $bankRows);
+        usort($merged, static function ($a, $b) {
+            $c = strcmp((string) $b['trx_date'], (string) $a['trx_date']); // DESC
+            if ($c !== 0) {
+                return $c;
+            }
+            return ($b['id'] ?? 0) <=> ($a['id'] ?? 0);
+        });
+        return $merged;
+    }
+
+    /**
+     * Gabungkan buku/ledger Kas + Bank (Laporan Kas) dengan saldo berjalan
+     * GABUNGAN -- dipakai report()/PDF/Excel/Tarik Semua. Tanpa akses
+     * 'bank.view' hasilnya identik dgn ledger Kas biasa (no-op).
+     */
+    private function combinedLedger(array $filters, ?array $scope, ?array $divScope, ?int $projScope): array
+    {
+        $kasSaldoAwal = $this->cashModel->saldoAwal($filters, $scope, $divScope, $projScope);
+        $kasLedger = $this->cashModel->reportLedger($filters, $scope, $kasSaldoAwal, $divScope, $projScope);
+
+        if (!can('bank', 'view')) {
+            return $kasLedger;
+        }
+
+        $bankFilters = $this->bankFiltersFrom($filters);
+        $bankSaldoAwal = $this->bankModel->saldoAwal($bankFilters);
+        $bankLedger = $this->bankModel->reportLedger($bankFilters, $bankSaldoAwal);
+
+        $bankRows = [];
+        foreach ($bankLedger['rows'] as $b) {
+            $bankRows[] = [
+                'source'            => 'bank',
+                'parent_id'         => (int) $b['id'],
+                'is_first'          => true,
+                'trx_date_full'     => $b['trx_date'],
+                'no_bukti_full'     => $b['no_bukti'],
+                'pic_full'          => $b['pic'] ?? '',
+                'project_name_full' => $b['project_name'] ?? '',
+                'kategori'          => $b['bank_name'] . ' (' . mb_strtoupper($b['bank_jenis']) . ')',
+                'uraian'            => $b['uraian'],
+                'qty'               => 0.0,
+                'satuan'            => 0.0,
+                'masuk'             => $b['masuk'],
+                'keluar'            => $b['keluar'],
+                'saldo'             => 0.0, // dihitung ulang gabungan di bawah
+            ];
+        }
+
+        $merged = array_merge($kasLedger['rows'], $bankRows);
+        usort($merged, static function ($a, $b) {
+            $c = strcmp((string) $a['trx_date_full'], (string) $b['trx_date_full']); // ASC
+            if ($c !== 0) {
+                return $c;
+            }
+            return ($a['parent_id'] ?? 0) <=> ($b['parent_id'] ?? 0);
+        });
+
+        $saldo = $kasSaldoAwal + $bankSaldoAwal;
+        foreach ($merged as &$row) {
+            $saldo += (float) $row['masuk'] - (float) $row['keluar'];
+            $row['saldo'] = $saldo;
+        }
+        unset($row);
+
+        return ['saldo_awal' => $kasSaldoAwal + $bankSaldoAwal, 'saldo_akhir' => $saldo, 'rows' => $merged];
+    }
+
+    /**
+     * Judul Laporan dinamis mengikuti filter Project -- TIDAK PERNAH hard-code
+     * nama project. Tepat 1 project (dari checklist, atau gerbang akses) ->
+     * nama project itu; 0 atau 2+ dipilih -> "SEMUA PROJECT". Prefix
+     * "KAS/BANK" untuk user yang boleh lihat Bank (sesuai brief awal), "KAS"
+     * saja untuk role lain (mereka memang tidak pernah melihat data Bank).
      */
     private function reportTitle(array $filters, ?int $projectScope): string
     {
-        $pid = $projectScope ?? (!empty($filters['project_id']) ? (int) $filters['project_id'] : null);
-        if ($pid) {
+        $label = can('bank', 'view') ? 'LAPORAN KAS/BANK' : 'LAPORAN KAS';
+
+        $ids = !empty($filters['project_ids']) ? $filters['project_ids'] : [];
+        $pid = $projectScope ?? (count($ids) === 1 ? (int) $ids[0] : (!empty($filters['project_id']) ? (int) $filters['project_id'] : null));
+        if ($pid && count($ids) <= 1) {
             $p = $this->projectModel->find($pid);
             if ($p) {
-                return 'LAPORAN KAS ' . mb_strtoupper($p['project_name']);
+                return $label . ' ' . mb_strtoupper($p['project_name']);
             }
         }
-        return 'LAPORAN KAS — SEMUA PROJECT';
+        return $label . ' — SEMUA PROJECT';
     }
 
-    /** [$ledger, ['company'=>.., 'period'=>.., 'title'=>.., 'projectId'=>.., 'projectName'=>..]] untuk PDF/Excel laporan. */
+    /** [$ledger, ['company'=>.., 'period'=>.., 'title'=>..]] untuk PDF/Excel laporan (Kas [+Bank] gabungan). */
     private function buildReportData(): array
     {
         $filters = $this->collectFilters();
         $scope   = $this->scopePics();
         $divScope = kasDivisionScope();
         $projScope = $this->scopeProjectId();
-        $saldoAwal = $this->cashModel->saldoAwal($filters, $scope, $divScope, $projScope);
-        $ledger  = $this->cashModel->reportLedger($filters, $scope, $saldoAwal, $divScope, $projScope);
+        $ledger  = $this->combinedLedger($filters, $scope, $divScope, $projScope);
 
         $company = (new SystemSetting())->getGroup('company');
         $companyName = $company['company_name'] ?: 'Perusahaan';

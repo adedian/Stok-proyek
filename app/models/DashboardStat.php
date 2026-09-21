@@ -132,6 +132,24 @@ class DashboardStat
     }
 
     /**
+     * Jumlah item penerimaan barang yang SESUAI pesanan tapi TETAP menunggu
+     * validasi (validasi tetap wajib sebelum stok dikreditkan -- lihat
+     * ValidationController -- bukan cuma untuk kasus selisih). Sengaja
+     * DIPISAH dari barangSelisihBelumValidasi() (comparison_status != 'sesuai')
+     * supaya kartu "Selisih Barang" & "Validasi Barang" TIDAK tumpang tindih
+     * menghitung item yang sama; jumlah keduanya = total baris yang
+     * validated_at IS NULL.
+     */
+    public function barangSesuaiBelumDivalidasi(): int
+    {
+        return (int) ($this->db->fetchOne(
+            "SELECT COUNT(*) AS total FROM goods_receipt_items gri
+             JOIN goods_receipts gr ON gr.id = gri.goods_receipt_id AND gr.deleted_at IS NULL
+             WHERE gri.comparison_status = 'sesuai' AND gri.validated_at IS NULL"
+        )['total'] ?? 0);
+    }
+
+    /**
      * Jumlah PO yang masih menunggu approval -- dipakai untuk banner notifikasi
      * "PO Belum Diproses" di dashboard (bisa dimatikan lewat Pengaturan Notifikasi).
      */
@@ -173,6 +191,25 @@ class DashboardStat
                     // Buka LANGSUNG ke daftar yang sudah difilter "belum divalidasi &
                     // ada selisih" -> jumlah di list == angka notifikasi ini.
                     'url' => route('validation', 'index', ['validated' => 'selisih']),
+                    'cta' => 'Validasi Sekarang',
+                ];
+            }
+        }
+
+        // "Validasi Barang" -- item yang SESUAI pesanan tapi tetap menunggu
+        // validasi (beda dari "Selisih Barang" di atas yang cuma menghitung
+        // kasus bermasalah). Digerbang can('validation','validate') -- BUKAN
+        // 'view' -- supaya hanya muncul untuk yang benar-benar berwenang
+        // menindaklanjuti (pola sama seperti push "Selisih Barang Ditemukan"
+        // di GoodsReceiptController, lihat catatan di push_helper.php).
+        if ($settingModel->getBool('notify_validasi_barang', true) && can('validation', 'validate')) {
+            $count = $this->barangSesuaiBelumDivalidasi();
+            if ($count > 0) {
+                $items[] = [
+                    'icon' => 'bi-check2-square', 'variant' => 'info',
+                    'title' => 'Validasi Barang',
+                    'desc' => "{$count} item penerimaan barang (sesuai pesanan) menunggu validasi Anda.",
+                    'url' => route('validation', 'index', ['validated' => 'no']),
                     'cta' => 'Validasi Sekarang',
                 ];
             }

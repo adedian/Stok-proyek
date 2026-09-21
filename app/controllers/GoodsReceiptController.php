@@ -208,22 +208,36 @@ class GoodsReceiptController extends Controller
 
             $pdo->commit();
 
-            // Push notification (best-effort, di luar transaction) -- hanya kalau
-            // penerimaan ini punya item selisih (comparison_status != 'sesuai').
+            // Push notification (best-effort, di luar transaction). SATU push per
+            // penerimaan: "Selisih Barang Ditemukan" kalau ada item bermasalah,
+            // atau "Validasi Barang" (baru) kalau semua item sesuai pesanan --
+            // sebelum ini penerimaan yang sesuai TIDAK memicu notifikasi apa pun
+            // padahal tetap wajib divalidasi manual sebelum stok dikreditkan.
             try {
                 require_once ROOT_PATH . '/app/models/SystemSetting.php';
-                if ($this->receiptItemModel->hasMismatchForReceipt($receiptId)
-                    && (new SystemSetting())->getBool('notify_selisih_barang', true)) {
+                $settingModel = new SystemSetting();
+                $receiptNumber = $this->receiptModel->find($receiptId)['receipt_number'];
+                if ($this->receiptItemModel->hasMismatchForReceipt($receiptId)) {
+                    if ($settingModel->getBool('notify_selisih_barang', true)) {
+                        sendPushToModuleViewers(
+                            'validation',
+                            'Selisih Barang Ditemukan',
+                            "Penerimaan {$receiptNumber} punya item dengan selisih, perlu divalidasi.",
+                            route('validation', 'index', ['validated' => 'selisih']),
+                            'validate' // BUKAN 'view' -- lihat catatan di push_helper.php
+                        );
+                    }
+                } elseif ($settingModel->getBool('notify_validasi_barang', true)) {
                     sendPushToModuleViewers(
                         'validation',
-                        'Selisih Barang Ditemukan',
-                        "Penerimaan {$this->receiptModel->find($receiptId)['receipt_number']} punya item dengan selisih, perlu divalidasi.",
-                        route('validation', 'index', ['validated' => 'selisih']),
+                        'Validasi Barang',
+                        "Penerimaan {$receiptNumber} sesuai pesanan, tetap perlu divalidasi.",
+                        route('validation', 'index', ['validated' => 'no']),
                         'validate' // BUKAN 'view' -- lihat catatan di push_helper.php
                     );
                 }
             } catch (Throwable $e) {
-                error_log('Push selisih_barang gagal: ' . $e->getMessage());
+                error_log('Push validasi_barang gagal: ' . $e->getMessage());
             }
 
             setFlash('success', 'Penerimaan barang berhasil disimpan.');

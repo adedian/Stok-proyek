@@ -1,7 +1,8 @@
 <?php
 /** @var array $ledger @var array $filters @var array $categories @var array $picOptions
- *  @var array $projectOptions @var bool $projectGated @var array $bankOptions @var bool $canBank */
+ *  @var array $projectOptions @var bool $projectGated @var array $bankOptions @var array $rekeningOptions @var bool $canBank */
 $bankOptions = $bankOptions ?? [];
+$rekeningOptions = $rekeningOptions ?? [];
 $canBank = $canBank ?? false;
 $qs = http_build_query(array_filter([
     'date_from'   => $filters['date_from'],
@@ -11,12 +12,15 @@ $qs = http_build_query(array_filter([
     'mutasi'      => $filters['mutasi'],
     'project_ids' => $filters['project_ids'],
     'bank_ids'    => $filters['bank_ids'],
+    'rekening_ids' => $filters['rekening_ids'],
+    'source'      => $filters['source'] ?? '',
 ]));
 $rp = static fn($v) => number_format((float) $v, 0, ',', '.');
 $qtyFmt = static fn($v) => rtrim(rtrim(number_format((float) $v, 2, ',', '.'), '0'), ',');
 $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saja
 $selectedProjectIds = array_map('strval', $filters['project_ids']);
 $selectedBankIds = array_map('strval', $filters['bank_ids']);
+$selectedRekeningIds = array_map('strval', $filters['rekening_ids'] ?? []);
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2 no-print">
     <div>
@@ -88,6 +92,16 @@ $selectedBankIds = array_map('strval', $filters['bank_ids']);
                     <option value="keluar" <?= $filters['mutasi'] === 'keluar' ? 'selected' : '' ?>>Keluar</option>
                 </select>
             </div>
+            <?php if ($canBank): ?>
+            <div class="col-6 col-md-2">
+                <label class="form-label small text-muted mb-1">Jenis (untuk Cetak)</label>
+                <select name="source" class="form-select form-select-sm">
+                    <option value="">Kas + Bank</option>
+                    <option value="kas"  <?= ($filters['source'] ?? '') === 'kas' ? 'selected' : '' ?>>Kas saja (No Bukti Kas)</option>
+                    <option value="bank" <?= ($filters['source'] ?? '') === 'bank' ? 'selected' : '' ?>>Bank saja (No Bukti BK)</option>
+                </select>
+            </div>
+            <?php endif; ?>
             <div class="col-12 col-md-1 d-flex gap-2">
                 <button type="submit" class="btn btn-sm btn-outline-primary w-100"><i class="bi bi-search"></i></button>
                 <a href="<?= BASE_URL ?>/cash/report" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-circle"></i></a>
@@ -136,6 +150,26 @@ $selectedBankIds = array_map('strval', $filters['bank_ids']);
                                 <input class="form-check-input" type="checkbox" name="bank_ids[]" value="<?= (int) $b['id'] ?>"
                                        id="repBank<?= (int) $b['id'] ?>" <?= in_array((string) $b['id'], $selectedBankIds, true) ? 'checked' : '' ?>>
                                 <label class="form-check-label" for="repBank<?= (int) $b['id'] ?>"><?= e($b['bank_name']) ?> (<?= e(strtoupper($b['jenis'])) ?>)</label>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label small text-muted mb-1">Rekening (centang, kosong = semua)</label>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle w-100 text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                        <?= count($selectedRekeningIds) ? count($selectedRekeningIds) . ' Rekening dipilih' : 'Semua Rekening' ?>
+                    </button>
+                    <div class="dropdown-menu p-2" style="max-height:260px; overflow:auto; min-width:240px;">
+                        <?php if (empty($rekeningOptions)): ?>
+                            <div class="text-muted small px-2">Belum ada Master Rekening.</div>
+                        <?php endif; ?>
+                        <?php foreach ($rekeningOptions as $r): ?>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="rekening_ids[]" value="<?= (int) $r['id'] ?>"
+                                       id="repRek<?= (int) $r['id'] ?>" <?= in_array((string) $r['id'], $selectedRekeningIds, true) ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="repRek<?= (int) $r['id'] ?>"><?= e($r['nama_rekening']) ?></label>
                             </div>
                         <?php endforeach; ?>
                     </div>

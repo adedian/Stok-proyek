@@ -527,11 +527,45 @@ class CashTransaction extends Model
             $sql .= " AND c.project_id = :filter_project_id";
             $params['filter_project_id'] = (int) $filters['project_id'];
         }
+        // Filter Rekening checklist (Revisi lanjutan poin 5-8) -- sumber
+        // Master Rekening, sama pola dengan project_ids di atas.
+        if (!empty($filters['rekening_ids']) && is_array($filters['rekening_ids'])) {
+            $in = [];
+            foreach (array_values($filters['rekening_ids']) as $i => $rid) {
+                $in[] = ":rk{$i}";
+                $params["rk{$i}"] = (int) $rid;
+            }
+            $sql .= " AND c.rekening_id IN (" . implode(',', $in) . ")";
+        }
         if (!empty($filters['mutasi']) && in_array($filters['mutasi'], ['masuk', 'keluar'], true)) {
             $sql .= " AND c.mutasi = :mutasi";
             $params['mutasi'] = $filters['mutasi'];
         }
 
         return [$sql, $params];
+    }
+
+    /**
+     * Saldo Kas TOTAL (seluruh mutasi, TIDAK dibatasi tanggal) tapi diperketat
+     * oleh filter Project/Rekening yang sedang aktif (Revisi lanjutan poin 14)
+     * -- dipakai kartu saldo saat Super Admin/Accounting memfilter Project
+     * atau Rekening (menggantikan breakdown per-divisi selama filter aktif).
+     * TIDAK menyertakan opening_balance (konsep itu per-divisi, tidak
+     * per-project/rekening) -- murni akumulasi mutasi sesuai filter+scope.
+     */
+    public function balanceFiltered(array $filters, ?array $scopePics, ?array $divisionScope = null, ?int $projectScope = null): float
+    {
+        $f = $filters;
+        unset($f['date_from'], $f['date_to']);
+        [$where, $params] = $this->buildWhere($f, $scopePics, $divisionScope, $projectScope);
+        $row = $this->db->fetchOne(
+            "SELECT
+               COALESCE(SUM(CASE WHEN c.mutasi='masuk'  THEN c.total_amount ELSE 0 END),0) AS masuk,
+               COALESCE(SUM(CASE WHEN c.mutasi='keluar' THEN c.total_amount ELSE 0 END),0) AS keluar
+             FROM cash_transactions c
+             {$where}",
+            $params
+        );
+        return (float) ($row['masuk'] ?? 0) - (float) ($row['keluar'] ?? 0);
     }
 }

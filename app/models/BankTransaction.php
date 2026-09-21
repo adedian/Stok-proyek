@@ -24,10 +24,11 @@ class BankTransaction extends Model
     public function findWithRelations(int $id)
     {
         return $this->db->fetchOne(
-            "SELECT b.*, mb.bank_name, mb.jenis AS bank_jenis, p.project_name, usr.full_name AS created_by_name
+            "SELECT b.*, mb.bank_name, mb.jenis AS bank_jenis, p.project_name, mr.nama_rekening, usr.full_name AS created_by_name
                FROM bank_transactions b
                JOIN master_banks mb ON mb.id = b.bank_id
                LEFT JOIN projects p ON p.id = b.project_id
+               LEFT JOIN master_rekening mr ON mr.id = b.rekening_id
                LEFT JOIN users usr ON usr.id = b.created_by
               WHERE b.id = :id AND b.deleted_at IS NULL",
             ['id' => $id]
@@ -66,6 +67,29 @@ class BankTransaction extends Model
                COALESCE(SUM(CASE WHEN b.mutasi='keluar' THEN b.amount ELSE 0 END),0) AS keluar
              FROM bank_transactions b
              {$where} AND b.trx_date < :df",
+            $params
+        );
+        return (float) ($row['masuk'] ?? 0) - (float) ($row['keluar'] ?? 0);
+    }
+
+    /**
+     * Saldo Bank TOTAL (seluruh mutasi, tidak dibatasi tanggal) -- dipakai
+     * kartu "Saldo Bank" di halaman Kas (Revisi lanjutan poin 9-14), TERPISAH
+     * dari Saldo Kas. Kosong ($filters=[]) = grand total; diisi filter yang
+     * sama dengan halaman (project_ids/bank_ids/rekening_ids) supaya saldo
+     * ikut menyempit kalau Super Admin/Accounting sedang memfilter.
+     */
+    public function balanceTotal(array $filters = []): float
+    {
+        $f = $filters;
+        unset($f['date_from'], $f['date_to']);
+        [$where, $params] = $this->buildWhere($f);
+        $row = $this->db->fetchOne(
+            "SELECT
+               COALESCE(SUM(CASE WHEN b.mutasi='masuk'  THEN b.amount ELSE 0 END),0) AS masuk,
+               COALESCE(SUM(CASE WHEN b.mutasi='keluar' THEN b.amount ELSE 0 END),0) AS keluar
+             FROM bank_transactions b
+             {$where}",
             $params
         );
         return (float) ($row['masuk'] ?? 0) - (float) ($row['keluar'] ?? 0);
@@ -130,6 +154,22 @@ class BankTransaction extends Model
                 $params["b{$i}"] = (int) $bid;
             }
             $sql .= " AND b.bank_id IN (" . implode(',', $in) . ")";
+        }
+        if (!empty($filters['rekening_ids']) && is_array($filters['rekening_ids'])) {
+            $in = [];
+            foreach (array_values($filters['rekening_ids']) as $i => $rid) {
+                $in[] = ":rk{$i}";
+                $params["rk{$i}"] = (int) $rid;
+            }
+            $sql .= " AND b.rekening_id IN (" . implode(',', $in) . ")";
+        }
+        // Filter PIC (Revisi lanjutan poin 15-18) -- HARUS diterapkan di sini,
+        // BUKAN cuma disembunyikan di frontend. PIC dipilih spesifik -> baris
+        // tanpa PIC/PIC lain TIDAK IKUT (LIKE gagal untuk NULL/string kosong/
+        // nama lain, tanpa perlu "OR pic IS NULL" yang justru dilarang).
+        if (!empty($filters['pic'])) {
+            $sql .= " AND b.pic LIKE :pic";
+            $params['pic'] = '%' . $filters['pic'] . '%';
         }
         if (!empty($filters['mutasi']) && in_array($filters['mutasi'], ['masuk', 'keluar'], true)) {
             $sql .= " AND b.mutasi = :mutasi";

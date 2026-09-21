@@ -1,19 +1,22 @@
 <?php
 /** @var array $rows @var array $filters @var array $categories @var array $picOptions @var bool $scoped @var array $summary
- *  @var array|null $balances @var bool $kasExempt @var string|null $kasPicName
+ *  @var array|null $balances @var float|null $bankBalance @var bool $kasExempt @var string|null $kasPicName
  *  @var bool $kasProjectGated @var string|null $kasProjectName
- *  @var array $projectOptions @var array $bankOptions @var bool $canBank */
+ *  @var array $projectOptions @var array $bankOptions @var array $rekeningOptions @var bool $canBank */
 $balances   = $balances ?? null;
 $balanceShowTotal = $balanceShowTotal ?? false;
+$bankBalance = $bankBalance ?? null;
 $kasExempt  = $kasExempt ?? true;
 $kasPicName = $kasPicName ?? null;
 $kasProjectGated = $kasProjectGated ?? false;
 $kasProjectName  = $kasProjectName ?? null;
 $projectOptions = $projectOptions ?? [];
 $bankOptions = $bankOptions ?? [];
+$rekeningOptions = $rekeningOptions ?? [];
 $canBank = $canBank ?? false;
 $selectedProjectIds = array_map('strval', $filters['project_ids'] ?? []);
 $selectedBankIds = array_map('strval', $filters['bank_ids'] ?? []);
+$selectedRekeningIds = array_map('strval', $filters['rekening_ids'] ?? []);
 $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saja
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
@@ -60,33 +63,58 @@ $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saj
     </div>
 </div>
 
-<?php if ($balances !== null): ?>
-    <?php /* Kartu saldo. Super Admin/Accounting: semua divisi + Total. Role lain:
-             hanya saldo divisi sendiri (cash.view_balance). */ ?>
+<?php if ($balances !== null || $bankBalance !== null): ?>
+    <?php /* Kartu saldo Kas -- SELALU TERPISAH dari Saldo Bank (Revisi lanjutan
+             poin 9-14). Super Admin/Accounting: semua divisi + Total, atau satu
+             angka "Sesuai Filter" bila Project/Rekening sedang dipilih. Role lain:
+             hanya saldo divisi sendiri (cash.view_balance), tidak berubah oleh filter. */ ?>
     <div class="row g-2 mb-3">
-        <?php if ($balanceShowTotal): ?>
-        <div class="col-12 col-md-3">
-            <div class="card border-0 shadow-sm h-100 bg-primary text-white">
-                <div class="card-body py-2">
-                    <div class="small opacity-75">Total Saldo Kas</div>
-                    <div class="fs-5 fw-bold"><?= formatRupiah($balances['total']) ?></div>
-                </div>
-            </div>
-        </div>
-        <?php endif; ?>
-        <?php foreach ($balances['rows'] as $b): ?>
-            <div class="col-6 col-md-3">
-                <div class="card border-0 shadow-sm h-100">
+        <?php if ($balances !== null && !empty($balances['filtered'])): ?>
+            <div class="col-12 col-md-3">
+                <div class="card border-0 shadow-sm h-100 bg-primary text-white">
                     <div class="card-body py-2">
-                        <div class="text-muted small"><?= e($b['label']) ?></div>
-                        <div class="fs-6 fw-bold <?= $b['saldo'] < 0 ? 'text-danger' : '' ?>"><?= formatRupiah($b['saldo']) ?></div>
+                        <div class="small opacity-75">Saldo Kas (Sesuai Filter)</div>
+                        <div class="fs-5 fw-bold"><?= formatRupiah($balances['total']) ?></div>
                     </div>
                 </div>
             </div>
-        <?php endforeach; ?>
+        <?php elseif ($balances !== null): ?>
+            <?php if ($balanceShowTotal): ?>
+            <div class="col-12 col-md-3">
+                <div class="card border-0 shadow-sm h-100 bg-primary text-white">
+                    <div class="card-body py-2">
+                        <div class="small opacity-75">Total Saldo Kas</div>
+                        <div class="fs-5 fw-bold"><?= formatRupiah($balances['total']) ?></div>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
+            <?php foreach ($balances['rows'] as $b): ?>
+                <div class="col-6 col-md-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body py-2">
+                            <div class="text-muted small"><?= e($b['label']) ?></div>
+                            <div class="fs-6 fw-bold <?= $b['saldo'] < 0 ? 'text-danger' : '' ?>"><?= formatRupiah($b['saldo']) ?></div>
+                        </div>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
+
+        <?php if ($bankBalance !== null): ?>
+            <?php $bankBalFiltered = !empty($filters['project_ids']) || !empty($filters['bank_ids']) || !empty($filters['rekening_ids']); ?>
+            <div class="col-12 col-md-3">
+                <div class="card border-0 shadow-sm h-100 bg-dark text-white">
+                    <div class="card-body py-2">
+                        <div class="small opacity-75">Saldo Bank<?= $bankBalFiltered ? ' (Sesuai Filter)' : '' ?></div>
+                        <div class="fs-5 fw-bold"><?= formatRupiah($bankBalance) ?></div>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
     </div>
 
-    <?php if ($balanceShowTotal): ?>
+    <?php if ($balances !== null && empty($balances['filtered']) && $balanceShowTotal): ?>
     <div class="row g-2 mb-3">
         <div class="col-6 col-md-3">
             <div class="card border-0 shadow-sm h-100">
@@ -113,8 +141,8 @@ $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saj
             </div>
         </div>
     </div>
-    <?php endif; /* $balanceShowTotal (ringkasan filter) */ ?>
-<?php endif; /* $balances */ ?>
+    <?php endif; /* $balanceShowTotal (ringkasan filter, hanya mode non-filtered) */ ?>
+<?php endif; /* $balances || $bankBalance */ ?>
 
 <?php if (hasRole([ROLE_SUPER_ADMIN])): ?>
     <div class="d-flex justify-content-end mb-2">
@@ -218,6 +246,26 @@ $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saj
                                 <input class="form-check-input" type="checkbox" name="bank_ids[]" value="<?= (int) $b['id'] ?>"
                                        id="listBank<?= (int) $b['id'] ?>" <?= in_array((string) $b['id'], $selectedBankIds, true) ? 'checked' : '' ?>>
                                 <label class="form-check-label" for="listBank<?= (int) $b['id'] ?>"><?= e($b['bank_name']) ?> (<?= e(strtoupper($b['jenis'])) ?>)</label>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label small text-muted mb-1">Rekening (centang, kosong = semua)</label>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle w-100 text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                        <?= count($selectedRekeningIds) ? count($selectedRekeningIds) . ' Rekening dipilih' : 'Semua Rekening' ?>
+                    </button>
+                    <div class="dropdown-menu p-2" style="max-height:260px; overflow:auto; min-width:240px;">
+                        <?php if (empty($rekeningOptions)): ?>
+                            <div class="text-muted small px-2">Belum ada Master Rekening.</div>
+                        <?php endif; ?>
+                        <?php foreach ($rekeningOptions as $r): ?>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="rekening_ids[]" value="<?= (int) $r['id'] ?>"
+                                       id="listRek<?= (int) $r['id'] ?>" <?= in_array((string) $r['id'], $selectedRekeningIds, true) ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="listRek<?= (int) $r['id'] ?>"><?= e($r['nama_rekening']) ?></label>
                             </div>
                         <?php endforeach; ?>
                     </div>

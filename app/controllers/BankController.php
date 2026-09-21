@@ -2,7 +2,10 @@
 require_once ROOT_PATH . '/core/Controller.php';
 require_once ROOT_PATH . '/core/Middleware.php';
 require_once ROOT_PATH . '/app/models/BankTransaction.php';
+require_once ROOT_PATH . '/app/models/BankTransactionItem.php';
 require_once ROOT_PATH . '/app/models/MasterBank.php';
+require_once ROOT_PATH . '/app/models/MasterRekening.php';
+require_once ROOT_PATH . '/app/models/UserPicAssignment.php';
 require_once ROOT_PATH . '/app/models/Project.php';
 require_once ROOT_PATH . '/app/models/CashNumber.php';
 require_once ROOT_PATH . '/app/models/SystemSetting.php';
@@ -11,17 +14,30 @@ require_once ROOT_PATH . '/app/models/ActivityLog.php';
 /**
  * Modul Bank (Revisi Kas/Bank) -- KHUSUS Super Admin & Accounting (lihat
  * config/permissions.php modul 'bank'). Analog Kas tapi lebih flat (tanpa
- * baris rincian/kategori/integrasi stok -- Bank tidak menyentuh stok).
+ * kategori/barang/qty/satuan/integrasi stok -- Bank tidak menyentuh stok).
  * Tidak ada second-level auth (Accounting sudah exempt dari gerbang Kas).
  *
+ * Rincian (Revisi lanjutan): satu transaksi Bank = 1 header + banyak baris
+ * {uraian, amount} di bank_transaction_items (pola sederhana dari Kas, TANPA
+ * kategori/barang/project/qty/satuan per baris). Header bank_transactions.uraian
+ * (concat "; ") & .amount (SUM baris) TETAP dijaga sebagai ringkasan
+ * denormalisasi -- persis pola cash_transactions.total_amount -- supaya
+ * list/laporan/print Bank yang sudah ada TIDAK perlu tahu soal baris rincian.
+ *
  * No Bukti pakai mekanisme atomic yang sama dengan Kas (CashNumber), prefix
- * tetap "BANK" untuk semua transaksi Bank -- menghindari membuat infrastruktur
- * counter baru untuk kebutuhan yang sama persis.
+ * TUNGGAL "BK" untuk SEMUA transaksi Bank (BUKAN per-PIC seperti Kas -- lihat
+ * instruksi revisi lanjutan poin 3) -- disemai dari tabel bank_transactions
+ * sendiri (bukan cash_transactions) lewat parameter $table CashNumber::next().
  */
 class BankController extends Controller
 {
+    private const NO_BUKTI_PREFIX = 'BK';
+
     private BankTransaction $model;
+    private BankTransactionItem $itemModel;
     private MasterBank $bankModel;
+    private MasterRekening $rekeningModel;
+    private UserPicAssignment $picModel;
     private Project $projectModel;
     private ActivityLog $activityLog;
 
@@ -29,7 +45,10 @@ class BankController extends Controller
     {
         Middleware::requirePermission('bank', 'view');
         $this->model = new BankTransaction();
+        $this->itemModel = new BankTransactionItem();
         $this->bankModel = new MasterBank();
+        $this->rekeningModel = new MasterRekening();
+        $this->picModel = new UserPicAssignment();
         $this->projectModel = new Project();
         $this->activityLog = new ActivityLog();
     }
@@ -44,6 +63,12 @@ class BankController extends Controller
             'mutasi'     => $_GET['mutasi'] ?? '',
             'keyword'    => trim($_GET['keyword'] ?? ''),
         ];
+    }
+
+    /** Dropdown PIC form Bank -- sumber sama dengan Kas (Master Data > PIC Kas), semua nama (Bank tidak ber-scope PIC). */
+    private function picOptions(): array
+    {
+        return $this->picModel->allPicNames();
     }
 
     /**
@@ -63,8 +88,14 @@ class BankController extends Controller
             'pageTitle' => 'Tambah Transaksi Bank',
             'mode'      => 'create',
             'row'       => null,
+            'items'     => [],
             'banks'     => $this->bankModel->activeList(),
             'projects'  => $this->projectModel->activeList(),
+            'picOptions'      => $this->picOptions(),
+            'rekeningOptions' => $this->rekeningModel->activeList(),
+            // Pratinjau saja (label bantu) -- nomor RESMI dibuat server-side
+            // saat store(), sama seperti Kas.
+            'noBuktiPreview'  => (new CashNumber())->preview(self::NO_BUKTI_PREFIX, 'bank_transactions'),
         ]);
     }
 
@@ -76,26 +107,35 @@ class BankController extends Controller
         }
         verifyCsrf();
 
-        $data = $this->collectInput();
-        $errors = $this->validate($data);
+        $data  = $this->collectInput();
+        $items = $this->collectItems();
+        $errors = $this->validate($data, $items);
         if (!empty($errors)) {
             setFlash('error', implode(' ', $errors));
             $this->redirect('bank', 'create');
         }
 
+        $total = $this->sumItems($items);
+        $uraianConcat = implode('; ', array_column($items, 'uraian'));
+
         $pdo = getPDO();
         try {
             $pdo->beginTransaction();
-            $noBukti = (new CashNumber())->next('BANK');
+            // No Bukti dibuat SERVER-SIDE & ATOMIC (prefix "BK" tunggal untuk
+            // semua transaksi Bank -- lihat instruksi revisi lanjutan poin 3-4).
+            $noBukti = (new CashNumber())->next(self::NO_BUKTI_PREFIX, 'bank_transactions');
             $guard = 0;
             while ($this->model->noBuktiExists($noBukti) && $guard++ < 50) {
-                $noBukti = (new CashNumber())->next('BANK');
+                $noBukti = (new CashNumber())->next(self::NO_BUKTI_PREFIX, 'bank_transactions');
             }
-            $this->model->create(array_merge($data, [
+            $trxId = $this->model->create(array_merge($data, [
                 'no_bukti'   => $noBukti,
+                'uraian'     => $uraianConcat,
+                'amount'     => $total,
                 'created_by' => currentUserId(),
             ]));
-            $this->activityLog->log(currentUserId(), 'bank', 'create', "Transaksi Bank {$data['mutasi']} '{$noBukti}' dibuat, " . formatRupiah($data['amount']));
+            $this->saveItems($trxId, $items);
+            $this->activityLog->log(currentUserId(), 'bank', 'create', "Transaksi Bank {$data['mutasi']} '{$noBukti}' dibuat, " . count($items) . ' baris, total ' . formatRupiah($total));
             $pdo->commit();
             setFlash('success', 'Transaksi Bank berhasil disimpan.');
             $this->redirect('cash', 'index');
@@ -120,8 +160,12 @@ class BankController extends Controller
             'pageTitle' => 'Edit Transaksi Bank',
             'mode'      => 'edit',
             'row'       => $row,
+            'items'     => $this->itemModel->byTransaction($id),
             'banks'     => $this->bankModel->activeList(),
             'projects'  => $this->projectModel->activeList(),
+            'picOptions'      => $this->picOptions(),
+            'rekeningOptions' => $this->rekeningModel->activeList(),
+            'noBuktiPreview'  => $row['no_bukti'],
         ]);
     }
 
@@ -140,17 +184,36 @@ class BankController extends Controller
             $this->redirect('cash', 'index');
         }
 
-        $data = $this->collectInput();
-        $errors = $this->validate($data);
+        $data  = $this->collectInput();
+        $items = $this->collectItems();
+        $errors = $this->validate($data, $items);
         if (!empty($errors)) {
             setFlash('error', implode(' ', $errors));
             $this->redirect('bank', 'edit', ['id' => $id]);
         }
 
-        $this->model->updateById($id, $data);
-        $this->activityLog->log(currentUserId(), 'bank', 'update', "Transaksi Bank #{$id} ('{$existing['no_bukti']}') diperbarui");
-        setFlash('success', 'Transaksi Bank berhasil diperbarui.');
-        $this->redirect('cash', 'index');
+        $total = $this->sumItems($items);
+        $uraianConcat = implode('; ', array_column($items, 'uraian'));
+
+        $pdo = getPDO();
+        try {
+            $pdo->beginTransaction();
+            $this->model->updateById($id, array_merge($data, [
+                'uraian' => $uraianConcat,
+                'amount' => $total,
+            ]));
+            $this->itemModel->deleteByTransaction($id);
+            $this->saveItems($id, $items);
+            $this->activityLog->log(currentUserId(), 'bank', 'update', "Transaksi Bank #{$id} ('{$existing['no_bukti']}') diperbarui, " . count($items) . ' baris, total ' . formatRupiah($total));
+            $pdo->commit();
+            setFlash('success', 'Transaksi Bank berhasil diperbarui.');
+            $this->redirect('cash', 'index');
+        } catch (Throwable $e) {
+            $pdo->rollBack();
+            error_log('Bank update error: ' . $e->getMessage());
+            setFlash('error', 'Gagal memperbarui transaksi Bank.');
+            $this->redirect('bank', 'edit', ['id' => $id]);
+        }
     }
 
     public function delete(): void
@@ -220,19 +283,58 @@ class BankController extends Controller
 
     private function collectInput(): array
     {
+        // uraian & amount SENGAJA tidak dibaca di sini -- keduanya diturunkan
+        // dari baris rincian (collectItems()/sumItems()), sama pola dengan
+        // cash_transactions.total_amount.
         return [
-            'trx_date'   => trim($_POST['trx_date'] ?? ''),
-            'bank_id'    => (int) ($_POST['bank_id'] ?? 0),
-            'project_id' => !empty($_POST['project_id']) ? (int) $_POST['project_id'] : null,
-            'pic'        => trim($_POST['pic'] ?? '') ?: null,
-            'uraian'     => trim($_POST['uraian'] ?? ''),
-            'mutasi'     => ($_POST['mutasi'] ?? '') === 'masuk' ? 'masuk'
+            'trx_date'    => trim($_POST['trx_date'] ?? ''),
+            'bank_id'     => (int) ($_POST['bank_id'] ?? 0),
+            'rekening_id' => !empty($_POST['rekening_id']) ? (int) $_POST['rekening_id'] : null,
+            'project_id'  => !empty($_POST['project_id']) ? (int) $_POST['project_id'] : null,
+            'pic'         => trim($_POST['pic'] ?? '') ?: null,
+            'mutasi'      => ($_POST['mutasi'] ?? '') === 'masuk' ? 'masuk'
                 : (($_POST['mutasi'] ?? '') === 'keluar' ? 'keluar' : ''),
-            'amount'     => parseCurrencyInput($_POST['amount'] ?? 0),
         ];
     }
 
-    private function validate(array $d): array
+    /**
+     * Baris rincian Bank dari POST -- HANYA {uraian, amount} (Revisi lanjutan:
+     * "seperti Rincian Kas, tapi cuma uraian + harga saja" -- tidak ada
+     * kategori/barang/project/qty/satuan seperti Kas, Bank tidak menyentuh stok).
+     */
+    private function collectItems(): array
+    {
+        $uraian  = $_POST['item_uraian'] ?? [];
+        $amount  = $_POST['item_amount'] ?? [];
+        $out = [];
+        for ($i = 0; $i < count($uraian); $i++) {
+            $u = trim((string) ($uraian[$i] ?? ''));
+            $a = parseCurrencyInput($amount[$i] ?? 0);
+            if ($u === '' && abs($a) < 0.005) {
+                continue; // baris kosong -> abaikan
+            }
+            $out[] = ['uraian' => $u, 'amount' => $a];
+        }
+        return $out;
+    }
+
+    private function sumItems(array $items): float
+    {
+        return round(array_sum(array_column($items, 'amount')), 2);
+    }
+
+    private function saveItems(int $trxId, array $items): void
+    {
+        foreach ($items as $it) {
+            $this->itemModel->create([
+                'bank_transaction_id' => $trxId,
+                'uraian' => $it['uraian'],
+                'amount' => $it['amount'],
+            ]);
+        }
+    }
+
+    private function validate(array $d, array $items = []): array
     {
         $errors = [];
         if ($d['trx_date'] === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $d['trx_date'])) {
@@ -241,17 +343,27 @@ class BankController extends Controller
         if ($d['bank_id'] <= 0 || !$this->bankModel->find($d['bank_id'])) {
             $errors[] = 'Bank wajib dipilih.';
         }
+        if (!empty($d['rekening_id']) && !$this->rekeningModel->find((int) $d['rekening_id'])) {
+            $errors[] = 'Rekening yang dipilih tidak valid.';
+        }
         if (!empty($d['project_id']) && !$this->projectModel->find((int) $d['project_id'])) {
             $errors[] = 'Project yang dipilih tidak valid.';
-        }
-        if ($d['uraian'] === '') {
-            $errors[] = 'Uraian wajib diisi.';
         }
         if ($d['mutasi'] === '') {
             $errors[] = 'Mutasi wajib dipilih (Masuk / Keluar).';
         }
-        if (abs((float) $d['amount']) < 0.005) {
-            $errors[] = 'Nominal wajib diisi.';
+        if (empty($items)) {
+            $errors[] = 'Minimal 1 baris rincian (Uraian, Nominal) wajib diisi.';
+        } else {
+            foreach ($items as $i => $it) {
+                $n = $i + 1;
+                if ($it['uraian'] === '') {
+                    $errors[] = "Baris {$n}: Uraian wajib diisi.";
+                }
+                if (abs((float) $it['amount']) < 0.005) {
+                    $errors[] = "Baris {$n}: Nominal wajib diisi.";
+                }
+            }
         }
         return $errors;
     }

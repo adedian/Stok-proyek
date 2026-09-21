@@ -371,15 +371,20 @@ class CashController extends Controller
         $scope    = $this->scopePics();
         $divScope = kasDivisionScope();
         $projScope = $this->scopeProjectId();
-        $rows     = $this->cashModel->listFiltered($filters, $scope, $divScope, $projScope);
-        // Gabung Bank (Revisi lanjutan: menu Bank berdiri sendiri dihapus) --
-        // no-op kalau user tidak punya akses 'bank.view'.
-        $rows     = $this->combinedListRows($rows, $filters);
+        $kasRows  = $this->cashModel->listFiltered($filters, $scope, $divScope, $projScope);
 
+        // Ringkasan "Total Kas Masuk/Keluar (filter)" HARUS murni Kas -- Revisi
+        // lanjutan poin 9-11: uang Kas & Bank tidak pernah digabung jadi satu
+        // angka, jadi dihitung SEBELUM baris Bank digabung ke tabel di bawah.
         $summary = ['masuk' => 0.0, 'keluar' => 0.0];
-        foreach ($rows as $r) {
+        foreach ($kasRows as $r) {
             $summary[$r['mutasi']] += (float) $r['total_amount'];
         }
+
+        // Gabung Bank (Revisi lanjutan: menu Bank berdiri sendiri dihapus) --
+        // no-op kalau user tidak punya akses 'bank.view'. HANYA untuk tampilan
+        // tabel gabungan -- TIDAK ikut $summary di atas.
+        $rows = $this->combinedListRows($kasRows, $filters);
 
         // Kartu saldo (cash.view_balance):
         //   Super Admin / Accounting -> SEMUA divisi + Total Saldo.
@@ -393,12 +398,36 @@ class CashController extends Controller
             $balanceShowTotal = in_array($role, [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING], true);
             // Saldo divisi dihitung PENUH (semua PIC divisi itu), bukan hanya PIC user.
             $balDivScope = $balanceShowTotal ? null : [kasDivisionForRole($role)];
-            $balances = $this->cashModel->balanceByDivision(null, $balDivScope);
+
+            // Revisi lanjutan poin 14: untuk Super Admin/Accounting, saldo
+            // MENGIKUTI filter Project/Rekening yang sedang dipilih (jadi
+            // breakdown per-divisi diganti satu angka sesuai filter). Role
+            // ber-scope divisi lain TIDAK diminta berubah -- tetap kartu
+            // per-divisi seperti semula walau Project/Rekening difilter.
+            if ($balanceShowTotal && (!empty($filters['project_ids']) || !empty($filters['rekening_ids']))) {
+                $balances = [
+                    'filtered' => true,
+                    'total'    => $this->cashModel->balanceFiltered($filters, $scope, $balDivScope, $projScope),
+                ];
+            } else {
+                $balances = $this->cashModel->balanceByDivision(null, $balDivScope);
+            }
             $stamp = date('Y-m-d');
             if (($_SESSION['kas_balance_logged'] ?? '') !== $stamp) {
                 $_SESSION['kas_balance_logged'] = $stamp;
                 $this->activityLog->log((int) currentUserId(), 'cash', 'kas_view_balance', 'Melihat kartu saldo Kas');
             }
+        }
+
+        // Saldo Bank -- SELALU KARTU TERPISAH dari Saldo Kas (Revisi lanjutan
+        // poin 9-12), tidak pernah digabung jadi satu angka. Gerbang backend:
+        // can('bank','view') dicek DI SINI (bukan cuma disembunyikan di view)
+        // supaya memanipulasi query string (mis. bank_ids/project_id) tidak
+        // bisa membocorkan saldo Bank ke role yang tidak berhak (poin 13).
+        $bankBalance = null;
+        if (can('bank', 'view')) {
+            $bankFilterActive = !empty($filters['project_ids']) || !empty($filters['bank_ids']) || !empty($filters['rekening_ids']);
+            $bankBalance = $this->bankModel->balanceTotal($bankFilterActive ? $this->bankFiltersFrom($filters) : []);
         }
 
         $this->view('cash/list', [
@@ -417,12 +446,14 @@ class CashController extends Controller
             'summary'     => $summary,
             'balances'    => $balances,
             'balanceShowTotal' => $balanceShowTotal,
+            'bankBalance' => $bankBalance,
             'kasExempt'   => kasIsExemptRole(currentUserRole()),
             'kasPicName'  => kasIsExemptRole(currentUserRole()) ? null : kasPicName(),
             'kasProjectGated' => kasIsProjectGateRole(currentUserRole()),
             'kasProjectName'  => kasIsProjectGateRole(currentUserRole()) ? kasProjectName() : null,
             'projectOptions'  => $this->reportProjectOptions(),
             'bankOptions'     => $this->bankChecklistOptions(),
+            'rekeningOptions' => $this->rekeningChecklistOptions(),
             'canBank'         => can('bank', 'view'),
         ]);
     }
@@ -467,6 +498,7 @@ class CashController extends Controller
             'projectOptions' => $this->reportProjectOptions(),
             'projectGated'   => kasIsProjectGateRole(currentUserRole()),
             'bankOptions'    => $this->bankChecklistOptions(),
+            'rekeningOptions' => $this->rekeningChecklistOptions(),
             'canBank'        => can('bank', 'view'),
         ]);
     }
@@ -1050,6 +1082,18 @@ class CashController extends Controller
         if (can('bank', 'view') && isset($_GET['bank_ids']) && is_array($_GET['bank_ids'])) {
             $bankIds = array_values(array_unique(array_filter(array_map('intval', $_GET['bank_ids']), fn($v) => $v > 0)));
         }
+        // Filter Rekening (Revisi lanjutan poin 5-8) -- berlaku untuk Kas MAUPUN
+        // Bank, tidak digerbang permission Bank (rekening_id juga ada di Kas).
+        $rekeningIds = [];
+        if (isset($_GET['rekening_ids']) && is_array($_GET['rekening_ids'])) {
+            $rekeningIds = array_values(array_unique(array_filter(array_map('intval', $_GET['rekening_ids']), fn($v) => $v > 0)));
+        }
+        // Filter Jenis (Revisi lanjutan: Cetak Laporan per sumber) -- 'kas' =
+        // hanya transaksi Kas (No Bukti Kas, mis. AD-0001), 'bank' = hanya
+        // transaksi Bank (No Bukti BK-0001), '' = gabungan (default, tidak
+        // berubah dari sebelumnya). Dipakai combinedLedger() -- Laporan Kas
+        // (report/PDF/Excel/Tarik Semua) SAJA, tidak menyentuh daftar Kas utama.
+        $source = in_array($_GET['source'] ?? '', ['kas', 'bank'], true) ? $_GET['source'] : '';
         return [
             'date_from'   => $_GET['date_from'] ?? '',
             'date_to'     => $_GET['date_to'] ?? '',
@@ -1060,6 +1104,8 @@ class CashController extends Controller
             'project_id'  => !$gated ? ($_GET['project_id'] ?? '') : '', // lama, kompat link lama
             'project_ids' => $projectIds, // baru, checklist (Revisi gabung Kas+Bank)
             'bank_ids'    => $bankIds,
+            'rekening_ids' => $rekeningIds,
+            'source'      => $source,
         ];
     }
 
@@ -1069,16 +1115,35 @@ class CashController extends Controller
         return can('bank', 'view') ? $this->masterBankModel->activeList() : [];
     }
 
-    /** Terjemahkan filter Kas ke filter yang dipahami BankTransaction model. */
+    /**
+     * Rekening checklist di filter Kas/Laporan Kas -- sumber Master Rekening
+     * (Revisi lanjutan poin 5-6), hanya rekening AKTIF (transaksi lama yang
+     * rekeningnya sudah nonaktif tetap tampil di data, cuma tidak muncul lagi
+     * sebagai pilihan filter baru).
+     */
+    private function rekeningChecklistOptions(): array
+    {
+        return $this->rekeningModel->activeList();
+    }
+
+    /**
+     * Terjemahkan filter Kas ke filter yang dipahami BankTransaction model.
+     * SEMUA filter yang berlaku untuk Bank (termasuk pic & rekening_ids) HARUS
+     * diteruskan di sini -- ini satu-satunya titik dipakai bareng oleh tabel
+     * (combinedListRows), laporan/PDF/Excel/Tarik Semua (combinedLedger), jadi
+     * hasilnya otomatis konsisten di semua tempat (Revisi lanjutan poin 23).
+     */
     private function bankFiltersFrom(array $filters): array
     {
         return [
-            'date_from'   => $filters['date_from'],
-            'date_to'     => $filters['date_to'],
-            'project_ids' => $filters['project_ids'],
-            'bank_ids'    => $filters['bank_ids'],
-            'mutasi'      => $filters['mutasi'],
-            'keyword'     => $filters['keyword'],
+            'date_from'    => $filters['date_from'],
+            'date_to'      => $filters['date_to'],
+            'pic'          => $filters['pic'],
+            'project_ids'  => $filters['project_ids'],
+            'bank_ids'     => $filters['bank_ids'],
+            'rekening_ids' => $filters['rekening_ids'],
+            'mutasi'       => $filters['mutasi'],
+            'keyword'      => $filters['keyword'],
         ];
     }
 
@@ -1120,13 +1185,25 @@ class CashController extends Controller
      * Gabungkan buku/ledger Kas + Bank (Laporan Kas) dengan saldo berjalan
      * GABUNGAN -- dipakai report()/PDF/Excel/Tarik Semua. Tanpa akses
      * 'bank.view' hasilnya identik dgn ledger Kas biasa (no-op).
+     *
+     * $filters['source'] (Revisi lanjutan: Cetak per sumber) -- 'kas' = HANYA
+     * transaksi Kas (No Bukti Kas), 'bank' = HANYA transaksi Bank (No Bukti
+     * BK-xxxx), '' = gabungan seperti semula. Satu-satunya titik ini dipakai
+     * bareng oleh tabel Laporan, PDF, Excel, dan Tarik Semua, jadi hasilnya
+     * otomatis konsisten di semua tempat.
      */
     private function combinedLedger(array $filters, ?array $scope, ?array $divScope, ?int $projScope): array
     {
-        $kasSaldoAwal = $this->cashModel->saldoAwal($filters, $scope, $divScope, $projScope);
-        $kasLedger = $this->cashModel->reportLedger($filters, $scope, $kasSaldoAwal, $divScope, $projScope);
+        $source = $filters['source'] ?? '';
+        $includeKas = $source !== 'bank';
+        $includeBank = $source !== 'kas' && can('bank', 'view');
 
-        if (!can('bank', 'view')) {
+        $kasSaldoAwal = $includeKas ? $this->cashModel->saldoAwal($filters, $scope, $divScope, $projScope) : 0.0;
+        $kasLedger = $includeKas
+            ? $this->cashModel->reportLedger($filters, $scope, $kasSaldoAwal, $divScope, $projScope)
+            : ['saldo_awal' => 0.0, 'saldo_akhir' => 0.0, 'rows' => []];
+
+        if (!$includeBank) {
             return $kasLedger;
         }
 
@@ -1179,10 +1256,19 @@ class CashController extends Controller
      * nama project itu; 0 atau 2+ dipilih -> "SEMUA PROJECT". Prefix
      * "KAS/BANK" untuk user yang boleh lihat Bank (sesuai brief awal), "KAS"
      * saja untuk role lain (mereka memang tidak pernah melihat data Bank).
+     * Filter Jenis (Revisi lanjutan) mempersempit ke "LAPORAN KAS" atau
+     * "LAPORAN BANK" saja saat user memilih cetak per sumber.
      */
     private function reportTitle(array $filters, ?int $projectScope): string
     {
-        $label = can('bank', 'view') ? 'LAPORAN KAS/BANK' : 'LAPORAN KAS';
+        $source = $filters['source'] ?? '';
+        if ($source === 'kas' || !can('bank', 'view')) {
+            $label = 'LAPORAN KAS';
+        } elseif ($source === 'bank') {
+            $label = 'LAPORAN BANK';
+        } else {
+            $label = 'LAPORAN KAS/BANK';
+        }
 
         $ids = !empty($filters['project_ids']) ? $filters['project_ids'] : [];
         $pid = $projectScope ?? (count($ids) === 1 ? (int) $ids[0] : (!empty($filters['project_id']) ? (int) $filters['project_id'] : null));

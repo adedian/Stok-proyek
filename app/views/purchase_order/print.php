@@ -133,17 +133,25 @@
     }
     /* Stempel perusahaan (Revisi Kas/Bank) -- ditumpuk menumpang di sisi
        kanan-bawah goresan tanda tangan, meniru posisi contoh yang diberikan
-       user (stempel menumpang di ujung kanan TTD, bukan berdiri sendiri di
-       bawah/samping terpisah). Diposisikan dari `right` (relatif tepi kanan
-       gambar TTD, lihat wrapper di atas) supaya overlap konsisten walau lebar
-       gambar TTD tiap user berbeda-beda. */
+       user (stempel menumpang di ujung kanan TTD, menindas sebagian goresan
+       TTD, bukan berdiri sendiri di bawah/samping terpisah).
+       `left: 45%` (relatif LEBAR gambar TTD, lihat wrapper di atas, shrink-to-
+       fit) -- BUKAN `right` dengan px tetap -- supaya proporsi overlap tetap
+       konsisten walau lebar gambar TTD tiap user berbeda-beda, sekaligus
+       gambar stempel (rasio lebar:tinggi ~4.3:1, hexagon+tulisan sejajar)
+       dibiarkan `width: auto` supaya tidak "diciutkan" jadi strip tipis (bug
+       sebelumnya: max-width:120px + height:78px memaksa gambar tampil cuma
+       ~120x28px). `max-width: none` WAJIB -- menimpa default `img { max-width:
+       100% }` dari CSS framework, yang kalau tidak ditimpa akan membatasi
+       lebar gambar ini ke lebar wrapper (=lebar gambar TTD), membuatnya
+       gepeng lagi persis seperti bug max-width:120px di atas. */
     .po-stamp-overlay {
         position: absolute;
-        right: -52px;
-        bottom: -16px;
-        height: 78px;
+        left: 45%;
+        bottom: -2px;
+        height: 46px;
         width: auto;
-        max-width: 120px;
+        max-width: none;
         object-fit: contain;
         z-index: 1;
         pointer-events: none;

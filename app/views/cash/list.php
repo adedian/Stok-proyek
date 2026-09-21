@@ -68,6 +68,31 @@ $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saj
              poin 9-14). Super Admin/Accounting: semua divisi + Total, atau satu
              angka "Sesuai Filter" bila Project/Rekening sedang dipilih. Role lain:
              hanya saldo divisi sendiri (cash.view_balance), tidak berubah oleh filter. */ ?>
+    <?php
+        // Kartu Saldo Bank dirender TEPAT di sebelah kanan kartu Saldo Kas
+        // pertama (Total Saldo Kas / Saldo Kas Sesuai Filter) -- bukan di
+        // akhir baris -- makanya dicetak lewat closure kecil ini supaya bisa
+        // disisipkan persis setelah kartu Kas pertama di setiap kondisi
+        // (filtered / total / fallback), tanpa duplikasi markup.
+        $bankBalFiltered = !empty($filters['project_ids']) || !empty($filters['bank_ids']) || !empty($filters['rekening_ids']);
+        $bankCardRendered = false;
+        $renderBankCard = function () use ($bankBalance, $bankBalFiltered, &$bankCardRendered) {
+            if ($bankBalance === null) {
+                return;
+            }
+            $bankCardRendered = true;
+            ?>
+            <div class="col-12 col-md-3">
+                <div class="card border-0 shadow-sm h-100 bg-dark text-white">
+                    <div class="card-body py-2">
+                        <div class="small opacity-75">Saldo Bank<?= $bankBalFiltered ? ' (Sesuai Filter)' : '' ?></div>
+                        <div class="fs-5 fw-bold"><?= formatRupiah($bankBalance) ?></div>
+                    </div>
+                </div>
+            </div>
+            <?php
+        };
+    ?>
     <div class="row g-2 mb-3">
         <?php if ($balances !== null && !empty($balances['filtered'])): ?>
             <div class="col-12 col-md-3">
@@ -78,6 +103,7 @@ $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saj
                     </div>
                 </div>
             </div>
+            <?php $renderBankCard(); ?>
         <?php elseif ($balances !== null): ?>
             <?php if ($balanceShowTotal): ?>
             <div class="col-12 col-md-3">
@@ -88,6 +114,7 @@ $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saj
                     </div>
                 </div>
             </div>
+            <?php $renderBankCard(); ?>
             <?php endif; ?>
             <?php foreach ($balances['rows'] as $b): ?>
                 <div class="col-6 col-md-3">
@@ -101,16 +128,8 @@ $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saj
             <?php endforeach; ?>
         <?php endif; ?>
 
-        <?php if ($bankBalance !== null): ?>
-            <?php $bankBalFiltered = !empty($filters['project_ids']) || !empty($filters['bank_ids']) || !empty($filters['rekening_ids']); ?>
-            <div class="col-12 col-md-3">
-                <div class="card border-0 shadow-sm h-100 bg-dark text-white">
-                    <div class="card-body py-2">
-                        <div class="small opacity-75">Saldo Bank<?= $bankBalFiltered ? ' (Sesuai Filter)' : '' ?></div>
-                        <div class="fs-5 fw-bold"><?= formatRupiah($bankBalance) ?></div>
-                    </div>
-                </div>
-            </div>
+        <?php if (!$bankCardRendered): ?>
+            <?php $renderBankCard(); ?>
         <?php endif; ?>
     </div>
 

@@ -18,6 +18,7 @@ $selectedProjectIds = array_map('strval', $filters['project_ids'] ?? []);
 $selectedBankIds = array_map('strval', $filters['bank_ids'] ?? []);
 $selectedRekeningIds = array_map('strval', $filters['rekening_ids'] ?? []);
 $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saja
+$canCetakBankVoucher = can('bank', 'view'); // Super Admin & Accounting saja (sama populasi dgn cash.print_voucher)
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
@@ -47,7 +48,12 @@ $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saj
         <?php endif; ?>
         <?php if ($canCetakVoucher): ?>
         <button type="button" id="kasCetakTerpilih" class="btn btn-outline-primary no-print" disabled>
-            <i class="bi bi-printer"></i> Cetak Terpilih <span class="badge text-bg-primary" id="kasCetakCount">0</span>
+            <i class="bi bi-printer"></i> Cetak Terpilih Kas <span class="badge text-bg-primary" id="kasCetakCount">0</span>
+        </button>
+        <?php endif; ?>
+        <?php if ($canCetakBankVoucher): ?>
+        <button type="button" id="bankCetakTerpilih" class="btn btn-outline-dark no-print" disabled>
+            <i class="bi bi-printer"></i> Cetak Terpilih Bank <span class="badge text-bg-dark" id="bankCetakCount">0</span>
         </button>
         <?php endif; ?>
         <?php if (can('bank', 'create')): ?>
@@ -301,7 +307,7 @@ $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saj
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
-                        <?php if ($canCetakVoucher): ?>
+                        <?php if ($canCetakVoucher || $canCetakBankVoucher): ?>
                         <th class="no-print text-center" style="width:38px;">
                             <input type="checkbox" id="kasSelectAll" class="form-check-input" title="Pilih semua">
                         </th>
@@ -327,7 +333,7 @@ $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saj
                         ];
                     ?>
                     <?php if (empty($rows)): ?>
-                        <tr><td colspan="<?= $canCetakVoucher ? 11 : 10 ?>" class="p-0">
+                        <tr><td colspan="<?= ($canCetakVoucher || $canCetakBankVoucher) ? 11 : 10 ?>" class="p-0">
                             <div class="empty-state">
                                 <i class="bi bi-cash-coin empty-icon"></i>
                                 <div class="empty-title">Belum ada transaksi Kas<?= $canBank ? '/Bank' : '' ?></div>
@@ -343,10 +349,13 @@ $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saj
                     <?php foreach ($rows as $i => $r): ?>
                         <?php $isBank = ($r['source'] ?? 'kas') === 'bank'; ?>
                         <tr>
-                            <?php if ($canCetakVoucher): ?>
+                            <?php if ($canCetakVoucher || $canCetakBankVoucher): ?>
                             <td class="no-print text-center">
-                                <?php if (!$isBank): ?>
+                                <?php if (!$isBank && $canCetakVoucher): ?>
                                     <input type="checkbox" class="form-check-input kas-row-check"
+                                           value="<?= (int) $r['id'] ?>" data-label="<?= e($r['no_bukti']) ?>">
+                                <?php elseif ($isBank && $canCetakBankVoucher): ?>
+                                    <input type="checkbox" class="form-check-input bank-row-check"
                                            value="<?= (int) $r['id'] ?>" data-label="<?= e($r['no_bukti']) ?>">
                                 <?php endif; ?>
                             </td>
@@ -380,12 +389,19 @@ $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saj
                             </td>
                             <td class="text-center no-print">
                                 <?php if ($isBank): ?>
-                                    <?php if (can('bank', 'edit') || can('bank', 'delete')): ?>
+                                    <?php if ($canCetakBankVoucher || can('bank', 'edit') || can('bank', 'delete')): ?>
                                     <div class="dropdown row-actions">
                                         <button type="button" class="btn btn-row-actions" data-bs-toggle="dropdown" aria-expanded="false" title="Aksi">
                                             <i class="bi bi-three-dots-vertical"></i>
                                         </button>
                                         <ul class="dropdown-menu dropdown-menu-end">
+                                            <?php if ($canCetakBankVoucher): ?>
+                                            <li>
+                                                <a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=bank&action=printVoucher&ids=<?= (int) $r['id'] ?>" target="_blank">
+                                                    <i class="bi bi-printer"></i> Cetak
+                                                </a>
+                                            </li>
+                                            <?php endif; ?>
                                             <?php if (can('bank', 'edit')): ?>
                                             <li>
                                                 <a class="dropdown-item" href="<?= BASE_URL ?>/bank/edit/<?= (int) $r['id'] ?>">
@@ -463,47 +479,79 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // ---- Cetak Terpilih (voucher BUKTI KAS KELUAR/MASUK, 1 dokumen per No Bukti) ----
-    var btn     = document.getElementById('kasCetakTerpilih');
-    var countEl = document.getElementById('kasCetakCount');
-    if (btn) {
-        var checkedIds = function () {
-            return Array.prototype.filter.call(document.querySelectorAll('.kas-row-check'), function (b) { return b.checked; })
-                .map(function (b) { return b.value; });
-        };
-        var refresh = function () {
-            var n = checkedIds().length;
-            countEl.textContent = String(n);
-            btn.disabled = (n === 0);
-        };
+    // ---- Cetak Terpilih Kas (BUKTI KAS KELUAR/MASUK) + Cetak Terpilih Bank
+    // (BUKTI BANK KELUAR/MASUK) -- SATU kolom checkbox bersama (tiap baris
+    // cuma render salah satu class sesuai sumbernya, lihat markup di atas),
+    // tapi counter & tombol cetak TERPISAH karena beda template/endpoint.
+    var kasBtn      = document.getElementById('kasCetakTerpilih');
+    var kasCountEl  = document.getElementById('kasCetakCount');
+    var bankBtn     = document.getElementById('bankCetakTerpilih');
+    var bankCountEl = document.getElementById('bankCetakCount');
+
+    var checkedKasIds = function () {
+        return Array.prototype.filter.call(document.querySelectorAll('.kas-row-check'), function (b) { return b.checked; })
+            .map(function (b) { return b.value; });
+    };
+    var checkedBankIds = function () {
+        return Array.prototype.filter.call(document.querySelectorAll('.bank-row-check'), function (b) { return b.checked; })
+            .map(function (b) { return b.value; });
+    };
+    var refresh = function () {
+        if (kasBtn) {
+            var kn = checkedKasIds().length;
+            kasCountEl.textContent = String(kn);
+            kasBtn.disabled = (kn === 0);
+        }
+        if (bankBtn) {
+            var bn = checkedBankIds().length;
+            bankCountEl.textContent = String(bn);
+            bankBtn.disabled = (bn === 0);
+        }
+    };
+
+    if (kasBtn || bankBtn) {
         if (window.wireSelectAllCheckbox) {
-            wireSelectAllCheckbox('#kasSelectAll', '.kas-row-check', refresh);
+            wireSelectAllCheckbox('#kasSelectAll', '.kas-row-check, .bank-row-check', refresh);
         } else {
             var sa = document.getElementById('kasSelectAll');
+            var allRows = function () { return document.querySelectorAll('.kas-row-check, .bank-row-check'); };
             if (sa) {
                 sa.addEventListener('change', function () {
-                    document.querySelectorAll('.kas-row-check').forEach(function (c) { c.checked = sa.checked; });
+                    allRows().forEach(function (c) { c.checked = sa.checked; });
                     refresh();
                 });
             }
             document.addEventListener('change', function (e) {
-                if (e.target && e.target.matches && e.target.matches('.kas-row-check')) {
-                    var all = document.querySelectorAll('.kas-row-check');
-                    var n = checkedIds().length;
+                if (e.target && e.target.matches && e.target.matches('.kas-row-check, .bank-row-check')) {
+                    var all = allRows();
+                    var n = checkedKasIds().length + checkedBankIds().length;
                     if (sa) { sa.checked = n === all.length && n > 0; sa.indeterminate = n > 0 && n < all.length; }
                     refresh();
                 }
             });
         }
-        btn.addEventListener('click', function () {
-            var ids = checkedIds();
-            if (ids.length === 0) {
-                if (window.notifyError) { notifyError('Silakan pilih minimal satu transaksi untuk dicetak.'); }
-                else { alert('Silakan pilih minimal satu transaksi untuk dicetak.'); }
-                return;
-            }
-            window.open('<?= BASE_URL ?>/index.php?module=cash&action=printVoucher&ids=' + encodeURIComponent(ids.join(',')), '_blank');
-        });
+        if (kasBtn) {
+            kasBtn.addEventListener('click', function () {
+                var ids = checkedKasIds();
+                if (ids.length === 0) {
+                    if (window.notifyError) { notifyError('Silakan pilih minimal satu transaksi Kas untuk dicetak.'); }
+                    else { alert('Silakan pilih minimal satu transaksi Kas untuk dicetak.'); }
+                    return;
+                }
+                window.open('<?= BASE_URL ?>/index.php?module=cash&action=printVoucher&ids=' + encodeURIComponent(ids.join(',')), '_blank');
+            });
+        }
+        if (bankBtn) {
+            bankBtn.addEventListener('click', function () {
+                var ids = checkedBankIds();
+                if (ids.length === 0) {
+                    if (window.notifyError) { notifyError('Silakan pilih minimal satu transaksi Bank untuk dicetak.'); }
+                    else { alert('Silakan pilih minimal satu transaksi Bank untuk dicetak.'); }
+                    return;
+                }
+                window.open('<?= BASE_URL ?>/index.php?module=bank&action=printVoucher&ids=' + encodeURIComponent(ids.join(',')), '_blank');
+            });
+        }
         refresh();
     }
 });

@@ -237,6 +237,57 @@ class BankController extends Controller
     }
 
     /**
+     * CETAK VOUCHER BANK. Terima daftar id transaksi Bank dari halaman Kas
+     * (menu Bank digabung ke sana), tampilkan halaman PRATINJAU (SATU voucher
+     * BUKTI BANK KELUAR/MASUK per No Bukti) di dalam layout aplikasi -- pola
+     * identik CashController::printVoucher(). Tidak perlu scoping PIC/divisi
+     * seperti Kas -- modul Bank sudah tunggal untuk SA/Accounting saja
+     * (Middleware::requirePermission di constructor sudah menegakkan itu).
+     */
+    public function printVoucher(): void
+    {
+        $raw = $_GET['ids'] ?? '';
+        $ids = is_array($raw) ? $raw : explode(',', (string) $raw);
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), fn($v) => $v > 0)));
+
+        $vouchers = [];
+        foreach ($ids as $id) {
+            $header = $this->model->findWithRelations($id);
+            if (!$header) {
+                continue;
+            }
+            $vouchers[] = [
+                'header' => $header,
+                'items'  => $this->itemModel->byTransaction($id),
+            ];
+        }
+
+        if (empty($vouchers)) {
+            setFlash('error', 'Silakan pilih minimal satu transaksi Bank yang valid untuk dicetak.');
+            $this->redirect('cash', 'index');
+        }
+
+        $this->activityLog->log(
+            currentUserId(),
+            'bank',
+            'print',
+            'Pratinjau/cetak voucher Bank terpilih: ' . implode(', ', array_map(fn($v) => $v['header']['no_bukti'], $vouchers))
+        );
+
+        $from    = ($_GET['from'] ?? '') === 'report' ? 'report' : 'index';
+        $backUrl = $from === 'report'
+            ? BASE_URL . '/index.php?module=cash&action=report'
+            : BASE_URL . '/cash';
+
+        $this->view('bank/voucher_preview', [
+            'pageTitle' => 'Cetak Voucher Bank',
+            'vouchers'  => $vouchers,
+            'vCompany'  => ((new SystemSetting())->getGroup('company')['company_name']) ?: 'Perusahaan',
+            'backUrl'   => $backUrl,
+        ]);
+    }
+
+    /**
      * Laporan Bank berdiri sendiri DIHAPUS dari navigasi (revisi lanjutan) --
      * digabung ke Laporan Kas (centang Bank di filter). Redirect saja.
      */

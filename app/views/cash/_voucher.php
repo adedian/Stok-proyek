@@ -6,6 +6,11 @@
  * Blok tanda tangan Pembukuan / Mengetahui / Kasir / Penerima ada sebagai
  * ruang kosong -- TIDAK ada field input tambahan di form Kas.
  *
+ * "Dibayarkan Kepada" (keluar, tema oranye) / "Diterima dari" (masuk, tema
+ * biru muda) lewat CSS variable --v-color/--v-head-bg/dst yang di-set oleh
+ * class .is-keluar/.is-masuk pada <div class="voucher"> (lihat CSS di
+ * cash/voucher_preview.php).
+ *
  * Partial markup satu voucher. Di-loop oleh app/views/cash/voucher_preview.php
  * (halaman pratinjau di dalam layout aplikasi; CSS + @media print ada di sana),
  * dipanggil dari CashController::printVoucher(). Tiap voucher dipisah page-break.
@@ -23,6 +28,7 @@ $vIsLast  = $vIsLast  ?? true;
 
 $isKeluar = ($vHeader['mutasi'] ?? 'keluar') === 'keluar';
 $judul    = $isKeluar ? 'BUKTI KAS KELUAR' : 'BUKTI KAS MASUK';
+$labelPic = $isKeluar ? 'Dibayarkan Kepada :' : 'Diterima dari :';
 
 $rp = static fn($v) => number_format((float) $v, 2, '.', ',');
 $qtyFmt = static function ($v) {
@@ -42,13 +48,13 @@ if ($total < 0) {
 $minRows  = 8;
 $padCount = max(0, $minRows - count($vItems));
 ?>
-<div class="voucher print-page">
+<div class="voucher print-page <?= $isKeluar ? 'is-keluar' : 'is-masuk' ?>">
     <div class="company"><em><?= e($vCompany) ?> &mdash; Kas Project</em></div>
 
     <table class="head">
         <tr>
             <td class="head-left">
-                <div class="lbl">Dibayarkan Kepada :</div>
+                <div class="lbl"><?= e($labelPic) ?></div>
                 <div class="val"><?= e($vHeader['pic'] ?? '-') ?></div>
             </td>
             <td class="head-mid"><?= e($judul) ?></td>

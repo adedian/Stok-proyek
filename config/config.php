@@ -153,6 +153,16 @@ define('PDF_MAX_UPLOAD_MB', max(3, (int) ($APP_LOCAL['pdf_max_upload_mb'] ?? 25)
 // --- Push Notification (Web Push) ---
 // Kosong di ketiganya = fitur push mati (app/helpers/push_helper.php diam
 // saja, tidak error) -- tinggal isi config/local.php kapan pun siap.
+//
+// CATATAN dev Windows/XAMPP: kalau muncul error "Class WebPush not found" /
+// "gmp_init() undefined" / fatal error kripto saat kirim push, penyebabnya
+// env var sistem OPENSSL_CONF belum diset (openssl_pkey_new/derive gagal
+// diam-diam di Windows tanpa itu, lalu minishlink/web-push jatuh ke jalur
+// cadangan yang butuh ekstensi GMP). PHP baca env var ini SAAT PROSES
+// DIMULAI, jadi HARUS env var sistem asli (System Properties > Environment
+// Variables, atau `setx OPENSSL_CONF "C:\xampp\apache\conf\openssl.cnf"`
+// lalu restart Apache) -- putenv() di sini TIDAK cukup, sudah dicoba & gagal.
+// Linux/produksi tidak kena ini (openssl sudah tahu lokasi config bawaan).
 define('VAPID_PUBLIC_KEY', $APP_LOCAL['vapid_public_key'] ?? '');
 define('VAPID_PRIVATE_KEY', $APP_LOCAL['vapid_private_key'] ?? '');
 define('VAPID_SUBJECT', $APP_LOCAL['vapid_subject'] ?? 'mailto:admin@' . ($_SERVER['HTTP_HOST'] ?? 'localhost'));

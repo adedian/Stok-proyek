@@ -1187,9 +1187,11 @@
 
 /* ============================================================
    15b. SAFE-AREA -- notch / Dynamic Island / home indicator
-   PWA iOS (apple-mobile-web-app-status-bar-style = black-translucent)
-   membuat konten memakai SELURUH layar termasuk di belakang status
-   bar & home indicator. env(safe-area-inset-*) memberi jarak aman.
+   viewport-fit=cover (header.php) membuat PWA iOS memakai SELURUH
+   layar termasuk area notch/home indicator, TERLEPAS dari mode
+   apple-mobile-web-app-status-bar-style ("black" solid maupun
+   "black-translucent"). env(safe-area-inset-*) memberi jarak aman
+   supaya konten tidak ketiban notch/status bar/home indicator.
    Fallback 0px -> tanpa efek di perangkat tanpa notch (semua desktop
    & mayoritas Android). Diletakkan SEBELUM blok landscape (14) supaya
    min-height topbar landscape-pendek (46px) tetap menang.

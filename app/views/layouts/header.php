@@ -28,15 +28,17 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <?php
-    /* "black-translucent" -- konten meluas ke belakang status bar (efek
-       "transparan" ala Starbucks pas discroll). iOS tetap menerapkan
-       blur/vibrancy bawaan OS di area itu (constraint OS, sudah dicoba
-       beberapa warna -- lihat riwayat commit aa99a8d/ec43f3b/8851b16), tapi
-       ini pilihan final user dibanding "black" solid. body::before
-       (responsive.css) diberi warna PUTIH (bukan hitam) supaya hasilnya
-       zona netral terang yang di-blur, bukan gelap. */
+    /* FINAL (sudah bolak-balik beberapa kali -- lihat riwayat commit
+       aa99a8d/ec43f3b/8851b16 -- diputuskan lagi di sini): "black" solid,
+       TANPA blur. "black-translucent" bikin konten meluas ke belakang
+       status bar, TAPI iOS menerapkan blur/vibrancy bawaan OS yang
+       melebar jauh di luar tinggi status bar asli (bukan cuma
+       env(safe-area-inset-top), tapi ikut "membasahi" sebagian topbar) --
+       constraint rendering OS, tidak bisa ditipiskan lewat CSS apa pun.
+       "black" solid = strip status bar TIPIS & TEGAS, navy topbar langsung
+       penuh persis di bawahnya tanpa transisi buram. */
     ?>
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="HEXA STOK">
     <link rel="apple-touch-icon" href="<?= BASE_URL ?>/assets/img/pwa/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="<?= BASE_URL ?>/assets/img/pwa/favicon-32.png">

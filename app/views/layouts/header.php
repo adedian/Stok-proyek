@@ -28,16 +28,15 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <?php
-    /* FINAL (sudah diuji & disetujui di device asli, iOS 18.7): "black" --
-       solid, TANPA blur. "black-translucent" (dicoba sebelumnya) bikin
-       konten meluas ke belakang status bar, tapi iOS SELALU menerapkan efek
-       blur/vibrancy bawaan OS di area itu yang meluntur ke abu-abu, terbukti
-       dengan 3 warna berbeda (navy, hitam pekat, magenta) -- constraint OS,
-       bukan sesuatu yang bisa diperbaiki lewat CSS. Pola "black" solid ini
-       yang dipakai app besar (Starbucks dkk): status bar jadi zona netral
-       tersendiri, TIDAK mencoba menembuskan warna brand ke baliknya. */
+    /* "black-translucent" -- konten meluas ke belakang status bar (efek
+       "transparan" ala Starbucks pas discroll). iOS tetap menerapkan
+       blur/vibrancy bawaan OS di area itu (constraint OS, sudah dicoba 3
+       warna berbeda -- lihat riwayat commit aa99a8d/ec43f3b), tapi ini
+       pilihan final user dibanding "black" solid. body::before
+       (responsive.css) diberi warna hitam pekat supaya hasil sesudah
+       dipudarkan blur tetap segelap mungkin, bukan navy asli. */
     ?>
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="HEXA STOK">
     <link rel="apple-touch-icon" href="<?= BASE_URL ?>/assets/img/pwa/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="<?= BASE_URL ?>/assets/img/pwa/favicon-32.png">

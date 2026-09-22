@@ -1217,7 +1217,12 @@ body::before {
     left: 0;
     right: 0;
     height: env(safe-area-inset-top, 0px);
-    background: var(--brand-900);
+    /* Sengaja HITAM PEKAT (bukan --brand-900) -- iOS black-translucent
+       memudarkan warna di baliknya ke arah putih (efek vibrancy/blur bawaan
+       OS, terbukti di device asli, lihat catatan di header.php). Warna
+       sepekat mungkin di sini supaya hasil AKHIR (setelah dipudarkan OS)
+       masih kebaca gelap/biru, bukan putih terang. */
+    background: #000;
     z-index: 1030;
     pointer-events: none;
 }

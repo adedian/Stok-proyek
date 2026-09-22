@@ -28,15 +28,20 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <?php
-    /* "black-translucent" (dicoba sebelumnya) bikin konten meluas ke belakang
-       status bar iOS, TAPI iOS SELALU menerapkan efek blur/vibrancy bawaan OS
-       di area itu -- warna apa pun di baliknya (termasuk navy topbar) jadi
-       pudar/putih pucat, terbukti lewat pengujian device asli, bukan bug CSS
-       kita. "black" = status bar solid gelap (TANPA blur, konten TIDAK
-       meluas ke baliknya) -- dekat dengan navy topbar (sama-sama gelap),
-       hasilnya menyatu rapi tanpa efek pudar. */
+    /* Sudah dicoba KEDUANYA di device asli (iOS 18.7):
+       - "black"            : TIDAK ada blur, TAPI area itu jadi milik iOS
+         sepenuhnya (bukan web) -- warnanya PUTIH terang, kode CSS kita sama
+         sekali tidak berpengaruh di mode ini.
+       - "black-translucent": konten TERBUKTI meluas ke belakang status bar
+         (bisa diwarnai lewat CSS -- lihat body::before di responsive.css),
+         TAPI iOS menerapkan blur/vibrancy bawaan OS yang MEMUDARKAN warna di
+         baliknya ke arah putih -- constraint OS, bukan bug kita.
+       User pilih "biru sampai atas" (bukan blur-free) -> pakai
+       black-translucent, DAN warna body::before dibuat SEGELAP/SEPEKAT
+       mungkin (bukan cuma --brand-900) supaya sesudah dipudarkan blur-nya
+       hasil akhirnya tetap kebaca biru, bukan putih. */
     ?>
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="HEXA STOK">
     <link rel="apple-touch-icon" href="<?= BASE_URL ?>/assets/img/pwa/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="<?= BASE_URL ?>/assets/img/pwa/favicon-32.png">

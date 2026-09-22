@@ -1219,14 +1219,11 @@ body::before {
     left: 0;
     right: 0;
     height: env(safe-area-inset-top, 0px);
-    /* Percobaan ulang: navy (--brand-900), sama seperti warna asli sebelum
-       riwayat pindah ke #000/#fff (lihat commit aa99a8d/74e167e). iOS
-       black-translucent MEMUDARKAN warna di baliknya ke arah putih lewat
-       vibrancy/blur bawaan OS -- constraint platform, sudah terbukti di
-       device asli. Kalau hasilnya tetap luntur ke abu-abu/putih, fallback
-       yang sudah terbukti bersih adalah mode "black" solid (commit
-       147e3a0). */
-    background: var(--brand-900);
+    /* Gradient SAMA PERSIS dengan .navbar.app-topbar (topbar.css) -- dulu
+       warna solid var(--brand-900) di sini kelihatan sebagai garis/seam
+       terpisah dari gradient topbar di bawahnya (dilaporkan user di
+       device asli). Disamakan supaya kedua lapis menyatu tanpa batas. */
+    background: linear-gradient(100deg, var(--brand-900) 0%, var(--brand-700) 100%);
     z-index: 1030;
     pointer-events: none;
 }

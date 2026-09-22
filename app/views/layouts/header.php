@@ -30,11 +30,11 @@
     <?php
     /* "black-translucent" -- konten meluas ke belakang status bar (efek
        "transparan" ala Starbucks pas discroll). iOS tetap menerapkan
-       blur/vibrancy bawaan OS di area itu (constraint OS, sudah dicoba 3
-       warna berbeda -- lihat riwayat commit aa99a8d/ec43f3b), tapi ini
-       pilihan final user dibanding "black" solid. body::before
-       (responsive.css) diberi warna hitam pekat supaya hasil sesudah
-       dipudarkan blur tetap segelap mungkin, bukan navy asli. */
+       blur/vibrancy bawaan OS di area itu (constraint OS, sudah dicoba
+       beberapa warna -- lihat riwayat commit aa99a8d/ec43f3b/8851b16), tapi
+       ini pilihan final user dibanding "black" solid. body::before
+       (responsive.css) diberi warna PUTIH (bukan hitam) supaya hasilnya
+       zona netral terang yang di-blur, bukan gelap. */
     ?>
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="HEXA STOK">

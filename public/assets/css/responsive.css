@@ -1195,13 +1195,31 @@
    min-height topbar landscape-pendek (46px) tetap menang.
    ============================================================ */
 
-/* Strip di belakang status bar (di ATAS topbar): <body> (bg abu-abu halaman,
-   --bg-app) "tembus" ke situ selama topbar (sticky, bukan fixed) belum
-   sempat menutupinya secara visual -- hasilnya strip putih/abu-abu nyempil
-   di atas topbar biru. <html> jarang kelihatan (body selalu menimpanya di
-   sisa halaman), JADI aman disamakan warnanya dengan topbar di sini saja. */
+/* <html> disamakan warnanya dengan topbar sebagai lapis dasar -- tidak selalu
+   cukup sendirian karena <body> (bg --bg-app, abu-abu) mulai dari titik yang
+   sama persis (bisa "menimpa" <html>), tapi tetap aman/berguna sebagai fallback. */
 html {
     background: var(--brand-900);
+}
+
+/* Lapis yang benar-benar menutup celah: elemen position:FIXED terpisah,
+   SELALU menutup persis area di belakang status bar/notch sejak render
+   pertama -- TIDAK bergantung ke topbar (.sticky-top), karena posisi
+   "sticky" punya riwayat bug WebKit soal offset env(safe-area-inset-*)
+   belum kepakai di paint pertama sebelum ada scroll/reflow. Tinggi persis
+   env(safe-area-inset-top) -- 0px di perangkat tanpa notch/standalone
+   (termasuk desktop), jadi tidak berefek di sana. z-index di atas topbar
+   (sticky-top Bootstrap = 1020) supaya tidak ketiban apa pun. */
+body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: env(safe-area-inset-top, 0px);
+    background: var(--brand-900);
+    z-index: 1030;
+    pointer-events: none;
 }
 
 /* Topbar: latar tumbuh menutup area notch, isinya tetap di bawah status bar. */

@@ -27,7 +27,16 @@
     <meta name="theme-color" content="#1E3C72">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <?php
+    /* "black-translucent" (dicoba sebelumnya) bikin konten meluas ke belakang
+       status bar iOS, TAPI iOS SELALU menerapkan efek blur/vibrancy bawaan OS
+       di area itu -- warna apa pun di baliknya (termasuk navy topbar) jadi
+       pudar/putih pucat, terbukti lewat pengujian device asli, bukan bug CSS
+       kita. "black" = status bar solid gelap (TANPA blur, konten TIDAK
+       meluas ke baliknya) -- dekat dengan navy topbar (sama-sama gelap),
+       hasilnya menyatu rapi tanpa efek pudar. */
+    ?>
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="HEXA STOK">
     <link rel="apple-touch-icon" href="<?= BASE_URL ?>/assets/img/pwa/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="<?= BASE_URL ?>/assets/img/pwa/favicon-32.png">
@@ -48,26 +57,6 @@
     <?php endif; ?>
 </head>
 <body>
-<div id="qaDiagBanner" style="background:#ff00ff;color:#000;font:16px/1.6 monospace;padding:8px;"></div>
-<script>
-(function () {
-    try {
-        var d = document.getElementById('qaDiagBanner');
-        var probe = document.createElement('div');
-        probe.style.cssText = 'position:fixed;top:0;height:env(safe-area-inset-top,0px);width:1px;visibility:hidden;';
-        document.body.appendChild(probe);
-        var safeTop = getComputedStyle(probe).height;
-        var rows = [
-            'SAFE-TOP = ' + safeTop,
-            'standalone-css = ' + (window.matchMedia && matchMedia('(display-mode: standalone)').matches),
-            'navigator.standalone = ' + navigator.standalone,
-            'htmlClass = "' + document.documentElement.className + '"',
-            'iOS ver = ' + (navigator.userAgent.match(/OS (\d+_\d+)/) || ['?','?'])[1]
-        ];
-        d.innerHTML = rows.map(function (r) { return '<div>' + r + '</div>'; }).join('');
-    } catch (e) { document.getElementById('qaDiagBanner').textContent = 'ERR: ' + e.message; }
-})();
-</script>
 <script>
     // Terapkan state collapse sidebar SEBELUM render pertama, supaya tidak ada
     // "kedipan" sidebar full-width lalu tiba-tiba menyusut.

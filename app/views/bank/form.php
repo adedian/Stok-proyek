@@ -97,20 +97,20 @@ $curPic = $row['pic'] ?? '';
 
                 <div class="col-md-3">
                     <label class="form-label">No Bukti</label>
-                    <input type="text" class="form-control bg-light" value="<?= e($noBuktiPreview) ?>"
-                           placeholder="<?= $isEdit ? '' : 'otomatis saat disimpan' ?>" readonly>
-                    <div class="form-text">
+                    <input type="text" id="bank_no_bukti" class="form-control bg-light" value="<?= e($noBuktiPreview) ?>"
+                           placeholder="<?= $isEdit ? '' : 'pilih Mutasi dulu' ?>" readonly>
+                    <div class="form-text" id="bank_no_bukti_hint">
                         <?php if ($isEdit): ?>
                             Nomor tidak berubah saat transaksi diedit.
                         <?php else: ?>
-                            Dibuat otomatis (prefix <strong>BK</strong>).
+                            Dibuat otomatis: <strong>BM</strong> untuk Masuk, <strong>BK</strong> untuk Keluar.
                         <?php endif; ?>
                     </div>
                 </div>
 
                 <div class="col-md-3">
                     <label class="form-label">Mutasi <span class="text-danger">*</span></label>
-                    <select name="mutasi" class="form-select" required>
+                    <select name="mutasi" id="bank_mutasi" class="form-select" required>
                         <option value="">-- Pilih --</option>
                         <option value="masuk" <?= ($row['mutasi'] ?? '') === 'masuk' ? 'selected' : '' ?>>Masuk</option>
                         <option value="keluar" <?= ($row['mutasi'] ?? '') === 'keluar' ? 'selected' : '' ?>>Keluar</option>
@@ -246,3 +246,36 @@ $curPic = $row['pic'] ?? '';
     recalcAll();
 })();
 </script>
+
+<?php if (!$isEdit): ?>
+<script>
+// Pratinjau No Bukti otomatis saat Mutasi dipilih (Tambah Bank) -- prefix
+// beda per Mutasi (BM/BK). Nomor RESMI tetap dibuat server-side saat
+// disimpan, ini hanya label bantu (pola sama dengan No Bukti Kas per-PIC).
+(function () {
+    var mutasiSel = document.getElementById('bank_mutasi');
+    var out  = document.getElementById('bank_no_bukti');
+    var hint = document.getElementById('bank_no_bukti_hint');
+    if (!mutasiSel || !out) { return; }
+
+    function refresh() {
+        var mutasi = mutasiSel.value;
+        if (!mutasi) { out.value = ''; out.placeholder = 'pilih Mutasi dulu'; return; }
+        fetch('<?= BASE_URL ?>/index.php?module=bank&action=previewNoBukti&mutasi=' + encodeURIComponent(mutasi))
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (d && d.preview) {
+                    out.value = d.preview;
+                } else {
+                    out.value = '';
+                    out.placeholder = 'otomatis saat disimpan';
+                }
+            })
+            .catch(function () { /* diamkan -- nomor tetap dibuat server saat simpan */ });
+    }
+
+    mutasiSel.addEventListener('change', refresh);
+    if (mutasiSel.value) { refresh(); }
+})();
+</script>
+<?php endif; ?>

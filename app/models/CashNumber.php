@@ -50,7 +50,7 @@ class CashNumber extends Model
      * Nomor berikutnya untuk $prefix TANPA menaikkan counter (label form).
      * Kalau counter belum ada, hitung dari data existing supaya preview realistis.
      * $table: tabel tempat no_bukti hidup untuk prefix ini -- 'cash_transactions'
-     * (Kas, per-PIC) atau 'bank_transactions' (Bank, prefix "BK" tunggal).
+     * (Kas, per-PIC) atau 'bank_transactions' (Bank, prefix per-Mutasi: "BM"/"BK").
      */
     public function preview(string $prefix, string $table = 'cash_transactions'): string
     {

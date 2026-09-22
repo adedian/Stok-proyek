@@ -24,14 +24,23 @@ require_once ROOT_PATH . '/app/models/ActivityLog.php';
  * denormalisasi -- persis pola cash_transactions.total_amount -- supaya
  * list/laporan/print Bank yang sudah ada TIDAK perlu tahu soal baris rincian.
  *
- * No Bukti pakai mekanisme atomic yang sama dengan Kas (CashNumber), prefix
- * TUNGGAL "BK" untuk SEMUA transaksi Bank (BUKAN per-PIC seperti Kas -- lihat
- * instruksi revisi lanjutan poin 3) -- disemai dari tabel bank_transactions
- * sendiri (bukan cash_transactions) lewat parameter $table CashNumber::next().
+ * No Bukti pakai mekanisme atomic yang sama dengan Kas (CashNumber), TAPI
+ * prefix dipecah per Mutasi (revisi lanjutan) -- BUKAN satu prefix "BK"
+ * tunggal untuk semua transaksi Bank: Masuk -> "BM", Keluar -> "BK". Dua
+ * sequence independen (masing-masing baris sendiri di cash_number_counters),
+ * disemai dari tabel bank_transactions sendiri (bukan cash_transactions)
+ * lewat parameter $table CashNumber::next(). Data lama (sebelum revisi ini)
+ * semuanya berprefix "BK" apa pun mutasinya -- SENGAJA tidak direnumber,
+ * counter "BK" melanjutkan dari situ; hanya transaksi baru yang ikut aturan
+ * split BM/BK.
  */
 class BankController extends Controller
 {
-    private const NO_BUKTI_PREFIX = 'BK';
+    /** Prefix No Bukti sesuai Mutasi -- Masuk = "BM", Keluar (atau nilai lain/kosong) = "BK". */
+    private function noBuktiPrefix(string $mutasi): string
+    {
+        return $mutasi === 'masuk' ? 'BM' : 'BK';
+    }
 
     private BankTransaction $model;
     private BankTransactionItem $itemModel;
@@ -93,10 +102,25 @@ class BankController extends Controller
             'projects'  => $this->projectModel->activeList(),
             'picOptions'      => $this->picOptions(),
             'rekeningOptions' => $this->rekeningModel->activeList(),
-            // Pratinjau saja (label bantu) -- nomor RESMI dibuat server-side
-            // saat store(), sama seperti Kas.
-            'noBuktiPreview'  => (new CashNumber())->preview(self::NO_BUKTI_PREFIX, 'bank_transactions'),
+            // Prefix (jadi nomor) baru pasti setelah Mutasi dipilih -- pratinjau
+            // diisi lewat AJAX previewNoBukti() saat user memilih Masuk/Keluar
+            // (lihat bank/form.php), sama pola dengan No Bukti Kas per-PIC.
+            // Nomor RESMI tetap dibuat server-side & atomic saat store().
+            'noBuktiPreview'  => '',
         ]);
+    }
+
+    /** AJAX: pratinjau No Bukti saat Mutasi dipilih di form Tambah Bank. */
+    public function previewNoBukti(): void
+    {
+        Middleware::requirePermission('bank', 'create');
+        $mutasiRaw = $_GET['mutasi'] ?? '';
+        $mutasi = $mutasiRaw === 'masuk' ? 'masuk' : ($mutasiRaw === 'keluar' ? 'keluar' : '');
+        if ($mutasi === '') {
+            $this->json(['preview' => '']);
+        }
+        $prefix = $this->noBuktiPrefix($mutasi);
+        $this->json(['preview' => (new CashNumber())->preview($prefix, 'bank_transactions'), 'prefix' => $prefix]);
     }
 
     public function store(): void
@@ -121,12 +145,15 @@ class BankController extends Controller
         $pdo = getPDO();
         try {
             $pdo->beginTransaction();
-            // No Bukti dibuat SERVER-SIDE & ATOMIC (prefix "BK" tunggal untuk
-            // semua transaksi Bank -- lihat instruksi revisi lanjutan poin 3-4).
-            $noBukti = (new CashNumber())->next(self::NO_BUKTI_PREFIX, 'bank_transactions');
+            // No Bukti dibuat SERVER-SIDE & ATOMIC, prefix mengikuti Mutasi --
+            // Masuk -> "BM", Keluar -> "BK" -- dua sequence terpisah (lihat
+            // catatan class di atas). Mutasi sudah divalidasi non-kosong oleh
+            // validate() sebelum sampai sini.
+            $prefix = $this->noBuktiPrefix($data['mutasi']);
+            $noBukti = (new CashNumber())->next($prefix, 'bank_transactions');
             $guard = 0;
             while ($this->model->noBuktiExists($noBukti) && $guard++ < 50) {
-                $noBukti = (new CashNumber())->next(self::NO_BUKTI_PREFIX, 'bank_transactions');
+                $noBukti = (new CashNumber())->next($prefix, 'bank_transactions');
             }
             $trxId = $this->model->create(array_merge($data, [
                 'no_bukti'   => $noBukti,

@@ -8,6 +8,8 @@ require_once ROOT_PATH . '/app/models/Supplier.php';
 require_once ROOT_PATH . '/app/models/Client.php';
 require_once ROOT_PATH . '/app/models/Warehouse.php';
 require_once ROOT_PATH . '/app/models/Project.php';
+require_once ROOT_PATH . '/app/models/CashNumber.php';
+require_once ROOT_PATH . '/app/models/UserPicAssignment.php';
 
 /**
  * MasterKodeController
@@ -65,6 +67,16 @@ class MasterKodeController extends Controller
             $this->redirect('master_kode', 'index');
         }
 
+        // Bank Masuk/Keluar TIDAK pakai format & flow "PREFIX.NOMOR.MASTERCODE"
+        // multi-prefix seperti 5 kelompok lain -- lihat catatan di
+        // CodeConfig::$entities ('format' => 'dash') & BankController. Halaman
+        // & aksinya beda (satu prefix aktif, rename bukan tambah/hapus, nomor
+        // berikutnya dibaca langsung dari cash_number_counters).
+        if (($meta['format'] ?? '') === 'dash') {
+            $this->groupBank($type, $meta);
+            return;
+        }
+
         $model = $this->resolveModel($type);
         $filters = ['keyword' => trim($_GET['keyword'] ?? '')];
         // Kelompok Barang (item_stok_proyek/item_stok_lampu/item_inventory_kantor)
@@ -100,6 +112,90 @@ class MasterKodeController extends Controller
             'pagination' => $pg,
             'baseQuery'  => $baseQuery,
         ]);
+    }
+
+    /**
+     * Halaman Master Kode > Bank Masuk/Keluar -- satu prefix aktif, "Nomor
+     * berikutnya" dibaca LANGSUNG dari cash_number_counters (sumber kebenaran
+     * yang sebenarnya dipakai BankController saat simpan), bukan dari
+     * code_configs.next_number (baris code_configs di sini murni tempat
+     * menyimpan prefix pilihan admin).
+     */
+    private function groupBank(string $type, array $meta): void
+    {
+        $cfg = $this->codeConfig->getConfig($type);
+        $prefix = $cfg['prefix'] ?? ($type === 'bank_masuk' ? 'BM' : 'BK');
+        $nextNumber = (new CashNumber())->currentNext($prefix);
+
+        $this->view('master_kode/group_bank', [
+            'pageTitle'  => 'Master Kode - ' . $meta['label'],
+            'entityType' => $type,
+            'entityMeta' => $meta,
+            'config'     => $cfg,
+            'prefix'     => $prefix,
+            'nextNumber' => $nextNumber,
+        ]);
+    }
+
+    /**
+     * Rename prefix Bank Masuk/Keluar. Beda dari updatePrefix() kelompok lain:
+     * cuma 1 baris config per entity (tidak ada "Tambah Prefix"), dan yang
+     * berubah bukan cuma code_configs -- baris counter di cash_number_counters
+     * ikut di-rename (CashNumber::renamePrefix()) supaya sequence lanjut
+     * (tidak reset ke 1). Prefix baru wajib TIDAK bentrok dengan: prefix Bank
+     * sebelah (Masuk vs Keluar harus beda), prefix PIC Kas manapun, ATAU
+     * prefix lain yang kebetulan sudah punya baris counter -- ketiganya
+     * berbagi namespace yang sama (cash_number_counters.prefix, kolom UNIQUE).
+     */
+    public function renameBankPrefix(): void
+    {
+        $this->guardPost();
+        $type = trim($_POST['entity_type'] ?? '');
+        $meta = $this->codeConfig->entityMeta($type);
+        if (!$meta || ($meta['format'] ?? '') !== 'dash') {
+            setFlash('error', 'Kelompok Master Kode tidak dikenal.');
+            $this->redirect('master_kode', 'index');
+        }
+
+        $newPrefix = CashNumber::normalizePrefix($_POST['prefix'] ?? '');
+        if (!CashNumber::isValidPrefix($newPrefix)) {
+            setFlash('error', 'Prefix hanya boleh huruf/angka (2-6 karakter, diawali huruf).');
+            $this->redirect('master_kode', 'group', ['type' => $type]);
+        }
+
+        $otherType = $type === 'bank_masuk' ? 'bank_keluar' : 'bank_masuk';
+        $otherCfg = $this->codeConfig->getConfig($otherType);
+        $otherPrefix = $otherCfg['prefix'] ?? ($otherType === 'bank_masuk' ? 'BM' : 'BK');
+        if ($newPrefix === $otherPrefix) {
+            setFlash('error', "Prefix {$newPrefix} sudah dipakai kelompok {$this->codeConfig->entityMeta($otherType)['label']} -- Bank Masuk dan Bank Keluar wajib beda prefix.");
+            $this->redirect('master_kode', 'group', ['type' => $type]);
+        }
+
+        $picModel = new UserPicAssignment();
+        if ($picModel->prefixExists($newPrefix)) {
+            setFlash('error', "Prefix {$newPrefix} sudah dipakai sebagai Prefix Kas salah satu PIC (Master Data > PIC Kas). Pilih prefix lain.");
+            $this->redirect('master_kode', 'group', ['type' => $type]);
+        }
+
+        $cfg = $this->codeConfig->getConfig($type);
+        $oldPrefix = $cfg['prefix'] ?? ($type === 'bank_masuk' ? 'BM' : 'BK');
+
+        $cashNumber = new CashNumber();
+        if ($newPrefix !== $oldPrefix && !$cashNumber->renamePrefix($oldPrefix, $newPrefix)) {
+            setFlash('error', "Prefix {$newPrefix} sudah dipakai transaksi lain yang tidak terkait Bank/Kas. Pilih prefix lain.");
+            $this->redirect('master_kode', 'group', ['type' => $type]);
+        }
+
+        if ($cfg) {
+            $this->codeConfig->updatePrefixConfig((int) $cfg['id'], $newPrefix, (int) $cfg['digit_length']);
+        } else {
+            $this->codeConfig->addPrefix($type, $newPrefix, 4, currentUserId());
+        }
+
+        $this->activityLog->log(currentUserId(), 'master_kode', 'update',
+            "Prefix {$meta['label']} diubah: {$oldPrefix} -> {$newPrefix}");
+        setFlash('success', "Prefix berhasil diubah ke {$newPrefix}. Transaksi lama tetap memakai nomor lama ({$oldPrefix}-xxxx), cuma transaksi baru yang ikut prefix baru.");
+        $this->redirect('master_kode', 'group', ['type' => $type]);
     }
 
     /** Validasi kelompok dari POST; redirect kalau tidak dikenal. */

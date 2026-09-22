@@ -13,6 +13,8 @@ $icons = [
     'client' => 'bi-people',
     'warehouse' => 'bi-building',
     'project' => 'bi-kanban',
+    'bank_masuk' => 'bi-bank2',
+    'bank_keluar' => 'bi-bank2',
 ];
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -34,9 +36,13 @@ $icons = [
                     <div>
                         <div class="fw-semibold text-dark fs-5"><?= e($g['label']) ?></div>
                         <?php if (($g['prefixCount'] ?? 0) > 0): ?>
-                            <span class="badge bg-success"><?= (int) $g['prefixCount'] ?> prefix</span>
-                            <span class="badge bg-light text-dark border">.<?= e($g['masterCode'] ?: '-') ?></span>
-                            <div class="small text-muted mt-1"><?= e(implode(', ', array_slice($g['prefixes'], 0, 4))) ?><?= count($g['prefixes']) > 4 ? '…' : '' ?></div>
+                            <?php if (in_array($g['type'], ['bank_masuk', 'bank_keluar'], true)): ?>
+                                <span class="badge bg-success">Prefix: <?= e($g['prefixes'][0] ?? '-') ?></span>
+                            <?php else: ?>
+                                <span class="badge bg-success"><?= (int) $g['prefixCount'] ?> prefix</span>
+                                <span class="badge bg-light text-dark border">.<?= e($g['masterCode'] ?: '-') ?></span>
+                                <div class="small text-muted mt-1"><?= e(implode(', ', array_slice($g['prefixes'], 0, 4))) ?><?= count($g['prefixes']) > 4 ? '…' : '' ?></div>
+                            <?php endif; ?>
                         <?php else: ?>
                             <span class="badge bg-warning text-dark">Belum ada prefix</span>
                         <?php endif; ?>

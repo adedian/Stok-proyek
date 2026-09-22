@@ -51,6 +51,29 @@ class CodeConfig extends Model
             'table' => 'projects', 'code_col' => 'project_code', 'name_col' => 'project_name',
             'label' => 'Project', 'module' => 'project', 'master_code' => 'PRJ',
         ],
+
+        /**
+         * Bank Masuk/Keluar -- BEDA dari 5 kelompok di atas: format No Bukti
+         * TETAP "PREFIX-NOMOR" (mis. BM-0001), BUKAN "PREFIX.NOMOR.MASTERCODE".
+         * Nomor sebenarnya dibuat & disimpan lewat CashNumber/cash_number_counters
+         * (sama mekanisme dengan Kas), BUKAN lewat nextCode() di bawah -- baris
+         * code_configs kelompok ini HANYA menyimpan prefix yang admin atur (satu
+         * prefix aktif per arah, tanpa "Tambah Prefix" -- lihat 'format'=>'dash'
+         * yang dibaca MasterKodeController::group() untuk pakai halaman &
+         * flow rename yang berbeda). Rename prefix di sini ikut merename baris
+         * cash_number_counters terkait (lihat CashNumber::renamePrefix())
+         * supaya sequence TIDAK terputus/reset. Lihat BankController::noBuktiPrefix().
+         */
+        'bank_masuk' => [
+            'table' => 'bank_transactions', 'code_col' => 'no_bukti', 'name_col' => 'uraian',
+            'label' => 'Bank - Masuk', 'module' => 'bank', 'master_code' => '',
+            'format' => 'dash', 'mutasi' => 'masuk',
+        ],
+        'bank_keluar' => [
+            'table' => 'bank_transactions', 'code_col' => 'no_bukti', 'name_col' => 'uraian',
+            'label' => 'Bank - Keluar', 'module' => 'bank', 'master_code' => '',
+            'format' => 'dash', 'mutasi' => 'keluar',
+        ],
     ];
 
     public function entityMeta(string $entityType): ?array

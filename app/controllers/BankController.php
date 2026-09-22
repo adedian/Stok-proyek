@@ -8,6 +8,7 @@ require_once ROOT_PATH . '/app/models/MasterRekening.php';
 require_once ROOT_PATH . '/app/models/UserPicAssignment.php';
 require_once ROOT_PATH . '/app/models/Project.php';
 require_once ROOT_PATH . '/app/models/CashNumber.php';
+require_once ROOT_PATH . '/app/models/CodeConfig.php';
 require_once ROOT_PATH . '/app/models/SystemSetting.php';
 require_once ROOT_PATH . '/app/models/ActivityLog.php';
 
@@ -33,13 +34,27 @@ require_once ROOT_PATH . '/app/models/ActivityLog.php';
  * semuanya berprefix "BK" apa pun mutasinya -- SENGAJA tidak direnumber,
  * counter "BK" melanjutkan dari situ; hanya transaksi baru yang ikut aturan
  * split BM/BK.
+ *
+ * Prefix "BM"/"BK" sendiri BUKAN hardcode lagi -- dibaca dari Master Kode
+ * (code_configs, entity_type 'bank_masuk'/'bank_keluar', lihat
+ * CodeConfig::$entities) supaya Super Admin bisa rename dari situ. Rename di
+ * Master Kode ikut merename baris cash_number_counters (CashNumber::renamePrefix()),
+ * jadi sequence tidak reset. Format No Bukti TETAP "PREFIX-NOMOR" (bukan
+ * format titik ala Master Kode kelompok lain) -- lihat noBuktiPrefix().
  */
 class BankController extends Controller
 {
-    /** Prefix No Bukti sesuai Mutasi -- Masuk = "BM", Keluar (atau nilai lain/kosong) = "BK". */
+    /**
+     * Prefix No Bukti sesuai Mutasi -- diambil dari Master Kode
+     * (entity_type 'bank_masuk'/'bank_keluar'), fallback ke default
+     * "BM"/"BK" kalau baris konfigurasinya belum ada.
+     */
     private function noBuktiPrefix(string $mutasi): string
     {
-        return $mutasi === 'masuk' ? 'BM' : 'BK';
+        $entityType = $mutasi === 'masuk' ? 'bank_masuk' : 'bank_keluar';
+        $default = $mutasi === 'masuk' ? 'BM' : 'BK';
+        $cfg = (new CodeConfig())->getConfig($entityType);
+        return ($cfg && $cfg['prefix'] !== '') ? $cfg['prefix'] : $default;
     }
 
     private BankTransaction $model;

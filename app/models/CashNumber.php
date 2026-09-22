@@ -117,6 +117,54 @@ class CashNumber extends Model
         return $this->format($prefix, $number);
     }
 
+    /** Nomor berikutnya SAAT INI untuk $prefix, tanpa menaikkan/membuat counter (0 kalau belum pernah dipakai). */
+    public function currentNext(string $prefix): int
+    {
+        $prefix = self::normalizePrefix($prefix);
+        $row = $this->db->fetchOne(
+            "SELECT next_number FROM cash_number_counters WHERE prefix = :p",
+            ['p' => $prefix]
+        );
+        return $row ? (int) $row['next_number'] : 0;
+    }
+
+    /** Prefix ini sudah punya baris counter (pernah dipakai menghasilkan nomor)? */
+    public function prefixInUse(string $prefix): bool
+    {
+        $prefix = self::normalizePrefix($prefix);
+        return (bool) $this->db->fetchOne(
+            "SELECT id FROM cash_number_counters WHERE prefix = :p",
+            ['p' => $prefix]
+        );
+    }
+
+    /**
+     * Ganti nama prefix pada baris counter (dipakai Master Kode > Bank Masuk/
+     * Keluar saat admin rename prefix "BM"/"BK") -- next_number TIDAK berubah,
+     * jadi sequence lanjut mulus, tidak reset ke 1. Kalau $old belum pernah
+     * dipakai (belum ada baris counter), tidak ada apa-apa yang dipindah --
+     * counter baru akan otomatis disemai dari data existing saat next()
+     * pertama kali dipanggil untuk $new (lihat seedFromExisting()).
+     * Return false kalau $new sudah dipakai prefix lain (caller wajib cek
+     * dulu ke sumber prefix lain juga -- PIC Kas, kelompok Bank sebelah).
+     */
+    public function renamePrefix(string $old, string $new): bool
+    {
+        $old = self::normalizePrefix($old);
+        $new = self::normalizePrefix($new);
+        if ($old === $new) {
+            return true;
+        }
+        if ($this->prefixInUse($new)) {
+            return false;
+        }
+        $this->db->query(
+            "UPDATE cash_number_counters SET prefix = :new WHERE prefix = :old",
+            ['new' => $new, 'old' => $old]
+        );
+        return true;
+    }
+
     /**
      * Nomor urut pertama yang aman untuk $prefix = (angka tertinggi pada
      * $table.no_bukti yang cocok "^PREFIX-\d+$") + 1. Default 1. Termasuk

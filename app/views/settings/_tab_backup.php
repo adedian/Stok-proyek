@@ -10,16 +10,6 @@
                 </form>
             </div>
         </div>
-        <div class="card border-0 shadow-sm">
-            <div class="card-body">
-                <h6 class="mb-2">Server Cache</h6>
-                <p class="text-muted small">Kalau setelah deploy kode terbaru belum kelihatan di situs (halaman masih tampil versi lama), reset PHP OPcache di server ini.</p>
-                <form method="POST" action="<?= BASE_URL ?>/index.php?module=settings&action=opcacheReset">
-                    <?= csrfField() ?>
-                    <button type="submit" class="btn btn-outline-secondary"><i class="bi bi-arrow-clockwise"></i> Reset OPcache</button>
-                </form>
-            </div>
-        </div>
     </div>
     <div class="col-md-7">
         <div class="card border-0 shadow-sm">

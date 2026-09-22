@@ -1,12 +1,22 @@
 <div class="row g-3">
     <div class="col-md-5">
-        <div class="card border-0 shadow-sm">
+        <div class="card border-0 shadow-sm mb-3">
             <div class="card-body">
                 <h6 class="mb-2">Backup Manual</h6>
                 <p class="text-muted small">Buat salinan seluruh database saat ini dalam bentuk file SQL, tersimpan di server (di luar folder publik).</p>
                 <form method="POST" action="<?= BASE_URL ?>/index.php?module=settings&action=backupCreate" class="js-confirm-backup">
                     <?= csrfField() ?>
                     <button type="submit" class="btn btn-primary"><i class="bi bi-download"></i> Backup Sekarang</button>
+                </form>
+            </div>
+        </div>
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h6 class="mb-2">Server Cache</h6>
+                <p class="text-muted small">Kalau setelah deploy kode terbaru belum kelihatan di situs (halaman masih tampil versi lama), reset PHP OPcache di server ini.</p>
+                <form method="POST" action="<?= BASE_URL ?>/index.php?module=settings&action=opcacheReset">
+                    <?= csrfField() ?>
+                    <button type="submit" class="btn btn-outline-secondary"><i class="bi bi-arrow-clockwise"></i> Reset OPcache</button>
                 </form>
             </div>
         </div>

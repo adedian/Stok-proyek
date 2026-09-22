@@ -344,6 +344,35 @@ class SettingsController extends Controller
         $this->redirect('settings', 'index', ['tab' => 'backup']);
     }
 
+    /**
+     * Reset PHP OPcache -- perlu di hosting yang OPcache-nya tidak otomatis
+     * menyegarkan diri secepat mestinya setelah deploy (file baru sudah ada
+     * di disk, tapi bytecode lama masih terlayani sampai worker PHP di-restart
+     * / opcache di-reset). Shell/exec dimatikan di hosting cPanel ini (lihat
+     * catatan backupCreate()), jadi TIDAK bisa restart proses lewat shell --
+     * opcache_reset() dipanggil di dalam request WEB (SAPI yang sama dengan
+     * yang melayani trafik biasa) supaya benar-benar mengenai memori bytecode
+     * yang sedang dipakai, bukan proses CLI terpisah yang tidak berbagi memori.
+     */
+    public function opcacheReset()
+    {
+        Middleware::requirePermission('settings', 'edit');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('settings', 'index');
+        }
+        verifyCsrf();
+
+        if (function_exists('opcache_reset') && opcache_reset()) {
+            $this->activityLog->log(currentUserId(), 'settings', 'update', 'PHP OPcache di-reset manual');
+            setFlash('success', 'OPcache berhasil di-reset. Kode terbaru sekarang aktif dilayani.');
+        } else {
+            setFlash('error', 'OPcache tidak tersedia / gagal di-reset di server ini.');
+        }
+
+        $this->redirect('settings', 'index', ['tab' => 'backup']);
+    }
+
     public function backupDownload()
     {
         Middleware::requirePermission('settings', 'edit');

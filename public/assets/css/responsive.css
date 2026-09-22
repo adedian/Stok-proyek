@@ -1219,11 +1219,14 @@ body::before {
     left: 0;
     right: 0;
     height: env(safe-area-inset-top, 0px);
-    /* PUTIH (bukan hitam) -- user pilih pola "putih blur" ala Starbucks:
-       status bar jadi zona netral terang, bukan gelap. iOS black-translucent
-       tetap memudarkan warna di baliknya lewat vibrancy/blur bawaan OS, tapi
-       titik awalnya sekarang putih, bukan hitam pekat. */
-    background: #fff;
+    /* Percobaan ulang: navy (--brand-900), sama seperti warna asli sebelum
+       riwayat pindah ke #000/#fff (lihat commit aa99a8d/74e167e). iOS
+       black-translucent MEMUDARKAN warna di baliknya ke arah putih lewat
+       vibrancy/blur bawaan OS -- constraint platform, sudah terbukti di
+       device asli. Kalau hasilnya tetap luntur ke abu-abu/putih, fallback
+       yang sudah terbukti bersih adalah mode "black" solid (commit
+       147e3a0). */
+    background: var(--brand-900);
     z-index: 1030;
     pointer-events: none;
 }

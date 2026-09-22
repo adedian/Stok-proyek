@@ -28,17 +28,15 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <?php
-    /* FINAL (sudah bolak-balik beberapa kali -- lihat riwayat commit
-       aa99a8d/ec43f3b/8851b16 -- diputuskan lagi di sini): "black" solid,
-       TANPA blur. "black-translucent" bikin konten meluas ke belakang
-       status bar, TAPI iOS menerapkan blur/vibrancy bawaan OS yang
-       melebar jauh di luar tinggi status bar asli (bukan cuma
-       env(safe-area-inset-top), tapi ikut "membasahi" sebagian topbar) --
-       constraint rendering OS, tidak bisa ditipiskan lewat CSS apa pun.
-       "black" solid = strip status bar TIPIS & TEGAS, navy topbar langsung
-       penuh persis di bawahnya tanpa transisi buram. */
+    /* Percobaan ulang "biru sampai atas" (lihat riwayat commit
+       aa99a8d/ec43f3b/8851b16/147e3a0 -- sudah bolak-balik). "black-translucent"
+       + body::before navy (responsive.css) supaya konten meluas ke belakang
+       status bar. iOS BISA memudarkan warna itu ke arah putih lewat
+       blur/vibrancy bawaan OS -- sudah terbukti di device asli sebelumnya.
+       Kalau hasilnya luntur lagi, fallback yang bersih adalah "black" solid
+       (pernah di commit 147e3a0). */
     ?>
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="HEXA STOK">
     <link rel="apple-touch-icon" href="<?= BASE_URL ?>/assets/img/pwa/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="<?= BASE_URL ?>/assets/img/pwa/favicon-32.png">

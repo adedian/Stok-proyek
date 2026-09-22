@@ -1,5 +1,6 @@
 <?php
 require_once ROOT_PATH . '/app/models/ActivityLog.php';
+require_once ROOT_PATH . '/app/models/User.php';
 
 /**
  * Middleware
@@ -17,6 +18,36 @@ class Middleware
             exit;
         }
         checkSessionTimeout();
+        self::requireActiveAccount();
+    }
+
+    /**
+     * Verifikasi user di sesi MASIH ADA & status aktif di database -- supaya
+     * akun yang baru dihapus/dinonaktifkan Super Admin langsung ter-tolak di
+     * request berikutnya, tidak menunggu sesi lama habis sendiri (idle
+     * timeout, bisa sampai puluhan menit). Sebelum ada ini, sesi lama hanya
+     * dipercaya dari isi $_SESSION tanpa dicek ulang ke DB.
+     *
+     * Dicek sekali per request (bukan tiap panggilan Middleware dalam satu
+     * request yang sama) lewat static flag -- query-nya ringan (lookup PK),
+     * tapi tetap sayang diulang kalau satu controller memanggil lebih dari
+     * satu method Middleware.
+     */
+    private static function requireActiveAccount(): void
+    {
+        static $checked = false;
+        if ($checked) {
+            return;
+        }
+        $checked = true;
+
+        $user = (new User())->find((int) $_SESSION['user_id']);
+        if (!$user || $user['status'] !== 'active') {
+            session_unset();
+            session_destroy();
+            header('Location: ' . route('auth', 'login') . '?invalid=1');
+            exit;
+        }
     }
 
     /**

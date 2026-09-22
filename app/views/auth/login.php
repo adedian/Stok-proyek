@@ -228,6 +228,10 @@
                     <div class="alert alert-warning login-alert">Sesi Anda telah berakhir, silakan login kembali.</div>
                 <?php endif; ?>
 
+                <?php if (!empty($invalid) && !$isLocked): ?>
+                    <div class="alert alert-warning login-alert">Akun ini sudah tidak aktif atau dihapus. Hubungi Super Admin kalau ini keliru.</div>
+                <?php endif; ?>
+
                 <?php if ($isLocked): ?>
                     <div class="alert alert-danger login-alert" id="lockBox">
                         Akun/perangkat ini dikunci sementara karena terlalu banyak percobaan gagal.

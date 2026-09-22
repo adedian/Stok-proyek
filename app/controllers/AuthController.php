@@ -41,6 +41,7 @@ class AuthController extends Controller
 
         $this->viewPlain('auth/login', [
             'expired'       => isset($_GET['expired']),
+            'invalid'       => isset($_GET['invalid']),
             'lockRemaining' => $lockRemaining,
         ]);
     }

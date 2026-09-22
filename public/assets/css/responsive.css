@@ -1195,6 +1195,15 @@
    min-height topbar landscape-pendek (46px) tetap menang.
    ============================================================ */
 
+/* Strip di belakang status bar (di ATAS topbar): <body> (bg abu-abu halaman,
+   --bg-app) "tembus" ke situ selama topbar (sticky, bukan fixed) belum
+   sempat menutupinya secara visual -- hasilnya strip putih/abu-abu nyempil
+   di atas topbar biru. <html> jarang kelihatan (body selalu menimpanya di
+   sisa halaman), JADI aman disamakan warnanya dengan topbar di sini saja. */
+html {
+    background: var(--brand-900);
+}
+
 /* Topbar: latar tumbuh menutup area notch, isinya tetap di bawah status bar. */
 .navbar.app-topbar {
     padding-top: calc(.6rem + env(safe-area-inset-top, 0px));

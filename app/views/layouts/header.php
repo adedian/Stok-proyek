@@ -87,6 +87,27 @@ if (!function_exists('renderTopbarAvatar')) {
     }
 }
 ?>
+<div id="qaDiagBanner" style="position:fixed;top:0;left:0;right:0;z-index:99999;background:#ff00ff;color:#000;font:11px monospace;padding:4px;white-space:pre-wrap;"></div>
+<script>
+(function () {
+    try {
+        var d = document.getElementById('qaDiagBanner');
+        var cs = getComputedStyle(document.documentElement);
+        var probe = document.createElement('div');
+        probe.style.cssText = 'position:fixed;top:0;height:env(safe-area-inset-top,0px);width:1px;visibility:hidden;';
+        document.body.appendChild(probe);
+        var safeTop = getComputedStyle(probe).height;
+        d.textContent =
+            'safe-top=' + safeTop +
+            ' | standalone-css=' + (window.matchMedia && matchMedia('(display-mode: standalone)').matches) +
+            ' | navigator.standalone=' + (navigator.standalone) +
+            ' | htmlClass=' + document.documentElement.className +
+            ' | innerH=' + window.innerHeight + ' screenH=' + window.screen.height +
+            ' | outerH=' + window.outerHeight +
+            ' | UA=' + navigator.userAgent.slice(0,60);
+    } catch (e) { document.getElementById('qaDiagBanner').textContent = 'ERR: ' + e.message; }
+})();
+</script>
 <nav class="navbar navbar-dark app-topbar px-3 sticky-top">
     <div class="d-flex align-items-center gap-3 min-w-0">
         <button type="button" id="btnSidebarToggle" class="btn-sidebar-toggle" aria-label="Buka/tutup menu">

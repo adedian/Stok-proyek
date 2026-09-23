@@ -2,7 +2,9 @@
    Topbar
    ============================================================ */
 .navbar.app-topbar {
-    background: linear-gradient(100deg, var(--brand-900) 0%, var(--brand-700) 100%);
+    /* Solid (bukan gradient) supaya menyatu persis dengan title bar PWA
+       desktop (Windows), yang cuma bisa 1 warna solid via theme-color. */
+    background: var(--brand-900);
     box-shadow: var(--shadow-sm);
     padding-top: .6rem;
     padding-bottom: .6rem;

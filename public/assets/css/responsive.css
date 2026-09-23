@@ -1219,11 +1219,10 @@ body::before {
     left: 0;
     right: 0;
     height: env(safe-area-inset-top, 0px);
-    /* Gradient SAMA PERSIS dengan .navbar.app-topbar (topbar.css) -- dulu
-       warna solid var(--brand-900) di sini kelihatan sebagai garis/seam
-       terpisah dari gradient topbar di bawahnya (dilaporkan user di
-       device asli). Disamakan supaya kedua lapis menyatu tanpa batas. */
-    background: linear-gradient(100deg, var(--brand-900) 0%, var(--brand-700) 100%);
+    /* Warna SAMA PERSIS dengan .navbar.app-topbar (topbar.css, sekarang
+       solid brand-900 juga -- supaya seluruh lapis: title bar PWA desktop,
+       status bar iOS, dan topbar, menyatu tanpa batas sama sekali. */
+    background: var(--brand-900);
     z-index: 1030;
     pointer-events: none;
 }

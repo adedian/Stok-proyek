@@ -9,7 +9,7 @@
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
   "orientation": "any",
-  "theme_color": "#1E3C72",
+  "theme_color": "#14243B",
   "background_color": "#14243B",
   "icons": [
     { "src": "./assets/img/pwa/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },

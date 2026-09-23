@@ -24,7 +24,7 @@
 
     <?php /* ---- PWA (Progressive Web App) ---- */ ?>
     <link rel="manifest" href="<?= BASE_URL ?>/manifest.webmanifest">
-    <meta name="theme-color" content="#1E3C72">
+    <meta name="theme-color" content="#14243B">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <?php

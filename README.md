@@ -1,656 +1,643 @@
-# HEXA STOK — PT. Hexa Multi Energi
+# HEXA STOK — Panduan Penggunaan Aplikasi
 
-Aplikasi web internal untuk kontrol stok proyek: Purchase Order, Penerimaan &
-Pengeluaran Barang, Stok Opname, Kas, Invoice Keluar / Surat Jalan / Tanda Terima,
-Laporan, dan Master Data. Bisa di-*install* sebagai aplikasi di HP (PWA).
+Panduan lengkap cara memakai **HEXA STOK**, aplikasi internal PT. Hexa Multi
+Energi untuk kontrol Purchase Order, stok proyek, Kas, dan penagihan
+(Invoice/Surat Jalan/Tanda Terima).
 
-- **Stack**: PHP 8.1+ (tanpa framework, MVC sendiri) · MySQL / MariaDB · Apache
-  (`.htaccess` + `mod_rewrite`) · Bootstrap 5 · Composer (Dompdf untuk PDF,
-  PhpSpreadsheet untuk Excel) · Ghostscript opsional (kompres PDF upload).
-- **Repo**: `https://github.com/adedian/Stok-proyek` (publik).
-
-## Rencana hosting (2 fase)
-
-| Fase | Di mana | Kapan |
-|---|---|---|
-| **FASE 1 — sekarang** | Subdomain `hexastok.hexamultienergi.com` di **hosting cPanel** yang sudah ada (kode + database + folder upload semua di sana) | langsung, murah, cukup untuk mulai |
-| **FASE 2 — nanti** | **VPS Hostinger** (khusus aplikasi ini) | kalau kuota disk cPanel mulai sesak di tengah jalan (lihat [Bagian 4](#4-kapasitas-penyimpanan--kapan-pindah-ke-vps)) |
-
-Kode & alur kerja **tidak berubah** antar fase — pindah = salin data + ganti DNS.
-Skrip di folder [`deploy/`](deploy/) khusus untuk FASE 2 (VPS), **tidak dipakai di
-cPanel**.
+> Aplikasi bisa dipasang di HP seperti aplikasi biasa (PWA) — buka lewat
+> Chrome/Safari di HP, lalu pilih **"Tambahkan ke Layar Utama" / "Add to Home
+> Screen"**. Ikonnya akan muncul di HP tanpa perlu install dari Play
+> Store/App Store.
 
 ---
 
 ## Daftar isi
 
-- [1. Menjalankan di komputer lokal (XAMPP)](#1-menjalankan-di-komputer-lokal-xampp)
-- [2. Cara kerja deploy (baca dulu)](#2-cara-kerja-deploy-baca-dulu)
-- [3. FASE 1 — Deploy ke subdomain hosting (cPanel)](#3-fase-1--deploy-ke-subdomain-hosting-cpanel)
-  - [A. Persiapan di laptop](#a--persiapan-di-laptop--10-menit)
-  - [B. Siapkan subdomain, database & PHP di cPanel](#b--siapkan-subdomain-database--php-di-cpanel--15-menit)
-  - [C. Pasang aplikasi lewat Terminal cPanel](#c--pasang-aplikasi-lewat-terminal-cpanel--1520-menit)
-  - [D. HTTPS, akun, & pengujian](#d--https-akun--pengujian--10-menit)
-- [4. Kapasitas penyimpanan & kapan pindah ke VPS](#4-kapasitas-penyimpanan--kapan-pindah-ke-vps)
-- [5. Kerja sehari-hari (update aplikasi)](#5-kerja-sehari-hari-update-aplikasi)
-- [6. Backup](#6-backup)
-- [7. FASE 2 — Pindah ke VPS Hostinger](#7-fase-2--pindah-ke-vps-hostinger)
-- [8. Peta folder & perintah penting](#8-peta-folder--perintah-penting)
-- [9. Troubleshooting](#9-troubleshooting)
+- [1. Login & lupa password](#1-login--lupa-password)
+- [2. Peran (Role) — siapa boleh apa](#2-peran-role--siapa-boleh-apa)
+- [3. Dashboard](#3-dashboard)
+- [4. Purchase Order](#4-purchase-order)
+- [5. Pembayaran](#5-pembayaran)
+- [6. Kas](#6-kas)
+- [7. Validasi Kas](#7-validasi-kas)
+- [8. Penerimaan Barang](#8-penerimaan-barang)
+- [9. Validasi Barang](#9-validasi-barang)
+- [10. Pengeluaran Barang & Surat Jalan](#10-pengeluaran-barang--surat-jalan)
+- [11. Stok & Opname](#11-stok--opname)
+- [12. Invoice Keluar](#12-invoice-keluar)
+- [13. Tanda Terima](#13-tanda-terima)
+- [14. Pembelian Offline](#14-pembelian-offline)
+- [15. Laporan](#15-laporan)
+- [16. User Management](#16-user-management)
+- [17. Master Data](#17-master-data)
+- [18. Tempat Sampah](#18-tempat-sampah)
+- [19. Pengaturan Sistem](#19-pengaturan-sistem)
+- [20. Fitur yang sama di semua modul](#20-fitur-yang-sama-di-semua-modul)
+- [21. Istilah-istilah penting](#21-istilah-istilah-penting)
+- [22. Pertanyaan umum](#22-pertanyaan-umum)
 
 ---
 
-## 1. Menjalankan di komputer lokal (XAMPP)
+## 1. Login & lupa password
 
-Sudah jalan di komputer ini. Ringkasnya untuk komputer lain:
-
-1. Install **XAMPP** (PHP 8.1+), start **Apache** & **MySQL**.
-2. Taruh folder project di `C:\xampp\htdocs\stok-proyek`.
-3. Buat database `db_stok_proyek`, import `database/schema.sql` lalu jalankan
-   migrasi: `C:\xampp\php\php.exe bin\migrate.php`.
-   (atau import dump lengkap kalau punya).
-4. Salin `config/local.example.php` → `config/local.php`, set
-   `'app_env' => 'development'` + kredensial DB lokal.
-5. `composer install` (butuh Composer) supaya Export PDF/Excel jalan.
-6. Buka `http://localhost/stok-proyek/public/`.
-
-Login default: `admin` / `admin123` (ganti setelah deploy).
+1. Buka alamat aplikasi (dari HP atau komputer) → isi **Username** & **Password** → **Login**.
+2. Setelah masuk, foto profil & nama muncul di pojok kanan atas. Klik untuk
+   membuka **Pengaturan Akun**: ganti password sendiri, ganti foto profil,
+   dan (untuk role tertentu) atur Tanda Tangan pribadi yang dipakai otomatis
+   di cetakan Purchase Order.
+3. **Lupa password?** Hubungi Super Admin — hanya Super Admin yang bisa
+   me-reset password akun lain lewat menu **User Management**.
+4. Login yang gagal berkali-kali akan **terkunci sementara** (proteksi
+   keamanan) — tunggu beberapa menit lalu coba lagi.
 
 ---
 
-## 2. Cara kerja deploy (baca dulu)
+## 2. Peran (Role) — siapa boleh apa
 
-Aplikasi ini isinya cuma **3 bagian**:
+Setiap akun punya **1 role** yang menentukan menu apa saja yang muncul dan
+apa yang boleh dilakukan. Enam role yang ada:
 
-| Bagian | Disimpan di | Cara pindah / backup |
-|---|---|---|
-| **Kode program** | GitHub (repo publik) | `git clone` / `git pull` |
-| **Konfigurasi server** | 1 file `config/local.php` (tidak masuk git) | dibuat manual sekali per server |
-| **Data** | Database MySQL + folder `public/uploads/` | 1 file `.sql` + folder `uploads/` |
+| Role | Fokus pekerjaan |
+|---|---|
+| **Super Admin** | Akses penuh ke semua modul, termasuk yang "terkunci" (User Management, Master Data, Tempat Sampah, Pengaturan Sistem, Tutup Bulan) |
+| **Purchase** | Pembelian: Purchase Order, Kas (+ Kas Purchase & Kas project yang diberi akses), Validasi Barang, Invoice Keluar, Tanda Terima |
+| **Accounting** | Keuangan: Kas & Bank (lihat semua), Validasi Kas, Pembayaran, Laporan, Master Rekening/Bank |
+| **PIC Project** | Operasional lapangan per-project: Penerimaan Barang, Pengeluaran Barang, Validasi Barang, Kas project yang diberi akses |
+| **Admin Project** | Sama seperti PIC Project (admin di sisi project), tapi izin-izin lain bisa berbeda sesuai pengaturan |
+| **Project Manager** | Lihat-saja (view only) untuk sebagian besar modul, termasuk Kas divisi project — tidak bisa membuat/mengubah transaksi |
 
-Konsekuensinya:
+Menu yang tidak muncul di sidebar Anda memang **tidak diberikan** untuk role
+Anda — ini normal, bukan error. Kalau ada yang terasa kurang/salah untuk
+pekerjaan Anda, hubungi Super Admin (bisa disesuaikan lewat **Pengaturan
+Sistem → Hak Akses**, lihat [Bagian 19](#19-pengaturan-sistem)).
 
-- **Kamu tetap ngoding di laptop** (XAMPP + Claude Code). Hosting cuma *menerima*
-  hasil: `git push` di laptop → `git pull` di hosting.
-- **Aplikasi di hosting JANGAN diedit langsung.** Semua perubahan lewat git.
-- **Pindah server** (cPanel → VPS, atau VPS → VPS) = pasang ulang + salin data +
-  ganti DNS.
+---
 
-Alur besar:
+## 3. Dashboard
 
-```
-┌─────────────┐   git push    ┌──────────┐   git pull            ┌──────────────┐
-│  LAPTOP     │ ────────────▶ │  GitHub  │ ────────────────────▶ │  HOSTING     │
-│  XAMPP +    │               │  master  │                       │  cPanel      │
-│  Claude Code│ ◀──────────── │          │                       │  (lalu VPS)  │
-└─────────────┘   git pull    └──────────┘                       └──────────────┘
-```
+Halaman pertama setelah login. Isinya ringkasan harian, hanya menampilkan
+kartu yang relevan dengan role Anda:
 
-Istilah singkat:
+- **Peringatan & Informasi Penting** — kotak berwarna untuk hal yang perlu
+  ditindaklanjuti: Selisih Barang, Validasi Barang, Validasi Kas, Invoice
+  Belum Tertagih, Stok Minimum. Klik tombolnya untuk langsung ke halaman
+  terkait.
+- **Kartu angka** — Total PO, Barang Menunggu Datang, Barang Diterima/Keluar
+  Hari Ini, Stok Tersedia (per satuan), Invoice Belum Tertagih, Sisa Tagihan
+  PO, dll.
+- **Grafik Aktivitas Stok** — bisa difilter 7 Hari / 30 Hari / Bulan Ini /
+  Tahun Ini.
+- **Aktivitas Terbaru** — log singkat siapa melakukan apa (login, membuat
+  transaksi, dll).
+- Ada **lonceng notifikasi** di pojok kanan atas — dipakai untuk push
+  notification (misalnya "Validasi Kas Menunggu", "Invoice Belum
+  Tertagih").
 
-- **cPanel** = panel kontrol hosting sewaan (subdomain, database, file, cron).
-- **Terminal** (di cPanel, bagian *Advanced*) = baris perintah di dalam akun hosting.
-- **Document Root** = folder yang "ditunjuk" oleh sebuah domain/subdomain. Untuk
-  aplikasi ini harus diarahkan ke folder **`public/`** (bukan folder atasnya),
-  supaya `config/`, `app/`, `logs/` tidak bisa dibuka dari web.
-- **DNS / A record** = "buku alamat" yang menghubungkan `hexastok.hexamultienergi.com`
-  ke server. Kalau subdomain dibuat langsung di cPanel domain utama, DNS-nya
+---
+
+## 4. Purchase Order
+
+**Untuk apa:** membuat pesanan pembelian resmi ke Supplier.
+
+**Siapa boleh:** lihat/buat/ubah — Super Admin, Purchase, Accounting. Hapus
+— Super Admin & Purchase. (Project Manager tidak punya akses ke modul ini.)
+
+**Langkah membuat PO:**
+1. **Purchase Order → Tambah PO.**
+2. Isi **Supplier**, **Project**, **Lokasi Pengiriman**, **Tanggal PO**,
+   **Status** (draft / menunggu persetujuan), catatan, dan nomor/tanggal
+   penawaran (quote) kalau ada.
+3. Isi baris barang: pilih dari **Master Barang** atau ketik bebas, lalu
+   Kategori, Satuan, Qty, Harga.
+4. Nomor PO otomatis dibuat sistem saat disimpan (format
+   `001/PO.HME/IX/2026` — lihat [Bagian 21](#21-istilah-istilah-penting)).
+   Saat form masih dibuka, yang tampil hanya **pratinjau nomor** — nomor
+   resmi baru "dibakar" setelah tombol Simpan ditekan.
+5. Tanda tangan pada cetakan PO **otomatis** memakai Tanda Tangan pribadi
+   pembuatnya (diatur di Pengaturan Akun), tidak perlu pilih manual.
+6. Kalau status disimpan sebagai "Menunggu Persetujuan", notifikasi push
+   otomatis terkirim ke yang berwenang menyetujui.
+
+**Penting:** begitu ada **Penerimaan Barang** yang mengacu ke PO ini, baris
+barangnya **terkunci** (tidak bisa dihapus/diganti lagi) — hanya field
+header (catatan, status, dll) yang masih bisa diubah. Ini menjaga data
+Penerimaan tetap konsisten dengan PO aslinya.
+
+---
+
+## 5. Pembayaran
+
+**Untuk apa:** mencatat pembayaran (termin) ke Supplier atas sebuah PO.
+
+**Siapa boleh:** lihat/buat/ubah — Super Admin & Accounting. Hapus — Super
+Admin saja.
+
+**Langkah:**
+1. **Pembayaran → Tambah Pembayaran.**
+2. Pilih **PO** yang mau dibayar (PO berstatus draft/dibatalkan tidak akan
+   muncul di pilihan).
+3. Isi **Termin ke-**, **Sumber Dana** (Bank / Kas Kecil / Kas Project — kalau
+   pilih Bank, muncul field tambahan Jenis Bank), **Nominal**, **Tanggal**,
+   dan **Bukti Bayar** (upload foto/PDF).
+4. Status PO (Belum Bayar / Sebagian / Lunas) **dihitung otomatis** sistem
+   dari total yang sudah dibayar dibanding total PO — tidak perlu diisi
+   manual, dan sistem menolak kalau nominal melebihi sisa tagihan.
+
+Ada juga halaman **Rekap Status Pembayaran** untuk melihat ringkasan semua
+PO beserta status bayarnya sekaligus.
+
+---
+
+## 6. Kas
+
+**Untuk apa:** buku kas masuk/keluar — biaya operasional, material proyek,
+inventory kantor, dll. Kalau kategorinya menyentuh stok (misalnya beli
+barang tunai lalu langsung dipakai proyek), stok **langsung bertambah** saat
+Kas disimpan (tanpa lewat Penerimaan/Validasi Barang).
+
+**Siapa boleh lihat:** semua role. **Buat/ubah/hapus** — Super Admin,
+Accounting, Purchase, PIC Project, Admin Project (Project Manager hanya
+lihat, tidak bisa mengubah apa pun).
+
+### 6.1 Gerbang keamanan tambahan (khusus Purchase / PIC Project / Admin Project)
+
+Tiga role ini **wajib verifikasi ulang** setiap membuka Kas — login
+aplikasi saja belum cukup. Super Admin, Accounting, dan Project Manager
+**langsung masuk** tanpa gerbang ini.
+
+1. Klik menu **Kas** → muncul halaman **"Verifikasi Kas"**.
+2. Masukkan **password akun Anda sendiri** (password login yang sama,
+   **bukan** password terpisah) → **Masuk Kas**.
+3. Setelah lolos, Anda masuk ke halaman Kas. Sesi ini berlaku sampai Anda
+   klik **"Keluar Kas"**, atau otomatis terkunci lagi kalau tidak aktif
+   dalam waktu tertentu (login aplikasi Anda **tetap aktif**, hanya sesi
+   Kas-nya yang perlu diverifikasi ulang).
+
+### 6.2 Data apa yang terlihat, per role
+
+- **Purchase**: melihat **"Kas Purchase"** (semua transaksi Kas divisi
+  Purchase, di seluruh perusahaan) **ditambah** Kas dari project-project
+  yang **diberikan akses** oleh Super Admin.
+- **PIC Project / Admin Project**: **hanya** Kas dari project yang diberikan
+  akses — tidak ada tambahan lain.
+- Kalau belum diberi akses ke project apa pun: Purchase tetap lihat Kas
+  Purchase-nya; PIC Project/Admin Project akan melihat daftar **kosong**
+  sampai Super Admin memberi akses (lihat [Bagian 17.1](#171-project)).
+
+Setelah masuk Kas, ada **filter "Project"** (centang, kosong = tampilkan
+semua yang boleh Anda lihat) untuk mempersempit tampilan ke 1 project
+tertentu — hanya menampilkan project yang memang sudah diberikan akses ke
+akun Anda.
+
+### 6.3 Langkah mencatat transaksi Kas
+
+1. **Kas → Tambah Kas.**
+2. Isi **Tanggal**, **PIC** (nama penanggung jawab kas — dari Master Data →
+   PIC Kas; kalau belum ada, bisa "Tambah PIC Cepat" langsung dari form),
+   **Mutasi** (Masuk/Keluar), **Project** (wajib untuk PIC Project/Admin
+   Project — itu satu-satunya cara transaksi bisa mereka lihat lagi
+   nantinya; opsional untuk Purchase, kosongkan untuk masuk "Kas Purchase"),
+   **Rekening** (opsional).
+3. Isi baris rincian: **Uraian**, **Kategori Kas**, **Qty**, **Harga
+   Satuan**. Kalau kategori itu "menyentuh stok", akan muncul kolom
+   tambahan **Barang** (wajib dipilih dari Master Barang) & **Satuan** — dan
+   stok akan otomatis bertambah begitu disimpan.
+4. **No. Bukti** dibuat otomatis sistem sesuai prefix PIC yang dipilih
+   (mis. `AD-0001`), tidak perlu diisi manual.
+5. Simpan → transaksi masuk daftar dengan status **"Menunggu"** validasi
+   (lihat [Bagian 7](#7-validasi-kas)).
+
+### 6.4 Kartu saldo & cetak
+
+- **Kartu saldo** (kalau role Anda diizinkan lihat): Super Admin/Accounting
+  melihat total + rincian per divisi; role lain hanya melihat saldo divisi
+  sendiri.
+- **Laporan Kas** (dari menu **Laporan**) bisa difilter Project/PIC/
+  Rekening/tanggal, lalu **Cetak PDF**, **Export Excel**, atau **"Tarik
+  Semua"** (rekap semua transaksi sesuai filter, dikelompokkan per PIC).
+- **Cetak Terpilih** (centang beberapa transaksi → cetak voucher Bukti Kas
+  Masuk/Keluar) — khusus Super Admin & Accounting.
+
+---
+
+## 7. Validasi Kas
+
+**Untuk apa:** persetujuan atas transaksi Kas yang baru dibuat, sebelum
+dianggap final.
+
+**Siapa boleh:** Super Admin, Accounting, Purchase, Project Manager — tapi
+**per-divisi**: Accounting hanya memvalidasi Kas divisi Accounting, Purchase
+hanya divisi Purchase, Project Manager hanya divisi Project. Super Admin
+bisa validasi semua divisi, termasuk "Umum" yang tidak punya validator role
+lain.
+
+**Langkah:**
+1. **Validasi Kas** → daftar transaksi berstatus "Menunggu" muncul duluan.
+2. Klik **Tinjau** pada satu transaksi → periksa detailnya → pilih
+   **Setujui** atau **Tolak**.
+3. Kalau **Tolak**, wajib isi **alasan/catatan** penolakan.
+4. Transaksi yang **Tervalidasi** jadi terkunci (hanya Super Admin yang bisa
+   edit/hapus lagi). Transaksi yang **Ditolak** bisa diedit ulang oleh
+   pembuatnya — begitu diedit, statusnya otomatis balik jadi "Menunggu"
+   untuk divalidasi ulang.
+
+---
+
+## 8. Penerimaan Barang
+
+**Untuk apa:** mencatat barang yang benar-benar tiba secara fisik,
+dicocokkan dengan PO / Pembelian Offline, atau langsung "dari Pemakai"
+(serah-terima internal tanpa dokumen sumber).
+
+**Siapa boleh:** lihat — semua role. Buat/ubah — Super Admin, Purchase,
+Accounting, PIC Project, Admin Project. Hapus — Super Admin & Purchase.
+
+**Langkah:**
+1. **Penerimaan Barang → Tambah Penerimaan.**
+2. Pilih sumber: **PO**, **Pembelian Offline**, atau **Dari Pemakai**.
+3. Pilih dokumen sumbernya (kalau ada), isi **Project**, **Tanggal
+   Terima**, **Nama Penerima**, upload **Foto Barang**, **Invoice** (opsional,
+   PDF otomatis dikompres), dan foto **Surat Jalan** (boleh lebih dari satu).
+4. Untuk setiap baris barang, isi **Qty Diterima** — sistem otomatis
+   membandingkan dengan qty yang dipesan dan menandai status **Sesuai /
+   Kurang / Lebih**. Barang yang datang tapi tidak ada di dokumen sumber
+   masuk sebagai baris **"Barang Lain"** terpisah.
+5. **Penting: stok BELUM bertambah di titik ini.** Stok baru masuk setelah
+   tiap baris **divalidasi** (lihat [Bagian 9](#9-validasi-barang)).
+
+Mengedit atau menghapus penerimaan yang stoknya sudah divalidasi akan
+otomatis membalik (reverse) stok itu lebih dulu. Penerimaan bertipe "Dari
+Pemakai" tidak bisa diedit — kalau salah, hapus lalu buat ulang.
+
+---
+
+## 9. Validasi Barang
+
+**Untuk apa:** gerbang wajib sebelum barang dari Penerimaan benar-benar
+menambah stok sistem.
+
+**Siapa boleh lihat:** Super Admin, Purchase, Accounting, PIC Project,
+Project Manager. **Yang bisa memvalidasi:** Super Admin, Purchase,
+Accounting, PIC Project.
+
+**Langkah:**
+1. **Validasi Barang** → daftar barang yang belum divalidasi muncul.
+2. Untuk tiap baris, tentukan **status perbandingan**: Sesuai / Kurang /
+   Lebih / Barang Lain, dan isi **catatan** (wajib kecuali "Sesuai").
+3. Simpan → kalau statusnya valid, **stok langsung bertambah otomatis**
+   sesuai qty diterima. Kalau sebelumnya sudah tervalidasi lalu dibatalkan,
+   stok dikurangi lagi (dibalik) secara otomatis — tidak perlu menghitung
+   manual.
+
+Ada juga sub-halaman **"Belum Sesuai"** (daftar selisih yang perlu
+ditindaklanjuti) dan **"Sudah Sesuai"** (riwayat yang sudah beres).
+
+---
+
+## 10. Pengeluaran Barang & Surat Jalan
+
+**Untuk apa:** mencatat barang keluar dari stok — ke sebuah **Project**, atau
+ke **Client** (dikaitkan ke Invoice Keluar).
+
+**Siapa boleh lihat:** semua role. Buat/ubah — Super Admin, Purchase,
+Accounting, PIC Project, Admin Project. Hapus — Super Admin & Purchase.
+
+**Langkah:**
+1. **Pengeluaran Barang → Tambah Pengeluaran.**
+2. Pilih **Tujuan**: Project, atau Client (Invoice) — opsi "Client
+   (Invoice)" hanya muncul untuk Super Admin/Accounting/Purchase; role lain
+   otomatis diarahkan ke tujuan Project.
+3. Bisa pilih **lebih dari 1 barang sekaligus** dalam satu form — tiap
+   barang jadi 1 baris pengeluaran, semuanya berbagi tujuan/PIC/tanggal yang
+   sama.
+4. Isi **Qty**, **PIC**, **Tanggal Keluar**, catatan. **Stok langsung
+   berkurang** saat disimpan — kalau stok tidak cukup untuk **salah satu**
+   barang, **seluruh** transaksi batal (tidak ada yang tersimpan separuh).
+
+**Surat Jalan** (dokumen cetak untuk serah-terima fisik):
+1. Dari daftar **Pengeluaran Barang**, centang beberapa baris yang belum
+   terhubung Surat Jalan → **Buat Surat Jalan**.
+2. Isi Tujuan, Kota Serah Terima, No. Kendaraan, Nama Sopir, Pengirim,
+   Penerima, Tanda Tangan.
+3. Surat Jalan **tidak membuat transaksi stok baru** — murni dokumen
+   pembungkus dari baris Pengeluaran yang sudah ada. Menghapus Surat Jalan
+   hanya melepas ikatannya (baris Pengeluaran tetap ada, bisa dikelompokkan
+   ulang ke Surat Jalan lain).
+
+---
+
+## 11. Stok & Opname
+
+**Untuk apa:** dua sub-halaman — **Stok Barang** (kartu stok realtime, siapa
+saja dengan aksesnya bisa lihat riwayat keluar-masuk per barang) dan **Stok
+Opname** (hitung fisik berkala untuk mencocokkan data sistem dengan barang
+nyata di gudang).
+
+**Siapa boleh:** lihat/buat Opname — Super Admin & Accounting. Role lain
+(Purchase, PIC Project, dll) melihat stok lewat **Laporan → Stok Barang**
+(tanpa harga untuk Purchase).
+
+**Langkah membuat Stok Opname:**
+1. **Stok & Opname → Tambah Opname.**
+2. Pilih **Jenis Stok** (Stok Proyek / Stok Lampu / Inventory Kantor) dan
+   **Project** (opsional). Qty sistem terisi otomatis dari data stok saat
+   ini.
+3. Isi **Qty Fisik** hasil hitung nyata untuk tiap barang, simpan sebagai
+   **draft** dulu kalau belum yakin.
+4. Klik **Selesaikan Opname** → selisih (fisik vs sistem) langsung
+   diterapkan ke stok, status berubah jadi **Selesai** dan terkunci.
+   Menghapus opname yang sudah selesai (khusus Super Admin) otomatis
+   membalik penyesuaiannya.
+
+---
+
+## 12. Invoice Keluar
+
+**Untuk apa:** tagihan (AR) dari HME ke Client. Ada 2 jenis: **Project**
+(nomor `INV.HME`) dan **Lampu** (nomor `FKT.HME`) — jenis ini dipilih sekali
+saat dibuat dan tidak bisa diganti lagi.
+
+**Siapa boleh:** lihat/buat/ubah — Super Admin, Purchase, Accounting. Hapus
+— Super Admin & Purchase. (Project Manager tidak punya akses.)
+
+**Langkah:**
+1. **Invoice Keluar → Tambah Invoice.**
+2. Pilih **Client**, **Project** (opsional), **Jenis Invoice**, **Tanggal**,
+   No. Kontrak/Tanggal, **Tagihan DP** (persentase dari master), **PPN%**,
+   No. Faktur Pajak, Tanda Tangan.
+3. Isi baris barang/jasa (dari Master Barang atau ketik bebas Deskripsi),
+   Qty, Satuan, Harga.
+4. **Total dihitung otomatis oleh sistem** (tidak bisa diketik manual):
+   Jumlah = Qty × Harga per baris → Tagihan DP = Jumlah × persen DP → PPN =
+   Tagihan DP × persen PPN → Total = Tagihan DP + PPN.
+
+Invoice yang sudah masuk ke sebuah **Tanda Terima** tidak bisa dihapus lagi.
+Invoice yang belum ditagih (belum ada Tanda Terima) muncul sebagai
+pengingat di Dashboard.
+
+---
+
+## 13. Tanda Terima
+
+**Untuk apa:** bukti serah-terima / tanda terima penagihan yang membungkus
+satu atau beberapa Invoice Keluar sekaligus (harus dari Client yang sama).
+
+**Siapa boleh:** lihat/buat/ubah — Super Admin, Purchase, Accounting. Hapus
+— Super Admin saja.
+
+**Langkah:**
+1. **Tanda Terima → Tambah.**
+2. Centang **Invoice Keluar** yang mau ditagihkan (hanya invoice yang
+   belum masuk Tanda Terima lain yang muncul di pilihan, dan harus 1
+   Client).
+3. Isi **Tanggal**, **Penerima**, **Tanda Tangan**, catatan, dan (opsional)
+   kaitkan tiap invoice dengan Surat Jalan terkait.
+4. Simpan → halaman cetak langsung terbuka.
+
+Client dan daftar invoice yang sudah dipilih **tidak bisa diganti** setelah
+disimpan pertama kali — edit hanya bisa menambah/mengurangi invoice yang
+sudah ada dari client yang sama.
+
+---
+
+## 14. Pembelian Offline
+
+**Untuk apa:** pembelian tunai/lapangan di luar alur PO resmi (mis. beli
+material mendadak di toko).
+
+**Siapa boleh lihat:** Super Admin, Purchase, Accounting, Project Manager.
+Buat/ubah — Super Admin, Purchase, Accounting. Hapus — Super Admin &
+Purchase.
+
+**Langkah:**
+1. **Pembelian Offline → Tambah.**
+2. Isi **Project**, **Nama Supplier** (ketik bebas), **Tanggal**, upload
+   **Bukti Pembelian** & **Foto Barang**.
+3. Isi baris barang (dari master atau ketik bebas), Satuan, Qty, Harga.
+
+Sama seperti PO, transaksi ini juga bisa jadi **sumber** untuk Penerimaan
+Barang. Begitu ada Penerimaan yang mengacu ke sini, transaksi **tidak bisa
+dihapus lagi sama sekali**, oleh role mana pun.
+
+---
+
+## 15. Laporan
+
+Pusat semua laporan — satu halaman, banyak jenis laporan yang bisa
+difilter, dicetak (PDF), dan diekspor (Excel):
+
+- **Purchase Order** — Detail & Rekap
+- **Pembayaran**
+- **Kas** (link ke Laporan Kas, lihat [Bagian 6.4](#64-kartu-saldo--cetak))
+- **Penerimaan Barang**
+- **Pengeluaran Barang**
+- **Stok Barang** — Detail & Rekap (tersedia untuk lebih banyak role;
+  Purchase melihat versi **tanpa kolom harga**, hanya Super Admin &
+  Accounting yang melihat harga)
+- **Stok Opname**
+- **Invoice Keluar**
+- **Pembelian Offline**
+- **Riwayat Aktivitas** (audit log — khusus Super Admin & Accounting)
+
+Role selain Super Admin/Purchase/Accounting (mis. PIC Project) hanya
+melihat kartu **Stok Barang** di halaman ini.
+
+Menu **Tutup Bulan** (khusus Super Admin) juga bisa diakses dari sini —
+mengunci transaksi bulan tertentu per modul supaya tidak bisa diubah lagi
+setelah tanggal tersebut.
+
+---
+
+## 16. User Management
+
+*Khusus Super Admin.*
+
+**Untuk apa:** kelola akun login & role.
+
+**Langkah membuat user baru:**
+1. **User Management → Tambah User.**
+2. Isi **Role**, **Nama Lengkap**, **Username**, **Email**, **Password**.
+3. Kalau role-nya Purchase/PIC Project/Admin Project, sistem **otomatis**
+   membuatkan mapping **PIC Kas** untuknya (password Kas awal = sama dengan
+   password login) — supaya user baru langsung bisa pakai Kas tanpa langkah
+   setup tambahan.
+4. Ada panel **"Hak Akses"** per-user untuk override izin tertentu di luar
+   aturan role default-nya (mis. memberi 1 orang akses lebih/kurang dari
+   role-nya).
+
+User **tidak pernah dihapus permanen** lewat cara normal — nonaktifkan
+lewat tombol status (Aktif/Nonaktif). Hapus (soft-delete, masuk Tempat
+Sampah) hanya bisa Super Admin, dan tidak bisa untuk akun sendiri atau
+Super Admin aktif terakhir.
+
+---
+
+## 17. Master Data
+
+*Halaman induk untuk Super Admin & Accounting* — kumpulan data referensi
+yang dipakai di seluruh aplikasi. Dari sini juga bisa lihat ringkasan Total
+Supplier/Project/Barang/Gudang dan jumlah barang di bawah stok minimum.
+
+### 17.1 Project
+
+CRUD data project. Setiap project punya **Kode Prefix** sendiri (diatur di
+Master Kode). Dari daftar Project, klik **⋮ → Akses Kas** untuk mengatur
+user Purchase/PIC Project/Admin Project mana yang boleh lihat Kas project
+tersebut (lihat [Bagian 6.2](#62-data-apa-yang-terlihat-per-role)).
+
+### 17.2 Supplier & Client
+
+CRUD data pemasok dan pelanggan: Nama, PIC/Kontak, Telepon, Email, Alamat
+(Supplier juga punya NPWP), Status, Kode Prefix.
+
+### 17.3 Gudang
+
+CRUD lokasi gudang, dengan Kode Prefix sendiri.
+
+### 17.4 Barang (Master Barang)
+
+CRUD data barang: Nama, Kategori, **Jenis Stok** (Stok Proyek / Stok Lampu
+/ Inventory Kantor — masing-masing punya pool kode sendiri), Satuan,
+Spesifikasi, Stok Minimum, Status. Mengganti Jenis Stok pada barang yang
+sudah ada otomatis menyesuaikan seluruh riwayat stoknya.
+
+### 17.5 Kategori Barang & Satuan
+
+Data referensi sederhana (nama saja) untuk dropdown kategori barang dan
+satuan (Pcs, Meter, Roll, Kg, dst).
+
+### 17.6 Kategori Kas
+
+Kategori transaksi Kas (Biaya Operasional, Material Proyek, Inventory
+Kantor, dll), termasuk penanda **"menyentuh stok"** yang menentukan apakah
+baris Kas berkategori itu ikut menambah stok barang.
+
+### 17.7 PIC Kas
+
+Pemetaan user login → identitas "PIC" di Kas + kredensial + prefix nomor
+bukti Kas-nya. Ini yang menentukan Kas siapa yang tampil sebagai pilihan
+"PIC" saat membuat transaksi Kas.
+
+### 17.8 Master Bank & Master Rekening
+
+Dua data terpisah: **Master Bank** untuk dropdown Bank, **Master Rekening**
+untuk dropdown Rekening di form Kas.
+
+### 17.9 Master Kode
+
+Pengaturan awalan/prefix nomor otomatis untuk Barang (3 kelompok), Supplier,
+Client, Gudang, Project, dan Bank Masuk/Keluar — termasuk panjang digit dan
+"kode master" (akhiran) tiap kelompok. Bisa punya lebih dari 1 prefix per
+kelompok.
+
+---
+
+## 18. Tempat Sampah
+
+*Khusus Super Admin.*
+
+Semua penghapusan di aplikasi ini **tidak langsung hilang** — masuk ke
+Tempat Sampah dulu (soft-delete), mencakup hampir semua modul transaksi &
+master data.
+
+- **Pulihkan** — mengembalikan data (kalau itu transaksi Kas yang tadinya
+  menambah stok, stoknya ikut ditambahkan kembali).
+- **Hapus Permanen** (1 baris) — hanya bisa kalau tidak sedang dipakai data
+  lain yang masih aktif.
+- **Kosongkan** — hapus permanen banyak sekaligus; sistem otomatis
+  mengurutkan berdasarkan ketergantungan data (mis. PO → Pembayaran →
+  Penerimaan dihapus berurutan dalam 1 klik), baris yang masih terkait data
+  aktif akan dilewati & dilaporkan.
+
+---
+
+## 19. Pengaturan Sistem
+
+*Khusus Super Admin.*
+
+- **Profil Perusahaan** — nama, alamat, telepon, email, NPWP, logo, dan
+  stempel perusahaan (dipakai di semua cetakan dokumen).
+- **Penomoran Dokumen** — atur prefix nomor otomatis untuk 12 jenis dokumen.
+- **Rekening Bank** — daftar rekening yang tampil di cetakan Invoice Keluar
+  (hanya 1 yang aktif dipakai).
+- **Waktu Sesi** — atur berapa lama sesi Kas boleh idle sebelum terkunci
   otomatis.
-- **AutoSSL** = HTTPS gratis yang cPanel pasang sendiri untuk tiap subdomain.
-
-Skrip di folder [`deploy/`](deploy/) (`setup.sh`, `update.sh`, `backup.sh`,
-`cleanup.sh`, `migrate-server.sh`) **khusus VPS Ubuntu** — dipakai di
-[FASE 2](#7-fase-2--pindah-ke-vps-hostinger), bukan di cPanel.
+- **Notifikasi** — nyala/matikan 6 jenis notifikasi push.
+- **Hak Akses** — matriks izin per-role yang bisa diedit langsung dari sini
+  (menentukan menu & aksi apa yang boleh dilakukan tiap role). Modul
+  `Pengaturan Sistem`, `User Management`, `Tempat Sampah`, dan `Tutup Bulan`
+  **selalu terkunci khusus Super Admin**, tidak bisa diubah lewat matriks
+  ini (demi keamanan).
+- **Backup Database** — unduh salinan database kapan saja lewat tombol di
+  halaman ini.
 
 ---
 
-## 3. FASE 1 — Deploy ke subdomain hosting (cPanel)
+## 20. Fitur yang sama di semua modul
 
-Target: `https://hexastok.hexamultienergi.com`, kode di `~/stok-proyek`, Document Root
-subdomain menunjuk ke `~/stok-proyek/public`.
+- **Filter & Cari** — hampir semua daftar punya kotak pencarian + filter
+  tanggal/kategori/status di bagian atas tabel.
+- **Cetak & Export** — tombol **PDF** (cetak/unduh) dan **Excel** (unduh
+  spreadsheet) tersedia di hampir semua laporan & dokumen transaksi.
+- **Hapus per Rentang Tanggal** (khusus Super Admin) — hapus massal
+  berdasarkan rentang tanggal di halaman daftar transaksi, alih-alih satu
+  per satu.
+- **Foto/File upload** — foto otomatis dikompres (maks ±1920px), PDF
+  otomatis dikompres kalau ukurannya besar (kalau tersedia di server) —
+  tidak perlu kompres manual sebelum upload.
+- **Notifikasi push** — kalau HP/browser mengizinkan, Anda akan dapat
+  notifikasi otomatis untuk hal yang perlu ditindaklanjuti (Validasi Kas
+  menunggu, Selisih Barang, dll) meski aplikasi sedang tidak dibuka.
+- **Tampilan HP** — semua tabel otomatis berubah jadi bentuk kartu di layar
+  kecil, dan halaman cetak (PDF preview) otomatis di-zoom supaya terlihat
+  utuh seperti hasil cetak aslinya.
 
-Total waktu pertama kali: **± 45–60 menit** (paling lama nunggu AutoSSL & Composer).
+---
 
-> **Catatan PHP CLI di Terminal cPanel.** `php` di Terminal kadang masih versi lama.
-> Cek dulu `php -v`:
-> - kalau sudah **8.1+** → pakai `php` apa adanya di semua perintah di bawah;
-> - kalau bukan → pakai path lengkap versi yang kamu pilih di **MultiPHP Manager**,
->   contoh **`/opt/cpanel/ea-php82/root/usr/bin/php`** (ganti `ea-php82` sesuai versimu).
->
-> Di panduan ini binari itu ditulis **`PHP`**. Ganti dengan salah satu di atas.
+## 21. Istilah-istilah penting
 
-### A — Persiapan di laptop · ~10 menit
-
-#### A1. Pastikan kode terbaru sudah di GitHub
-
-```powershell
-cd C:\xampp\htdocs\stok-proyek
-git status
-git push origin master
-```
-
-`git status` harus `working tree clean`; `git push` membalas `Everything up-to-date`
-atau menampilkan hash commit terkirim.
-
-#### A2. Buat dump (salinan) database lokal
-
-```powershell
-& "C:\xampp\mysql\bin\mysqldump.exe" -u root db_stok_proyek --add-drop-table --no-tablespaces --skip-lock-tables --single-transaction --default-character-set=utf8mb4 --result-file=C:\xampp\htdocs\stok-proyek\db_hexastok.sql
-```
-
-- Perintah ini **tidak menampilkan output** kalau berhasil.
-- Cek: file `db_hexastok.sql` muncul, ukuran > 100 KB.
-- File ini berisi **tabel + data + riwayat migrasi**, **tanpa** `CREATE DATABASE` /
-  `USE` — jadi bisa langsung di-import ke database cPanel yang namanya beda
-  (`u5658505_hexastok`). Sudah otomatis di-*ignore* git.
-- **Ulangi perintah ini setiap kali ada perubahan data/skema di lokal** yang mau
-  dibawa ke server (file lama ditimpa).
-
-> **Mau produksi mulai bersih tanpa data uji?** Lewati langkah ini. Nanti di
-> [C4](#c4-import-database) import `database/schema.sql` lalu jalankan
-> `PHP bin/migrate.php --baseline`.
-
-### B — Siapkan subdomain, database & PHP di cPanel · ~15 menit
-
-#### B1. Buat subdomain
-
-cPanel → **Domains** (atau **Subdomains** di cPanel lama) → **Create A New Domain** /
-**Create**:
-
-| Kolom | Isi |
+| Istilah | Artinya |
 |---|---|
-| Domain | `hexastok.hexamultienergi.com` |
-| Document Root | **`/home/USER_KAMU/stok-proyek/public`** |
-
-- Ganti `USER_KAMU` dengan nama user cPanel (lihat pojok kanan cPanel, atau
-  jalankan `whoami` di Terminal).
-- Kalau cPanel **memaksa** Document Root harus di dalam `public_html/`, isi apa saja
-  dulu (mis. `public_html/stok`), nanti diganti symlink di [C1](#c1-ambil-kode).
-- DNS otomatis dibuat cPanel karena ini subdomain dari domain utama akun.
-
-#### B2. Set versi PHP + ekstensi
-
-1. cPanel → **MultiPHP Manager** → centang `hexastok.hexamultienergi.com` → set
-   **PHP 8.1** (atau 8.2 / 8.3) → **Apply**.
-2. cPanel → **Select PHP Version** (atau **MultiPHP INI Editor**) → tab
-   **Extensions** → pastikan **aktif**:
-   `gd`, `mbstring`, `dom` / `xml`, `zip`, `curl`, `intl`, `pdo_mysql`,
-   `mysqlnd`, `fileinfo`, `exif`, `openssl`.
-3. Tab **Options** (INI Editor) — kalau ada, naikkan sedikit biar upload lega:
-   `upload_max_filesize = 30M`, `post_max_size = 32M`, `memory_limit = 256M`.
-
-> **`disable_functions`.** Banyak hosting mematikan `proc_open` / `exec`.
-> Dampaknya di aplikasi ini:
-> - **Kompres PDF upload** otomatis mati → PDF tetap tersimpan, hanya tidak
->   dikecilkan (aman, tidak error).
-> - Menu **Pengaturan Sistem → Backup Database** bisa gagal → pakai
->   **phpMyAdmin → Export** atau backup bawaan cPanel (lihat [Bagian 6](#6-backup)).
-
-#### B3. Buat database + user MySQL
-
-cPanel → **MySQL Databases**:
-
-1. **Create New Database**: `stokproyek` → jadi `USER_stokproyek`.
-2. **Add New User**: `stok` → jadi `USER_stok`. Pakai **password kuat**, catat.
-   Hindari kutip `'` `"` dan backslash `\`.
-3. **Add User To Database**: pilih user + database → centang **ALL PRIVILEGES** →
-   **Make Changes**.
-
-Catat 3 nilai ini untuk `config/local.php`: `USER_stokproyek`, `USER_stok`, password.
-
-### C — Pasang aplikasi lewat Terminal cPanel · ~15–20 menit
-
-Buka cPanel → **Terminal** (bagian *Advanced*). Prompt mulai di `/home/USER_KAMU`.
-
-#### C1. Ambil kode
-
-```bash
-cd ~
-git clone https://github.com/adedian/Stok-proyek.git stok-proyek
-cd stok-proyek
-php -v          # cek versi; lihat catatan PHP di atas
-```
-
-> **Kalau Document Root tadi terpaksa `public_html/stok`** (B1): buat symlink supaya
-> subdomain menunjuk ke folder `public/` aplikasi:
-> ```bash
-> rm -rf ~/public_html/stok
-> ln -s ~/stok-proyek/public ~/public_html/stok
-> ```
-
-#### C2. Install dependency (Composer)
-
-```bash
-composer --version || alias composer='/opt/cpanel/composer/bin/composer'
-composer install --no-dev --optimize-autoloader --no-interaction
-```
-
-Kalau gagal karena versi PHP CLI: `PHP /opt/cpanel/composer/bin/composer install --no-dev --optimize-autoloader --no-interaction`.
-
-Cek: folder `vendor/` terisi, tidak ada error merah.
-
-#### C3. Tulis `config/local.php`
-
-```bash
-cp config/local.example.php config/local.php
-nano config/local.php
-```
-
-Isi minimal:
-
-```php
-return [
-    'app_env'    => 'production',
-    'db_host'    => 'localhost',
-    'db_name'    => 'USER_stokproyek',
-    'db_user'    => 'USER_stok',
-    'db_pass'    => 'PASSWORD_DARI_B3',
-    'db_charset' => 'utf8mb4',
-
-    'mysqldump_path'   => 'mysqldump',
-    'ghostscript_path' => '',
-];
-```
-
-Simpan: `Ctrl+O` → Enter → `Ctrl+X`.
-
-#### C4. Import database
-
-**Punya dump lengkap** (dari A2) — upload dulu file `db_hexastok.sql` ke
-`~/stok-proyek/` lewat cPanel **File Manager** (atau `scp` kalau SSH aktif), lalu:
-
-```bash
-mysql -u u5658505_hexastok -p u5658505_hexastok < ~/stok-proyek/db_hexastok.sql
-PHP bin/migrate.php --baseline     # tandai migrasi lama = sudah jalan
-PHP bin/migrate.php                # jalankan yang benar-benar baru
-rm ~/stok-proyek/db_hexastok.sql
-```
-
-> Dump dari A2 **sudah tanpa** `CREATE DATABASE`/`USE`, jadi aman di-import ke
-> `u5658505_hexastok` walau nama database lokalnya `db_stok_proyek`.
-
-**Mulai bersih** (tanpa data uji):
-
-```bash
-mysql -u USER_stok -p USER_stokproyek < database/schema.sql
-PHP bin/migrate.php --baseline
-PHP bin/migrate.php
-```
-
-> File `.sql` besar (> 50 MB) tidak bisa lewat phpMyAdmin — pakai perintah `mysql`
-> di atas.
-
-#### C5. Izin folder tulis
-
-```bash
-mkdir -p public/uploads storage/backups logs
-chmod -R 755 public/uploads storage logs
-```
-
-Di shared hosting PHP jalan sebagai user kamu sendiri, jadi 755 sudah cukup —
-tidak perlu `chown www-data`.
-
-### D — HTTPS, akun, & pengujian · ~10 menit
-
-#### D1. HTTPS (AutoSSL)
-
-cPanel → **SSL/TLS Status** → cari `hexastok.hexamultienergi.com`. Biasanya sudah
-**hijau** dalam beberapa menit. Kalau belum: centang subdomainnya → **Run AutoSSL**.
-Aplikasi memaksa `https://` sendiri di mode produksi, jadi setelah sertifikat aktif
-semua `http://` otomatis dialihkan.
-
-Buka **`https://hexastok.hexamultienergi.com`** → halaman login + ikon gembok. 🎉
-
-#### D2. Amankan akun bawaan
-
-Ada 2 akun Super Admin: **`ade`** (punyamu) dan **`admin`** (default, password lemah).
-Di **Terminal**:
-
-```bash
-PHP ~/stok-proyek/bin/reset_user_password.php admin --yes
-```
-
-Catat password acak baru yang dicetak. Atau login sebagai `ade` → **User
-Management** → nonaktifkan `admin`.
-
-#### D3. Checklist pengujian
-
-Login sebagai `ade`, coba satu per satu:
-
-- [ ] Login berhasil, dashboard tampil.
-- [ ] Buka tiap menu (PO, Pembayaran, Kas, Penerimaan, Pengeluaran, Stok & Opname,
-      Invoice Keluar, Laporan, Master Data, User Management, Pengaturan Sistem) —
-      tidak ada error / halaman putih.
-- [ ] **Upload foto**: Penerimaan Barang → Foto Barang, atau Pengaturan Akun →
-      Foto Profil → tersimpan & tampil (juga di avatar pojok kanan atas).
-- [ ] **Upload PDF** (mis. bukti bayar / invoice) → tersimpan & bisa dibuka.
-- [ ] **Laporan** → **Export Excel** & **Export PDF** → file ter-*download* & kebuka.
-- [ ] Buka dari **HP**: login rapi, tidak ada geser horizontal, tabel jadi kartu,
-      form & modal enak dipakai; bisa **Add to Home screen** (PWA).
-- [ ] **Terminal**: `tail -n 50 ~/stok-proyek/logs/error.log` → tidak ada error baru.
-
-#### D4. Cron pembersih file lama
-
-cPanel → **Cron Jobs** → **Add New Cron Job** → *Once Per Week* (`30 3 * * 0`):
-
-```
-30 3 * * 0 /opt/cpanel/ea-php82/root/usr/bin/php /home/USER_KAMU/stok-proyek/bin/cleanup.php >> /home/USER_KAMU/stok-cleanup.log 2>&1
-```
-
-(ganti `ea-php82` & `USER_KAMU`). Tiap Minggu 03:30: hapus backup DB `.sql` > 30
-hari **tapi sisakan 7 terbaru**, arsip `logs/error.log.*` > 30 hari, sisa file
-sementara Dompdf & `.gs` (kompres PDF) yang nyangkut. Uji dulu:
-`PHP ~/stok-proyek/bin/cleanup.php --dry-run`.
+| **No. Bukti / No. Dokumen** | Nomor otomatis yang dibuat sistem saat data disimpan, format umum `001/KODE.HME/BULAN-ROMAWI/TAHUN` (mis. `005/PO.HME/IX/2026`). Tidak bisa diisi manual, dan nomor baru "dibakar" (terpakai permanen) hanya saat tombol **Simpan** ditekan — membuka form saja tidak memakai nomor. |
+| **Validasi** | Langkah persetujuan sebelum sebuah data dianggap final/mempengaruhi stok atau saldo. Ada di Validasi Barang (Penerimaan → stok) dan Validasi Kas (transaksi Kas → status final). |
+| **Divisi (Kas)** | Pengelompokan otomatis transaksi Kas berdasarkan role pembuatnya: Purchase, Accounting, Project, atau Umum — menentukan siapa yang berhak memvalidasi & melihat kartu saldonya. |
+| **Soft-delete** | "Hapus" di aplikasi ini sebenarnya memindahkan data ke Tempat Sampah, bukan menghapus permanen — aman dari salah klik. |
+| **Tutup Bulan** | Mengunci transaksi sampai tanggal tertentu supaya tidak bisa diubah/dihapus lagi — dipakai untuk menjaga laporan bulan yang sudah selesai. |
+| **Hak Akses / Role** | Aturan menu & aksi apa yang boleh dilakukan tiap jenis akun — lihat [Bagian 2](#2-peran-role--siapa-boleh-apa). |
+| **PWA** | Cara memasang aplikasi web ini di HP seperti aplikasi biasa, tanpa lewat toko aplikasi. |
 
 ---
 
-## 4. Kapasitas penyimpanan & kapan pindah ke VPS
+## 22. Pertanyaan umum
 
-Kondisi kuota cPanel bersifat **berbagi** dengan email & situs lain di akun yang
-sama. Aplikasi ini sendiri **hemat disk**:
+**Kenapa menu tertentu tidak muncul di sidebar saya?**
+Karena role Anda memang tidak diberi akses ke modul itu. Hubungi Super
+Admin kalau merasa harusnya bisa akses.
 
-| Yang tumbuh | Perkiraan | Catatan |
-|---|---|---|
-| Database (+ activity log) | ~150–400 MB / tahun | baris transaksi kecil |
-| Foto upload | ~200–300 MB / tahun | auto-kompres GD ke ≤ 1920px |
-| PDF upload (bukti/invoice) | ~300–800 MB / tahun | **tak dikompres** di cPanel (Ghostscript biasanya tak ada); ini variabel terbesar |
-| Export PDF/Excel | 0 | di-stream ke browser, tidak disimpan |
-| Log | ~0 | dirotasi + cron cleanup |
-| **Total aplikasi** | **± 4–8 GB / 5 tahun** | |
+**Saya salah hapus data, bagaimana?**
+Buka **Tempat Sampah** (Super Admin) — data yang terhapus masih ada di sana
+dan bisa **Dipulihkan**.
 
-**3 hal yang membuat kuota cepat penuh (bukan aplikasinya):**
+**Kenapa Kas saya kosong padahal ada transaksinya?**
+Kemungkinan besar akun Anda (role Purchase/PIC Project/Admin Project)
+belum diberi akses ke project terkait. Minta Super Admin menambahkan lewat
+**Master Data → Project → ⋮ → Akses Kas**.
 
-1. **Backup jangan disimpan di dalam akun.** `uploads.tgz` × belasan salinan bisa
-   lebih besar dari aplikasinya. Unduh keluar (lihat [Bagian 6](#6-backup)).
-2. **Email** biasanya pemakan kuota terbesar & naik terus — pantau terpisah.
-3. **PDF scan besar** (mendekati 25 MB) → turunkan resolusi pemindai, atau minta
-   user unggah foto (yang auto-kompres) daripada PDF.
+**Kenapa saya tidak bisa mengubah/menghapus transaksi Kas tertentu?**
+Kemungkinan transaksi itu sudah **Tervalidasi** (terkunci) — hanya Super
+Admin yang bisa mengubahnya lagi. Atau, transaksi itu tanggalnya masuk
+periode yang sudah **Ditutup** (Tutup Bulan).
 
-**Pantau:** cPanel → **Disk Usage**. Set peringatan di ~80% kuota.
+**Kenapa stok tidak bertambah setelah saya input Penerimaan Barang?**
+Stok baru bertambah setelah barangnya **divalidasi** di menu **Validasi
+Barang** — Penerimaan Barang sendiri belum langsung menambah stok.
 
-**Pindah ke VPS ([FASE 2](#7-fase-2--pindah-ke-vps-hostinger)) kalau salah satu ini:**
-
-- Folder akun mendekati batas kuota dan email/situs lain tidak bisa dikecilkan lagi.
-- Butuh Ghostscript (kompres PDF), `proc_open` (Backup dari menu), atau kontrol
-  cron/PHP penuh.
-- Performa: banyak user bersamaan mulai terasa lambat di shared hosting.
-
-Ukur dulu laju pertumbuhan nyata setelah ~6 bulan pakai (`du -sh ~/stok-proyek/public/uploads`
-dan ukuran DB di cPanel), baru putuskan ukuran VPS.
+**Saya butuh nomor project/supplier/client baru tapi tidak ada menunya —
+bagaimana?**
+Banyak form (PO, Kas, dll) punya tombol **"+" (Tambah Cepat)** di sebelah
+dropdown Project/Supplier/Client/Barang — bisa langsung membuat data baru
+tanpa keluar dari form yang sedang diisi.
 
 ---
 
-## 5. Kerja sehari-hari (update aplikasi)
-
-Kamu tetap ngoding di laptop. **Di laptop (PowerShell):**
-
-```powershell
-cd C:\xampp\htdocs\stok-proyek
-git add -A
-git commit -m "penjelasan singkat perubahan"
-git push origin master
-ssh hexastok "bash ~/update-hexastok.sh"
-```
-
-Baris terakhir menjalankan skrip deploy di server (alias `hexastok` sudah ada di
-`~/.ssh/config`: host `srv183.niagahoster.com`, **port 65002**, plus
-`IPQoS none` + `MACs hmac-sha2-512-etm@openssh.com` — tanpa itu koneksi gagal
-"Corrupted MAC").
-
-**Isi `~/update-hexastok.sh` di server** (dibuat sekali; jalan idempoten):
-
-```bash
-#!/bin/bash
-set -e
-cd ~/stok-proyek
-git config core.fileMode false        # abaikan bit +x yang di-set cPanel pada .htaccess
-git checkout -- . 2>/dev/null || true  # buang perubahan tak sengaja pada file tracked
-git pull --ff-only
-php -d memory_limit=-1 /usr/local/bin/composer install --no-dev --optimize-autoloader --no-interaction
-php bin/migrate.php
-echo "OK -> $(git rev-parse --short HEAD) : $(git log -1 --pretty=%s)"
-```
-
-> **Jangan** jalankan `bin/make_pwa_icons.php` di server — ikon PWA ikut ter-*commit*;
-> regenerasi cukup di laptop saat logo berubah, lalu commit PNG-nya. Menjalankannya
-> di server malah bikin file tracked berubah → `git pull` berikutnya gagal.
-
-- Aman diulang. Tidak perlu reload Apache di shared hosting.
-- **Perubahan struktur database** = cukup di sini: file migrasi `database/migrations/*`
-  ikut ter-*push*, lalu `PHP bin/migrate.php` di server yang menjalankannya.
-  **Tidak perlu** dump/import ulang.
-- **Butuh dump/import ulang HANYA** kalau kamu mau menyalin *isi data* dari lokal
-  ke server (jarang setelah live): ulang [A2](#a2-buat-dump-salinan-database-lokal)
-  di laptop, upload `db_hexastok.sql`, lalu di server
-  `mysql -u u5658505_hexastok -p u5658505_hexastok < db_hexastok.sql` →
-  `PHP bin/migrate.php`. ⚠️ ini **menimpa** data yang sudah ada di server.
-- Kalau perubahan belum kelihatan: cPanel → **Select PHP Version** buka-tutup, atau
-  tunggu beberapa menit (OPcache biasanya refresh sendiri).
-- **Kalau `git pull` ditolak** (`local changes would be overwritten`) — ada yang
-  mengedit langsung di server:
-  ```bash
-  cd ~/stok-proyek && git checkout -- . && git clean -fd && git pull --ff-only
-  ```
-
-> Claude Code di laptop bisa menuntunmu menempel perintah-perintah Terminal ini
-> setelah selesai memperbaiki kode.
-
----
-
-## 6. Backup
-
-Aplikasi ini **tidak menghapus data**, tapi backup tetap wajib. Pilih salah satu
-(idealnya keduanya):
-
-### 6.1 Backup bawaan cPanel
-
-cPanel → **Backup** / **Backup Wizard** → **Download a Full Account Backup**, atau
-minta hosting mengaktifkan **backup terjadwal**. Ini mencakup DB + semua file.
-
-### 6.2 Backup manual dari Terminal (lalu unduh keluar)
-
-```bash
-mkdir -p ~/backups-stok
-D=$(date +%F_%H%M)
-mysqldump -u USER_stok -p'PASSWORD' USER_stokproyek | gzip -9 > ~/backups-stok/db_$D.sql.gz
-tar -C ~/stok-proyek/public -czf ~/backups-stok/uploads_$D.tgz uploads
-ls -lh ~/backups-stok
-```
-
-Bisa dijadwalkan lewat **Cron Jobs**. **Penting:** unduh `~/backups-stok/` ke
-laptop/Google Drive berkala dan **hapus yang lama dari server** — backup di dalam
-akun yang sama ikut memakan kuota dan hilang kalau akunnya bermasalah.
-
-> Menu **Pengaturan Sistem → Backup Database** di aplikasi hanya jalan kalau
-> `proc_open` tidak dimatikan hosting. Kalau gagal, pakai cara di atas.
-
----
-
-## 7. FASE 2 — Pindah ke VPS Hostinger
-
-Dilakukan **nanti**, kalau [Bagian 4](#4-kapasitas-penyimpanan--kapan-pindah-ke-vps)
-sudah terpenuhi. Downtime nyata biasanya **< 30 menit**. Skrip di `deploy/` yang
-melakukan hampir semuanya.
-
-### 7.1 Sewa & siapkan VPS
-
-- **Hostinger** → VPS (KVM), OS **Ubuntu 24.04** (atau 22.04). Ambil paket dengan
-  disk ≥ 2× estimasi 5 tahun (mis. 80–100 GB) + RAM ≥ 2 GB.
-- Di panel Hostinger: catat **IP VPS**, pastikan **port 22 / 80 / 443** terbuka
-  (Hostinger biasanya sudah; tidak seperti Oracle yang perlu buka manual).
-- Tambahkan **kunci SSH** kamu (`~/.ssh/id_ed25519.pub` dari laptop; buat dengan
-  `ssh-keygen -t ed25519` kalau belum ada).
-
-### 7.2 Pasang aplikasi di VPS
-
-SSH ke VPS dari PowerShell: `ssh root@IP_VPS` (Hostinger sering pakai user `root`;
-kalau `ubuntu`, sesuaikan). Lalu:
-
-```bash
-sudo apt-get update -y && sudo apt-get install -y git
-git clone https://github.com/adedian/Stok-proyek.git /tmp/skp
-bash /tmp/skp/deploy/setup.sh
-```
-
-`setup.sh` menanyakan 3 hal, lalu jalan **± 3–8 menit** (`==> 1/7` … `==> 7/7`):
-
-| Pertanyaan | Isi |
-|---|---|
-| Subdomain | `hexastok.hexamultienergi.com` (sama seperti sekarang) |
-| Password DB `stok` | password kuat baru, catat |
-| Path dump `.sql` | **Enter (kosong)** — data diisi di 7.3 |
-
-Yang dikerjakan: pasang **Apache, MariaDB, PHP 8, ekstensi, Ghostscript, Composer,
-git** → buat DB + user → `git clone` ke **`/var/www/stok`** →
-`composer install --no-dev` → tulis `config/local.php` (`app_env=production`) →
-set izin folder → buat **VirtualHost** (`DocumentRoot /var/www/stok/public`).
-
-### 7.3 Pindahkan data dari cPanel ke VPS
-
-Di **Terminal cPanel**, buat arsip terbaru:
-
-```bash
-cd ~
-D=$(date +%F)
-mysqldump -u USER_stok -p'PASSWORD' USER_stokproyek > db_$D.sql
-tar -C ~/stok-proyek/public -czf uploads_$D.tgz uploads
-```
-
-Unduh `db_$D.sql` + `uploads_$D.tgz` ke laptop (cPanel **File Manager** → Download),
-lalu kirim ke VPS & pulihkan:
-
-```powershell
-scp db_2026-09-09.sql uploads_2026-09-09.tgz root@IP_VPS:/tmp/
-```
-
-```bash
-# di SSH VPS
-mysql db_stok_proyek < /tmp/db_2026-09-09.sql
-tar -C /var/www/stok/public -xzf /tmp/uploads_2026-09-09.tgz
-cd /var/www/stok
-php bin/migrate.php --baseline
-php bin/migrate.php
-sudo chown -R www-data:www-data public/uploads storage logs
-```
-
-### 7.4 HTTPS di VPS
-
-```bash
-sudo certbot --apache -d hexastok.hexamultienergi.com
-```
-
-(Kalau `ServerName` di `/etc/apache2/sites-available/stok.conf` belum
-`hexastok.hexamultienergi.com`, betulkan dulu → `sudo systemctl reload apache2`.)
-
-### 7.5 Verifikasi VPS **sebelum** ganti DNS
-
-Di laptop, **Notepad sebagai Administrator** →
-`C:\Windows\System32\drivers\etc\hosts` → tambah baris:
-
-```
-IP_VPS   hexastok.hexamultienergi.com
-```
-
-Buka `https://hexastok.hexamultienergi.com` → jalankan **checklist D3**. Semua OK →
-**hapus lagi baris `hosts`** itu.
-
-### 7.6 Alihkan trafik
-
-- Turunkan **TTL** A record `stok` ke `300` di panel DNS `hexamultienergi.com`
-  beberapa jam sebelumnya.
-- Kalau subdomain selama ini dikelola cPanel: buat **A record manual** `stok` →
-  `IP_VPS` di panel DNS domain, dan hapus subdomain lama dari cPanel setelah pindah.
-- Dalam ± 5 menit semua pengguna pindah ke VPS.
-
-### 7.7 Setelah pindah
-
-- Kerja sehari-hari jadi: `ssh root@IP_VPS "bash /var/www/stok/deploy/update.sh"`.
-- Backup: aktifkan cron `deploy/backup.sh` + `deploy/cleanup.sh` (lihat
-  [`deploy/`](deploy/) dan komentar di tiap skrip), **tarik hasilnya keluar VPS**.
-- Pantau 1–2 hari, lalu naikkan TTL A record kembali ke `3600`.
-
-> **Alternatif VPS gratis untuk uji coba:** Oracle Cloud Always Free / AWS free
-> tier. Langkahnya sama (`setup.sh`), hanya Oracle perlu membuka port 80/443 manual
-> di **Security List** + `iptables` OS. Lihat riwayat git README ini kalau perlu
-> panduan Oracle lengkap.
-
----
-
-## 8. Peta folder & perintah penting
-
-### Di hosting cPanel (FASE 1)
-
-```
-/home/USER/stok-proyek/          ← aplikasi (git clone)
-├── config/local.php             ← kredensial DB (TIDAK di git)
-├── public/                      ← Document Root subdomain
-│   ├── uploads/                 ← foto/file upload (backup manual, tidak di git)
-│   ├── manifest.webmanifest / sw.js   ← PWA
-├── logs/error.log               ← log error aplikasi
-├── storage/backups/             ← backup dari menu Pengaturan Sistem
-├── bin/migrate.php              ← runner migrasi DB
-├── bin/reset_user_password.php  ← reset password user (darurat)
-└── bin/cleanup.php              ← pembersih backup/log/temp lama
-/home/USER/backups-stok/         ← backup manual dari Terminal (unduh & hapus berkala)
-```
-
-Perintah sering dipakai (Terminal cPanel, `PHP` = binari PHP 8 — lihat catatan di Bagian 3):
-
-```bash
-cd ~/stok-proyek
-git pull --ff-only && composer install --no-dev -o && PHP bin/migrate.php   # update
-PHP bin/migrate.php --status         # migrasi mana yang belum jalan
-tail -f ~/stok-proyek/logs/error.log # log error real-time
-PHP bin/reset_user_password.php <username> --yes   # reset password darurat
-```
-
-### Di VPS (FASE 2)
-
-```
-/var/www/stok/                          ← aplikasi
-/etc/apache2/sites-available/stok.conf  ← VirtualHost
-/var/log/apache2/stok_error.log         ← log Apache
-/var/backups/stok/                      ← backup terjadwal (cron)
-```
-
-```bash
-sudo systemctl status apache2 mariadb
-sudo tail -f /var/log/apache2/stok_error.log /var/www/stok/logs/error.log
-cd /var/www/stok && php bin/migrate.php --status
-ssh root@IP_VPS "bash /var/www/stok/deploy/update.sh"     # update rutin
-bash /var/www/stok/deploy/backup.sh                        # backup manual
-```
-
----
-
-## 9. Troubleshooting
-
-### cPanel (FASE 1)
-
-| Gejala | Penyebab & solusi |
-|---|---|
-| Subdomain buka **file listing** / halaman hosting default | Document Root belum menunjuk ke `~/stok-proyek/public`. Betulkan di **Domains** → *Manage*, atau pakai symlink (C1). |
-| Halaman putih / **HTTP 500** | `tail -n 50 ~/stok-proyek/logs/error.log`. Paling sering: `config/local.php` salah kredensial DB, `composer install` belum sukses, atau versi PHP subdomain < 8.1 (**MultiPHP Manager**). |
-| CSS/JS tidak muncul, sub-halaman **404** | `mod_rewrite` / `AllowOverride` — hampir selalu sudah aktif di cPanel; kalau tidak, hubungi hosting. Pastikan Document Root = `.../public`. |
-| **Export PDF / Excel** error | `composer install --no-dev -o` di Terminal belum sukses (folder `vendor/` kosong). |
-| **PDF upload tidak mengecil** | Normal di shared hosting — Ghostscript / `proc_open` tidak tersedia. PDF tetap tersimpan utuh. Kompresi aktif nanti di VPS. |
-| Menu **Backup Database** gagal | `proc_open` dimatikan hosting → pakai **phpMyAdmin → Export** atau [Bagian 6.2](#62-backup-manual-dari-terminal-lalu-unduh-keluar). |
-| Upload gagal untuk file agak besar | Naikkan `upload_max_filesize` / `post_max_size` di **MultiPHP INI Editor** (B2). |
-| Migrasi DB error | `PHP bin/migrate.php --status` untuk detail; perbaiki penyebab lalu `PHP bin/migrate.php`. Kalau DB diimport dari dump lama & belum pernah `--baseline`, jalankan `PHP bin/migrate.php --baseline` sekali. |
-| `composer` command not found | Pakai `/opt/cpanel/composer/bin/composer`, atau `PHP /opt/cpanel/composer/bin/composer ...`. |
-| Kuota disk penuh | cPanel → **Disk Usage**. Biasanya email, bukan aplikasi. Lihat [Bagian 4](#4-kapasitas-penyimpanan--kapan-pindah-ke-vps). |
-| Login **kena kunci** terus | Normal setelah 5 gagal/akun atau 8 gagal/IP dalam 15 menit. Tunggu, atau `PHP bin/reset_user_password.php <username> --yes`. |
-| **PWA** tidak bisa di-install di HP | Belum HTTPS (cek **SSL/TLS Status**), atau `sw.js` balas 404 → `curl -I https://hexastok.hexamultienergi.com/sw.js` harus `200`. |
-| Sudah `git pull` tapi HP masih tampilan lama | Cache service worker. Di laptop: naikkan `VERSION` di `public/sw.js`, commit, push, `git pull` di hosting, lalu di HP tutup-buka app 2×. |
-
-### VPS (FASE 2)
-
-| Gejala | Penyebab & solusi |
-|---|---|
-| SSH `Connection timed out` / `Permission denied (publickey)` | IP/kunci salah, atau firewall provider. Pakai `-i` ke file kunci yang benar; cek user (`root` / `ubuntu`). |
-| `http://IP_VPS` tidak kebuka padahal Apache `active` | Firewall provider / OS. Di Oracle: buka **Security List** + `iptables`. Hostinger biasanya sudah terbuka. |
-| `certbot` gagal *Timeout* / *NXDOMAIN* | DNS belum menunjuk ke IP VPS (`nslookup hexastok.hexamultienergi.com`), Cloudflare masih "Proxied" (set "DNS only"), atau port 80 tertutup. |
-| Halaman putih / **HTTP 500** | `sudo tail -f /var/log/apache2/stok_error.log /var/www/stok/logs/error.log`. Sering: `config/local.php` salah, `composer install` gagal. |
-| Upload foto gagal / tidak tampil | `sudo chown -R www-data:www-data /var/www/stok/public/uploads /var/www/stok/storage /var/www/stok/logs && sudo chmod -R 775` folder-folder itu. |
-| Menu **Backup** gagal | `mysqldump` tidak di PATH → set `'mysqldump_path' => 'mysqldump'` di `config/local.php`. |
-| `git pull` di VPS ditolak | Ada edit langsung di server → `cd /var/www/stok && git checkout -- . && git clean -fd && bash deploy/update.sh`. |
+© PT. Hexa Multi Energi. Panduan ini untuk pemakaian internal.

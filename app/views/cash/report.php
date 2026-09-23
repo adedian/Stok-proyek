@@ -111,27 +111,27 @@ $selectedRekeningIds = array_map('strval', $filters['rekening_ids'] ?? []);
 
             <div class="col-6 col-md-3">
                 <label class="form-label small text-muted mb-1">Project (centang, kosong = semua)</label>
-                <?php if ($projectGated): ?>
-                    <input type="text" class="form-control form-control-sm" value="<?= e($projectOptions[0]['project_name'] ?? '-') ?>" disabled>
-                    <input type="hidden" name="project_ids[]" value="<?= (int) ($projectOptions[0]['id'] ?? 0) ?>">
-                <?php else: ?>
-                    <div class="dropdown">
-                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle w-100 text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
-                            <?= count($selectedProjectIds) ? count($selectedProjectIds) . ' Project dipilih' : 'Semua Project' ?>
-                        </button>
-                        <div class="dropdown-menu p-2" style="max-height:260px; overflow:auto; min-width:240px;">
-                            <?php if (empty($projectOptions)): ?>
-                                <div class="text-muted small px-2">Tidak ada project.</div>
-                            <?php endif; ?>
-                            <?php foreach ($projectOptions as $p): ?>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="project_ids[]" value="<?= (int) $p['id'] ?>"
-                                           id="repProj<?= (int) $p['id'] ?>" <?= in_array((string) $p['id'], $selectedProjectIds, true) ? 'checked' : '' ?>>
-                                    <label class="form-check-label" for="repProj<?= (int) $p['id'] ?>"><?= e($p['project_name']) ?></label>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle w-100 text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                        <?= count($selectedProjectIds) ? count($selectedProjectIds) . ' Project dipilih' : 'Semua Project' ?>
+                    </button>
+                    <div class="dropdown-menu p-2" style="max-height:260px; overflow:auto; min-width:240px;">
+                        <?php if (empty($projectOptions)): ?>
+                            <div class="text-muted small px-2">
+                                <?= $projectGated ? 'Belum ada Project yang diberikan akses.' : 'Tidak ada project.' ?>
+                            </div>
+                        <?php endif; ?>
+                        <?php foreach ($projectOptions as $p): ?>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="project_ids[]" value="<?= (int) $p['id'] ?>"
+                                       id="repProj<?= (int) $p['id'] ?>" <?= in_array((string) $p['id'], $selectedProjectIds, true) ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="repProj<?= (int) $p['id'] ?>"><?= e($p['project_name']) ?></label>
+                            </div>
+                        <?php endforeach; ?>
                     </div>
+                </div>
+                <?php if ($projectGated): ?>
+                    <div class="form-text">Hanya Project yang diberikan akses ke akun Anda.</div>
                 <?php endif; ?>
             </div>
             <?php if ($canBank): ?>

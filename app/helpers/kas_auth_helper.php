@@ -237,19 +237,35 @@ function kasFailsRemaining(): int
 }
 
 // =========================================================================
-// GERBANG PROJECT + PASSWORD (Revisi Kas/Bank, 2026-09-20)
+// GERBANG PASSWORD AKUN SENDIRI, LALU FILTER PROJECT (Revisi Kas 23 Sep 2026)
 //
 // Role purchase / pic_project / admin_project TIDAK LAGI memakai gerbang PIC
-// Kas di atas (kasLogin/kasAuthenticate) -- dialihkan ke gerbang ini: pilih
-// Project (dari project_user_access milik akun) -> masukkan PASSWORD LOGIN
-// AKUN SENDIRI (bukan password terpisah). Kode gerbang PIC lama TETAP ADA
-// di file & controller ini (tidak dihapus), sekadar tidak lagi dipanggil
-// untuk 3 role tsb -- kolom `pic` & No Bukti per-prefix tetap dipakai apa
-// adanya saat MEMBUAT transaksi (dropdown PIC di form Kas, tidak berubah).
+// Kas di atas (kasLogin/kasAuthenticate) -- dialihkan ke gerbang ini.
+//
+// ATURAN FINAL (revisi 23 Sep 2026, menggantikan revisi 20 Sep 2026 di bawah):
+// user TIDAK LAGI memilih Project SEBELUM login Kas -- gerbang HANYA minta
+// PASSWORD LOGIN AKUN SENDIRI (bukan password terpisah). Setelah lolos,
+// Project menjadi FILTER di dalam halaman Kas, diambil dari daftar akses
+// (`project_user_access`, diatur Super Admin lewat Project > Akses) --
+// BUKAN lagi 1 project yang "dikunci" di session. Lihat kasProjectScopeIds()
+// di bawah: dipanggil ULANG dari DB tiap request (bukan dibaca dari session)
+// supaya perubahan akses oleh Super Admin langsung berlaku tanpa perlu
+// logout/login ulang.
+//
+// Purchase (BEDA dari pic_project/admin_project): selain project yang
+// diberikan akses, SELALU ikut melihat "Kas Purchase" (division='purchase')
+// company-wide, terlepas dari akses project apa pun -- lihat
+// kasOwnDivisionBucket(). Kode gerbang PIC lama TETAP ADA di file & controller
+// ini (tidak dihapus), sekadar tidak lagi dipanggil untuk 3 role tsb --
+// kolom `pic` & No Bukti per-prefix tetap dipakai apa adanya saat MEMBUAT
+// transaksi (dropdown PIC di form Kas, tidak berubah -- itu atribusi/
+// penomoran, konsep terpisah dari Project yang sekarang menjadi kontrol akses).
 //
 // Session Kas-Project (`$_SESSION['kas_project_auth']`) TERPISAH dari
 // `$_SESSION['kas_auth']` di atas -- keduanya tidak akan pernah terisi
-// bersamaan untuk 1 akun (role menentukan gerbang mana yang berlaku).
+// bersamaan untuk 1 akun (role menentukan gerbang mana yang berlaku). Session
+// ini HANYA menandai "sudah verifikasi password", TIDAK lagi menyimpan
+// project_id/project_name apa pun.
 // =========================================================================
 
 /** Role yang memakai gerbang Project+Password (bukan gerbang PIC+Password lama). */
@@ -289,10 +305,9 @@ function kasProjectCheckTimeout(): bool
     }
     $last = (int) ($_SESSION['kas_project_auth']['last_activity'] ?? 0);
     if ($last > 0 && (time() - $last) > kasSessionTimeout()) {
-        $pname = $_SESSION['kas_project_auth']['project_name'] ?? '-';
         unset($_SESSION['kas_project_auth']);
         if (class_exists('ActivityLog')) {
-            (new ActivityLog())->log(currentUserId(), 'cash', 'kas_session_expired', "Session Kas Project '{$pname}' kedaluwarsa (auto-lock)");
+            (new ActivityLog())->log(currentUserId(), 'cash', 'kas_session_expired', 'Session Kas kedaluwarsa (auto-lock)');
         }
         return true;
     }
@@ -306,29 +321,49 @@ function kasProjectTouch(): void
     }
 }
 
-/** Project yang sedang dibuka lewat gerbang ini, atau null (belum/bukan role ini). */
-function kasProjectId(): ?int
+/**
+ * Project id yang diberikan akses ke user ini (dari `project_user_access`,
+ * diatur Super Admin lewat Project > Akses) -- SELALU dibaca langsung dari
+ * DB (bukan session) supaya perubahan akses langsung berlaku. Query mandiri
+ * (bukan lewat model) supaya helper ini tetap berdiri sendiri seperti fungsi
+ * lain di file ini.
+ */
+function kasAllowedProjectIds(int $userId): array
 {
-    return isset($_SESSION['kas_project_auth']['project_id']) ? (int) $_SESSION['kas_project_auth']['project_id'] : null;
-}
-
-function kasProjectName(): ?string
-{
-    return $_SESSION['kas_project_auth']['project_name'] ?? null;
+    $rows = getPDO()->prepare(
+        "SELECT pua.project_id FROM project_user_access pua
+           JOIN projects p ON p.id = pua.project_id AND p.deleted_at IS NULL
+          WHERE pua.user_id = :uid AND pua.is_active = 1"
+    );
+    $rows->execute(['uid' => $userId]);
+    return array_map('intval', array_column($rows->fetchAll(), 'project_id'));
 }
 
 /**
  * Cakupan project_id transaksi Kas yang boleh DILIHAT user saat ini lewat
- * gerbang ini. null = tidak dibatasi lewat gerbang ini (role di luar
+ * gerbang ini (batas akses, BUKAN filter pilihan bebas -- lihat CashController
+ * untuk bagaimana ini digabung dengan filter Project opsional & bucket divisi
+ * Purchase). null = tidak dibatasi lewat gerbang ini (role di luar
  * kasProjectGateRoles(), scoping-nya tetap lewat kasScopePicNames() seperti
- * sebelumnya). int = HANYA project itu.
+ * sebelumnya). array = daftar project_id yang diberikan akses (bisa kosong
+ * kalau belum di-assign Super Admin sama sekali).
  */
-function kasProjectScopeId(): ?int
+function kasProjectScopeIds(): ?array
 {
     if (!kasIsProjectGateRole(currentUserRole())) {
         return null;
     }
-    return kasProjectId();
+    return kasAllowedProjectIds((int) currentUserId());
+}
+
+/**
+ * Bucket divisi yang SELALU ikut terlihat lepas dari akses Project (khusus
+ * Purchase -- "Kas Purchase" company-wide). null untuk role gerbang Project
+ * lain (pic_project/admin_project HANYA Kas Project, tanpa bucket ini).
+ */
+function kasOwnDivisionBucket(): ?string
+{
+    return currentUserRole() === ROLE_PURCHASE ? kasDivisionForRole(ROLE_PURCHASE) : null;
 }
 
 // ---------------- Rate limiting login Kas-Project (per session, namespace terpisah) ----------------

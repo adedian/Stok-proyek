@@ -1,5 +1,5 @@
 <?php
-/** @var array $projects @var int|null $lockedUntil @var int $failsLeft */
+/** @var bool $hasAnyProjectAccess @var int|null $lockedUntil @var int $failsLeft */
 $locked = $lockedUntil !== null;
 $mins   = $locked ? (int) ceil(($lockedUntil - time()) / 60) : 0;
 ?>
@@ -11,8 +11,8 @@ $mins   = $locked ? (int) ceil(($lockedUntil - time()) / 60) : 0;
                     <i class="bi bi-shield-lock fs-1 text-primary"></i>
                     <h4 class="mt-2 mb-1">Verifikasi Kas</h4>
                     <p class="text-muted small mb-0">
-                        Pilih Project yang ingin dibuka, lalu masukkan
-                        <strong>password akun Anda sendiri</strong> (password login, bukan password terpisah).
+                        Masukkan <strong>password akun Anda sendiri</strong> (password login, bukan password terpisah)
+                        untuk masuk ke Kas. Project bisa dipilih sebagai filter setelah masuk.
                     </p>
                 </div>
 
@@ -25,30 +25,20 @@ $mins   = $locked ? (int) ceil(($lockedUntil - time()) / 60) : 0;
                     <a href="<?= BASE_URL ?>/dashboard" class="btn btn-outline-secondary w-100">
                         <i class="bi bi-arrow-left"></i> Kembali ke Dashboard
                     </a>
-                <?php elseif (empty($projects)): ?>
-                    <div class="alert alert-warning">
-                        <i class="bi bi-exclamation-triangle"></i>
-                        Akun Anda belum di-assign ke Project manapun. Hubungi Super Admin untuk
-                        diberikan akses lewat menu <strong>Project &raquo; Akses</strong>.
-                    </div>
-                    <a href="<?= BASE_URL ?>/dashboard" class="btn btn-outline-secondary w-100">
-                        <i class="bi bi-arrow-left"></i> Kembali ke Dashboard
-                    </a>
                 <?php else: ?>
+                    <?php if (!$hasAnyProjectAccess): ?>
+                        <div class="alert alert-warning small">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            Akun Anda belum di-assign ke Project manapun oleh Super Admin (menu
+                            <strong>Project &raquo; Akses</strong>). Anda tetap bisa masuk, tapi daftar Kas
+                            mungkin kosong sampai akses diberikan.
+                        </div>
+                    <?php endif; ?>
                     <form method="POST" action="<?= BASE_URL ?>/index.php?module=cash&action=kasProjectAuthenticate">
                         <?= csrfField() ?>
                         <div class="mb-3">
-                            <label class="form-label">Project <span class="text-danger">*</span></label>
-                            <select name="project_id" class="form-select" required autofocus>
-                                <option value="">-- Pilih Project --</option>
-                                <?php foreach ($projects as $p): ?>
-                                    <option value="<?= (int) $p['id'] ?>"><?= e($p['project_name']) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="mb-3">
                             <label class="form-label">Password Akun Anda <span class="text-danger">*</span></label>
-                            <input type="password" name="password" class="form-control" required autocomplete="current-password">
+                            <input type="password" name="password" class="form-control" required autocomplete="current-password" autofocus>
                         </div>
                         <?php if ($failsLeft < 5): ?>
                             <div class="small text-danger mb-2">Sisa percobaan sebelum terkunci: <?= (int) $failsLeft ?>.</div>

@@ -7,8 +7,9 @@ $roleLabels = roleLabelMap();
     <div>
         <h4 class="mb-0">Akses Project: <?= e($project['project_name']) ?></h4>
         <small class="text-muted">
-            Pilih user (Purchase / PIC Project / Admin Project) yang boleh membuka Kas
-            project ini lewat verifikasi Project + Password akun sendiri.
+            Pilih user (Purchase / PIC Project / Admin Project) yang boleh melihat Kas
+            project ini setelah masuk Kas (verifikasi password akun sendiri, lalu Project
+            jadi filter di dalam halaman Kas).
         </small>
     </div>
     <a href="<?= BASE_URL ?>/project" class="btn btn-outline-secondary">

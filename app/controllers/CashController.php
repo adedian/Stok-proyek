@@ -133,7 +133,9 @@ class CashController extends Controller
         }
         $this->view('cash/kas_project_login', [
             'pageTitle'   => 'Verifikasi Kas',
-            'projects'    => $this->projectAccessModel->projectsForUser((int) currentUserId()),
+            // Sekadar info di layar login (BUKAN pilihan -- revisi 23 Sep 2026:
+            // password dulu, Project jadi filter SETELAH masuk Kas).
+            'hasAnyProjectAccess' => count($this->projectAccessModel->projectsForUser((int) currentUserId())) > 0,
             'lockedUntil' => kasProjectLoginLockedUntil(),
             'failsLeft'   => kasProjectFailsRemaining(),
         ]);
@@ -153,37 +155,31 @@ class CashController extends Controller
             $this->redirect('cash', 'kasProjectLogin');
         }
 
-        $uid       = (int) currentUserId();
-        $projectId = (int) ($_POST['project_id'] ?? 0);
-        $password  = (string) ($_POST['password'] ?? '');
+        $uid      = (int) currentUserId();
+        $password = (string) ($_POST['password'] ?? '');
+        $user     = (new User())->find($uid);
 
-        // Ownership project WAJIB dicek server-side lewat project_user_access --
-        // bukan cuma dari isi dropdown. Manipulasi project_id via POST untuk
-        // project milik user lain akan ditolak di sini.
-        $hasAccess = $projectId > 0 && $this->projectAccessModel->userHasAccess($uid, $projectId);
-        $user      = $hasAccess ? (new User())->find($uid) : null;
-
-        if (!$hasAccess || !$user || !password_verify($password, (string) $user['password'])) {
+        // Revisi 23 Sep 2026: gerbang HANYA password akun sendiri -- Project
+        // TIDAK LAGI dipilih di sini (jadi filter setelah masuk, lihat
+        // scopeAccessScope()). Tidak ada lagi validasi ownership project di
+        // titik ini karena tidak ada project yang dipilih.
+        if (!$user || !password_verify($password, (string) $user['password'])) {
             kasProjectRegisterFailedLogin();
-            $this->activityLog->log($uid, 'cash', 'kas_login_failed', "Verifikasi Kas-Project GAGAL (project_id={$projectId})");
-            setFlash('error', 'Project atau Password salah.' . (kasProjectFailsRemaining() > 0 ? ' Sisa percobaan: ' . kasProjectFailsRemaining() . '.' : ''));
+            $this->activityLog->log($uid, 'cash', 'kas_login_failed', 'Verifikasi Kas GAGAL (password salah)');
+            setFlash('error', 'Password salah.' . (kasProjectFailsRemaining() > 0 ? ' Sisa percobaan: ' . kasProjectFailsRemaining() . '.' : ''));
             $this->redirect('cash', 'kasProjectLogin');
         }
-
-        $project = $this->projectModel->find($projectId);
 
         kasProjectClearFailedLogin();
         session_regenerate_id(true);
         $_SESSION['kas_project_auth'] = [
             'ok'            => true,
-            'project_id'    => $projectId,
-            'project_name'  => $project['project_name'] ?? ('Project #' . $projectId),
             'account_id'    => $uid,
             'login_time'    => time(),
             'last_activity' => time(),
         ];
-        $this->activityLog->log($uid, 'cash', 'kas_login', "Verifikasi Kas-Project BERHASIL untuk '{$_SESSION['kas_project_auth']['project_name']}'");
-        setFlash('success', 'Verifikasi berhasil. Anda masuk Kas untuk project ' . $_SESSION['kas_project_auth']['project_name'] . '.');
+        $this->activityLog->log($uid, 'cash', 'kas_login', 'Verifikasi Kas BERHASIL');
+        setFlash('success', 'Verifikasi berhasil. Anda masuk ke Kas.');
         $this->redirect('cash', 'index');
     }
 
@@ -193,9 +189,8 @@ class CashController extends Controller
             $this->redirect('cash', 'index');
         }
         verifyCsrf();
-        $pname = kasProjectName() ?? '-';
         unset($_SESSION['kas_project_auth']);
-        $this->activityLog->log((int) currentUserId(), 'cash', 'kas_logout', "Keluar sesi Kas-Project (project '{$pname}')");
+        $this->activityLog->log((int) currentUserId(), 'cash', 'kas_logout', 'Keluar sesi Kas');
         setFlash('success', 'Anda keluar dari sesi Kas. Login aplikasi tetap aktif.');
         $this->redirect('cash', 'kasProjectLogin');
     }
@@ -370,7 +365,7 @@ class CashController extends Controller
         $filters  = $this->collectFilters();
         $scope    = $this->scopePics();
         $divScope = kasDivisionScope();
-        $projScope = $this->scopeProjectId();
+        $projScope = $this->scopeAccessScope();
         $kasRows  = $this->cashModel->listFiltered($filters, $scope, $divScope, $projScope);
 
         // Ringkasan "Total Kas Masuk/Keluar (filter)" HARUS murni Kas -- Revisi
@@ -450,7 +445,6 @@ class CashController extends Controller
             'kasExempt'   => kasIsExemptRole(currentUserRole()),
             'kasPicName'  => kasIsExemptRole(currentUserRole()) ? null : kasPicName(),
             'kasProjectGated' => kasIsProjectGateRole(currentUserRole()),
-            'kasProjectName'  => kasIsProjectGateRole(currentUserRole()) ? kasProjectName() : null,
             'projectOptions'  => $this->reportProjectOptions(),
             'bankOptions'     => $this->bankChecklistOptions(),
             'rekeningOptions' => $this->rekeningChecklistOptions(),
@@ -461,17 +455,17 @@ class CashController extends Controller
     // ===================== LAPORAN KAS =====================
 
     /**
-     * Project yang tersedia di filter Laporan Kas/Bank. Role gerbang Project:
-     * hanya project yang sedang dibuka (1 opsi, terkunci). Role lain: semua
-     * project yang boleh dilihat (saat ini tidak dibatasi lagi -- Accounting/
-     * Super Admin/PM sudah scoped lewat divisi/permission modul).
+     * Project yang tersedia di filter Kas/Laporan Kas & di form Tambah/Edit Kas.
+     * Role gerbang Project: HANYA project yang diberikan akses lewat Project >
+     * Akses (revisi 23 Sep 2026 -- dulu terkunci ke 1 project sesi, sekarang
+     * daftar, jadi user memfilter/memilih sendiri di antara project miliknya).
+     * Role lain: semua project yang boleh dilihat (tidak dibatasi lagi --
+     * Accounting/Super Admin/PM sudah scoped lewat divisi/permission modul).
      */
     private function reportProjectOptions(): array
     {
         if (kasIsProjectGateRole(currentUserRole())) {
-            $pid = $this->scopeProjectId();
-            $p = $pid ? $this->projectModel->find($pid) : null;
-            return $p ? [$p] : [];
+            return $this->projectAccessModel->projectsForUser((int) currentUserId());
         }
         return $this->projectModel->activeList();
     }
@@ -481,7 +475,7 @@ class CashController extends Controller
         $filters = $this->collectFilters();
         $scope   = $this->scopePics();
         $divScope = kasDivisionScope();
-        $projScope = $this->scopeProjectId();
+        $projScope = $this->scopeAccessScope();
         // Gabung Bank (Revisi lanjutan) -- no-op tanpa akses 'bank.view'.
         $ledger  = $this->combinedLedger($filters, $scope, $divScope, $projScope);
 
@@ -677,23 +671,26 @@ class CashController extends Controller
 
     // ===================== CREATE =====================
 
-    /** Daftar Project untuk dropdown form Kas -- role gerbang Project dikunci ke project sesi. */
+    /**
+     * Daftar Project untuk dropdown form Kas -- role gerbang Project HANYA
+     * melihat project yang diberikan akses (revisi 23 Sep 2026, sama daftar
+     * dengan reportProjectOptions()).
+     */
     private function formProjectOptions(): array
     {
-        if (kasIsProjectGateRole(currentUserRole())) {
-            $p = $this->scopeProjectId() ? $this->projectModel->find($this->scopeProjectId()) : null;
-            return $p ? [$p] : [];
-        }
-        return $this->projectModel->activeList();
+        return $this->reportProjectOptions();
     }
 
-    private function gatedProjectInfo(): ?array
+    /**
+     * pic_project/admin_project WAJIB pilih Project (satu-satunya cara mereka
+     * tetap bisa melihat transaksi yang baru dibuat -- scope mereka HANYA Kas
+     * Project, tidak ada bucket lain). Purchase BOLEH kosong -- tanpa Project
+     * otomatis masuk bucket "Kas Purchase" (division) yang selalu mereka
+     * lihat.
+     */
+    private function isProjectRequiredForGatedRole(): bool
     {
-        if (!kasIsProjectGateRole(currentUserRole())) {
-            return null;
-        }
-        $pid = $this->scopeProjectId();
-        return $pid ? $this->projectModel->find($pid) : null;
+        return kasIsProjectGateRole(currentUserRole()) && currentUserRole() !== ROLE_PURCHASE;
     }
 
     public function create(): void
@@ -718,7 +715,7 @@ class CashController extends Controller
             'itemCategories' => $this->barangCategoryModel->activeList(),
             'rekeningOptions' => $this->rekeningModel->activeList(),
             'kasProjectGated' => kasIsProjectGateRole(currentUserRole()),
-            'kasGatedProject' => $this->gatedProjectInfo(),
+            'kasProjectRequired' => $this->isProjectRequiredForGatedRole(),
             'noBuktiPreview' => $previewPic !== '' ? $this->previewNoBuktiFor($previewPic) : '',
         ]);
     }
@@ -877,7 +874,7 @@ class CashController extends Controller
             'itemCategories' => $this->barangCategoryModel->activeList(),
             'rekeningOptions' => $this->rekeningModel->activeList(),
             'kasProjectGated' => kasIsProjectGateRole(currentUserRole()),
-            'kasGatedProject' => $this->gatedProjectInfo(),
+            'kasProjectRequired' => $this->isProjectRequiredForGatedRole(),
             'noBuktiPreview' => $row['no_bukti'],
         ]);
     }
@@ -1058,7 +1055,10 @@ class CashController extends Controller
         $item = null;
         $cashCategories = $this->categoryModel->activeList();
         $units = $this->unitModel->activeList();
-        $projects = $this->projectModel->activeList();
+        // Batasi ke project yang diberikan akses untuk role gerbang Project --
+        // sebelumnya activeList() penuh (bug lama, membocorkan nama project
+        // lain lewat dropdown baris item walau tak bisa dipakai).
+        $projects = $this->formProjectOptions();
         $itemCatalog = $this->barangModel->activeList();
         ob_start();
         require ROOT_PATH . '/app/views/cash/_item_row.php';
@@ -1070,13 +1070,30 @@ class CashController extends Controller
 
     private function collectFilters(): array
     {
-        // Filter Project: role gerbang Project TIDAK boleh mengganti lewat query
-        // string (dipaksa ke project sesi-nya di buildReportData()/report()/index()
-        // lewat $projScope terpisah) -- di sini sekadar dibaca untuk role lain.
+        // Filter Project (checklist, revisi 23 Sep 2026): role gerbang Project
+        // BOLEH memilih di antara project yang diberikan akses -- kosong =
+        // semua (batas akses tetap ditegakkan lewat scopeAccessScope(), lihat
+        // index()/report()/buildReportData()). ID di luar akses DITOLAK KERAS
+        // (bukan cuma disaring diam-diam) supaya percobaan lewat URL/API kena
+        // "Access Denied", bukan kebocoran senyap.
         $gated = kasIsProjectGateRole(currentUserRole());
+        $allowedProjectIds = $gated ? kasProjectScopeIds() : null;
+
         $projectIds = [];
-        if (!$gated && isset($_GET['project_ids']) && is_array($_GET['project_ids'])) {
+        if (isset($_GET['project_ids']) && is_array($_GET['project_ids'])) {
             $projectIds = array_values(array_unique(array_filter(array_map('intval', $_GET['project_ids']), fn($v) => $v > 0)));
+        }
+        $projectIdSingle = trim((string) ($_GET['project_id'] ?? ''));
+        if ($gated) {
+            $requested = $projectIds;
+            if ($projectIdSingle !== '') {
+                $requested[] = (int) $projectIdSingle;
+            }
+            foreach ($requested as $pid) {
+                if (!in_array($pid, $allowedProjectIds, true)) {
+                    denyAccess("Percobaan membuka Project di luar akses Kas Anda (project_id={$pid})");
+                }
+            }
         }
         $bankIds = [];
         if (can('bank', 'view') && isset($_GET['bank_ids']) && is_array($_GET['bank_ids'])) {
@@ -1101,7 +1118,7 @@ class CashController extends Controller
             'category_id' => $_GET['category_id'] ?? '',
             'mutasi'      => $_GET['mutasi'] ?? '',
             'keyword'     => trim($_GET['keyword'] ?? ''),
-            'project_id'  => !$gated ? ($_GET['project_id'] ?? '') : '', // lama, kompat link lama
+            'project_id'  => $projectIdSingle, // lama, kompat link lama (divalidasi di atas utk role gerbang)
             'project_ids' => $projectIds, // baru, checklist (Revisi gabung Kas+Bank)
             'bank_ids'    => $bankIds,
             'rekening_ids' => $rekeningIds,
@@ -1192,7 +1209,7 @@ class CashController extends Controller
      * bareng oleh tabel Laporan, PDF, Excel, dan Tarik Semua, jadi hasilnya
      * otomatis konsisten di semua tempat.
      */
-    private function combinedLedger(array $filters, ?array $scope, ?array $divScope, ?int $projScope): array
+    private function combinedLedger(array $filters, ?array $scope, ?array $divScope, ?array $projScope): array
     {
         $source = $filters['source'] ?? '';
         $includeKas = $source !== 'bank';
@@ -1252,14 +1269,17 @@ class CashController extends Controller
 
     /**
      * Judul Laporan dinamis mengikuti filter Project -- TIDAK PERNAH hard-code
-     * nama project. Tepat 1 project (dari checklist, atau gerbang akses) ->
-     * nama project itu; 0 atau 2+ dipilih -> "SEMUA PROJECT". Prefix
-     * "KAS/BANK" untuk user yang boleh lihat Bank (sesuai brief awal), "KAS"
-     * saja untuk role lain (mereka memang tidak pernah melihat data Bank).
-     * Filter Jenis (Revisi lanjutan) mempersempit ke "LAPORAN KAS" atau
-     * "LAPORAN BANK" saja saat user memilih cetak per sumber.
+     * nama project. Tepat 1 project dipilih di checklist -> nama project itu;
+     * 0 atau 2+ dipilih -> "SEMUA PROJECT" (revisi 23 Sep 2026: gerbang akses
+     * sekarang bisa berisi banyak project + bucket divisi Purchase, jadi tidak
+     * ada lagi "1 project sesi" untuk dijadikan patokan otomatis -- murni
+     * ikut pilihan filter). Prefix "KAS/BANK" untuk user yang boleh lihat
+     * Bank (sesuai brief awal), "KAS" saja untuk role lain (mereka memang
+     * tidak pernah melihat data Bank). Filter Jenis (Revisi lanjutan)
+     * mempersempit ke "LAPORAN KAS" atau "LAPORAN BANK" saja saat user
+     * memilih cetak per sumber.
      */
-    private function reportTitle(array $filters, ?int $projectScope): string
+    private function reportTitle(array $filters): string
     {
         $source = $filters['source'] ?? '';
         if ($source === 'kas' || !can('bank', 'view')) {
@@ -1271,7 +1291,7 @@ class CashController extends Controller
         }
 
         $ids = !empty($filters['project_ids']) ? $filters['project_ids'] : [];
-        $pid = $projectScope ?? (count($ids) === 1 ? (int) $ids[0] : (!empty($filters['project_id']) ? (int) $filters['project_id'] : null));
+        $pid = count($ids) === 1 ? (int) $ids[0] : (!empty($filters['project_id']) ? (int) $filters['project_id'] : null);
         if ($pid && count($ids) <= 1) {
             $p = $this->projectModel->find($pid);
             if ($p) {
@@ -1287,7 +1307,7 @@ class CashController extends Controller
         $filters = $this->collectFilters();
         $scope   = $this->scopePics();
         $divScope = kasDivisionScope();
-        $projScope = $this->scopeProjectId();
+        $projScope = $this->scopeAccessScope();
         $ledger  = $this->combinedLedger($filters, $scope, $divScope, $projScope);
 
         $company = (new SystemSetting())->getGroup('company');
@@ -1300,13 +1320,13 @@ class CashController extends Controller
         return [$ledger, [
             'company' => $companyName,
             'period'  => $period,
-            'title'   => $this->reportTitle($filters, $projScope),
+            'title'   => $this->reportTitle($filters),
         ]];
     }
 
     /**
      * null = lihat semua PIC (super_admin/accounting/project_manager, DAN
-     * role gerbang Project -- role itu di-scope lewat scopeProjectId() di
+     * role gerbang Project -- role itu di-scope lewat scopeAccessScope() di
      * bawah, bukan lagi lewat nama PIC).
      * array = tepat 1 nama PIC (gerbang PIC lama, dipertahankan untuk
      * kompatibilitas -- tidak ada role yang mencapai baris ini saat ini).
@@ -1320,14 +1340,23 @@ class CashController extends Controller
     }
 
     /**
-     * null = tidak dibatasi lewat gerbang Project (super_admin/accounting/
-     * project_manager/gerbang PIC lama).
-     * int  = HANYA transaksi Kas project ini (purchase/pic_project/admin_project,
-     * project yang barusan diverifikasi lewat kasProjectAuthenticate()).
+     * Batas akses (bukan filter pilihan bebas) untuk role gerbang Project.
+     * null   = tidak dibatasi lewat gerbang ini (super_admin/accounting/
+     *          project_manager/gerbang PIC lama).
+     * array  = ['project_ids' => int[], 'division' => ?string] -- OR-kan:
+     *          project yang diberikan akses (Project > Akses) ATAU (khusus
+     *          Purchase) seluruh Kas Purchase company-wide. Dipakai
+     *          CashTransaction::buildWhere() sebagai pagar server-side;
+     *          filter Project opsional ($_GET['project_ids']) tetap AND di
+     *          atasnya lewat collectFilters().
      */
-    private function scopeProjectId(): ?int
+    private function scopeAccessScope(): ?array
     {
-        return kasProjectScopeId();
+        $ids = kasProjectScopeIds();
+        if ($ids === null) {
+            return null;
+        }
+        return ['project_ids' => $ids, 'division' => kasOwnDivisionBucket()];
     }
 
     /**
@@ -1391,9 +1420,8 @@ class CashController extends Controller
     private function assertCanTouch(array $row): void
     {
         if (kasIsProjectGateRole(currentUserRole())) {
-            $pid = $this->scopeProjectId();
-            if ($pid === null || (int) ($row['project_id'] ?? 0) !== $pid) {
-                denyAccess('Percobaan akses transaksi Kas di luar Project yang sedang dibuka');
+            if (!$this->rowWithinAccessScope($row)) {
+                denyAccess('Percobaan akses transaksi Kas di luar Project/Divisi yang diberikan akses');
             }
             return;
         }
@@ -1401,6 +1429,20 @@ class CashController extends Controller
         if ($scope !== null && !in_array($row['pic'], $scope, true)) {
             denyAccess('Percobaan akses transaksi Kas milik PIC lain');
         }
+    }
+
+    /** true kalau baris ini termasuk project yang diberikan akses ATAU (Purchase) bucket divisinya sendiri. */
+    private function rowWithinAccessScope(array $row): bool
+    {
+        $scope = $this->scopeAccessScope();
+        if ($scope === null) {
+            return true;
+        }
+        $pid = $row['project_id'] !== null ? (int) $row['project_id'] : null;
+        if ($pid !== null && in_array($pid, $scope['project_ids'] ?? [], true)) {
+            return true;
+        }
+        return !empty($scope['division']) && ($row['division'] ?? null) === $scope['division'];
     }
 
     /**
@@ -1425,20 +1467,19 @@ class CashController extends Controller
             'pic'      => trim($_POST['pic'] ?? ''),
             'mutasi'   => ($_POST['mutasi'] ?? '') === 'masuk' ? 'masuk'
                 : (($_POST['mutasi'] ?? '') === 'keluar' ? 'keluar' : ''),
-            // Project header: untuk role gerbang Project NILAI INI DIABAIKAN saat
-            // simpan (dipaksa dari session -- lihat resolveProjectId()), dibaca di
-            // sini hanya supaya lolos ke form validasi kalau perlu ditampilkan ulang.
+            // Project header: untuk role gerbang Project WAJIB/opsional pilih
+            // sendiri di antara project yang diberikan akses (revisi 23 Sep
+            // 2026 -- dulu dipaksa dari session 1 project, sekarang user
+            // memilih dari beberapa). Ownership divalidasi di validateInput()
+            // sebelum dipakai simpan.
             'project_id'  => !empty($_POST['project_id']) ? (int) $_POST['project_id'] : null,
             'rekening_id' => !empty($_POST['rekening_id']) ? (int) $_POST['rekening_id'] : null,
         ];
     }
 
-    /** Project header final yang disimpan -- dipaksa dari sesi gerbang Project, atau input bebas untuk role lain. */
+    /** Project header final yang disimpan -- sudah divalidasi ownership-nya di validateInput(). */
     private function resolveProjectId(?int $posted): ?int
     {
-        if (kasIsProjectGateRole(currentUserRole())) {
-            return $this->scopeProjectId();
-        }
         return $posted;
     }
 
@@ -1459,9 +1500,11 @@ class CashController extends Controller
         $projects  = $_POST['item_project_id'] ?? [];
         $suppliers = $_POST['item_supplier_name'] ?? [];
         $barangIds = $_POST['item_barang_id'] ?? [];
-        // Role gerbang Project: baris tanpa Project eksplisit ikut project sesi
-        // Kas (form mengunci/menyembunyikan pilihan ini -- lihat cash/form.php).
-        $gatedProjectId = kasIsProjectGateRole(currentUserRole()) ? $this->scopeProjectId() : null;
+        // Role gerbang Project: baris tanpa Project eksplisit ikut Project
+        // HEADER yang baru saja dipilih user (saveItems() lalu memaksa SEMUA
+        // baris ikut header ini juga -- lihat $forceProject di sana).
+        $headerProjectId = !empty($_POST['project_id']) ? (int) $_POST['project_id'] : null;
+        $gatedProjectId = kasIsProjectGateRole(currentUserRole()) ? $headerProjectId : null;
         $out = [];
         for ($i = 0; $i < count($uraian); $i++) {
             $u   = trim((string) ($uraian[$i] ?? ''));
@@ -1569,7 +1612,21 @@ class CashController extends Controller
         if (!empty($d['rekening_id']) && !$this->rekeningModel->find((int) $d['rekening_id'])) {
             $errors[] = 'Rekening yang dipilih tidak valid.';
         }
-        if (!kasIsProjectGateRole(currentUserRole()) && !empty($d['project_id']) && !$this->projectModel->find((int) $d['project_id'])) {
+        if (kasIsProjectGateRole(currentUserRole())) {
+            // Revisi 23 Sep 2026: Project header TIDAK LAGI dipaksa dari sesi --
+            // user memilih sendiri, jadi ownership-nya HARUS divalidasi di sini
+            // (bukan cuma disembunyikan di dropdown). pic_project/admin_project
+            // WAJIB pilih Project (satu-satunya scope Kas mereka); Purchase
+            // boleh kosong (otomatis masuk bucket "Kas Purchase").
+            $allowedProjectIds = kasProjectScopeIds();
+            if (!empty($d['project_id'])) {
+                if (!in_array((int) $d['project_id'], $allowedProjectIds, true)) {
+                    $errors[] = 'Project yang dipilih di luar akses Kas Anda.';
+                }
+            } elseif ($this->isProjectRequiredForGatedRole()) {
+                $errors[] = 'Project wajib dipilih.';
+            }
+        } elseif (!empty($d['project_id']) && !$this->projectModel->find((int) $d['project_id'])) {
             $errors[] = 'Project yang dipilih tidak valid.';
         }
 

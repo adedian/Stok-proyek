@@ -1,7 +1,7 @@
 <?php
 /** @var string $mode @var array|null $cash @var array $items @var array $categories @var array $picOptions
  *  @var array $projects @var array $units @var array $rekeningOptions
- *  @var bool $kasProjectGated @var array|null $kasGatedProject */
+ *  @var bool $kasProjectGated @var bool $kasProjectRequired */
 $isEdit = $mode === 'edit';
 $actionUrl = $isEdit ? 'update' : 'store';
 $val = static fn(string $k, $d = '') => e($cash[$k] ?? $d);
@@ -11,8 +11,8 @@ $noBuktiPreview = $noBuktiPreview ?? ($cash['no_bukti'] ?? '');
 $cashCategories = $categories;
 $rekeningOptions = $rekeningOptions ?? [];
 $kasProjectGated = $kasProjectGated ?? false;
-$kasGatedProject = $kasGatedProject ?? null;
-$curProjectId = $cash['project_id'] ?? ($kasGatedProject['id'] ?? '');
+$kasProjectRequired = $kasProjectRequired ?? false;
+$curProjectId = $cash['project_id'] ?? '';
 $curRekeningId = $cash['rekening_id'] ?? '';
 ?>
 <style>
@@ -157,18 +157,18 @@ $curRekeningId = $cash['rekening_id'] ?? '';
                 </div>
 
                 <div class="col-md-3">
-                    <label class="form-label">Project</label>
+                    <label class="form-label">Project<?= $kasProjectRequired ? ' <span class="text-danger">*</span>' : '' ?></label>
+                    <select name="project_id" class="form-select" <?= $kasProjectRequired ? 'required' : '' ?>>
+                        <option value="">-- <?= $kasProjectRequired ? 'Pilih Project' : 'Tanpa Project' ?> --</option>
+                        <?php foreach ($projects as $p): ?>
+                            <option value="<?= (int) $p['id'] ?>" <?= (string) $curProjectId === (string) $p['id'] ? 'selected' : '' ?>><?= e($p['project_name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
                     <?php if ($kasProjectGated): ?>
-                        <input type="text" class="form-control bg-light" value="<?= e($kasGatedProject['project_name'] ?? '-') ?>" readonly>
-                        <input type="hidden" name="project_id" value="<?= (int) $curProjectId ?>">
-                        <div class="form-text">Mengikuti sesi Kas yang sedang dibuka.</div>
-                    <?php else: ?>
-                        <select name="project_id" class="form-select">
-                            <option value="">-- Tanpa Project --</option>
-                            <?php foreach ($projects as $p): ?>
-                                <option value="<?= (int) $p['id'] ?>" <?= (string) $curProjectId === (string) $p['id'] ? 'selected' : '' ?>><?= e($p['project_name']) ?></option>
-                            <?php endforeach; ?>
-                        </select>
+                        <div class="form-text">
+                            Hanya Project yang diberikan akses ke akun Anda.
+                            <?= !$kasProjectRequired ? ' Kosongkan untuk mencatat sebagai Kas Purchase (tanpa Project).' : '' ?>
+                        </div>
                     <?php endif; ?>
                 </div>
 

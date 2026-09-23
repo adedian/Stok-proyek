@@ -1,7 +1,7 @@
 <?php
 /** @var array $rows @var array $filters @var array $categories @var array $picOptions @var bool $scoped @var array $summary
  *  @var array|null $balances @var float|null $bankBalance @var bool $kasExempt @var string|null $kasPicName
- *  @var bool $kasProjectGated @var string|null $kasProjectName
+ *  @var bool $kasProjectGated
  *  @var array $projectOptions @var array $bankOptions @var array $rekeningOptions @var bool $canBank */
 $balances   = $balances ?? null;
 $balanceShowTotal = $balanceShowTotal ?? false;
@@ -9,7 +9,6 @@ $bankBalance = $bankBalance ?? null;
 $kasExempt  = $kasExempt ?? true;
 $kasPicName = $kasPicName ?? null;
 $kasProjectGated = $kasProjectGated ?? false;
-$kasProjectName  = $kasProjectName ?? null;
 $projectOptions = $projectOptions ?? [];
 $bankOptions = $bankOptions ?? [];
 $rekeningOptions = $rekeningOptions ?? [];
@@ -29,9 +28,9 @@ $canCetakBankVoucher = can('bank', 'view'); // Super Admin & Accounting saja (sa
         </small>
     </div>
     <div class="d-flex gap-2 align-items-center flex-wrap">
-        <?php if ($kasProjectGated && $kasProjectName !== null): ?>
+        <?php if ($kasProjectGated): ?>
             <span class="text-muted small">
-                <i class="bi bi-shield-check"></i> Sesi Kas &mdash; Project: <strong><?= e($kasProjectName) ?></strong>
+                <i class="bi bi-shield-check"></i> Sesi Kas terverifikasi
             </span>
             <form method="POST" action="<?= BASE_URL ?>/index.php?module=cash&action=kasProjectLogout" class="d-inline">
                 <?= csrfField() ?>
@@ -232,30 +231,35 @@ $canCetakBankVoucher = can('bank', 'view'); // Super Admin & Accounting saja (sa
                 <a href="<?= BASE_URL ?>/cash" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-circle"></i></a>
             </div>
 
-            <?php if ($canBank): ?>
+            <?php if ($kasProjectGated || $canBank): ?>
             <div class="col-12"><hr class="my-1"></div>
             <div class="col-6 col-md-3">
                 <label class="form-label small text-muted mb-1">Project (centang, kosong = semua)</label>
-                <?php if ($kasProjectGated): ?>
-                    <input type="text" class="form-control form-control-sm" value="<?= e($projectOptions[0]['project_name'] ?? '-') ?>" disabled>
-                    <input type="hidden" name="project_ids[]" value="<?= (int) ($projectOptions[0]['id'] ?? 0) ?>">
-                <?php else: ?>
-                    <div class="dropdown">
-                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle w-100 text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
-                            <?= count($selectedProjectIds) ? count($selectedProjectIds) . ' Project dipilih' : 'Semua Project' ?>
-                        </button>
-                        <div class="dropdown-menu p-2" style="max-height:260px; overflow:auto; min-width:240px;">
-                            <?php foreach ($projectOptions as $p): ?>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="project_ids[]" value="<?= (int) $p['id'] ?>"
-                                           id="listProj<?= (int) $p['id'] ?>" <?= in_array((string) $p['id'], $selectedProjectIds, true) ? 'checked' : '' ?>>
-                                    <label class="form-check-label" for="listProj<?= (int) $p['id'] ?>"><?= e($p['project_name']) ?></label>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle w-100 text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                        <?= count($selectedProjectIds) ? count($selectedProjectIds) . ' Project dipilih' : 'Semua Project' ?>
+                    </button>
+                    <div class="dropdown-menu p-2" style="max-height:260px; overflow:auto; min-width:240px;">
+                        <?php if (empty($projectOptions)): ?>
+                            <div class="text-muted small px-2">
+                                <?= $kasProjectGated ? 'Belum ada Project yang diberikan akses.' : 'Tidak ada project.' ?>
+                            </div>
+                        <?php endif; ?>
+                        <?php foreach ($projectOptions as $p): ?>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="project_ids[]" value="<?= (int) $p['id'] ?>"
+                                       id="listProj<?= (int) $p['id'] ?>" <?= in_array((string) $p['id'], $selectedProjectIds, true) ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="listProj<?= (int) $p['id'] ?>"><?= e($p['project_name']) ?></label>
+                            </div>
+                        <?php endforeach; ?>
                     </div>
+                </div>
+                <?php if ($kasProjectGated): ?>
+                    <div class="form-text">Hanya Project yang diberikan akses ke akun Anda.</div>
                 <?php endif; ?>
             </div>
+            <?php endif; ?>
+            <?php if ($canBank): ?>
             <div class="col-6 col-md-3">
                 <label class="form-label small text-muted mb-1">Bank (centang, kosong = semua)</label>
                 <div class="dropdown">

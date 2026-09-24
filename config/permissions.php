@@ -255,6 +255,10 @@ return [
         'create' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
         'edit'   => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
         'delete' => [ROLE_SUPER_ADMIN],
+        // Quick-add dari modal form Transaksi Bank -- sama dengan siapa boleh
+        // membuat transaksi Bank (bank.create), supaya tidak ada yang bisa
+        // tambah Master Bank lewat modal tapi tidak bisa buka form Bank-nya.
+        'quick_add' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
     ],
 
     // Master Rekening (Master Data > Master Rekening) -- sumber dropdown
@@ -264,6 +268,9 @@ return [
         'create' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
         'edit'   => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
         'delete' => [ROLE_SUPER_ADMIN],
+        // Quick-add dari modal form Transaksi Bank -- sama dengan siapa boleh
+        // membuat transaksi Bank (bank.create).
+        'quick_add' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
     ],
 
     // Mapping User -> PIC (menentukan siapa lihat Kas siapa). Sensitif =

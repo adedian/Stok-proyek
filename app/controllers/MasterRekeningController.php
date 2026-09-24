@@ -142,6 +142,36 @@ class MasterRekeningController extends Controller
         $this->redirect('master_rekening', 'index');
     }
 
+    /**
+     * AJAX quick-add -- dipanggil dari modal quick-add di form Transaksi Bank
+     * (Kas > Bank), supaya Rekening baru bisa dibuat tanpa keluar dari alur
+     * tambah transaksi. kode_rekening diketik manual (tidak ikut sistem
+     * prefix CodeConfig, sama seperti Master Bank).
+     */
+    public function quickStore()
+    {
+        Middleware::requirePermission('master_rekening', 'quick_add');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->json(['errors' => ['Metode tidak diizinkan.']], 405);
+        }
+        verifyCsrf();
+
+        $data = $this->collectInput();
+        // Modal quick-add tidak punya checkbox "Aktif" -- selalu aktif supaya
+        // langsung bisa dipakai di transaksi yang sedang diisi.
+        $data['is_active'] = 1;
+        $errors = $this->validate($data);
+        if (!empty($errors)) {
+            $this->json(['errors' => $errors], 422);
+        }
+
+        $id = $this->model->create(array_merge($data, ['created_by' => currentUserId()]));
+        $this->activityLog->log(currentUserId(), 'master_rekening', 'quick_add', "Rekening '{$data['nama_rekening']}' ditambahkan cepat dari form lain");
+
+        $this->json(['id' => $id, 'label' => $data['nama_rekening']]);
+    }
+
     private function collectInput(): array
     {
         return [

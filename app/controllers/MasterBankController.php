@@ -147,6 +147,38 @@ class MasterBankController extends Controller
         $this->redirect('master_bank', 'index');
     }
 
+    /**
+     * AJAX quick-add -- dipanggil dari modal quick-add di form Transaksi Bank
+     * (Kas > Bank), supaya Bank baru bisa dibuat tanpa keluar dari alur tambah
+     * transaksi. Pola identik WarehouseController::quickStore(), cuma bank_code
+     * di sini diketik manual (bukan via CodeConfig -- Bank tidak ikut sistem
+     * prefix multi-master seperti Barang/Supplier/Project).
+     */
+    public function quickStore()
+    {
+        Middleware::requirePermission('master_bank', 'quick_add');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->json(['errors' => ['Metode tidak diizinkan.']], 405);
+        }
+        verifyCsrf();
+
+        $data = $this->collectInput();
+        // Modal quick-add tidak punya checkbox "Aktif" -- selalu aktif supaya
+        // langsung bisa dipakai di transaksi yang sedang diisi.
+        $data['is_active'] = 1;
+        $errors = $this->validate($data);
+        if (!empty($errors)) {
+            $this->json(['errors' => $errors], 422);
+        }
+
+        $id = $this->model->create(array_merge($data, ['created_by' => currentUserId()]));
+        $this->activityLog->log(currentUserId(), 'master_bank', 'quick_add', "Bank '{$data['bank_name']}' ({$data['jenis']}) ditambahkan cepat dari form lain");
+
+        $label = $data['bank_name'] . ' (' . strtoupper($data['jenis']) . ')';
+        $this->json(['id' => $id, 'label' => $label]);
+    }
+
     private function collectInput(): array
     {
         $jenis = $_POST['jenis'] ?? '';

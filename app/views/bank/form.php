@@ -119,34 +119,55 @@ $curPic = $row['pic'] ?? '';
 
                 <div class="col-md-3">
                     <label class="form-label">Bank <span class="text-danger">*</span></label>
-                    <select name="bank_id" class="form-select" required>
-                        <option value="">-- Pilih Bank --</option>
-                        <?php foreach ($banks as $b): ?>
-                            <option value="<?= (int) $b['id'] ?>" <?= (string) ($row['bank_id'] ?? '') === (string) $b['id'] ? 'selected' : '' ?>>
-                                <?= e($b['bank_name']) ?> (<?= e(strtoupper($b['jenis'])) ?>)
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
+                    <div class="input-group">
+                        <select name="bank_id" id="bank_id" class="form-select" required>
+                            <option value="">-- Pilih Bank --</option>
+                            <?php foreach ($banks as $b): ?>
+                                <option value="<?= (int) $b['id'] ?>" <?= (string) ($row['bank_id'] ?? '') === (string) $b['id'] ? 'selected' : '' ?>>
+                                    <?= e($b['bank_name']) ?> (<?= e(strtoupper($b['jenis'])) ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <?php if (canQuickAdd('master_bank')): ?>
+                            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalQuickAddBank" title="Tambah Bank Cepat">
+                                <i class="bi bi-plus-lg"></i>
+                            </button>
+                        <?php endif; ?>
+                    </div>
                 </div>
 
                 <div class="col-md-3">
                     <label class="form-label">Project</label>
-                    <select name="project_id" class="form-select">
-                        <option value="">-- Tanpa Project --</option>
-                        <?php foreach ($projects as $p): ?>
-                            <option value="<?= (int) $p['id'] ?>" <?= (string) ($row['project_id'] ?? '') === (string) $p['id'] ? 'selected' : '' ?>><?= e($p['project_name']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
+                    <div class="input-group">
+                        <select name="project_id" id="project_id" class="form-select">
+                            <option value="">-- Tanpa Project --</option>
+                            <?php foreach ($projects as $p): ?>
+                                <option value="<?= (int) $p['id'] ?>" <?= (string) ($row['project_id'] ?? '') === (string) $p['id'] ? 'selected' : '' ?>><?= e($p['project_name']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <?php if (canQuickAdd('project')): ?>
+                            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalQuickAddProject" title="Tambah Project Cepat">
+                                <i class="bi bi-plus-lg"></i>
+                            </button>
+                        <?php endif; ?>
+                    </div>
                 </div>
 
                 <div class="col-md-3">
                     <label class="form-label">Rekening</label>
-                    <select name="rekening_id" class="form-select">
-                        <option value="">-- Tanpa Rekening --</option>
-                        <?php foreach ($rekeningOptions as $r): ?>
-                            <option value="<?= (int) $r['id'] ?>" <?= (string) ($row['rekening_id'] ?? '') === (string) $r['id'] ? 'selected' : '' ?>><?= e($r['nama_rekening']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
+                    <div class="input-group">
+                        <select name="rekening_id" id="rekening_id" class="form-select">
+                            <option value="">-- Tanpa Rekening --</option>
+                            <?php foreach ($rekeningOptions as $r): ?>
+                                <option value="<?= (int) $r['id'] ?>" <?= (string) ($row['rekening_id'] ?? '') === (string) $r['id'] ? 'selected' : '' ?>><?= e($r['nama_rekening']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <?php if (canQuickAdd('master_rekening')): ?>
+                            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalQuickAddRekening" title="Tambah Rekening Cepat">
+                                <i class="bi bi-plus-lg"></i>
+                            </button>
+                        <?php endif; ?>
+                    </div>
                     <div class="form-text">Opsional. Sumber: Master Data &rarr; Master Rekening.</div>
                 </div>
             </div>
@@ -196,6 +217,16 @@ $curPic = $row['pic'] ?? '';
         <a href="<?= BASE_URL ?>/cash" class="btn btn-light border">Batal</a>
     </div>
 </form>
+
+<?php if (canQuickAdd('master_bank')): ?>
+    <?php require ROOT_PATH . '/app/views/partials/quick_add_bank_modal.php'; ?>
+<?php endif; ?>
+<?php if (canQuickAdd('project')): ?>
+    <?php require ROOT_PATH . '/app/views/partials/quick_add_project_modal.php'; ?>
+<?php endif; ?>
+<?php if (canQuickAdd('master_rekening')): ?>
+    <?php require ROOT_PATH . '/app/views/partials/quick_add_rekening_modal.php'; ?>
+<?php endif; ?>
 
 <script>
 (function () {

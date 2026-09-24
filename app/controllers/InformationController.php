@@ -168,6 +168,16 @@ class InformationController extends Controller
 
         $this->infoModel->updateById($id, $data);
         $this->activityLog->log(currentUserId(), 'information', 'update', "Informasi '{$data['title']}' diperbarui");
+
+        if ($existing['status'] !== $data['status']) {
+            $this->activityLog->log(
+                currentUserId(),
+                'information',
+                $data['status'] === 'aktif' ? 'activate' : 'deactivate',
+                "Status informasi '{$data['title']}' diubah dari '{$existing['status']}' menjadi '{$data['status']}'"
+            );
+        }
+
         setFlash('success', 'Informasi berhasil diperbarui.');
         $this->redirect('information', 'detail', ['id' => $id]);
     }
@@ -202,6 +212,7 @@ class InformationController extends Controller
         $category = $_POST['category'] ?? '';
         $status = $_POST['status'] ?? '';
         $publishDate = trim($_POST['publish_date'] ?? '');
+        $endDate = trim($_POST['end_date'] ?? '');
 
         return [
             'title'        => trim($_POST['title'] ?? ''),
@@ -209,6 +220,8 @@ class InformationController extends Controller
             'content'      => trim($_POST['content'] ?? ''),
             'status'       => in_array($status, $statuses, true) ? $status : 'aktif',
             'publish_date' => $publishDate !== '' ? $publishDate : date('Y-m-d'),
+            // Opsional -- NULL berarti tidak ada batas akhir tampil.
+            'end_date'     => $endDate !== '' ? $endDate : null,
         ];
     }
 
@@ -228,6 +241,14 @@ class InformationController extends Controller
 
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $data['publish_date']) || !strtotime($data['publish_date'])) {
             $errors[] = 'Tanggal publikasi tidak valid.';
+        }
+
+        if ($data['end_date'] !== null) {
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $data['end_date']) || !strtotime($data['end_date'])) {
+                $errors[] = 'Tanggal berakhir tidak valid.';
+            } elseif ($data['end_date'] < $data['publish_date']) {
+                $errors[] = 'Tanggal berakhir harus sama dengan atau setelah tanggal publikasi.';
+            }
         }
 
         return $errors;

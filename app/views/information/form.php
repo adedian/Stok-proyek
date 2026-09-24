@@ -24,16 +24,17 @@ $actionUrl = $isEdit ? 'update' : 'store';
                            value="<?= e($info['title'] ?? '') ?>" placeholder="mis. Perubahan Jadwal Penerimaan Barang" required autofocus>
                 </div>
 
-                <div class="col-md-4">
+                <div class="col-6 col-md-3">
                     <label class="form-label">Kategori <span class="text-danger">*</span></label>
                     <select name="category" class="form-select" required>
                         <?php foreach ($categories as $slug => $label): ?>
                             <option value="<?= e($slug) ?>" <?= ($info['category'] ?? 'umum') === $slug ? 'selected' : '' ?>><?= e($label) ?></option>
                         <?php endforeach; ?>
                     </select>
+                    <div class="form-text">Maintenance &amp; Pengumuman otomatis tampil sebagai warning di Dashboard.</div>
                 </div>
 
-                <div class="col-md-4">
+                <div class="col-6 col-md-3">
                     <label class="form-label">Status <span class="text-danger">*</span></label>
                     <select name="status" class="form-select" required>
                         <?php foreach ($statuses as $slug => $label): ?>
@@ -43,10 +44,17 @@ $actionUrl = $isEdit ? 'update' : 'store';
                     <div class="form-text">Hanya informasi berstatus Aktif yang tampil ke pengguna biasa.</div>
                 </div>
 
-                <div class="col-md-4">
+                <div class="col-6 col-md-3">
                     <label class="form-label">Tanggal Publikasi <span class="text-danger">*</span></label>
                     <input type="date" name="publish_date" class="form-control"
                            value="<?= e($info['publish_date'] ?? date('Y-m-d')) ?>" required>
+                </div>
+
+                <div class="col-6 col-md-3">
+                    <label class="form-label">Tanggal Berakhir</label>
+                    <input type="date" name="end_date" class="form-control"
+                           value="<?= e($info['end_date'] ?? '') ?>">
+                    <div class="form-text">Opsional. Kosongkan jika tidak ada batas akhir.</div>
                 </div>
 
                 <div class="col-12">

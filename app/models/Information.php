@@ -37,6 +37,22 @@ class Information extends Model
         ];
     }
 
+    /** Kategori yang otomatis jadi warning Dashboard (lihat activeWarnings()). */
+    public static function warningCategories(): array
+    {
+        return ['maintenance', 'pengumuman'];
+    }
+
+    /** Ringkasan isi (single-line, dipotong) untuk kartu warning/preview. */
+    public static function excerpt(string $content, int $length = 110): string
+    {
+        $flat = trim(preg_replace('/\s+/', ' ', $content));
+        if (mb_strlen($flat) <= $length) {
+            return $flat;
+        }
+        return mb_substr($flat, 0, $length - 1) . '…';
+    }
+
     public function find(int $id)
     {
         return $this->db->fetchOne(
@@ -68,8 +84,9 @@ class Information extends Model
     }
 
     /**
-     * Informasi aktif terbaru untuk widget Dashboard. Selalu status=aktif &
-     * publish_date <= hari ini (tidak menampilkan yang dijadwalkan maju).
+     * Informasi aktif terbaru untuk widget Dashboard. Selalu status=aktif,
+     * publish_date <= hari ini (tidak menampilkan yang dijadwalkan maju), dan
+     * belum expired (end_date kosong atau >= hari ini).
      */
     public function recentActive(int $limit = 5): array
     {
@@ -78,8 +95,44 @@ class Information extends Model
             "SELECT i.id, i.title, i.category, i.publish_date
                FROM information i
               WHERE i.deleted_at IS NULL AND i.status = 'aktif' AND i.publish_date <= CURDATE()
+                AND (i.end_date IS NULL OR i.end_date >= CURDATE())
               ORDER BY i.publish_date DESC, i.id DESC
               LIMIT {$limit}"
+        );
+    }
+
+    /**
+     * Informasi kategori Maintenance/Pengumuman yang harus tampil sebagai
+     * warning di Dashboard (& lonceng topbar -- lihat DashboardStat::activeAlerts(),
+     * satu-satunya pemanggil). Syarat: status aktif, sudah waktunya publish,
+     * belum expired. Urutan: Maintenance dulu, baru Pengumuman, lalu tanggal
+     * publikasi terbaru -- SESUAI permintaan, bukan urutan bebas.
+     */
+    public function activeWarnings(int $limit = 5): array
+    {
+        $limit = max(1, $limit);
+        $categories = self::warningCategories();
+        $placeholders = [];
+        $params = [];
+        foreach ($categories as $i => $cat) {
+            $key = "cat{$i}";
+            $placeholders[] = ":{$key}";
+            $params[$key] = $cat;
+        }
+        $in = implode(', ', $placeholders);
+
+        return $this->db->fetchAll(
+            "SELECT id, title, category, content, publish_date, end_date
+               FROM information
+              WHERE deleted_at IS NULL
+                AND status = 'aktif'
+                AND category IN ({$in})
+                AND publish_date <= CURDATE()
+                AND (end_date IS NULL OR end_date >= CURDATE())
+              ORDER BY CASE category WHEN 'maintenance' THEN 1 WHEN 'pengumuman' THEN 2 ELSE 3 END,
+                       publish_date DESC, id DESC
+              LIMIT {$limit}",
+            $params
         );
     }
 

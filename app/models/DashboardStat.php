@@ -3,6 +3,7 @@ require_once ROOT_PATH . '/core/Database.php';
 require_once ROOT_PATH . '/app/models/SystemSetting.php';
 require_once ROOT_PATH . '/app/models/Item.php';
 require_once ROOT_PATH . '/app/models/CashTransaction.php';
+require_once ROOT_PATH . '/app/models/Information.php';
 
 /**
  * DashboardStat
@@ -180,6 +181,28 @@ class DashboardStat
     {
         $settingModel = new SystemSetting();
         $items = [];
+
+        // Warning Pusat Informasi (Maintenance/Pengumuman) -- SATU-SATUNYA sumber
+        // adalah tabel `information` (Information::activeWarnings()), TIDAK ada
+        // data hardcode. Ditaruh paling atas karena sifatnya pengumuman/gangguan
+        // sistem yang perlu diketahui duluan. Sudah difilter status aktif, sudah
+        // waktunya publish, & belum expired lewat query model -- lihat
+        // Information::activeWarnings(). Dibatasi 5 terbaru (Maintenance dulu,
+        // baru Pengumuman) supaya kartu peringatan tidak membengkak; sisanya tetap
+        // bisa dilihat lengkap di Pusat Informasi.
+        if (can('information', 'view')) {
+            foreach ((new Information())->activeWarnings(5) as $info) {
+                $isMaintenance = $info['category'] === 'maintenance';
+                $items[] = [
+                    'icon'    => $isMaintenance ? 'bi-tools' : 'bi-megaphone-fill',
+                    'variant' => $isMaintenance ? 'warning' : 'info',
+                    'title'   => ($isMaintenance ? 'Maintenance: ' : 'Pengumuman: ') . $info['title'],
+                    'desc'    => Information::excerpt($info['content']),
+                    'url'     => route('information', 'detail', ['id' => (int) $info['id']]),
+                    'cta'     => 'Lihat Detail',
+                ];
+            }
+        }
 
         if ($settingModel->getBool('notify_selisih_barang', true) && can('validation', 'view')) {
             $count = $this->barangSelisihBelumValidasi();

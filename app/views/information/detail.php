@@ -8,6 +8,8 @@ $categoryBadge = [
     'lainnya'     => 'light text-dark',
 ];
 $statusBadge = ['aktif' => 'success', 'tidak_aktif' => 'secondary'];
+$isExpired = !empty($info['end_date']) && $info['end_date'] < date('Y-m-d');
+$isScheduled = $info['publish_date'] > date('Y-m-d');
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
@@ -37,17 +39,26 @@ $statusBadge = ['aktif' => 'success', 'tidak_aktif' => 'secondary'];
 <div class="card border-0 shadow-sm">
     <div class="card-body">
         <div class="row g-3 mb-3">
-            <div class="col-sm-4">
+            <div class="col-6 col-sm-3">
                 <div class="text-muted small">Kategori</div>
                 <span class="badge bg-<?= e($categoryBadge[$info['category']] ?? 'secondary') ?>"><?= e(Information::categoryLabel($info['category'])) ?></span>
             </div>
-            <div class="col-sm-4">
+            <div class="col-6 col-sm-3">
                 <div class="text-muted small">Status</div>
                 <span class="badge bg-<?= e($statusBadge[$info['status']] ?? 'secondary') ?>"><?= e(Information::statusOptions()[$info['status']] ?? $info['status']) ?></span>
+                <?php if ($info['status'] === 'aktif' && $isExpired): ?>
+                    <span class="badge bg-secondary" title="Sudah melewati tanggal berakhir, tidak tampil sebagai warning Dashboard">Kedaluwarsa</span>
+                <?php elseif ($info['status'] === 'aktif' && $isScheduled): ?>
+                    <span class="badge bg-secondary" title="Belum masuk tanggal publikasi">Terjadwal</span>
+                <?php endif; ?>
             </div>
-            <div class="col-sm-4">
+            <div class="col-6 col-sm-3">
                 <div class="text-muted small">Tanggal Publikasi</div>
                 <div class="fw-semibold"><?= e(formatTanggal($info['publish_date'])) ?></div>
+            </div>
+            <div class="col-6 col-sm-3">
+                <div class="text-muted small">Tanggal Berakhir</div>
+                <div class="fw-semibold"><?= !empty($info['end_date']) ? e(formatTanggal($info['end_date'])) : '-' ?></div>
             </div>
         </div>
 

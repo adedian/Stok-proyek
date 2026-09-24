@@ -118,7 +118,12 @@ $statusBadge = ['aktif' => 'success', 'tidak_aktif' => 'secondary'];
                             </td>
                             <td><span class="badge bg-<?= e($categoryBadge[$r['category']] ?? 'secondary') ?>"><?= e(Information::categoryLabel($r['category'])) ?></span></td>
                             <td><span class="badge bg-<?= e($statusBadge[$r['status']] ?? 'secondary') ?>"><?= e(Information::statusOptions()[$r['status']] ?? $r['status']) ?></span></td>
-                            <td><?= e(formatTanggal($r['publish_date'])) ?></td>
+                            <td>
+                                <?= e(formatTanggal($r['publish_date'])) ?>
+                                <?php if (!empty($r['end_date'])): ?>
+                                    <div class="small text-muted">s/d <?= e(formatTanggal($r['end_date'])) ?></div>
+                                <?php endif; ?>
+                            </td>
                             <td><?= e($r['created_by_name'] ?? '-') ?></td>
                             <td class="text-center no-print">
                                 <div class="dropdown row-actions">

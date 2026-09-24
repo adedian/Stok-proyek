@@ -22,6 +22,7 @@ require_once ROOT_PATH . '/app/models/DeliveryNote.php';
 require_once ROOT_PATH . '/app/models/CollectionReceipt.php';
 require_once ROOT_PATH . '/app/models/CashTransaction.php';
 require_once ROOT_PATH . '/app/models/CashCategory.php';
+require_once ROOT_PATH . '/app/models/Information.php';
 
 /**
  * TrashController
@@ -143,6 +144,11 @@ class TrashController extends Controller
                 'label' => 'Kategori Kas',
                 'model' => new CashCategory(),
                 'display' => fn(array $r) => $r['category_name'] ?? '-',
+            ],
+            'information' => [
+                'label' => 'Pusat Informasi',
+                'model' => new Information(),
+                'display' => fn(array $r) => $r['title'] ?? '-',
             ],
         ];
     }

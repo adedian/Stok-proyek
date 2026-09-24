@@ -6,6 +6,7 @@ require_once ROOT_PATH . '/app/models/SystemSetting.php';
 require_once ROOT_PATH . '/app/models/Item.php';
 require_once ROOT_PATH . '/app/models/ActivityLog.php';
 require_once ROOT_PATH . '/app/models/Payment.php';
+require_once ROOT_PATH . '/app/models/Information.php';
 
 class DashboardController extends Controller
 {
@@ -30,6 +31,7 @@ class DashboardController extends Controller
         'unit'             => 'bi-rulers',
         'warehouse'        => 'bi-building',
         'settings'         => 'bi-gear',
+        'information'      => 'bi-info-circle',
     ];
 
     public function __construct()
@@ -64,11 +66,14 @@ class DashboardController extends Controller
             $paymentProgress = (new Payment())->overallProgress();
         }
 
+        $latestInformation = can('information', 'view') ? (new Information())->recentActive(5) : [];
+
         $this->view('dashboard/index', [
             'stats'              => $stats,
             'notifFlags'         => $notifFlags,
             'recentActivities'   => $recentActivities,
             'paymentProgress'    => $paymentProgress,
+            'latestInformation'  => $latestInformation,
             // Kartu "Peringatan & Informasi Penting" -- SUMBER SAMA dg lonceng
             // topbar (DashboardStat::activeAlerts): sudah difilter can(view) +
             // toggle notifikasi + count>0, jadi keduanya selalu identik.

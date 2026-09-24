@@ -180,6 +180,31 @@
     </div>
 </div>
 
+<?php if (can('information', 'view') && !empty($latestInformation)): ?>
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="card-section-title mb-0">Pusat Informasi</div>
+                    <a href="<?= BASE_URL ?>/information" class="small text-decoration-none">Lihat Semua <i class="bi bi-arrow-right"></i></a>
+                </div>
+                <div class="row g-2">
+                    <?php foreach ($latestInformation as $info): ?>
+                        <div class="col-md-6 col-xl-4">
+                            <a href="<?= BASE_URL ?>/information/detail/<?= (int) $info['id'] ?>" class="d-block text-decoration-none text-dark p-2 rounded border h-100">
+                                <div class="fw-semibold text-truncate"><?= e($info['title']) ?></div>
+                                <div class="small text-muted"><?= e(Information::categoryLabel($info['category'])) ?> &middot; <?= e(formatTanggal($info['publish_date'])) ?></div>
+                            </a>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     var canvas = document.getElementById('stockActivityChart');

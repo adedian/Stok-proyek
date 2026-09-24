@@ -10,6 +10,7 @@ function appMenus(): array
 {
     return [
         ['label' => 'Dashboard', 'module' => 'dashboard', 'icon' => 'bi-speedometer2', 'roles' => permissionRoles('dashboard', 'view'), 'active' => true, 'group' => null],
+        ['label' => 'Pusat Informasi', 'module' => 'information', 'icon' => 'bi-info-circle', 'roles' => permissionRoles('information', 'view'), 'active' => true, 'group' => null],
         ['label' => 'Purchase Order', 'module' => 'purchase_order', 'icon' => 'bi-cart-check', 'roles' => permissionRoles('purchase_order', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Pembayaran', 'module' => 'payment', 'icon' => 'bi-credit-card', 'roles' => permissionRoles('payment', 'view'), 'active' => true, 'group' => 'Transaksi'],
         // "Bank" TIDAK lagi menu sendiri (revisi lanjutan) -- transaksi Bank

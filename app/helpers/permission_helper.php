@@ -79,6 +79,7 @@ function permissionLabelMaps(): array
             'item_category' => 'Kategori Barang', 'unit' => 'Satuan', 'warehouse' => 'Gudang',
             'payment_method' => 'Metode Pembayaran', 'signature' => 'Tanda Tangan', 'dp_percentage' => 'Persentase DP',
             'settings' => 'Pengaturan Sistem', 'trash' => 'Tempat Sampah', 'period_lock' => 'Tutup Bulan',
+            'information' => 'Pusat Informasi',
         ],
         'actions' => [
             'view' => 'Lihat', 'create' => 'Tambah', 'edit' => 'Ubah', 'delete' => 'Hapus',

@@ -337,6 +337,17 @@ return [
         'edit' => [ROLE_SUPER_ADMIN],
     ],
 
+    // Pusat Informasi -- pengumuman/keterangan untuk seluruh pengguna.
+    // Semua role yang login boleh lihat; kelola (tambah/ubah/hapus) khusus
+    // Super Admin (bisa dibuka ke role lain lewat Hak Akses kalau diperlukan
+    // nanti -- modul ini SENGAJA tidak dikunci di PERMISSION_LOCKED_MODULES).
+    'information' => [
+        'view'   => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT, ROLE_PROJECT_MANAGER],
+        'create' => [ROLE_SUPER_ADMIN],
+        'edit'   => [ROLE_SUPER_ADMIN],
+        'delete' => [ROLE_SUPER_ADMIN],
+    ],
+
     // Tempat Sampah -- administratif lintas modul, khusus Super Admin.
     'trash' => [
         'view'         => [ROLE_SUPER_ADMIN],

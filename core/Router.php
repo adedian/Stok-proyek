@@ -13,6 +13,7 @@ class Router
         'account'         => 'AccountController',
         'push'            => 'PushController',
         'dashboard'       => 'DashboardController',
+        'information'     => 'InformationController',
         'purchase_order'  => 'PurchaseOrderController',
         'payment'         => 'PaymentController',
         'goods_receipt'   => 'GoodsReceiptController',

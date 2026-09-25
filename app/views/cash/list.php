@@ -430,9 +430,14 @@ $canCetakBankVoucher = can('bank', 'view'); // Super Admin & Accounting saja (sa
                                     <?php endif; ?>
                                 <?php else: ?>
                                     <?php $rowLocked = isPeriodClosed('cash', $r['trx_date']); ?>
+                                    <?php $validationLocked = (($r['validation_status'] ?? 'menunggu') === 'tervalidasi') && currentUserRole() !== ROLE_SUPER_ADMIN; ?>
                                     <?php if ($rowLocked): ?>
                                         <span class="badge bg-secondary" title="Periode ditutup -- transaksi terkunci">
                                             <i class="bi bi-lock-fill"></i> Terkunci
+                                        </span>
+                                    <?php elseif ($validationLocked): ?>
+                                        <span class="badge bg-secondary" title="Sudah tervalidasi -- hanya Super Admin yang bisa mengubah/menghapus">
+                                            <i class="bi bi-lock-fill"></i> Tervalidasi
                                         </span>
                                     <?php elseif (can('cash', 'edit') || can('cash', 'delete')): ?>
                                     <div class="dropdown row-actions">

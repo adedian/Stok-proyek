@@ -386,6 +386,12 @@ class CashController extends Controller
         //   Purchase / PIC Project / Admin Project / Project Manager -> HANYA
         //   saldo divisi mereka sendiri (purchase -> Saldo Kas Purchase, role
         //   project -> Saldo Kas Project), tanpa Total & tanpa divisi lain.
+        //   Role gerbang Project (pic_project/admin_project) juga dibatasi ke
+        //   $projScope (project yang diberikan akses) supaya saldo konsisten
+        //   dengan daftar transaksi di bawahnya -- tidak akan ada saldo non-nol
+        //   tanpa transaksi yang terlihat. Purchase TIDAK ikut dibatasi ke
+        //   project_ids karena bucket divisinya sendiri ('purchase') sudah
+        //   membuat kondisi akses selalu terpenuhi (lihat kasOwnDivisionBucket()).
         $balances = null;
         $balanceShowTotal = false;
         if (can('cash', 'view_balance')) {
@@ -405,7 +411,7 @@ class CashController extends Controller
                     'total'    => $this->cashModel->balanceFiltered($filters, $scope, $balDivScope, $projScope),
                 ];
             } else {
-                $balances = $this->cashModel->balanceByDivision(null, $balDivScope);
+                $balances = $this->cashModel->balanceByDivision(null, $balDivScope, $projScope);
             }
             $stamp = date('Y-m-d');
             if (($_SESSION['kas_balance_logged'] ?? '') !== $stamp) {

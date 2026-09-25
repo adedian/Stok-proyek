@@ -384,9 +384,9 @@ class CashTransaction extends Model
      *
      * @return array{rows: array<int,array{division:string,label:string,masuk:float,keluar:float,saldo:float}>, total: float}
      */
-    public function balanceByDivision(?array $scopePics, ?array $divisionScope = null): array
+    public function balanceByDivision(?array $scopePics, ?array $divisionScope = null, ?array $accessScope = null): array
     {
-        [$where, $params] = $this->buildWhere([], $scopePics, $divisionScope);
+        [$where, $params] = $this->buildWhere([], $scopePics, $divisionScope, $accessScope);
         $agg = $this->db->fetchAll(
             "SELECT c.division,
                     COALESCE(SUM(CASE WHEN c.mutasi='masuk'  THEN c.total_amount ELSE 0 END),0) AS masuk,

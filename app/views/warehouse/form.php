@@ -63,3 +63,7 @@ $actionUrl = $isEdit ? 'update' : 'store';
         <a href="<?= BASE_URL ?>/warehouse" class="btn btn-light border">Batal</a>
     </div>
 </form>
+
+<?php if (!$isEdit && function_exists('can') && can('master_kode', 'edit')): ?>
+    <?php require ROOT_PATH . '/app/views/partials/quick_add_prefix_modal.php'; ?>
+<?php endif; ?>

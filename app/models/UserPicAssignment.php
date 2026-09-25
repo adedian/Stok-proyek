@@ -29,6 +29,40 @@ class UserPicAssignment extends Model
         return array_column($rows, 'pic_name');
     }
 
+    /**
+     * Nama PIC yang boleh DILIHAT seorang Admin Project: nama miliknya sendiri
+     * + nama PIC (role pic_project) yang berbagi minimal 1 project yang sama
+     * dengannya di `project_user_access` (Revisi audit RBAC Kas per-project,
+     * 2026-09-25 -- Admin Project = pengawas Kas PIC pada project yang sama).
+     * TIDAK dipakai untuk dropdown "buat transaksi" (atribusi tetap nama
+     * sendiri saja, lihat CashController::picFieldOptions()) -- KHUSUS untuk
+     * membatasi apa yang boleh DIBACA (scopePics()).
+     */
+    public function picNamesForAdminProject(int $adminUserId): array
+    {
+        $own = $this->picNamesForUser($adminUserId);
+
+        $rows = $this->db->fetchAll(
+            "SELECT DISTINCT upa.pic_name
+               FROM user_pic_assignments upa
+               JOIN users u ON u.id = upa.user_id AND u.deleted_at IS NULL
+               JOIN roles r ON r.id = u.role_id AND r.role_slug = 'pic_project'
+              WHERE EXISTS (
+                        SELECT 1 FROM project_user_access pua_pic
+                        JOIN project_user_access pua_admin
+                          ON pua_admin.project_id = pua_pic.project_id
+                         AND pua_admin.user_id = :admin_id
+                         AND pua_admin.is_active = 1
+                       WHERE pua_pic.user_id = upa.user_id
+                         AND pua_pic.is_active = 1
+                    )
+           ORDER BY upa.pic_name ASC",
+            ['admin_id' => $adminUserId]
+        );
+
+        return array_values(array_unique(array_merge($own, array_column($rows, 'pic_name'))));
+    }
+
     /** Nama PIC milik user yang BELUM ber-password (hint "tautkan password"). */
     public function passwordlessPicNamesForUser(int $userId): array
     {

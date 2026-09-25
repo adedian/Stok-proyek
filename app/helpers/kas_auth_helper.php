@@ -116,15 +116,25 @@ function kasCanValidateDivision(?string $roleSlug, string $division): bool
 
 /**
  * Cakupan divisi yang boleh DILIHAT user saat ini.
- *   null  = semua divisi (super_admin, accounting).
- *   array = daftar divisi (project_manager -> ['project']).
- * Untuk role ber-PIC (purchase/pic_project/admin_project) pembatasan utama
- * tetap lewat nama PIC (kasScopePicNames()), divisi tidak dibatasi lagi.
+ *   null  = semua divisi (super_admin, accounting, purchase -- Purchase
+ *           dibatasi lewat scopeAccessScope()/kasOwnDivisionBucket() +
+ *           gerbang "tidak pernah accounting" di CashTransaction::buildWhere()).
+ *   array = daftar divisi yang diizinkan.
+ *
+ * Revisi audit RBAC Kas per-project (2026-09-25): pic_project & admin_project
+ * SEBELUMNYA tidak dibatasi divisi sama sekali di sini (hanya lewat project_id
+ * di scopeAccessScope()), sehingga transaksi Kas Accounting/Purchase yang
+ * kebetulan punya project_id yang sama ikut bocor ke akun Project. Kedua role
+ * ini TIDAK PERNAH punya alasan melihat divisi selain 'project', jadi
+ * dikunci keras di sini (root-cause fix, bukan cuma di view).
  */
 function kasDivisionScope(): ?array
 {
     $role = currentUserRole();
     if ($role === ROLE_PROJECT_MANAGER) {
+        return ['project'];
+    }
+    if ($role === ROLE_PIC_PROJECT || $role === ROLE_ADMIN_PROJECT) {
         return ['project'];
     }
     return null;

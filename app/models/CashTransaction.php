@@ -458,6 +458,17 @@ class CashTransaction extends Model
         $sql = "WHERE c.deleted_at IS NULL";
         $params = [];
 
+        // Pagar mutlak (revisi audit RBAC Kas per-project, 2026-09-25): Kas
+        // Accounting adalah area terpisah -- HANYA super_admin/accounting yang
+        // boleh melihatnya, apa pun kombinasi $scopePics/$divisionScope/
+        // $accessScope di atas. Diterapkan di SATU tempat ini (dipakai semua
+        // pemanggil: list, laporan, cetak, export, saldo, single-row guard)
+        // supaya tidak bisa lolos lewat celah kombinasi filter di masa depan.
+        $role = currentUserRole();
+        if (!in_array($role, [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING], true)) {
+            $sql .= " AND c.division <> 'accounting'";
+        }
+
         if ($accessScope !== null) {
             $projIds = $accessScope['project_ids'] ?? [];
             $bucket  = $accessScope['division'] ?? null;

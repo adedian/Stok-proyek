@@ -124,12 +124,22 @@ $actionUrl = $isEdit ? 'update' : 'store';
                             'cancelled' => 'Dibatalkan',
                         ];
                         $currentStatus = $po['status'] ?? 'draft';
+                        $canApprove = can('purchase_order', 'approve');
                         foreach ($statusOptions as $key => $label): ?>
-                            <option value="<?= e($key) ?>" <?= $currentStatus === $key ? 'selected' : '' ?>>
+                            <option value="<?= e($key) ?>" <?= $currentStatus === $key ? 'selected' : '' ?>
+                                <?= ($key === 'approved' && !$canApprove) ? 'disabled' : '' ?>>
                                 <?= e($label) ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
+                    <?php if (!$canApprove): ?>
+                        <div class="form-text">Ubah ke "Disetujui" lewat tombol Setujui PO di halaman Detail.</div>
+                    <?php endif; ?>
+                    <?php if (!empty($po['approved_at'])): ?>
+                        <div class="form-text text-warning">
+                            <i class="bi bi-lock-fill"></i> PO ini sudah disetujui &mdash; Anda mengedit sebagai Super Admin.
+                        </div>
+                    <?php endif; ?>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">No. Quotation</label>

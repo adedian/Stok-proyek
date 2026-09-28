@@ -259,13 +259,15 @@ class PurchaseOrder extends Model
                        p.project_name, p.location AS project_location, u.full_name AS created_by_name,
                        w.warehouse_name AS delivery_location_name, w.address AS delivery_location_address,
                        sig.name AS signature_name, sig.position AS signature_position,
-                       sig.signature_image AS signature_image
+                       sig.signature_image AS signature_image,
+                       ap.full_name AS approved_by_name
                 FROM purchase_orders po
                 JOIN suppliers s ON s.id = po.supplier_id
                 JOIN projects p ON p.id = po.project_id
                 LEFT JOIN users u ON u.id = po.created_by
                 LEFT JOIN warehouses w ON w.id = po.delivery_location_id
                 LEFT JOIN signatures sig ON sig.id = po.signature_id AND sig.deleted_at IS NULL
+                LEFT JOIN users ap ON ap.id = po.approved_by
                 WHERE po.id = :id AND po.deleted_at IS NULL";
         return $this->db->fetchOne($sql, ['id' => $id]);
     }

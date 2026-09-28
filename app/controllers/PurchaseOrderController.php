@@ -239,6 +239,7 @@ class PurchaseOrderController extends Controller
             setFlash('error', 'Purchase Order tidak ditemukan.');
             $this->redirect('purchase_order', 'index');
         }
+        $this->assertApprovalLock($po);
 
         $this->view('purchase_order/form', [
             'pageTitle' => 'Edit Purchase Order',
@@ -277,12 +278,22 @@ class PurchaseOrderController extends Controller
             setFlash('error', 'Purchase Order tidak ditemukan.');
             $this->redirect('purchase_order', 'index');
         }
+        $this->assertApprovalLock($existing);
 
         $data = $this->collectPoInput();
         $errors = $this->validatePoInput($data);
 
         if (!empty($errors)) {
             setFlash('error', implode(' ', $errors));
+            $this->redirect('purchase_order', 'edit', ['id' => $id]);
+        }
+
+        // Transisi ke status 'approved' HARUS lewat tombol/action approve() (supaya
+        // approved_by/approved_at tercatat & PO benar-benar terkunci) -- form edit
+        // biasa tidak boleh dipakai untuk "menyelundupkan" status approved begitu
+        // saja, apalagi oleh user yang tidak punya permission approve.
+        if ($data['status'] === 'approved' && $existing['status'] !== 'approved' && !can('purchase_order', 'approve')) {
+            setFlash('error', "Ubah status PO ke 'Disetujui' harus lewat tombol Setujui PO di halaman Detail, bukan form edit.");
             $this->redirect('purchase_order', 'edit', ['id' => $id]);
         }
 
@@ -351,6 +362,44 @@ class PurchaseOrderController extends Controller
     }
 
     /**
+     * Setujui PO -- action terpisah dari update() biasa (bukan sekadar ganti
+     * dropdown status), supaya siapa & kapan approve tercatat (approved_by/at)
+     * dan PO otomatis terkunci sesudahnya (lihat assertApprovalLock()). Hanya
+     * berlaku dari status 'waiting_approval'.
+     */
+    public function approve()
+    {
+        Middleware::requirePermission('purchase_order', 'approve');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('purchase_order', 'index');
+        }
+        verifyCsrf();
+
+        $id = (int) ($_POST['id'] ?? 0);
+        $po = $this->poModel->find($id);
+
+        if (!$po) {
+            setFlash('error', 'Purchase Order tidak ditemukan.');
+            $this->redirect('purchase_order', 'index');
+        }
+        if ($po['status'] !== 'waiting_approval') {
+            setFlash('error', "PO hanya bisa disetujui dari status 'Menunggu Approval'.");
+            $this->redirect('purchase_order', 'detail', ['id' => $id]);
+        }
+
+        $this->poModel->updateById($id, [
+            'status'      => 'approved',
+            'approved_by' => currentUserId(),
+            'approved_at' => date('Y-m-d H:i:s'),
+        ]);
+        $this->historyModel->log($id, 'status_changed', 'PO disetujui oleh ' . currentUserName(), currentUserId());
+
+        setFlash('success', 'Purchase Order berhasil disetujui. Data PO ini sekarang terkunci (hanya Super Admin yang bisa mengubah).');
+        $this->redirect('purchase_order', 'detail', ['id' => $id]);
+    }
+
+    /**
      * Soft delete PO
      */
     public function delete()
@@ -369,6 +418,7 @@ class PurchaseOrderController extends Controller
             setFlash('error', 'Purchase Order tidak ditemukan.');
             $this->redirect('purchase_order', 'index');
         }
+        $this->assertApprovalLock($po);
 
         assertPeriodOpen('purchase_order', $po['po_date'], 'purchase_order', 'index');
         $res = $this->deleteOneRecord($id);
@@ -493,6 +543,18 @@ class PurchaseOrderController extends Controller
     }
 
     // ================= Helper privat =================
+
+    /**
+     * PO yang sudah disetujui (approved_at terisi) terkunci -- tidak bisa
+     * diedit/dihapus lagi kecuali oleh Super Admin. Pola sama persis dengan
+     * CashController::assertValidationAllowsChange() (Validasi Kas).
+     */
+    private function assertApprovalLock(array $po): void
+    {
+        if (!empty($po['approved_at']) && currentUserRole() !== ROLE_SUPER_ADMIN) {
+            denyAccess("Purchase Order '{$po['po_number']}' sudah disetujui -- tidak bisa diubah/dihapus. Hubungi Super Admin bila perlu koreksi.");
+        }
+    }
 
     private function collectPoInput(): array
     {

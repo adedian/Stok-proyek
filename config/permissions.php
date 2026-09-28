@@ -50,6 +50,10 @@ return [
         'create' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING],
         'edit'   => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING],
         'delete' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE],
+        // Setujui PO (kunci status/data -- lihat PurchaseOrderController::approve()
+        // & assertApprovalLock()). Default hanya Super Admin -- bisa diperluas
+        // lewat Hak Akses (Pengaturan Sistem) kalau dibutuhkan.
+        'approve' => [ROLE_SUPER_ADMIN],
     ],
 
     'payment' => [

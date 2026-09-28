@@ -147,6 +147,8 @@
                                         </li>
                                         <?php if (isPeriodClosed('purchase_order', $po['po_date'])): ?>
                                         <li><span class="dropdown-item-text text-muted small"><i class="bi bi-lock-fill"></i> Periode ditutup</span></li>
+                                        <?php elseif (!empty($po['approved_at']) && !hasRole([ROLE_SUPER_ADMIN])): ?>
+                                        <li><span class="dropdown-item-text text-muted small"><i class="bi bi-lock-fill"></i> Sudah disetujui</span></li>
                                         <?php else: ?>
                                         <?php if (can('purchase_order', 'edit')): ?>
                                         <li>

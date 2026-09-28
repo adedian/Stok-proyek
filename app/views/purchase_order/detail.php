@@ -8,10 +8,22 @@
            class="btn btn-outline-dark" target="_blank">
             <i class="bi bi-printer"></i> Cetak PO
         </a>
-        <a href="<?= BASE_URL ?>/purchase_order/edit/<?= (int) $po['id'] ?>"
-           class="btn btn-outline-primary">
-            <i class="bi bi-pencil"></i> Edit
-        </a>
+        <?php if ($po['status'] === 'waiting_approval' && can('purchase_order', 'approve')): ?>
+            <form method="POST" action="<?= BASE_URL ?>/index.php?module=purchase_order&action=approve"
+                  onsubmit="return confirm('Setujui PO <?= e($po['po_number']) ?>? Setelah disetujui, data PO ini tidak bisa diubah lagi kecuali oleh Super Admin.');">
+                <?= csrfField() ?>
+                <input type="hidden" name="id" value="<?= (int) $po['id'] ?>">
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-check-circle"></i> Setujui PO
+                </button>
+            </form>
+        <?php endif; ?>
+        <?php if (empty($po['approved_at']) || hasRole([ROLE_SUPER_ADMIN])): ?>
+            <a href="<?= BASE_URL ?>/purchase_order/edit/<?= (int) $po['id'] ?>"
+               class="btn btn-outline-primary">
+                <i class="bi bi-pencil"></i> Edit
+            </a>
+        <?php endif; ?>
         <a href="<?= BASE_URL ?>/purchase_order" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Kembali
         </a>
@@ -40,6 +52,12 @@
                         <span class="badge bg-<?= e($statusBadgeClass[$po['status']] ?? 'secondary') ?>">
                             <?= e($statusLabels[$po['status']] ?? $po['status']) ?>
                         </span>
+                        <?php if (!empty($po['approved_at'])): ?>
+                            <div class="small text-muted mt-1">
+                                <i class="bi bi-lock-fill"></i> Disetujui <?= e($po['approved_by_name'] ?? '-') ?>,
+                                <?= formatTanggal(substr($po['approved_at'], 0, 10)) ?> <?= substr($po['approved_at'], 11, 5) ?>
+                            </div>
+                        <?php endif; ?>
                     </div>
                     <div class="col-md-4">
                         <div class="text-muted small">Pembuat PO</div>

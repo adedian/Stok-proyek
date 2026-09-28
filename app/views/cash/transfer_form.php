@@ -1,9 +1,10 @@
 <?php
-/** @var array $banks @var array $rekeningOptions @var array $picOptions @var string $myPicName */
+/** @var array $banks @var array $rekeningOptions @var array $picOptions @var string $myPicName @var array $projects */
 $banks = $banks ?? [];
 $rekeningOptions = $rekeningOptions ?? [];
 $picOptions = $picOptions ?? [];
 $myPicName = $myPicName ?? '';
+$projects = $projects ?? [];
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
@@ -65,6 +66,19 @@ $myPicName = $myPicName ?? '';
                         <?php endforeach; ?>
                     </select>
                     <div class="form-text">PIC tujuan wajib sudah punya Prefix Kas (Master Data &rarr; PIC Kas).</div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Project</label>
+                    <select name="project_id" class="form-select">
+                        <option value="">-- Tanpa Project --</option>
+                        <?php foreach ($projects as $p): ?>
+                            <option value="<?= (int) $p['id'] ?>"><?= e($p['project_name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <div class="form-text">
+                        <strong>Wajib diisi</strong> kalau PIC tujuan role-nya PIC Project/Admin Project --
+                        tanpa Project, mereka tidak akan bisa melihat transaksi ini sendiri.
+                    </div>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Catatan</label>

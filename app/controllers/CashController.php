@@ -891,6 +891,7 @@ class CashController extends Controller
             'rekeningOptions' => $this->rekeningModel->activeList(),
             'picOptions'     => $this->picModel->allPicNames(),
             'myPicName'      => $myPicName,
+            'projects'       => $this->projectModel->activeList(),
         ]);
     }
 
@@ -907,6 +908,7 @@ class CashController extends Controller
         $trxDate = trim($_POST['trx_date'] ?? '');
         $bankId = (int) ($_POST['bank_id'] ?? 0);
         $rekeningId = !empty($_POST['rekening_id']) ? (int) $_POST['rekening_id'] : null;
+        $projectId = !empty($_POST['project_id']) ? (int) $_POST['project_id'] : null;
         $fromPic = trim($_POST['from_pic'] ?? '') ?: null;
         $toPic = trim($_POST['to_pic'] ?? '');
         $amount = parseCurrencyInput($_POST['amount'] ?? 0);
@@ -919,6 +921,9 @@ class CashController extends Controller
         if ($bankId <= 0 || !$this->masterBankModel->find($bankId)) {
             $errors[] = 'Bank sumber dana wajib dipilih.';
         }
+        if ($projectId !== null && !$this->projectModel->find($projectId)) {
+            $errors[] = 'Project yang dipilih tidak valid.';
+        }
         if ($toPic === '') {
             $errors[] = 'Kas tujuan wajib dipilih.';
         }
@@ -928,6 +933,16 @@ class CashController extends Controller
         $toPrefix = $toPic !== '' ? $this->picModel->prefixForPicName($toPic) : null;
         if ($toPic !== '' && !$toPrefix) {
             $errors[] = "PIC Kas '{$toPic}' belum memiliki Prefix Kas. Minta Super Admin mengaturnya di Master Data \xe2\x86\x92 PIC Kas dulu.";
+        }
+        // PIC Project/Admin Project HANYA bisa melihat transaksi Kas yang
+        // project_id-nya termasuk project yang mereka akses (lihat
+        // CashTransaction::buildWhere() -- pagar RBAC per-project, tidak ada
+        // fallback "division bucket" untuk role ini seperti Purchase). Tanpa
+        // Project, transfer akan tersimpan benar tapi TIDAK PERNAH terlihat
+        // oleh PIC tujuan sendiri -- cegah dari sini, bukan biarkan jadi gap senyap.
+        $toOwnerRole = $toPic !== '' ? $this->picModel->ownerRoleSlugForPic($toPic) : null;
+        if ($toOwnerRole && kasIsProjectGateRole($toOwnerRole) && $toOwnerRole !== ROLE_PURCHASE && $projectId === null) {
+            $errors[] = "PIC tujuan '{$toPic}' hanya bisa melihat Kas yang punya Project (role-nya di-scope per-project) -- pilih Project dulu.";
         }
 
         if (!empty($errors)) {
@@ -954,7 +969,7 @@ class CashController extends Controller
                 'trx_date'    => $trxDate,
                 'bank_id'     => $bankId,
                 'rekening_id' => $rekeningId,
-                'project_id'  => null,
+                'project_id'  => $projectId,
                 'pic'         => $fromPic,
                 'no_bukti'    => $bankNoBukti,
                 'uraian'      => $bankUraian,
@@ -980,7 +995,7 @@ class CashController extends Controller
                 'trx_date'      => $trxDate,
                 'pic'           => $toPic,
                 'division'      => $this->resolveDivision($toPic),
-                'project_id'    => null,
+                'project_id'    => $projectId,
                 'rekening_id'   => null,
                 'no_bukti'      => $cashNoBukti,
                 'mutasi'        => 'masuk',

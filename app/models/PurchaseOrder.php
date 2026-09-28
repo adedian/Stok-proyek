@@ -285,13 +285,23 @@ class PurchaseOrder extends Model
         return (new DocumentNumber())->preview('purchase_order', 'prefix_po', $poDate);
     }
 
+    /**
+     * Grand Total = SUM(subtotal barang, sudah termasuk diskon+PPN per baris)
+     * + SUM(biaya tambahan). Lihat purchase_order_extra_costs.
+     */
     public function recalculateTotal(int $poId): void
     {
-        $sql = "SELECT COALESCE(SUM(subtotal), 0) AS total
-                FROM purchase_order_items WHERE purchase_order_id = :id";
-        $total = $this->db->fetchOne($sql, ['id' => $poId])['total'];
+        $itemsTotal = (float) $this->db->fetchOne(
+            "SELECT COALESCE(SUM(subtotal), 0) AS total FROM purchase_order_items WHERE purchase_order_id = :id",
+            ['id' => $poId]
+        )['total'];
 
-        $this->updateById($poId, ['total_amount' => $total]);
+        $extraTotal = (float) $this->db->fetchOne(
+            "SELECT COALESCE(SUM(amount), 0) AS total FROM purchase_order_extra_costs WHERE purchase_order_id = :id",
+            ['id' => $poId]
+        )['total'];
+
+        $this->updateById($poId, ['total_amount' => $itemsTotal + $extraTotal]);
     }
 
     /**

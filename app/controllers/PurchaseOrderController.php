@@ -3,6 +3,7 @@ require_once ROOT_PATH . '/core/Controller.php';
 require_once ROOT_PATH . '/core/Middleware.php';
 require_once ROOT_PATH . '/app/models/PurchaseOrder.php';
 require_once ROOT_PATH . '/app/models/PurchaseOrderItem.php';
+require_once ROOT_PATH . '/app/models/PurchaseOrderExtraCost.php';
 require_once ROOT_PATH . '/app/models/PurchaseOrderHistory.php';
 require_once ROOT_PATH . '/app/models/Supplier.php';
 require_once ROOT_PATH . '/app/models/Project.php';
@@ -19,6 +20,7 @@ class PurchaseOrderController extends Controller
 {
     private PurchaseOrder $poModel;
     private PurchaseOrderItem $itemModel;
+    private PurchaseOrderExtraCost $extraCostModel;
     private PurchaseOrderHistory $historyModel;
     private Supplier $supplierModel;
     private Project $projectModel;
@@ -38,6 +40,7 @@ class PurchaseOrderController extends Controller
 
         $this->poModel      = new PurchaseOrder();
         $this->itemModel    = new PurchaseOrderItem();
+        $this->extraCostModel = new PurchaseOrderExtraCost();
         $this->historyModel = new PurchaseOrderHistory();
         $this->supplierModel = new Supplier();
         $this->projectModel  = new Project();
@@ -64,6 +67,13 @@ class PurchaseOrderController extends Controller
         $purchaseOrders = $this->poModel->listWithRelations($filters);
         $projects = $this->projectModel->activeList();
 
+        $paidTotals = $this->paymentModel->paidTotalsByPoIds(array_column($purchaseOrders, 'id'));
+        foreach ($purchaseOrders as &$po) {
+            $paid = $paidTotals[$po['id']] ?? 0.0;
+            $po['payment_status'] = $this->paymentModel->resolveStatus((float) $po['total_amount'], $paid);
+        }
+        unset($po);
+
         $this->view('purchase_order/list', [
             'pageTitle'      => 'Purchase Order',
             'purchaseOrders' => $purchaseOrders,
@@ -71,6 +81,8 @@ class PurchaseOrderController extends Controller
             'filters'        => $filters,
             'statusLabels'   => $this->poModel->statusLabels,
             'statusBadgeClass' => $this->poModel->statusBadgeClass,
+            'paymentStatusLabels'     => $this->paymentModel->statusLabels,
+            'paymentStatusBadgeClass' => $this->paymentModel->statusBadgeClass,
         ]);
     }
 
@@ -88,6 +100,7 @@ class PurchaseOrderController extends Controller
         }
 
         $items = $this->itemModel->itemsByPo($id);
+        $extraCosts = $this->extraCostModel->itemsByPo($id);
         $history = $this->historyModel->timelineByPo($id);
         $paymentInfo = $this->paymentModel->poPaymentInfo($id, (float) $po['total_amount']);
 
@@ -95,6 +108,7 @@ class PurchaseOrderController extends Controller
             'pageTitle' => 'Detail PO',
             'po'        => $po,
             'items'     => $items,
+            'extraCosts' => $extraCosts,
             'history'   => $history,
             'paymentInfo' => $paymentInfo,
             'statusLabels'     => $this->poModel->statusLabels,
@@ -116,6 +130,7 @@ class PurchaseOrderController extends Controller
             'mode'        => 'create',
             'po'          => null,
             'items'       => [],
+            'extraCosts'  => [],
             'poNumber'    => $this->poModel->previewPoNumber(),
             'suppliers'   => $this->supplierModel->activeList(),
             'projects'    => $this->projectModel->activeList(),
@@ -171,6 +186,7 @@ class PurchaseOrderController extends Controller
             ]);
 
             $this->saveItems($poId, $data['items']);
+            $this->saveExtraCosts($poId, $data['extra_costs']);
             $this->poModel->recalculateTotal($poId);
 
             $this->historyModel->log($poId, 'created', 'Purchase Order dibuat', currentUserId());
@@ -229,6 +245,7 @@ class PurchaseOrderController extends Controller
             'mode'      => 'edit',
             'po'        => $po,
             'items'     => $this->itemModel->itemsByPo($id),
+            'extraCosts' => $this->extraCostModel->itemsByPo($id),
             'poNumber'  => $po['po_number'],
             'suppliers' => $this->supplierModel->activeList(),
             'projects'  => $this->projectModel->activeList(),
@@ -301,8 +318,11 @@ class PurchaseOrderController extends Controller
             if (!$itemsLocked) {
                 $this->itemModel->deleteByPo($id);
                 $this->saveItems($id, $data['items']);
-                $this->poModel->recalculateTotal($id);
             }
+            // Biaya tambahan TIDAK dikunci oleh $itemsLocked -- tidak direferensikan
+            // goods_receipt_items, jadi selalu boleh diganti walau daftar barang sudah terkunci.
+            $this->saveExtraCosts($id, $data['extra_costs']);
+            $this->poModel->recalculateTotal($id);
 
             $this->historyModel->log($id, 'updated', 'Data Purchase Order & item diperbarui', currentUserId());
             if ($statusChanged) {
@@ -454,6 +474,7 @@ class PurchaseOrderController extends Controller
             $po = $this->poModel->findWithRelations($id);
             if ($po) { // ID yang tidak ditemukan/sudah dihapus otomatis diabaikan, bukan error fatal
                 $po['items'] = $this->itemModel->itemsByPo($id);
+                $po['extraCosts'] = $this->extraCostModel->itemsByPo($id);
                 $purchaseOrders[] = $po;
             }
         }
@@ -481,6 +502,9 @@ class PurchaseOrderController extends Controller
         $qtys  = $_POST['qty_order'] ?? [];
         $prices = $_POST['price'] ?? [];
         $itemIds = $_POST['item_id'] ?? [];
+        $discounts = $_POST['discount_percent'] ?? [];
+        $ppnEnabled = $_POST['ppn_enabled'] ?? []; // checkbox -- hanya index yang dicentang yang terkirim
+        $ppnPercents = $_POST['ppn_percent'] ?? [];
         // Kategori: read-only di form, ikut kategori master Barang (data-category).
         // Diperlakukan seperti unit[] -- string snapshot yang dikirim apa adanya,
         // hanya dipakai untuk kolom Kategori di CETAK PO.
@@ -491,8 +515,16 @@ class PurchaseOrderController extends Controller
             if ($name === '') {
                 continue; // baris kosong diabaikan
             }
-            $qty = (float) ($qtys[$i] ?? 0);
+            $qty = parseQtyInput($qtys[$i] ?? 0);
             $price = parseCurrencyInput($prices[$i] ?? 0);
+            $discountPercent = max(0, min(100, parseQtyInput($discounts[$i] ?? 0)));
+            $ppnOn = !empty($ppnEnabled[$i]);
+            $ppnPercent = $ppnOn ? max(0, min(100, parseQtyInput($ppnPercents[$i] ?? 0))) : null;
+
+            $afterDiscount = $qty * $price * (1 - $discountPercent / 100);
+            $ppnAmount = $ppnOn ? $afterDiscount * ($ppnPercent / 100) : 0;
+            $subtotal = $afterDiscount + $ppnAmount;
+
             $items[] = [
                 'item_id'   => !empty($itemIds[$i]) ? (int) $itemIds[$i] : null,
                 'item_name' => $name,
@@ -500,8 +532,23 @@ class PurchaseOrderController extends Controller
                 'unit'      => trim($units[$i] ?? ''),
                 'qty_order' => $qty,
                 'price'     => $price,
-                'subtotal'  => $qty * $price,
+                'discount_percent' => $discountPercent,
+                'ppn_enabled' => $ppnOn,
+                'ppn_percent' => $ppnPercent,
+                'subtotal'  => $subtotal,
             ];
+        }
+
+        $extraCosts = [];
+        $costNames = $_POST['extra_cost_name'] ?? [];
+        $costAmounts = $_POST['extra_cost_amount'] ?? [];
+        foreach ($costNames as $i => $costName) {
+            $costName = trim($costName);
+            $amount = parseCurrencyInput($costAmounts[$i] ?? 0);
+            if ($costName === '' || $amount == 0) {
+                continue; // baris kosong/nol diabaikan
+            }
+            $extraCosts[] = ['cost_name' => $costName, 'amount' => $amount];
         }
 
         return [
@@ -521,6 +568,7 @@ class PurchaseOrderController extends Controller
             'quote_number' => trim($_POST['quote_number'] ?? '') ?: null,
             'quote_date'   => trim($_POST['quote_date'] ?? '') ?: null,
             'items'       => $items,
+            'extra_costs' => $extraCosts,
         ];
     }
 
@@ -556,6 +604,14 @@ class PurchaseOrderController extends Controller
             if ($item['price'] < 0) {
                 $errors[] = "Harga untuk item '{$item['item_name']}' tidak boleh negatif.";
             }
+            if ($item['ppn_enabled'] && ($item['ppn_percent'] === null || $item['ppn_percent'] <= 0)) {
+                $errors[] = "PPN untuk item '{$item['item_name']}' dicentang tapi persentasenya belum diisi.";
+            }
+        }
+        foreach ($data['extra_costs'] as $cost) {
+            if ($cost['amount'] < 0) {
+                $errors[] = "Jumlah biaya tambahan '{$cost['cost_name']}' tidak boleh negatif.";
+            }
         }
 
         return $errors;
@@ -572,8 +628,23 @@ class PurchaseOrderController extends Controller
                 'unit'      => $item['unit'],
                 'qty_order' => $item['qty_order'],
                 'price'     => $item['price'],
+                'discount_percent' => $item['discount_percent'] ?? 0,
+                'ppn_enabled' => !empty($item['ppn_enabled']) ? 1 : 0,
+                'ppn_percent' => $item['ppn_percent'] ?? null,
                 'subtotal'  => $item['subtotal'],
                 'created_by' => currentUserId(),
+            ]);
+        }
+    }
+
+    private function saveExtraCosts(int $poId, array $extraCosts): void
+    {
+        $this->extraCostModel->deleteByPo($poId);
+        foreach ($extraCosts as $cost) {
+            $this->extraCostModel->create([
+                'purchase_order_id' => $poId,
+                'cost_name' => $cost['cost_name'],
+                'amount'    => $cost['amount'],
             ]);
         }
     }

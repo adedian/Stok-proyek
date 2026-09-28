@@ -157,7 +157,7 @@ class InventoryController extends Controller
         // benar walau ada baris duplikat/kosong yang dibuang oleh array_unique di atas.
         $qtyActualByInventoryId = [];
         foreach ($_POST['inventory_id'] ?? [] as $i => $rawId) {
-            $qtyActualByInventoryId[(int) $rawId] = (float) ($qtyActualsRaw[$i] ?? 0);
+            $qtyActualByInventoryId[(int) $rawId] = parseQtyInput($qtyActualsRaw[$i] ?? 0);
         }
 
         $errors = [];

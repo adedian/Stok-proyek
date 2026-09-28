@@ -386,6 +386,39 @@ function parseCurrencyInput($raw): float
 }
 
 /**
+ * Bersihkan input QTY (bukan uang) yang mungkin diketik pakai koma desimal
+ * ala Indonesia (mis. "0,5") -- beda konvensi dari parseCurrencyInput() di
+ * atas (koma = ribuan, dipakai field .currency-input). Semua kolom qty di
+ * app ini DITAMPILKAN dengan format Indonesia (number_format($x,2,',','.')),
+ * jadi wajar user mengetik ulang dengan koma -- kalau field qty masih
+ * <input type="number">, browser menganggap "0,5" INVALID dan mengirim value
+ * KOSONG, bukan salah parse -- baris/qty itu jadi hilang diam-diam (root
+ * cause bug "qty 0,5 jadi 0" di Penerimaan Barang/Stok Opname). Field qty
+ * yang butuh desimal HARUS pakai <input type="text" inputmode="decimal">
+ * + fungsi ini di controller, BUKAN type="number".
+ */
+function parseQtyInput($raw): float
+{
+    $str = trim((string) $raw);
+    if ($str === '') {
+        return 0.0;
+    }
+
+    if (strpos($str, ',') !== false) {
+        // Ada koma -> koma dianggap DESIMAL (konvensi Indonesia), titik (kalau
+        // ada) dianggap pemisah ribuan dan dibuang.
+        $str = str_replace('.', '', $str);
+        $str = str_replace(',', '.', $str);
+    }
+
+    if (!is_numeric($str)) {
+        $str = preg_replace('/[^0-9.\-]/', '', $str);
+    }
+
+    return ($str === '' || !is_numeric($str)) ? 0.0 : (float) $str;
+}
+
+/**
  * Format satu nilai kolom laporan sesuai tipenya -- dipakai bareng oleh
  * tampilan tabel, export CSV, dan export PDF di modul Laporan supaya konsisten.
  */

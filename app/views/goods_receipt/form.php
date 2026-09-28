@@ -280,7 +280,7 @@ $canOfflineSource = can('offline_purchase', 'view');
                                         <?php endif; ?>
                                     </select>
                                 </td>
-                                <td><input type="number" name="mismatch_qty[]" class="form-control form-control-sm" min="0" step="0.01" value="<?= e($mi['qty_received']) ?>"></td>
+                                <td><input type="text" inputmode="decimal" name="mismatch_qty[]" class="form-control form-control-sm" value="<?= e($mi['qty_received']) ?>"></td>
                                 <td>
                                     <button type="button" class="btn btn-sm btn-outline-danger btn-remove-mismatch-row" title="Hapus baris">
                                         <i class="bi bi-trash"></i>
@@ -323,7 +323,7 @@ $canOfflineSource = can('offline_purchase', 'view');
                                     <?php endforeach; ?>
                                 </select>
                             </td>
-                            <td><input type="number" name="pemakai_qty[]" class="form-control form-control-sm" min="0" step="0.01" placeholder="0"></td>
+                            <td><input type="text" inputmode="decimal" name="pemakai_qty[]" class="form-control form-control-sm" placeholder="0"></td>
                             <td>
                                 <button type="button" class="btn btn-sm btn-outline-danger btn-remove-pemakai-row" title="Hapus baris">
                                     <i class="bi bi-trash"></i>
@@ -361,7 +361,7 @@ $canOfflineSource = can('offline_purchase', 'view');
         row.innerHTML =
             '<td><input type="text" name="mismatch_item_name[]" class="form-control form-control-sm"></td>' +
             '<td><select name="mismatch_unit[]" class="form-select form-select-sm">' + unitOptionsHtml + '</select></td>' +
-            '<td><input type="number" name="mismatch_qty[]" class="form-control form-control-sm" min="0" step="0.01"></td>' +
+            '<td><input type="text" inputmode="decimal" name="mismatch_qty[]" class="form-control form-control-sm"></td>' +
             '<td><button type="button" class="btn btn-sm btn-outline-danger btn-remove-mismatch-row" title="Hapus baris"><i class="bi bi-trash"></i></button></td>';
         mismatchBody.appendChild(row);
         mismatchTable.classList.remove('d-none');

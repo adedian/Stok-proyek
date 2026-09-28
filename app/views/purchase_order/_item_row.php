@@ -9,7 +9,7 @@
  * TETAP string biasa (lihat hidden input di bawah), jadi collectPoInput()/saveItems()
  * di controller tidak perlu berubah sama sekali.
  */
-$item = $item ?? ['item_id' => null, 'item_name' => '', 'unit' => '', 'qty_order' => '', 'price' => ''];
+$item = $item ?? ['item_id' => null, 'item_name' => '', 'unit' => '', 'qty_order' => '', 'price' => '', 'discount_percent' => 0, 'ppn_enabled' => false, 'ppn_percent' => null];
 $itemCatalog = $itemCatalog ?? [];
 $hasItemId = !empty($item['item_id']);
 $isLegacyRow = !$hasItemId && $item['item_name'] !== '';
@@ -64,15 +64,35 @@ $selectedCategory = $item['category'] ?? '';
         <input type="text" class="form-control form-control-sm unit-display" value="<?= e($item['unit']) ?>" readonly>
         <input type="hidden" name="unit[]" class="unit-input" value="<?= e($item['unit']) ?>">
     </td>
-    <td style="width: 120px;">
-        <input type="number" name="qty_order[]" class="form-control form-control-sm qty-input"
-               value="<?= e($item['qty_order']) ?>" min="0.01" step="0.01" placeholder="0" required>
+    <td style="width: 110px;">
+        <input type="text" inputmode="decimal" name="qty_order[]" class="form-control form-control-sm qty-input"
+               value="<?= e($item['qty_order']) ?>" placeholder="0" required>
     </td>
-    <td style="width: 160px;">
+    <td style="width: 150px;">
         <input type="text" name="price[]" class="form-control form-control-sm price-input currency-input"
                inputmode="numeric" value="<?= e($item['price'] !== '' ? number_format((float) $item['price'], 2, '.', ',') : '') ?>" placeholder="0" required>
     </td>
-    <td style="width: 160px;" class="text-end subtotal-cell">Rp 0.00</td>
+    <td style="width: 90px;">
+        <input type="text" inputmode="decimal" name="discount_percent[]" class="form-control form-control-sm discount-input"
+               value="<?= e((string) ($item['discount_percent'] ?: '')) ?>" placeholder="0" title="Diskon (%)">
+    </td>
+    <td style="width: 110px;">
+        <!-- Checkbox visible TANPA name (tidak pernah ikut submit) -- state sebenarnya
+             disinkronkan JS ke hidden input ppn_enabled[] supaya array ini SELALU
+             punya 1 entri per baris (checkbox yang unchecked normalnya TIDAK ikut
+             ter-submit sama sekali oleh browser -- itu akan menggeser index array
+             antar baris kalau dipakai langsung sebagai name="ppn_enabled[]"). -->
+        <div class="input-group input-group-sm">
+            <span class="input-group-text p-1">
+                <input type="checkbox" class="form-check-input ppn-toggle-visible mt-0"
+                       <?= !empty($item['ppn_enabled']) ? 'checked' : '' ?> title="Pakai PPN">
+            </span>
+            <input type="hidden" name="ppn_enabled[]" class="ppn-enabled-input" value="<?= !empty($item['ppn_enabled']) ? '1' : '' ?>">
+            <input type="text" inputmode="decimal" name="ppn_percent[]" class="form-control form-control-sm ppn-percent-input"
+                   value="<?= e($item['ppn_percent'] !== null ? (string) $item['ppn_percent'] : '') ?>" placeholder="%">
+        </div>
+    </td>
+    <td style="width: 150px;" class="text-end subtotal-cell">Rp 0.00</td>
     <td style="width: 50px;" class="text-center">
         <button type="button" class="btn btn-sm btn-outline-danger btn-remove-row">
             <i class="bi bi-trash"></i>

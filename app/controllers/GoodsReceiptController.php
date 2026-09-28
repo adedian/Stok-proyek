@@ -733,7 +733,7 @@ class GoodsReceiptController extends Controller
         $items = [];
         foreach ($poItemIds as $i => $poItemId) {
             $poItemId = (int) $poItemId;
-            $qty = (float) ($qtys[$i] ?? 0);
+            $qty = parseQtyInput($qtys[$i] ?? 0);
             if ($poItemId <= 0 || $qty <= 0) {
                 continue; // baris tanpa input qty diabaikan (barang tsb belum datang di penerimaan ini)
             }
@@ -754,7 +754,7 @@ class GoodsReceiptController extends Controller
         $items = [];
         foreach ($offlineItemIds as $i => $offlineItemId) {
             $offlineItemId = (int) $offlineItemId;
-            $qty = (float) ($qtys[$i] ?? 0);
+            $qty = parseQtyInput($qtys[$i] ?? 0);
             if ($offlineItemId <= 0 || $qty <= 0) {
                 continue;
             }
@@ -778,7 +778,7 @@ class GoodsReceiptController extends Controller
         $items = [];
         foreach ($names as $i => $name) {
             $name = trim($name);
-            $qty = (float) ($qtys[$i] ?? 0);
+            $qty = parseQtyInput($qtys[$i] ?? 0);
             if ($name === '' || $qty <= 0) {
                 continue;
             }
@@ -804,7 +804,7 @@ class GoodsReceiptController extends Controller
         $items = [];
         foreach ($names as $i => $name) {
             $name = trim($name);
-            $qty = (float) ($qtys[$i] ?? 0);
+            $qty = parseQtyInput($qtys[$i] ?? 0);
             if ($name === '' || $qty <= 0) {
                 continue;
             }

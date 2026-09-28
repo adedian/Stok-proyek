@@ -243,6 +243,9 @@
                     <?php endif; ?>
                 </div>
             <?php endif; ?>
+            <?php if (!empty($company['company_npwp'])): ?>
+                <div class="po-print-company-meta">NPWP: <?= e($company['company_npwp']) ?></div>
+            <?php endif; ?>
         </div>
 
         <div class="po-print-title">PURCHASE ORDER</div>
@@ -289,13 +292,15 @@
         <table class="po-print-table">
             <thead>
                 <tr>
-                    <th style="width: 26px;">No</th>
+                    <th style="width: 22px;">No</th>
                     <th>Nama Barang / Spesifikasi</th>
-                    <th class="num" style="width: 55px;">Qty</th>
-                    <th style="width: 55px;">Satuan</th>
-                    <th class="num" style="width: 95px;">Harga Satuan</th>
-                    <th class="num" style="width: 105px;">Total</th>
-                    <th style="width: 90px;">Kategori</th>
+                    <th class="num" style="width: 48px;">Qty</th>
+                    <th style="width: 48px;">Satuan</th>
+                    <th class="num" style="width: 85px;">Harga Satuan</th>
+                    <th class="num" style="width: 40px;">Disc</th>
+                    <th class="num" style="width: 40px;">PPN</th>
+                    <th class="num" style="width: 95px;">Total</th>
+                    <th style="width: 80px;">Kategori</th>
                 </tr>
             </thead>
             <tbody>
@@ -306,12 +311,21 @@
                         <td class="num"><?= number_format((float) $item['qty_order'], 2, ',', '.') ?></td>
                         <td><?= e($item['unit']) ?></td>
                         <td class="num"><?= formatRupiah($item['price']) ?></td>
+                        <td class="num"><?= (float) ($item['discount_percent'] ?? 0) > 0 ? number_format((float) $item['discount_percent'], 0, ',', '.') . '%' : '-' ?></td>
+                        <td class="num"><?= !empty($item['ppn_enabled']) ? number_format((float) $item['ppn_percent'], 0, ',', '.') . '%' : '-' ?></td>
                         <td class="num"><?= formatRupiah($item['subtotal']) ?></td>
                         <td><?= e($item['category'] ?? '') ?></td>
                     </tr>
                 <?php endforeach; ?>
+                <?php foreach ($po['extraCosts'] ?? [] as $cost): ?>
+                    <tr>
+                        <td colspan="7" class="num">Biaya Tambahan: <?= e($cost['cost_name']) ?></td>
+                        <td class="num"><?= formatRupiah($cost['amount']) ?></td>
+                        <td></td>
+                    </tr>
+                <?php endforeach; ?>
                 <tr class="po-print-total-row">
-                    <td colspan="5" class="num">TOTAL</td>
+                    <td colspan="7" class="num">TOTAL</td>
                     <td class="num"><?= formatRupiah($po['total_amount']) ?></td>
                     <td></td>
                 </tr>

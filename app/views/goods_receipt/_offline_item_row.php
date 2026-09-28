@@ -18,7 +18,7 @@ $currentQty = $offlineItem['qty_received_current'] ?? '';
         <?= number_format($offlineItem['qty_remaining'], 2, ',', '.') ?>
     </td>
     <td style="width: 140px;">
-        <input type="number" name="qty_received[]" class="form-control form-control-sm"
-               value="<?= e($currentQty) ?>" min="0" step="0.01" placeholder="0">
+        <input type="text" inputmode="decimal" name="qty_received[]" class="form-control form-control-sm"
+               value="<?= e($currentQty) ?>" placeholder="0">
     </td>
 </tr>

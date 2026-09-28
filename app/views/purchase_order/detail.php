@@ -123,6 +123,8 @@
                             <th>Satuan</th>
                             <th class="text-end">Qty</th>
                             <th class="text-end">Harga</th>
+                            <th class="text-end">Diskon</th>
+                            <th class="text-end">PPN</th>
                             <th class="text-end">Subtotal</th>
                         </tr>
                     </thead>
@@ -133,13 +135,23 @@
                                 <td><?= e($item['unit']) ?></td>
                                 <td class="text-end"><?= number_format((float) $item['qty_order'], 2, ',', '.') ?></td>
                                 <td class="text-end"><?= formatRupiah($item['price']) ?></td>
+                                <td class="text-end"><?= (float) ($item['discount_percent'] ?? 0) > 0 ? number_format((float) $item['discount_percent'], 1, ',', '.') . '%' : '-' ?></td>
+                                <td class="text-end"><?= !empty($item['ppn_enabled']) ? number_format((float) $item['ppn_percent'], 1, ',', '.') . '%' : '-' ?></td>
                                 <td class="text-end"><?= formatRupiah($item['subtotal']) ?></td>
                             </tr>
                         <?php endforeach; ?>
+                        <?php if (!empty($extraCosts)): ?>
+                            <?php foreach ($extraCosts as $cost): ?>
+                                <tr>
+                                    <td colspan="6" class="text-muted"><i class="bi bi-plus-circle"></i> Biaya Tambahan: <?= e($cost['cost_name']) ?></td>
+                                    <td class="text-end"><?= formatRupiah($cost['amount']) ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td colspan="4" class="text-end fw-bold">Total</td>
+                            <td colspan="6" class="text-end fw-bold">Grand Total</td>
                             <td class="text-end fw-bold"><?= formatRupiah($po['total_amount']) ?></td>
                         </tr>
                     </tfoot>

@@ -168,6 +168,8 @@ $actionUrl = $isEdit ? 'update' : 'store';
                             <th>Satuan</th>
                             <th>Qty</th>
                             <th>Harga Satuan</th>
+                            <th>Diskon (%)</th>
+                            <th>PPN</th>
                             <th class="text-end">Subtotal</th>
                             <th></th>
                         </tr>
@@ -183,8 +185,8 @@ $actionUrl = $isEdit ? 'update' : 'store';
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td colspan="6" class="text-end fw-bold">Total</td>
-                            <td class="text-end fw-bold" id="grandTotal">Rp 0.00</td>
+                            <td colspan="8" class="text-end fw-bold">Subtotal Barang</td>
+                            <td class="text-end fw-bold" id="itemsSubtotal">Rp 0.00</td>
                             <td></td>
                         </tr>
                     </tfoot>
@@ -207,6 +209,57 @@ $actionUrl = $isEdit ? 'update' : 'store';
                     <option value="<?= e($opt) ?>"></option>
                 <?php endforeach; ?>
             </datalist>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="mb-0">Biaya Tambahan</h6>
+                <button type="button" id="btnAddExtraCost" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-plus-circle"></i> Tambah Biaya
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle entry-cards" id="extraCostTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Nama Biaya</th>
+                            <th class="text-end" style="width: 200px;">Jumlah</th>
+                            <th style="width: 50px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="extraCostTableBody">
+                        <?php foreach ($extraCosts as $cost): ?>
+                            <tr class="extra-cost-row">
+                                <td>
+                                    <input type="text" name="extra_cost_name[]" class="form-control form-control-sm"
+                                           value="<?= e($cost['cost_name']) ?>" placeholder="mis. Ongkir, Biaya Bongkar">
+                                </td>
+                                <td>
+                                    <input type="text" name="extra_cost_amount[]" class="form-control form-control-sm extra-cost-amount-input currency-input"
+                                           inputmode="numeric" value="<?= e(number_format((float) $cost['amount'], 2, '.', ',')) ?>" placeholder="0">
+                                </td>
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-sm btn-outline-danger btn-remove-extra-cost">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+                <?php if (empty($extraCosts)): ?>
+                    <p class="text-muted small mb-0" id="extraCostEmptyHint">Tidak ada biaya tambahan.</p>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">Grand Total</h6>
+            <div class="fs-5 fw-bold" id="grandTotal">Rp 0.00</div>
         </div>
     </div>
 
@@ -235,7 +288,10 @@ $actionUrl = $isEdit ? 'update' : 'store';
 (function () {
     const tableBody = document.getElementById('itemTableBody');
     const btnAddItem = document.getElementById('btnAddItem');
+    const itemsSubtotalEl = document.getElementById('itemsSubtotal');
     const grandTotalEl = document.getElementById('grandTotal');
+    const extraCostBody = document.getElementById('extraCostTableBody');
+    const btnAddExtraCost = document.getElementById('btnAddExtraCost');
     let rowIndex = tableBody.querySelectorAll('.item-row').length;
 
     function formatRupiah(num) {
@@ -244,27 +300,69 @@ $actionUrl = $isEdit ? 'update' : 'store';
         return 'Rp ' + Number(num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
+    // Qty/Diskon/PPN% qty-style: user boleh ketik koma desimal ("0,5") -- server
+    // sudah dinormalisasi lewat parseQtyInput(), di sini cukup terima keduanya
+    // supaya preview subtotal live tidak salah tampil (lihat catatan bug qty koma).
+    function parseQtyLike(str) {
+        str = (str || '').trim();
+        if (str === '') return 0;
+        if (str.indexOf(',') !== -1) {
+            str = str.replace(/\./g, '').replace(',', '.');
+        }
+        const n = parseFloat(str);
+        return isNaN(n) ? 0 : n;
+    }
+
     function recalcRow(row) {
-        const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
+        const qty = parseQtyLike(row.querySelector('.qty-input').value);
         // Input harga sekarang format "15,000.73" -- buang koma (ribuan), titik tetap
         // dipertahankan sebagai desimal (lihat currency-input.js).
         const price = parseFloat((row.querySelector('.price-input').value || '').replace(/,/g, '')) || 0;
-        const subtotal = qty * price;
+        const discountPercent = Math.min(100, Math.max(0, parseQtyLike(row.querySelector('.discount-input').value)));
+        const ppnEnabled = row.querySelector('.ppn-toggle-visible').checked;
+        const ppnPercent = ppnEnabled ? Math.min(100, Math.max(0, parseQtyLike(row.querySelector('.ppn-percent-input').value))) : 0;
+
+        const afterDiscount = qty * price * (1 - discountPercent / 100);
+        const ppnAmount = ppnEnabled ? afterDiscount * (ppnPercent / 100) : 0;
+        const subtotal = afterDiscount + ppnAmount;
         row.querySelector('.subtotal-cell').textContent = formatRupiah(subtotal);
         return subtotal;
     }
 
-    function recalcAll() {
+    function extraCostTotal() {
         let total = 0;
-        tableBody.querySelectorAll('.item-row').forEach(function (row) {
-            total += recalcRow(row);
-        });
-        grandTotalEl.textContent = formatRupiah(total);
+        if (extraCostBody) {
+            extraCostBody.querySelectorAll('.extra-cost-amount-input').forEach(function (input) {
+                total += parseFloat((input.value || '').replace(/,/g, '')) || 0;
+            });
+        }
+        return total;
     }
 
-    // Delegasi event untuk input qty/price yang bisa bertambah secara dinamis
+    function recalcAll() {
+        let itemsTotal = 0;
+        tableBody.querySelectorAll('.item-row').forEach(function (row) {
+            itemsTotal += recalcRow(row);
+        });
+        itemsSubtotalEl.textContent = formatRupiah(itemsTotal);
+        grandTotalEl.textContent = formatRupiah(itemsTotal + extraCostTotal());
+    }
+
+    // Delegasi event untuk input qty/price/diskon/ppn yang bisa bertambah secara dinamis
     tableBody.addEventListener('input', function (e) {
-        if (e.target.classList.contains('qty-input') || e.target.classList.contains('price-input')) {
+        if (e.target.classList.contains('qty-input') || e.target.classList.contains('price-input')
+            || e.target.classList.contains('discount-input') || e.target.classList.contains('ppn-percent-input')) {
+            recalcAll();
+        }
+    });
+    tableBody.addEventListener('change', function (e) {
+        if (e.target.classList.contains('ppn-toggle-visible')) {
+            const row = e.target.closest('tr');
+            const hiddenInput = row.querySelector('.ppn-enabled-input');
+            const percentInput = row.querySelector('.ppn-percent-input');
+            hiddenInput.value = e.target.checked ? '1' : '';
+            percentInput.classList.toggle('bg-light', !e.target.checked);
+            if (!e.target.checked) percentInput.value = '';
             recalcAll();
         }
     });
@@ -292,6 +390,34 @@ $actionUrl = $isEdit ? 'update' : 'store';
             }
         }
     });
+
+    // Biaya tambahan: tambah/hapus baris + ikut pengaruhi Grand Total
+    if (btnAddExtraCost) {
+        btnAddExtraCost.addEventListener('click', function () {
+            const hint = document.getElementById('extraCostEmptyHint');
+            if (hint) hint.style.display = 'none';
+            const tr = document.createElement('tr');
+            tr.className = 'extra-cost-row';
+            tr.innerHTML =
+                '<td><input type="text" name="extra_cost_name[]" class="form-control form-control-sm" placeholder="mis. Ongkir, Biaya Bongkar"></td>'
+                + '<td><input type="text" name="extra_cost_amount[]" class="form-control form-control-sm extra-cost-amount-input currency-input" inputmode="numeric" placeholder="0"></td>'
+                + '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger btn-remove-extra-cost"><i class="bi bi-trash"></i></button></td>';
+            extraCostBody.appendChild(tr);
+        });
+    }
+    if (extraCostBody) {
+        extraCostBody.addEventListener('click', function (e) {
+            const removeBtn = e.target.closest('.btn-remove-extra-cost');
+            if (!removeBtn) return;
+            removeBtn.closest('.extra-cost-row').remove();
+            recalcAll();
+        });
+        extraCostBody.addEventListener('input', function (e) {
+            if (e.target.classList.contains('extra-cost-amount-input')) {
+                recalcAll();
+            }
+        });
+    }
 
     // Barang dipilih dari dropdown -> isi item_id[]/item_name[]/unit[] tersembunyi + tampilan satuan
     tableBody.addEventListener('change', function (e) {

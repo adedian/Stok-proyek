@@ -90,13 +90,14 @@
                         <th>Tanggal</th>
                         <th class="text-end">Total</th>
                         <th class="text-center">Status</th>
+                        <th class="text-center">Status Bayar</th>
                         <th class="text-center no-print">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($purchaseOrders)): ?>
                         <tr>
-                            <td colspan="11" class="p-0">
+                            <td colspan="12" class="p-0">
                                 <div class="empty-state">
                                     <i class="bi bi-cart-x empty-icon"></i>
                                     <div class="empty-title">Belum ada Purchase Order</div>
@@ -126,6 +127,11 @@
                             <td class="text-center">
                                 <span class="badge bg-<?= e($statusBadgeClass[$po['status']] ?? 'secondary') ?>">
                                     <?= e($statusLabels[$po['status']] ?? $po['status']) ?>
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-<?= e($paymentStatusBadgeClass[$po['payment_status']] ?? 'secondary') ?>">
+                                    <?= e($paymentStatusLabels[$po['payment_status']] ?? $po['payment_status']) ?>
                                 </span>
                             </td>
                             <td class="text-center">

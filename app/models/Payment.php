@@ -78,6 +78,25 @@ class Payment extends Model
     }
 
     /**
+     * Total dibayar per PO untuk sekumpulan PO sekaligus (1 query, bukan N+1) --
+     * dipakai untuk badge "Status Bayar" di halaman List PO. Key = purchase_order_id.
+     */
+    public function paidTotalsByPoIds(array $poIds): array
+    {
+        if (empty($poIds)) {
+            return [];
+        }
+        $placeholders = implode(',', array_fill(0, count($poIds), '?'));
+        $rows = $this->db->fetchAll(
+            "SELECT purchase_order_id, COALESCE(SUM(amount), 0) AS total_paid
+             FROM payments WHERE deleted_at IS NULL AND purchase_order_id IN ({$placeholders})
+             GROUP BY purchase_order_id",
+            $poIds
+        );
+        return array_map('floatval', array_column($rows, 'total_paid', 'purchase_order_id'));
+    }
+
+    /**
      * Hitung status pembayaran suatu PO berdasarkan total_amount vs total dibayar
      */
     public function resolveStatus(float $totalAmount, float $totalPaid): string

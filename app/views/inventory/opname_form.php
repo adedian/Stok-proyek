@@ -79,8 +79,8 @@
                                     </td>
                                     <td class="text-end"><?= number_format((float) $item['qty_available'], 2, ',', '.') ?></td>
                                     <td>
-                                        <input type="number" name="qty_actual[]" class="form-control form-control-sm text-end"
-                                               value="<?= e((string) $item['qty_available']) ?>" min="0" step="0.01" required>
+                                        <input type="text" inputmode="decimal" name="qty_actual[]" class="form-control form-control-sm text-end"
+                                               value="<?= e((string) $item['qty_available']) ?>" required>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -138,8 +138,8 @@
                         '<td>' + item.item_name + ' <span class="text-muted small">(' + item.unit + ')</span>'
                         + '<input type="hidden" name="inventory_id[]" value="' + item.id + '"></td>'
                         + '<td class="text-end">' + parseFloat(item.qty_available).toLocaleString('id-ID') + '</td>'
-                        + '<td><input type="number" name="qty_actual[]" class="form-control form-control-sm text-end" '
-                        + 'value="' + item.qty_available + '" min="0" step="0.01" required></td>';
+                        + '<td><input type="text" inputmode="decimal" name="qty_actual[]" class="form-control form-control-sm text-end" '
+                        + 'value="' + item.qty_available + '" required></td>';
                     itemsBody.appendChild(tr);
                 });
                 itemsTable.style.display = '';

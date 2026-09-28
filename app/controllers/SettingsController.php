@@ -6,6 +6,7 @@ require_once ROOT_PATH . '/app/models/BackupHistory.php';
 require_once ROOT_PATH . '/app/models/CompanyBankAccount.php';
 require_once ROOT_PATH . '/app/models/ActivityLog.php';
 require_once ROOT_PATH . '/app/models/RolePermission.php';
+require_once ROOT_PATH . '/app/models/DocumentNumber.php';
 
 class SettingsController extends Controller
 {
@@ -13,6 +14,7 @@ class SettingsController extends Controller
     private BackupHistory $backupModel;
     private CompanyBankAccount $bankAccountModel;
     private ActivityLog $activityLog;
+    private DocumentNumber $docNumberModel;
 
     public function __construct()
     {
@@ -22,6 +24,7 @@ class SettingsController extends Controller
         $this->backupModel      = new BackupHistory();
         $this->bankAccountModel = new CompanyBankAccount();
         $this->activityLog      = new ActivityLog();
+        $this->docNumberModel   = new DocumentNumber();
     }
 
     public function index()
@@ -33,6 +36,7 @@ class SettingsController extends Controller
             'activeTab'        => $tab,
             'company'          => $this->settingModel->getGroup('company'),
             'numbering'        => $this->settingModel->getGroup('numbering'),
+            'counters'         => $this->docNumberModel->allCounters(),
             'sessionSettings'  => $this->settingModel->getGroup('session'),
             'notification'     => $this->settingModel->getGroup('notification'),
             'backups'          => $this->backupModel->recent(20),
@@ -223,6 +227,46 @@ class SettingsController extends Controller
 
         $this->activityLog->log(currentUserId(), 'settings', 'update', 'Format penomoran dokumen diperbarui');
         setFlash('success', 'Pengaturan penomoran berhasil disimpan.');
+        $this->redirect('settings', 'index', ['tab' => 'numbering']);
+    }
+
+    /**
+     * Reset no. urut berikutnya per (doc_type, year) -- khusus Super Admin lewat
+     * tab "Penomoran Dokumen". Lihat DocumentNumber::setNextNumber() untuk jaminan
+     * keamanan datanya (nomor dokumen UNIQUE per tabel pemilik).
+     */
+    public function saveCounters()
+    {
+        Middleware::requirePermission('settings', 'edit');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('settings', 'index', ['tab' => 'numbering']);
+        }
+        verifyCsrf();
+
+        $docTypes = $_POST['doc_type'] ?? [];
+        $years = $_POST['year'] ?? [];
+        $nextNumbers = $_POST['next_number'] ?? [];
+
+        $changed = [];
+        foreach ($docTypes as $i => $docType) {
+            $year = (int) ($years[$i] ?? 0);
+            $newNumber = (int) ($nextNumbers[$i] ?? 0);
+            if ($docType === '' || $year <= 0 || $newNumber <= 0) {
+                continue;
+            }
+            $this->docNumberModel->setNextNumber($docType, $year, $newNumber);
+            $label = DocumentNumber::DOC_TYPE_LABELS[$docType] ?? $docType;
+            $changed[] = "{$label} ({$year}) -> {$newNumber}";
+        }
+
+        if (!empty($changed)) {
+            $this->activityLog->log(currentUserId(), 'settings', 'update', 'No. urut dokumen direset: ' . implode(', ', $changed));
+            setFlash('success', 'No. urut dokumen berhasil diperbarui.');
+        } else {
+            setFlash('error', 'Tidak ada perubahan no. urut yang valid.');
+        }
+
         $this->redirect('settings', 'index', ['tab' => 'numbering']);
     }
 

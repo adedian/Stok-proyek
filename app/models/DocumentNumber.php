@@ -29,6 +29,26 @@ class DocumentNumber extends Model
         7 => 'VII', 8 => 'VIII', 9 => 'IX', 10 => 'X', 11 => 'XI', 12 => 'XII',
     ];
 
+    /**
+     * Label Indonesia per doc_type -- dipakai UI "Penomoran Dokumen" (Pengaturan
+     * Sistem, Super Admin). Daftar & urutan sama dengan yang dipakai
+     * database/migrations/2026_08_27_document_number_migration.php.
+     */
+    public const DOC_TYPE_LABELS = [
+        'purchase_order'      => 'Purchase Order (PO)',
+        'goods_receipt'       => 'Penerimaan Barang',
+        'stock_opname'        => 'Stok Opname',
+        'stock_out'           => 'Pengeluaran Barang',
+        'offline_purchase'    => 'Pembelian Offline',
+        'sales_invoice'       => 'Invoice Keluar - Project',
+        'sales_invoice_lampu' => 'Invoice Keluar - Lampu',
+        'delivery_note'       => 'Surat Jalan',
+        'collection_receipt'  => 'Tanda Terima',
+        'payment_bk'          => 'Pembayaran - Bank',
+        'payment_kk'          => 'Pembayaran - Kas Kecil',
+        'payment_kkp'         => 'Pembayaran - Kas Project',
+    ];
+
     public static function romanMonth(int $month): string
     {
         return self::ROMAN_MONTHS[$month] ?? (string) $month;
@@ -112,5 +132,62 @@ class DocumentNumber extends Model
         }
 
         return str_pad((string) $number, 3, '0', STR_PAD_LEFT) . '/' . $code . '/' . self::romanMonth($month) . '/' . $year;
+    }
+
+    /**
+     * Semua baris counter yang SUDAH PERNAH dibuat (tiap doc_type baru muncul di
+     * sini setelah dokumen pertamanya dibuat -- lihat next()). Dipakai UI
+     * "Penomoran Dokumen" (Pengaturan Sistem > Super Admin) untuk menampilkan
+     * & mengubah next_number per jenis dokumen.
+     */
+    public function allCounters(): array
+    {
+        return $this->db->fetchAll(
+            "SELECT * FROM document_number_counters ORDER BY doc_type ASC, year DESC"
+        );
+    }
+
+    /**
+     * Set ULANG next_number untuk (doc_type, year) tertentu -- dipakai Super Admin
+     * lewat UI "Penomoran Dokumen". Kalau baris (doc_type, year) belum pernah ada
+     * (dokumen jenis itu belum pernah dibuat tahun itu), baris baru dibuat.
+     * Nomor dokumen (mis. po_number) UNIQUE di tabel pemiliknya masing-masing --
+     * jadi kalau di-set MUNDUR ke nomor yang sudah pernah dipakai, percobaan buat
+     * dokumen baru dengan nomor bentrok itu akan gagal aman di constraint DB,
+     * bukan menimpa data lama. Pola SELECT...FOR UPDATE sama seperti next() supaya
+     * tidak race dengan next() yang sedang berjalan bersamaan.
+     */
+    public function setNextNumber(string $docType, int $year, int $newNextNumber): void
+    {
+        $manageTx = !$this->db->inTransaction();
+        if ($manageTx) {
+            $this->db->beginTransaction();
+        }
+        try {
+            $row = $this->db->fetchOne(
+                "SELECT id FROM document_number_counters WHERE doc_type = :t AND year = :y FOR UPDATE",
+                ['t' => $docType, 'y' => $year]
+            );
+            if ($row) {
+                $this->db->query(
+                    "UPDATE document_number_counters SET next_number = :n WHERE id = :id",
+                    ['n' => $newNextNumber, 'id' => $row['id']]
+                );
+            } else {
+                $this->db->insert('document_number_counters', [
+                    'doc_type'    => $docType,
+                    'year'        => $year,
+                    'next_number' => $newNextNumber,
+                ]);
+            }
+            if ($manageTx) {
+                $this->db->commit();
+            }
+        } catch (Throwable $e) {
+            if ($manageTx && $this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $e;
+        }
     }
 }

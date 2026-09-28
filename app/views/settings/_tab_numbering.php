@@ -76,3 +76,53 @@
         </form>
     </div>
 </div>
+
+<div class="card border-0 shadow-sm mt-3">
+    <div class="card-body">
+        <h6 class="mb-1">Reset Nomor Urut</h6>
+        <p class="text-muted small mb-3">
+            Nomor urut (angka di depan format, mis. <strong>001</strong>/PO.HME/IX/2026) berjalan otomatis
+            per jenis dokumen &amp; TAHUN. Ubah "No. Urut Berikutnya" kalau perlu mulai dari angka tertentu
+            (mis. menyamakan dengan nomor terakhir dari sistem lama). Menurunkan nomor ke angka yang SUDAH
+            pernah dipakai aman secara data -- dokumen baru dengan nomor bentrok otomatis gagal disimpan
+            (nomor dokumen unik), tidak menimpa dokumen lama.
+        </p>
+        <?php if (empty($counters)): ?>
+            <p class="text-muted small mb-0">Belum ada jenis dokumen yang pernah membuat nomor otomatis.</p>
+        <?php else: ?>
+            <form method="POST" action="<?= BASE_URL ?>/index.php?module=settings&action=saveCounters">
+                <?= csrfField() ?>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle entry-cards">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Jenis Dokumen</th>
+                                <th style="width: 100px;">Tahun</th>
+                                <th style="width: 160px;">No. Urut Berikutnya</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($counters as $c): ?>
+                                <tr>
+                                    <td>
+                                        <?= e(DocumentNumber::DOC_TYPE_LABELS[$c['doc_type']] ?? $c['doc_type']) ?>
+                                        <input type="hidden" name="doc_type[]" value="<?= e($c['doc_type']) ?>">
+                                    </td>
+                                    <td>
+                                        <?= (int) $c['year'] ?>
+                                        <input type="hidden" name="year[]" value="<?= (int) $c['year'] ?>">
+                                    </td>
+                                    <td>
+                                        <input type="number" min="1" name="next_number[]" class="form-control form-control-sm"
+                                               value="<?= (int) $c['next_number'] ?>">
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <button type="submit" class="btn btn-outline-primary mt-2"><i class="bi bi-arrow-repeat"></i> Simpan No. Urut</button>
+            </form>
+        <?php endif; ?>
+    </div>
+</div>

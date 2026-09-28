@@ -16,7 +16,9 @@ require_once ROOT_PATH . '/app/models/ItemCategory.php';
 require_once ROOT_PATH . '/app/models/ProjectUserAccess.php';
 require_once ROOT_PATH . '/app/models/MasterRekening.php';
 require_once ROOT_PATH . '/app/models/BankTransaction.php';
+require_once ROOT_PATH . '/app/models/BankTransactionItem.php';
 require_once ROOT_PATH . '/app/models/MasterBank.php';
+require_once ROOT_PATH . '/app/models/CodeConfig.php';
 
 /**
  * Modul Kas (Revisi 9) -- catatan kas masuk & kas keluar.
@@ -45,6 +47,7 @@ class CashController extends Controller
     private ProjectUserAccess $projectAccessModel;
     private MasterRekening $rekeningModel;
     private BankTransaction $bankModel;
+    private BankTransactionItem $bankItemModel;
     private MasterBank $masterBankModel;
 
     /** Action yang MEMBANGUN gerbang auth Kas -- boleh diakses tanpa auth Kas. */
@@ -69,6 +72,7 @@ class CashController extends Controller
         $this->projectAccessModel  = new ProjectUserAccess();
         $this->rekeningModel       = new MasterRekening();
         $this->bankModel           = new BankTransaction();
+        $this->bankItemModel       = new BankTransactionItem();
         $this->masterBankModel     = new MasterBank();
 
         $this->enforceKasAuth();
@@ -862,6 +866,170 @@ class CashController extends Controller
             error_log('Cash store error: ' . $e->getMessage());
             setFlash('error', 'Gagal menyimpan transaksi Kas. Silakan coba lagi.');
             $this->redirect('cash', 'create');
+        }
+    }
+
+    // ===================== TRANSFER BANK -> KAS =====================
+
+    /**
+     * Transfer Bank -> Kas: 1 aksi (mis. Nissa/Accounting kirim uang dari
+     * Bank ke Kas Gusti) menghasilkan 2 baris tertaut -- 1 Bank Keluar (sisi
+     * pengirim) + 1 Kas Masuk (sisi PIC tujuan) -- dibuat sekaligus dalam
+     * satu transaksi DB (lihat transferStore()). Butuh izin `bank.create`
+     * DAN `cash.create` (default: Super Admin & Accounting).
+     */
+    public function transferCreate(): void
+    {
+        Middleware::requirePermission('bank', 'create');
+        Middleware::requirePermission('cash', 'create');
+
+        $myPicName = kasPicName();
+
+        $this->view('cash/transfer_form', [
+            'pageTitle'      => 'Transfer Bank ke Kas',
+            'banks'          => $this->masterBankModel->activeList(),
+            'rekeningOptions' => $this->rekeningModel->activeList(),
+            'picOptions'     => $this->picModel->allPicNames(),
+            'myPicName'      => $myPicName,
+        ]);
+    }
+
+    public function transferStore(): void
+    {
+        Middleware::requirePermission('bank', 'create');
+        Middleware::requirePermission('cash', 'create');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('cash', 'transferCreate');
+        }
+        verifyCsrf();
+
+        $trxDate = trim($_POST['trx_date'] ?? '');
+        $bankId = (int) ($_POST['bank_id'] ?? 0);
+        $rekeningId = !empty($_POST['rekening_id']) ? (int) $_POST['rekening_id'] : null;
+        $fromPic = trim($_POST['from_pic'] ?? '') ?: null;
+        $toPic = trim($_POST['to_pic'] ?? '');
+        $amount = parseCurrencyInput($_POST['amount'] ?? 0);
+        $notes = trim($_POST['notes'] ?? '');
+
+        $errors = [];
+        if ($trxDate === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $trxDate)) {
+            $errors[] = 'Tanggal wajib diisi.';
+        }
+        if ($bankId <= 0 || !$this->masterBankModel->find($bankId)) {
+            $errors[] = 'Bank sumber dana wajib dipilih.';
+        }
+        if ($toPic === '') {
+            $errors[] = 'Kas tujuan wajib dipilih.';
+        }
+        if ($amount <= 0) {
+            $errors[] = 'Nominal harus lebih dari 0.';
+        }
+        $toPrefix = $toPic !== '' ? $this->picModel->prefixForPicName($toPic) : null;
+        if ($toPic !== '' && !$toPrefix) {
+            $errors[] = "PIC Kas '{$toPic}' belum memiliki Prefix Kas. Minta Super Admin mengaturnya di Master Data \xe2\x86\x92 PIC Kas dulu.";
+        }
+
+        if (!empty($errors)) {
+            setFlash('error', implode(' ', $errors));
+            $this->redirect('cash', 'transferCreate');
+        }
+
+        assertPeriodOpen('cash', $trxDate, 'cash', 'transferCreate');
+
+        $pdo = getPDO();
+        try {
+            $pdo->beginTransaction();
+
+            // --- Sisi Bank Keluar ---
+            $bankPrefix = (new CodeConfig())->getConfig('bank_keluar');
+            $bankPrefix = ($bankPrefix && $bankPrefix['prefix'] !== '') ? $bankPrefix['prefix'] : 'BK';
+            $bankNoBukti = (new CashNumber())->next($bankPrefix, 'bank_transactions');
+            $guard = 0;
+            while ($this->bankModel->noBuktiExists($bankNoBukti) && $guard++ < 50) {
+                $bankNoBukti = (new CashNumber())->next($bankPrefix, 'bank_transactions');
+            }
+            $bankUraian = "Transfer ke Kas {$toPic}" . ($notes !== '' ? " -- {$notes}" : '');
+            $bankTrxId = $this->bankModel->create([
+                'trx_date'    => $trxDate,
+                'bank_id'     => $bankId,
+                'rekening_id' => $rekeningId,
+                'project_id'  => null,
+                'pic'         => $fromPic,
+                'no_bukti'    => $bankNoBukti,
+                'uraian'      => $bankUraian,
+                'mutasi'      => 'keluar',
+                'amount'      => $amount,
+                'created_by'  => currentUserId(),
+            ]);
+            $this->bankItemModel->create([
+                'bank_transaction_id' => $bankTrxId,
+                'uraian' => $bankUraian,
+                'amount' => $amount,
+            ]);
+
+            // --- Sisi Kas Masuk ---
+            $cashNoBukti = (new CashNumber())->next($toPrefix);
+            $guard = 0;
+            while ($this->cashModel->noBuktiExists($cashNoBukti) && $guard++ < 50) {
+                $cashNoBukti = (new CashNumber())->next($toPrefix);
+            }
+            $fromLabel = $fromPic ?: currentUserName();
+            $cashUraian = "Transfer dari Bank ({$fromLabel})" . ($notes !== '' ? " -- {$notes}" : '');
+            $cashTrxId = $this->cashModel->create([
+                'trx_date'      => $trxDate,
+                'pic'           => $toPic,
+                'division'      => $this->resolveDivision($toPic),
+                'project_id'    => null,
+                'rekening_id'   => null,
+                'no_bukti'      => $cashNoBukti,
+                'mutasi'        => 'masuk',
+                'total_amount'  => $amount,
+                'created_by'    => currentUserId(),
+            ]);
+            $this->itemModel->create([
+                'cash_transaction_id' => $cashTrxId,
+                'cash_category_id'    => null,
+                'uraian'  => $cashUraian,
+                'qty'     => 1,
+                'satuan'  => $amount,
+                'jumlah'  => $amount,
+            ]);
+
+            // --- Tautkan kedua sisi ---
+            $this->bankModel->updateById($bankTrxId, ['related_cash_transaction_id' => $cashTrxId]);
+            $this->cashModel->updateById($cashTrxId, ['related_bank_transaction_id' => $bankTrxId]);
+
+            $this->activityLog->log(
+                currentUserId(),
+                'cash',
+                'create',
+                "Transfer Bank->Kas: '{$bankNoBukti}' (Bank Keluar" . ($fromPic ? ", PIC {$fromPic}" : '')
+                    . ") -> '{$cashNoBukti}' (Kas Masuk, PIC {$toPic}), " . formatRupiah($amount)
+            );
+
+            $pdo->commit();
+
+            try {
+                if ((new SystemSetting())->getBool('notify_cash_validation', true)) {
+                    sendPushToKasValidators(
+                        $this->resolveDivision($toPic),
+                        'Validasi Kas Menunggu',
+                        "Kas masuk '{$cashNoBukti}' (transfer dari Bank, PIC {$toPic}) menunggu validasi Anda.",
+                        route('cash_validation')
+                    );
+                }
+            } catch (Throwable $e) {
+                error_log('Push cash_validation gagal (transfer): ' . $e->getMessage());
+            }
+
+            setFlash('success', "Transfer berhasil: Bank Keluar '{$bankNoBukti}' & Kas Masuk '{$cashNoBukti}' (PIC {$toPic}) sudah tercatat.");
+            $this->redirect('cash', 'index');
+        } catch (Throwable $e) {
+            $pdo->rollBack();
+            error_log('Cash transfer error: ' . $e->getMessage());
+            setFlash('error', 'Gagal menyimpan transfer. Silakan coba lagi.');
+            $this->redirect('cash', 'transferCreate');
         }
     }
 

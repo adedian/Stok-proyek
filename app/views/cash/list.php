@@ -60,6 +60,11 @@ $canCetakBankVoucher = can('bank', 'view'); // Super Admin & Accounting saja (sa
                 <i class="bi bi-bank"></i> Tambah Bank
             </a>
         <?php endif; ?>
+        <?php if (can('bank', 'create') && can('cash', 'create')): ?>
+            <a href="<?= BASE_URL ?>/index.php?module=cash&action=transferCreate" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-left-right"></i> Transfer ke Kas
+            </a>
+        <?php endif; ?>
         <?php if (can('cash', 'create')): ?>
             <a href="<?= BASE_URL ?>/cash/create" class="btn btn-primary">
                 <i class="bi bi-plus-circle"></i> Tambah Kas

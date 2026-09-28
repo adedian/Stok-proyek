@@ -50,6 +50,22 @@ $actionUrl = $isEdit ? 'update' : 'store';
                         <option value="closed" <?= ($project['status'] ?? '') === 'closed' ? 'selected' : '' ?>>Closed</option>
                     </select>
                 </div>
+                <div class="col-md-6">
+                    <label class="form-label">PIC Penerimaan Barang</label>
+                    <select name="receipt_pic_user_id" class="form-select">
+                        <option value="">-- Semua boleh terima (tanpa batasan) --</option>
+                        <?php foreach ($receiptPicOptions ?? [] as $u): ?>
+                            <option value="<?= (int) $u['id'] ?>"
+                                <?= (string) ($project['receipt_pic_user_id'] ?? '') === (string) $u['id'] ? 'selected' : '' ?>>
+                                <?= e($u['full_name']) ?> (<?= e($u['username']) ?>)
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <div class="form-text">
+                        Kalau diisi, hanya user ini (atau Super Admin) yang melihat PO project ini
+                        di dropdown "Pilih PO" saat membuat Penerimaan Barang.
+                    </div>
+                </div>
             </div>
         </div>
     </div>

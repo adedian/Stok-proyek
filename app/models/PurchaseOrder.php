@@ -323,17 +323,54 @@ class PurchaseOrder extends Model
 
     /**
      * PO yang boleh dibuatkan penerimaan barang: sudah disetujui, belum selesai/batal
-     * (dipakai oleh modul Penerimaan Barang untuk mengisi dropdown)
+     * (dipakai oleh modul Penerimaan Barang untuk mengisi dropdown).
+     *
+     * Scoping PIC Penerimaan (Fase 4): Super Admin selalu lihat semua. Role
+     * lain hanya lihat PO milik project yang BELUM di-assign PIC Penerimaan
+     * (projects.receipt_pic_user_id IS NULL -- fallback terbuka supaya alur
+     * kerja tidak terkunci total sebelum semua project di-assign) ATAU project
+     * yang PIC Penerimaan-nya = dirinya sendiri.
      */
-    public function receivablePoList(): array
+    public function receivablePoList(?int $userId = null, ?string $userRole = null): array
     {
         $sql = "SELECT po.id, po.po_number, s.supplier_name
                 FROM purchase_orders po
                 JOIN suppliers s ON s.id = po.supplier_id
+                JOIN projects p ON p.id = po.project_id
                 WHERE po.deleted_at IS NULL
-                  AND po.status IN ('approved', 'partial_received')
-                ORDER BY po.created_at DESC";
-        return $this->db->fetchAll($sql);
+                  AND po.status IN ('approved', 'partial_received')";
+        $params = [];
+
+        if ($userRole !== null && $userRole !== ROLE_SUPER_ADMIN) {
+            $sql .= " AND (p.receipt_pic_user_id IS NULL OR p.receipt_pic_user_id = :uid)";
+            $params['uid'] = $userId;
+        }
+
+        $sql .= " ORDER BY po.created_at DESC";
+        return $this->db->fetchAll($sql, $params);
+    }
+
+    /**
+     * Guard SERVER-SIDE (bukan cuma dropdown UI) -- true kalau $poId boleh
+     * dipakai bikin Penerimaan Barang oleh $userId/$userRole, cegah IDOR
+     * (submit po_id project lain langsung lewat POST, walau tidak muncul di
+     * dropdown-nya). Aturan sama persis dengan receivablePoList().
+     */
+    public function isReceivableByUser(int $poId, int $userId, string $userRole): bool
+    {
+        if ($userRole === ROLE_SUPER_ADMIN) {
+            return (bool) $this->db->fetchOne(
+                "SELECT 1 FROM purchase_orders WHERE id = :id AND deleted_at IS NULL",
+                ['id' => $poId]
+            );
+        }
+        return (bool) $this->db->fetchOne(
+            "SELECT 1 FROM purchase_orders po
+               JOIN projects p ON p.id = po.project_id
+              WHERE po.id = :id AND po.deleted_at IS NULL
+                AND (p.receipt_pic_user_id IS NULL OR p.receipt_pic_user_id = :uid)",
+            ['id' => $poId, 'uid' => $userId]
+        );
     }
 
     /**

@@ -111,7 +111,7 @@ class GoodsReceiptController extends Controller
             'mode'           => 'create',
             'receipt'        => $offlinePurchaseId ? ['receipt_type' => 'offline_purchase'] : null,
             'receiptNumber'  => $this->receiptModel->previewReceiptNumber(),
-            'poList'         => $this->poModel->receivablePoList(),
+            'poList'         => $this->poModel->receivablePoList((int) currentUserId(), currentUserRole()),
             'selectedPo'     => $selectedPo,
             'poItems'        => $poItems,
             'offlinePurchaseList' => $this->offlinePurchaseModel->receivableList(),
@@ -139,6 +139,14 @@ class GoodsReceiptController extends Controller
         if (!empty($errors)) {
             setFlash('error', implode(' ', $errors));
             $this->redirect('goods_receipt', 'create', ['po_id' => $data['purchase_order_id']]);
+        }
+
+        // Guard server-side (bukan cuma dropdown disembunyikan) -- cegah submit
+        // po_id project lain langsung lewat POST (IDOR), lihat
+        // PurchaseOrder::isReceivableByUser().
+        if ($data['receipt_type'] === 'purchase_order' && $data['purchase_order_id']
+            && !$this->poModel->isReceivableByUser((int) $data['purchase_order_id'], (int) currentUserId(), (string) currentUserRole())) {
+            denyAccess('PO ini bukan milik project yang Anda tangani (PIC Penerimaan berbeda).');
         }
 
         assertPeriodOpen('goods_receipt', $data['receipt_date'], 'goods_receipt', 'create', ['po_id' => $data['purchase_order_id']]);
@@ -306,7 +314,7 @@ class GoodsReceiptController extends Controller
             'mode'           => 'edit',
             'receipt'        => $receipt,
             'receiptNumber'  => $receipt['receipt_number'],
-            'poList'         => $this->poModel->receivablePoList(),
+            'poList'         => $this->poModel->receivablePoList((int) currentUserId(), currentUserRole()),
             'selectedPo'     => $receipt,
             'poItems'        => $poItems,
             'offlinePurchaseList' => $this->offlinePurchaseModel->receivableList(),

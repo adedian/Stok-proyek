@@ -8,7 +8,6 @@ require_once ROOT_PATH . '/app/models/Client.php';
 require_once ROOT_PATH . '/app/models/Project.php';
 require_once ROOT_PATH . '/app/models/Signature.php';
 require_once ROOT_PATH . '/app/models/Unit.php';
-require_once ROOT_PATH . '/app/models/DpPercentage.php';
 require_once ROOT_PATH . '/app/models/SystemSetting.php';
 require_once ROOT_PATH . '/app/models/CompanyBankAccount.php';
 require_once ROOT_PATH . '/app/models/ActivityLog.php';
@@ -30,7 +29,6 @@ class SalesInvoiceController extends Controller
     private Project $projectModel;
     private Signature $signatureModel;
     private Unit $unitModel;
-    private DpPercentage $dpPercentageModel;
     private ActivityLog $activityLog;
     private Item $itemCatalogModel;
     private ItemCategory $itemCategoryModel;
@@ -47,7 +45,6 @@ class SalesInvoiceController extends Controller
         $this->projectModel      = new Project();
         $this->signatureModel    = new Signature();
         $this->unitModel         = new Unit();
-        $this->dpPercentageModel = new DpPercentage();
         $this->activityLog       = new ActivityLog();
         $this->itemCatalogModel  = new Item();
         $this->itemCategoryModel = new ItemCategory();
@@ -88,7 +85,6 @@ class SalesInvoiceController extends Controller
             'projects'  => $this->projectModel->activeList(),
             'signatures' => $this->signatureModel->activeList(),
             'units'     => $this->unitModel->activeList(),
-            'dpPercentages' => $this->dpPercentageModel->activeList(),
             'itemCatalog'    => $this->itemCatalogModel->activeList(),
             'itemCategories' => $this->itemCategoryModel->activeList(),
             'picUsers'       => $this->userModel->activeList(),
@@ -217,7 +213,6 @@ class SalesInvoiceController extends Controller
             'projects'  => $this->projectModel->activeList(),
             'signatures' => $this->signatureModel->activeList(),
             'units'     => $this->unitModel->activeList(),
-            'dpPercentages' => $this->dpPercentageModel->activeList(),
             'itemCatalog'    => $this->itemCatalogForEdit($this->itemModel->itemsByInvoice($id)),
             'itemCategories' => $this->itemCategoryModel->activeList(),
             'picUsers'       => $this->userModel->activeList(),
@@ -438,12 +433,21 @@ class SalesInvoiceController extends Controller
     {
         $invoiceType = $_POST['invoice_type'] ?? '';
 
+        // Tempo/Jatuh Tempo TIDAK PERNAH dipercaya dari browser -- jatuh_tempo
+        // SELALU dihitung ulang di sini dari invoice_date + tempo (lihat
+        // computeDueDate()), sama seperti subtotal/total di calculateTotals().
+        $tempoRaw = trim((string) ($_POST['tempo'] ?? ''));
+        $tempo = $tempoRaw !== '' && ctype_digit($tempoRaw) ? (int) $tempoRaw : null;
+        $invoiceDate = $_POST['invoice_date'] ?? '';
+
         $data = [
             'client_id'        => (int) ($_POST['client_id'] ?? 0),
             'project_id'       => !empty($_POST['project_id']) ? (int) $_POST['project_id'] : null,
             // 'project' (INV.HME) vs 'lampu' (FKT.HME) -- lihat SalesInvoice::generateInvoiceNumber().
             'invoice_type'     => in_array($invoiceType, ['project', 'lampu'], true) ? $invoiceType : 'project',
-            'invoice_date'     => $_POST['invoice_date'] ?? '',
+            'invoice_date'     => $invoiceDate,
+            'tempo'            => $tempo,
+            'jatuh_tempo'      => $this->computeDueDate($invoiceDate, $tempo),
             'contract_number'  => trim($_POST['contract_number'] ?? '') ?: null,
             'contract_date'    => trim($_POST['contract_date'] ?? '') ?: null,
             'ppn_percent'      => (float) ($_POST['ppn_percent'] ?? 11),
@@ -481,16 +485,20 @@ class SalesInvoiceController extends Controller
             ];
         }
 
-        // Termin (Revisi 10 Fase 5): label+percentage DIPERCAYA langsung dari
-        // input user -- sama seperti description/unit_price baris item di atas
-        // (dropdown preset dari master dp_percentages cuma prefill JS, BUKAN
-        // di-resolve ulang server-side). dp_percentage_id yang ikut terkirim
-        // hanya disimpan sebagai jejak audit "preset mana yang dipakai".
+        // Termin (Revisi 10 Fase 5, dropdown Preset dihapus 2026-09-29):
+        // label+percentage DIPERCAYA langsung dari input user -- sama seperti
+        // description/unit_price baris item di atas. dp_percentage_id TIDAK
+        // PERNAH terisi lagi dari form (dropdown preset yang dulu mengisinya
+        // sudah dihapus) -- kolomnya TETAP ADA di skema (additive-only, jejak
+        // audit invoice lama), sekarang selalu null untuk invoice baru.
+        // Jatuh Tempo tiap baris Termin BUKAN input manual -- selalu ikut
+        // Jatuh Tempo utama (Tanggal Invoice + Tempo). term_due_date[] yang
+        // mungkin ikut terkirim dari browser (mis. field readonly yang
+        // dimanipulasi lewat DevTools) SENGAJA diabaikan total di sini, tidak
+        // pernah dipercaya -- satu-satunya sumber adalah computeDueDate().
         $terms = [];
-        $termDpIds = $_POST['term_dp_percentage_id'] ?? [];
         $termLabels = $_POST['term_label'] ?? [];
         $termPercentages = $_POST['term_percentage'] ?? [];
-        $termDueDates = $_POST['term_due_date'] ?? [];
 
         foreach ($termLabels as $i => $label) {
             $label = trim($label);
@@ -499,14 +507,34 @@ class SalesInvoiceController extends Controller
                 continue;
             }
             $terms[] = [
-                'dp_percentage_id' => !empty($termDpIds[$i]) ? (int) $termDpIds[$i] : null,
+                'dp_percentage_id' => null,
                 'label'            => $label !== '' ? $label : 'Termin',
                 'percentage'       => $percentage,
-                'due_date'         => trim($termDueDates[$i] ?? '') ?: null,
+                'due_date'         => $data['jatuh_tempo'],
             ];
         }
 
         return [$data, $items, $terms];
+    }
+
+    /**
+     * Jatuh Tempo = Tanggal Invoice + Tempo (hari), dihitung dengan DateTime
+     * (date arithmetic, bukan manipulasi string/timestamp jam) supaya aman
+     * lintas bulan/tahun & tidak kena isu jam/DST. Null kalau tanggal invoice
+     * belum valid atau tempo tidak diisi (tempo opsional -- lihat validasi).
+     */
+    private function computeDueDate(string $invoiceDate, ?int $tempoDays): ?string
+    {
+        if ($tempoDays === null || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $invoiceDate)) {
+            return null;
+        }
+        try {
+            $date = new DateTime($invoiceDate);
+        } catch (Exception $e) {
+            return null;
+        }
+        $date->modify("+{$tempoDays} days");
+        return $date->format('Y-m-d');
     }
 
     private function validateInput(array $data, array $items, array $terms): array
@@ -518,6 +546,10 @@ class SalesInvoiceController extends Controller
         }
         if (empty($data['invoice_date'])) {
             $errors[] = 'Tanggal invoice wajib diisi.';
+        }
+        $tempoSubmitted = trim((string) ($_POST['tempo'] ?? ''));
+        if ($tempoSubmitted !== '' && $data['tempo'] === null) {
+            $errors[] = 'Tempo harus berupa angka hari (0 atau lebih), tanpa huruf/simbol.';
         }
         if ($data['ppn_percent'] < 0) {
             $errors[] = 'PPN tidak boleh negatif.';

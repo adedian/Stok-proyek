@@ -87,8 +87,14 @@ if (empty($terms)) {
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Tanggal Invoice <span class="text-danger">*</span></label>
-                    <input type="date" name="invoice_date" class="form-control"
+                    <input type="date" name="invoice_date" id="invoiceDate" class="form-control"
                            value="<?= e($invoice['invoice_date'] ?? date('Y-m-d')) ?>" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Tempo <span class="text-muted small">(hari, opsional)</span></label>
+                    <input type="number" name="tempo" id="invoiceTempo" class="form-control"
+                           value="<?= e($invoice['tempo'] ?? '') ?>" min="0" step="1" placeholder="mis. 30">
+                    <div class="form-text">Otomatis mengisi Jatuh Tempo di Termin Tagihan.</div>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">No. Kontrak <span class="text-muted small">(opsional)</span></label>
@@ -224,9 +230,8 @@ if (empty($terms)) {
                 <table class="table table-sm align-middle mb-0 entry-cards">
                     <thead class="table-light">
                         <tr>
-                            <th style="width: 180px;">Preset <span class="text-muted small">(opsional)</span></th>
+                            <th style="width: 130px;">Persentase</th>
                             <th style="width: 180px;">Label</th>
-                            <th style="width: 90px;">%</th>
                             <th style="width: 140px;">Jatuh Tempo</th>
                             <th style="width: 130px;" class="text-end">Nominal</th>
                             <th style="width: 120px;" class="text-end">PPN</th>
@@ -237,21 +242,9 @@ if (empty($terms)) {
                     <tbody id="termTableBody">
                         <?php foreach ($terms as $term): ?>
                             <tr class="term-row">
-                                <td>
-                                    <select class="form-select form-select-sm term-preset-select">
-                                        <option value="">-- Bebas --</option>
-                                        <?php foreach ($dpPercentages as $dp): ?>
-                                            <option value="<?= (int) $dp['id'] ?>" data-percentage="<?= e($dp['percentage']) ?>" data-label="<?= formatPercent($dp['percentage']) ?>%"
-                                                <?= (int) ($term['dp_percentage_id'] ?? 0) === (int) $dp['id'] ? 'selected' : '' ?>>
-                                                <?= formatPercent($dp['percentage']) ?>%
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                    <input type="hidden" name="term_dp_percentage_id[]" class="term-dp-id-input" value="<?= (int) ($term['dp_percentage_id'] ?? 0) ?: '' ?>">
-                                </td>
+                                <td><input type="number" name="term_percentage[]" class="form-control form-control-sm term-percentage-input" value="<?= e($term['percentage'] ?? '') ?>" min="0.01" max="100" step="0.01" placeholder="mis. 30" required></td>
                                 <td><input type="text" name="term_label[]" class="form-control form-control-sm term-label-input" value="<?= e($term['label'] ?? '') ?>" placeholder="mis. Termin 1, Pelunasan" required></td>
-                                <td><input type="number" name="term_percentage[]" class="form-control form-control-sm term-percentage-input" value="<?= e($term['percentage'] ?? '') ?>" min="0.01" max="100" step="0.01" required></td>
-                                <td><input type="date" name="term_due_date[]" class="form-control form-control-sm term-duedate-input" value="<?= e($term['due_date'] ?? '') ?>"></td>
+                                <td><input type="date" name="term_due_date[]" class="form-control form-control-sm term-duedate-input" value="<?= e($term['due_date'] ?? '') ?>" readonly tabindex="-1"></td>
                                 <td class="text-end term-amount-cell">Rp 0.00</td>
                                 <td class="text-end term-ppn-cell">Rp 0.00</td>
                                 <td class="text-end fw-semibold term-total-cell">Rp 0.00</td>
@@ -261,7 +254,7 @@ if (empty($terms)) {
                     </tbody>
                     <tfoot>
                         <tr class="table-light">
-                            <td colspan="4" class="text-end fw-bold">Total Keseluruhan</td>
+                            <td colspan="3" class="text-end fw-bold">Total Keseluruhan</td>
                             <td class="text-end fw-bold" id="sumTermAmount">Rp 0.00</td>
                             <td class="text-end fw-bold" id="sumTermPpn">Rp 0.00</td>
                             <td class="text-end fw-bold" id="sumTermTotal">Rp 0.00</td>
@@ -270,12 +263,7 @@ if (empty($terms)) {
                     </tfoot>
                 </table>
             </div>
-            <template id="termPresetOptionsTemplate">
-                <option value="">-- Bebas --</option>
-                <?php foreach ($dpPercentages as $dp): ?>
-                    <option value="<?= (int) $dp['id'] ?>" data-percentage="<?= e($dp['percentage']) ?>" data-label="<?= formatPercent($dp['percentage']) ?>%"><?= formatPercent($dp['percentage']) ?>%</option>
-                <?php endforeach; ?>
-            </template>
+            <div id="termPercentWarning" class="small mt-2"></div>
         </div>
     </div>
 
@@ -328,10 +316,55 @@ if (empty($terms)) {
     const tableBody = document.getElementById('itemTableBody');
     const termTableBody = document.getElementById('termTableBody');
     const ppnInput = document.getElementById('ppnPercent');
+    const invoiceDateInput = document.getElementById('invoiceDate');
+    const tempoInput = document.getElementById('invoiceTempo');
 
     function formatRupiah(num) {
         return 'Rp ' + Number(num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
+
+    /**
+     * Jatuh Tempo = Tanggal Invoice + Tempo (hari) -- TIDAK ada field "Jatuh
+     * Tempo" tersendiri di form atas (sengaja dihapus atas permintaan user);
+     * hasilnya langsung dipakai untuk mengisi kolom "Jatuh Tempo" tiap baris
+     * Termin Tagihan di bawah. Murni date arithmetic (bukan berbasis jam/
+     * timestamp) -- backend (SalesInvoiceController::computeDueDate()) tetap
+     * MENGHITUNG ULANG sales_invoices.jatuh_tempo sendiri saat simpan, nilai
+     * di layar sini tidak pernah dikirim/dipercaya langsung.
+     * Return null kalau tanggal/tempo belum valid.
+     */
+    function computeDueDate() {
+        const dateVal = invoiceDateInput.value;
+        const tempoVal = tempoInput.value.trim();
+        if (!dateVal || tempoVal === '') {
+            return null;
+        }
+        const tempo = parseInt(tempoVal, 10);
+        if (isNaN(tempo) || tempo < 0) {
+            return null;
+        }
+        const parts = dateVal.split('-').map(Number);
+        const d = new Date(parts[0], parts[1] - 1, parts[2]);
+        d.setDate(d.getDate() + tempo);
+        return d;
+    }
+
+    function refreshDueDate() {
+        const d = computeDueDate();
+        // Jatuh Tempo Termin BUKAN input manual (readonly, lihat form) -- SELALU
+        // disamakan dengan Tanggal Invoice + Tempo di SEMUA baris, termasuk yang
+        // sudah pernah terisi (beda dari perilaku "isi kalau kosong" sebelumnya).
+        // Kosong lagi kalau Tempo/Tanggal belum valid -- konsisten dengan backend
+        // (SalesInvoiceController::collectInput() juga selalu memakai nilai ini,
+        // mengabaikan apapun yang tersimpan/terkirim dari field ini sebelumnya).
+        const iso = d ? (d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')) : '';
+        termTableBody.querySelectorAll('.term-duedate-input').forEach(function (input) {
+            input.value = iso;
+        });
+    }
+
+    invoiceDateInput.addEventListener('change', refreshDueDate);
+    tempoInput.addEventListener('input', refreshDueDate);
 
     function recalcRow(row) {
         const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
@@ -357,6 +390,7 @@ if (empty($terms)) {
         const ppnPercent = parseFloat(ppnInput.value) || 0;
         let sumAmount = 0, sumPpn = 0, sumTotal = 0;
 
+        let sumPercentage = 0;
         termTableBody.querySelectorAll('.term-row').forEach(function (row) {
             const pct = parseFloat(row.querySelector('.term-percentage-input').value) || 0;
             const amount = subtotal * pct / 100;
@@ -367,6 +401,7 @@ if (empty($terms)) {
             row.querySelector('.term-ppn-cell').textContent = formatRupiah(ppnAmount);
             row.querySelector('.term-total-cell').textContent = formatRupiah(total);
 
+            sumPercentage += pct;
             sumAmount += amount;
             sumPpn += ppnAmount;
             sumTotal += total;
@@ -375,6 +410,24 @@ if (empty($terms)) {
         document.getElementById('sumTermAmount').textContent = formatRupiah(sumAmount);
         document.getElementById('sumTermPpn').textContent = formatRupiah(sumPpn);
         document.getElementById('sumTermTotal').textContent = formatRupiah(sumTotal);
+
+        // Peringatan total persentase -- SOFT warning kalau belum 100% (boleh
+        // simpan, backend tidak menolak), error tegas kalau lebih dari 100%
+        // (backend MEMANG menolak >100.01%, lihat SalesInvoiceController::
+        // validateInput() -- ini cuma preview lebih awal supaya user tidak
+        // perlu submit dulu baru tahu).
+        const pctRounded = Math.round(sumPercentage * 100) / 100;
+        const warningEl = document.getElementById('termPercentWarning');
+        if (pctRounded > 100.01) {
+            warningEl.className = 'small mt-2 text-danger fw-semibold';
+            warningEl.textContent = 'Total persentase termin ' + pctRounded + '% -- melebihi 100%, tidak bisa disimpan.';
+        } else if (pctRounded < 99.99) {
+            warningEl.className = 'small mt-2 text-warning-emphasis fw-semibold';
+            warningEl.textContent = 'Total persentase termin baru ' + pctRounded + '% (belum 100%).';
+        } else {
+            warningEl.className = 'small mt-2 text-success';
+            warningEl.textContent = 'Total persentase termin 100%.';
+        }
     }
 
     tableBody.addEventListener('input', function (e) {
@@ -383,30 +436,6 @@ if (empty($terms)) {
         }
     });
     ppnInput.addEventListener('input', recalcAll);
-
-    // Preset (master Persentase DP) dipilih -> prefill label+persen baris termin
-    // ini SAJA (bukan trust server, cuma UX -- lihat SalesInvoiceController::
-    // collectInput(), label/percentage tetap boleh diedit manual setelahnya).
-    termTableBody.addEventListener('change', function (e) {
-        if (!e.target.classList.contains('term-preset-select')) {
-            return;
-        }
-        const select = e.target;
-        const row = select.closest('.term-row');
-        const opt = select.options[select.selectedIndex];
-        const idInput = row.querySelector('.term-dp-id-input');
-        const labelInput = row.querySelector('.term-label-input');
-        const pctInput = row.querySelector('.term-percentage-input');
-
-        if (opt.value) {
-            idInput.value = opt.value;
-            labelInput.value = opt.dataset.label || '';
-            pctInput.value = opt.dataset.percentage || '';
-        } else {
-            idInput.value = '';
-        }
-        recalcAll();
-    });
 
     termTableBody.addEventListener('input', function (e) {
         if (e.target.classList.contains('term-percentage-input')) {
@@ -427,24 +456,20 @@ if (empty($terms)) {
         }
     });
 
-    const termPresetOptionsHtml = document.getElementById('termPresetOptionsTemplate').innerHTML;
-
     document.getElementById('btnAddTerm').addEventListener('click', function () {
         const tr = document.createElement('tr');
         tr.className = 'term-row';
         tr.innerHTML =
-            '<td>' +
-                '<select class="form-select form-select-sm term-preset-select">' + termPresetOptionsHtml + '</select>' +
-                '<input type="hidden" name="term_dp_percentage_id[]" class="term-dp-id-input" value="">' +
-            '</td>' +
+            '<td><input type="number" name="term_percentage[]" class="form-control form-control-sm term-percentage-input" min="0.01" max="100" step="0.01" placeholder="mis. 30" required></td>' +
             '<td><input type="text" name="term_label[]" class="form-control form-control-sm term-label-input" placeholder="mis. Termin 1, Pelunasan" required></td>' +
-            '<td><input type="number" name="term_percentage[]" class="form-control form-control-sm term-percentage-input" min="0.01" max="100" step="0.01" required></td>' +
-            '<td><input type="date" name="term_due_date[]" class="form-control form-control-sm term-duedate-input"></td>' +
+            '<td><input type="date" name="term_due_date[]" class="form-control form-control-sm term-duedate-input" readonly tabindex="-1"></td>' +
             '<td class="text-end term-amount-cell">Rp 0.00</td>' +
             '<td class="text-end term-ppn-cell">Rp 0.00</td>' +
             '<td class="text-end fw-semibold term-total-cell">Rp 0.00</td>' +
             '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger btn-remove-term"><i class="bi bi-trash"></i></button></td>';
         termTableBody.appendChild(tr);
+        refreshDueDate(); // isi Jatuh Tempo baris baru ini dari Tempo utama (kalau sudah dihitung)
+        recalcAll();
     });
 
     const itemSelectOptionsHtml = document.getElementById('itemSelectOptionsTemplate').innerHTML;
@@ -519,5 +544,6 @@ if (empty($terms)) {
     });
 
     recalcAll();
+    refreshDueDate();
 })();
 </script>

@@ -41,7 +41,7 @@
         margin-top: 2px;
     }
     .inv-print-title {
-        font-size: 17px;
+        font-size: 22px;
         font-weight: 700;
         letter-spacing: 0.5px;
         margin: 14px 0 10px 0;
@@ -88,18 +88,25 @@
         text-align: right;
     }
     /* "Rp" sempat turun ke baris sendiri (terpisah dari nominalnya) di kolom yang
-       sempit (Harga Satuan, Harga Jumlah, dan baris Jumlah/Tagihan DP/PPN/Total)
-       -- paksa satu baris di SEMUA sel angka supaya "Rp" selalu sejajar/rapi
-       dengan nominalnya, konsisten di seluruh tabel. */
+       sempit (Harga Satuan, Harga Jumlah) -- paksa satu baris di SEMUA sel angka
+       supaya "Rp" selalu sejajar/rapi dengan nominalnya. */
     .inv-print-table td.num {
         white-space: nowrap;
     }
-    .inv-print-total-row td {
-        font-weight: 700;
+    /* Ringkasan nominal (Jumlah/Termin/PPN/Total) -- baris colspan MENYATU di
+       tabel item yang sama (border menyambung), label rata KANAN (nempel ke
+       kolom nominal). Warna dua-tingkat sesuai contoh: baris "antara"
+       (Jumlah/Termin/PPN) kuning pucat, baris Total kuning terang SAMA
+       PERSIS dengan header tabel di atas -- supaya Total menonjol sebagai
+       hasil akhir, sisanya tetap terlihat sebagai rincian/breakdown. */
+    .inv-print-summary-row td {
         background: #FFF3CD;
+        font-weight: 700;
+        text-align: right;
     }
-    .inv-print-total-row.grand td {
+    .inv-print-summary-row.grand td {
         background: #FFC000;
+        border-top: 2px solid #adb5bd;
     }
     .inv-print-notes {
         margin-top: 14px;
@@ -239,10 +246,9 @@
                 <tr>
                     <th style="width: 26px;">No</th>
                     <th>Deskripsi</th>
-                    <th class="num" style="width: 55px;">Qty</th>
-                    <th style="width: 55px;">Unit</th>
-                    <th class="num" style="width: 110px;">Harga Satuan</th>
-                    <th class="num" style="width: 125px;">Harga Jumlah</th>
+                    <th class="num" style="width: 50px;">Qty</th>
+                    <th class="num" style="width: 125px;">Harga Satuan</th>
+                    <th class="num" style="width: 135px;">Harga Jumlah</th>
                 </tr>
             </thead>
             <tbody>
@@ -251,23 +257,35 @@
                         <td><?= $i + 1 ?></td>
                         <td><?= nl2br(e($item['description'])) ?></td>
                         <td class="num"><?= number_format((float) $item['qty'], 2, ',', '.') ?></td>
-                        <td><?= e($item['unit']) ?></td>
                         <td class="num"><?= formatRupiah($item['unit_price']) ?></td>
                         <td class="num"><?= formatRupiah($item['subtotal']) ?></td>
                     </tr>
                 <?php endforeach; ?>
-                <tr class="inv-print-total-row">
-                    <td colspan="5" class="num">Jumlah</td>
+                <?php
+                    // Ringkasan nominal -- SATU tabel yang sama dengan item (bukan
+                    // kotak terpisah lagi, atas permintaan user supaya tampilan
+                    // persis seperti contoh: border/warna menyatu dengan tabel item).
+                    // Urutan: Jumlah -> tiap Termin (NOMINAL saja) -> PPN (agregat) ->
+                    // Total. Semua angka LANGSUNG dari kolom yang sudah dihitung
+                    // backend (SalesInvoiceController::calculateTotals()) -- tidak
+                    // ada perhitungan ulang di view ini.
+                ?>
+                <tr class="inv-print-summary-row">
+                    <td colspan="4">Jumlah</td>
                     <td class="num"><?= formatRupiah($inv['subtotal']) ?></td>
                 </tr>
                 <?php foreach ($inv['terms'] as $t): ?>
-                    <tr class="inv-print-total-row">
-                        <td colspan="5" class="num"><?= e($t['label']) ?> (<?= formatPercent($t['percentage']) ?>%)<?= (float) $inv['ppn_percent'] > 0 ? ' + PPN ' . formatPercent($inv['ppn_percent']) . '%' : '' ?></td>
-                        <td class="num"><?= formatRupiah($t['total_amount']) ?></td>
+                    <tr class="inv-print-summary-row">
+                        <td colspan="4"><?= e($t['label']) ?> (<?= formatPercent($t['percentage']) ?>%)</td>
+                        <td class="num"><?= formatRupiah($t['amount']) ?></td>
                     </tr>
                 <?php endforeach; ?>
-                <tr class="inv-print-total-row grand">
-                    <td colspan="5" class="num">Total</td>
+                <tr class="inv-print-summary-row">
+                    <td colspan="4">PPN</td>
+                    <td class="num"><?= formatRupiah($inv['ppn_amount']) ?></td>
+                </tr>
+                <tr class="inv-print-summary-row grand">
+                    <td colspan="4">Total</td>
                     <td class="num"><?= formatRupiah($inv['total_amount']) ?></td>
                 </tr>
             </tbody>

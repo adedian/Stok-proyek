@@ -49,9 +49,17 @@
                         <div class="text-muted small">Project</div>
                         <div class="fw-semibold"><?= e($invoice['project_name'] ?? '-') ?></div>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <div class="text-muted small">Tanggal Invoice</div>
                         <div class="fw-semibold"><?= formatTanggal($invoice['invoice_date']) ?></div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="text-muted small">Tempo</div>
+                        <div class="fw-semibold"><?= !empty($invoice['tempo']) || $invoice['tempo'] === '0' ? (int) $invoice['tempo'] . ' hari' : '-' ?></div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-muted small">Jatuh Tempo</div>
+                        <div class="fw-semibold"><?= !empty($invoice['jatuh_tempo']) ? formatTanggal($invoice['jatuh_tempo']) : '-' ?></div>
                     </div>
                     <div class="col-md-4">
                         <div class="text-muted small">No. Kontrak</div>

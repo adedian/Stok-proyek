@@ -82,6 +82,17 @@ return [
         'delete' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE],
     ],
 
+    // Validasi Pengeluaran Barang -- SENGAJA cuma Super Admin di sini (tidak
+    // ada role lain yang cocok: pemilik/"Gusti" bukan sebuah role, tapi SATU
+    // user tertentu). Beri akses ke user itu lewat override per-user (User
+    // Management > user terkait > Hak Akses), BUKAN dengan menambah role di
+    // sini atau hardcode nama di controller -- permission_helper.php sudah
+    // mendukung override allow per-user di atas matrix role ini.
+    'stock_out_validation' => [
+        'view'     => [ROLE_SUPER_ADMIN],
+        'validate' => [ROLE_SUPER_ADMIN],
+    ],
+
     'inventory' => [
         'view'     => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
         'create'   => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
@@ -100,10 +111,14 @@ return [
     ],
 
     // 'view' = boleh buka modul Laporan sama sekali. Pembatasan granular
-    // (PIC Project & Project Manager HANYA boleh Laporan Kartu Stok) ada di
-    // ReportController::guardReportScope().
+    // (role project/admin_project HANYA boleh Laporan Kartu Stok) ada di
+    // ReportController::guardReportScope() -- SEMUA role aktif disertakan di
+    // sini supaya Laporan Stok Barang bisa dibuka siapa saja yang sudah login
+    // (revisi 2026-09-29); guardReportScope()/availableReports() otomatis
+    // membatasi role di luar [super_admin,purchase,accounting] HANYA ke kartu
+    // Stok Barang, jadi menambah role di sini tidak membuka laporan lain.
     'report' => [
-        'view' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_PROJECT_MANAGER],
+        'view' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_PROJECT_MANAGER, ROLE_ADMIN_PROJECT],
         // Boleh melihat kolom HARGA di Laporan Stok Barang (Cetak/Export) +
         // memilih toggle Tampilkan/Tanpa harga. Role lain: output selalu tanpa harga.
         'stock_price' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
@@ -112,7 +127,7 @@ return [
         // saja, output SELALU tanpa harga (stock_price di atas tetap SA & AC).
         // Role project & Accounting sudah dapat lewat jalur lain -- didaftarkan
         // di sini juga supaya matrix Hak Akses menampilkan kondisi sebenarnya.
-        'stock_report' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_PROJECT_MANAGER],
+        'stock_report' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_PROJECT_MANAGER, ROLE_ADMIN_PROJECT],
     ],
 
     // Tutup Bulan (Laporan -> Tutup Bulan) -- SUPER ADMIN ONLY, terkunci
@@ -147,29 +162,35 @@ return [
         'edit' => [ROLE_SUPER_ADMIN],
     ],
 
+    // Accounting: FULL ACCESS Master Data (view/create/edit) -- revisi
+    // 2026-09-29. TIDAK termasuk delete (aturan global "accounting tidak
+    // pernah delete" tetap berlaku) dan TIDAK dibatasi per-project (akses
+    // global, sama seperti Super Admin melihatnya).
     'supplier' => [
-        'view'      => [ROLE_SUPER_ADMIN],
-        'create'    => [ROLE_SUPER_ADMIN],
-        'edit'      => [ROLE_SUPER_ADMIN],
+        'view'      => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'create'    => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'edit'      => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
         'delete'    => [ROLE_SUPER_ADMIN],
         'quick_add' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING],
     ],
 
     'project' => [
-        'view'      => [ROLE_SUPER_ADMIN],
-        'create'    => [ROLE_SUPER_ADMIN],
-        'edit'      => [ROLE_SUPER_ADMIN],
+        'view'      => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'create'    => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'edit'      => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
         'delete'    => [ROLE_SUPER_ADMIN],
         'quick_add' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT],
         // Atur Project <-> User (siapa boleh membuka Kas project ini lewat
-        // gerbang Project+Password). Sensitif -> Super Admin saja.
+        // gerbang Project+Password). Sensitif -> Super Admin saja. TIDAK
+        // termasuk full-access Master Data Accounting -- ini soal akses Kas,
+        // beda konteks (lihat instruksi "jangan ubah akses Kas").
         'manage_access' => [ROLE_SUPER_ADMIN],
     ],
 
     'client' => [
-        'view'      => [ROLE_SUPER_ADMIN],
-        'create'    => [ROLE_SUPER_ADMIN],
-        'edit'      => [ROLE_SUPER_ADMIN],
+        'view'      => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'create'    => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'edit'      => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
         'delete'    => [ROLE_SUPER_ADMIN],
         'quick_add' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING],
     ],
@@ -291,55 +312,55 @@ return [
     ],
 
     'item' => [
-        'view'      => [ROLE_SUPER_ADMIN],
-        'create'    => [ROLE_SUPER_ADMIN],
-        'edit'      => [ROLE_SUPER_ADMIN],
+        'view'      => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'create'    => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'edit'      => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
         'delete'    => [ROLE_SUPER_ADMIN],
         'quick_add' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT],
     ],
 
     'item_category' => [
-        'view'      => [ROLE_SUPER_ADMIN],
-        'create'    => [ROLE_SUPER_ADMIN],
-        'edit'      => [ROLE_SUPER_ADMIN],
+        'view'      => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'create'    => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'edit'      => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
         'delete'    => [ROLE_SUPER_ADMIN],
     ],
 
     'unit' => [
-        'view'      => [ROLE_SUPER_ADMIN],
-        'create'    => [ROLE_SUPER_ADMIN],
-        'edit'      => [ROLE_SUPER_ADMIN],
+        'view'      => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'create'    => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'edit'      => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
         'delete'    => [ROLE_SUPER_ADMIN],
         'quick_add' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT],
     ],
 
     'warehouse' => [
-        'view'      => [ROLE_SUPER_ADMIN],
-        'create'    => [ROLE_SUPER_ADMIN],
-        'edit'      => [ROLE_SUPER_ADMIN],
+        'view'      => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'create'    => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'edit'      => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
         'delete'    => [ROLE_SUPER_ADMIN],
         'quick_add' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING],
     ],
 
     'payment_method' => [
-        'view'      => [ROLE_SUPER_ADMIN],
-        'create'    => [ROLE_SUPER_ADMIN],
-        'edit'      => [ROLE_SUPER_ADMIN],
+        'view'      => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'create'    => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'edit'      => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
         'delete'    => [ROLE_SUPER_ADMIN],
         'quick_add' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
     ],
 
     'signature' => [
-        'view'   => [ROLE_SUPER_ADMIN],
-        'create' => [ROLE_SUPER_ADMIN],
-        'edit'   => [ROLE_SUPER_ADMIN],
+        'view'   => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'create' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'edit'   => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
         'delete' => [ROLE_SUPER_ADMIN],
     ],
 
     'dp_percentage' => [
-        'view'   => [ROLE_SUPER_ADMIN],
-        'create' => [ROLE_SUPER_ADMIN],
-        'edit'   => [ROLE_SUPER_ADMIN],
+        'view'   => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'create' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'edit'   => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
         'delete' => [ROLE_SUPER_ADMIN],
     ],
 

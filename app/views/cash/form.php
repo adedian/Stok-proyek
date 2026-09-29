@@ -280,6 +280,13 @@ $curRekeningId = $cash['rekening_id'] ?? '';
         if (na) na.classList.toggle('d-none', on);
         const cell = field.closest('td');
         if (cell) cell.classList.toggle('cell-na', !on);
+        // Field select (mis. Satuan) yang sudah di-enhance Choices.js (searchable-select.js)
+        // punya salinan state sendiri -- .disabled native yang diubah langsung di atas
+        // TIDAK otomatis kelihatan di widget-nya (dropdown jadi tidak bisa dibuka walau
+        // terlihat aktif). Resync supaya widget ikut mode enabled/disabled yang benar.
+        if (field.tagName === 'SELECT' && window.resyncSearchableSelect) {
+            window.resyncSearchableSelect(field);
+        }
     }
 
     // Barang picker (select + tombol "+") pakai wrapper .barang-wrap -- tombol
@@ -297,6 +304,7 @@ $curRekeningId = $cash['rekening_id'] ?? '';
         sel.disabled = !on;
         sel.required = on;
         if (!on) { sel.value = ''; if (idInput) idInput.value = ''; }
+        if (window.resyncSearchableSelect) window.resyncSearchableSelect(sel);
     }
 
     // Project picker (select + tombol "+") pakai wrapper .project-wrap supaya
@@ -313,6 +321,7 @@ $curRekeningId = $cash['rekening_id'] ?? '';
         sel.disabled = !on;
         sel.required = !!(on && req);
         if (!on) sel.value = '';
+        if (window.resyncSearchableSelect) window.resyncSearchableSelect(sel);
     }
 
     // Kategori baris menentukan kolom stok mana yang aktif:

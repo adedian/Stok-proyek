@@ -100,6 +100,7 @@
             return;
         }
         syncSelectedAttribute(select);
+        var isSmall = select.classList.contains('form-select-sm') || select.classList.contains('form-control-sm');
         var instance = new window.Choices(select, {
             searchEnabled: true,
             shouldSort: false, // urutan <option> dari server dipertahankan (jangan diacak alfabetis)
@@ -112,6 +113,17 @@
             renderChoiceLimit: -1,
             position: 'auto',
         });
+        if (isSmall) {
+            // Choices.js MEMINDAHKAN <select> asli jadi ANAK dari wrapper `.choices`
+            // (bukan mempertahankannya sebagai saudara sebelum `.choices`), jadi
+            // selector CSS `.form-select-sm + .choices` di searchable-select.css
+            // TIDAK PERNAH cocok -- dropdown form-select-sm (baris tabel Kas/PO/dst)
+            // selalu jatuh ke ukuran Choices NORMAL, jadi tidak sinkron dengan
+            // input .form-control-sm di sebelahnya. Tandai wrapper-nya langsung di
+            // sini supaya aturan `.choices.choices--small` (sudah ada di CSS) benar-
+            // benar terpasang.
+            instance.containerOuter.element.classList.add('choices--small');
+        }
         registry.set(select, instance);
         bindOverflowFix(select);
     }

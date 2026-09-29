@@ -7,6 +7,28 @@
 .choices {
     font-size: inherit;
     margin-bottom: 0;
+    width: 100%;
+    /* .form-select/.form-control Bootstrap punya width:100% + box-sizing:border-box
+       bawaan -- .choices (div pengganti <select> asli) tidak, jadi kotaknya bisa
+       menyusut/melebar ikut panjang TEKS PILIHAN (bukan lebar kolom/grid), persis
+       yang dikeluhkan: "Inventory Teknik" vs "Material Projek" beda lebar, nama
+       barang panjang bikin field melebar. box-sizing eksplisit supaya width:100%
+       di atas tidak ketambahan padding/border internal (semua turunan .choices__*
+       lain sudah punya padding/border sendiri). */
+    box-sizing: border-box;
+    min-width: 0; /* item flex (.input-group) jangan dipaksa selebar konten */
+}
+
+/* Bootstrap punya aturan `.input-group > .form-control/.form-select { flex: 1 1
+   auto; width: 1%; min-width: 0; }` supaya field mengisi penuh sisa ruang di
+   sebelah tombol "+" Quick Add. Begitu Choices.js membungkus <select> jadi
+   <div class="choices">, elemen yang jadi anak LANGSUNG .input-group berubah
+   ke <div> ini -- aturan Bootstrap di atas tidak lagi menyasarnya (selector-nya
+   spesifik ke .form-control/.form-select) sehingga box mengikuti lebar teks
+   pilihan, bukan mengisi input-group. Berlakukan aturan yang sama ke .choices. */
+.input-group > .choices {
+    flex: 1 1 auto;
+    width: 1%;
 }
 
 .choices__inner {
@@ -16,13 +38,35 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     font-size: .9rem;
+    /* Choices.js bawaan mem-set display:inline-block di sini -- itu membuat box
+       shrink-to-fit mengikuti panjang teks pilihan (akar masalah utama). Paksa
+       block + width penuh supaya ukurannya HANYA ditentukan oleh kolom/grid,
+       konsisten untuk semua panjang option. */
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
 }
 
-.form-select-sm + .choices .choices__inner,
 .choices.choices--small .choices__inner {
     min-height: calc(1.5em + .5rem + 2px);
     padding: .25rem .5rem;
     font-size: .8rem;
+}
+
+/* Teks pilihan yang panjang ("Lampu LED Philips Essential 20W 6500K") DIPOTONG
+   secara TAMPILAN saja (data di database/value <option> tidak berubah) supaya
+   tidak ikut melebarkan box -- konsisten dengan aturan lebar tetap di atas.
+   Saat dropdown dibuka, daftar pilihan (.choices__list--dropdown) tetap
+   menampilkan nama lengkap & tetap bisa di-search penuh. */
+.choices__list--single {
+    overflow: hidden;
+}
+.choices__list--single .choices__item {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
 }
 
 .is-focused .choices__inner,

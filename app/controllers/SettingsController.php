@@ -199,6 +199,13 @@ class SettingsController extends Controller
             if ($stamp !== null) {
                 $this->settingModel->set('company_stamp', $stamp, 'company', currentUserId());
             }
+            // Foto kartu NPWP -- ditampilkan di footer bawah cetak PO (lihat
+            // purchase_order/print.php). Sibling dari company_logo/company_stamp,
+            // pola upload identik.
+            $npwpCard = handleFileUpload('company_npwp_card', 'company', ['jpg', 'jpeg', 'png', 'webp'], 2);
+            if ($npwpCard !== null) {
+                $this->settingModel->set('company_npwp_card', $npwpCard, 'company', currentUserId());
+            }
         } catch (RuntimeException $e) {
             setFlash('error', $e->getMessage());
             $this->redirect('settings', 'index', ['tab' => 'company']);

@@ -183,9 +183,15 @@
         color: #495057;
         line-height: 1.5;
     }
-    .po-print-footer-strip > div:last-child {
+    .po-print-footer-strip > div:not(:first-child) {
         border-left: 1px solid #adb5bd;
         padding-left: 16px;
+    }
+    .po-print-footer-strip img.npwp-card {
+        display: block;
+        height: 62px;
+        width: auto;
+        max-width: none;
     }
     @page {
         size: A4;
@@ -352,16 +358,21 @@
             <?php endif; ?>
         </div>
 
-        <?php if (!empty($company['company_address']) || !empty($company['company_phone']) || !empty($company['company_email']) || !empty($company['company_npwp'])): ?>
+        <?php if (!empty($company['company_address']) || !empty($company['company_phone']) || !empty($company['company_email']) || !empty($company['company_npwp']) || !empty($company['company_npwp_card'])): ?>
             <div class="po-print-footer-strip">
                 <div>
                     <?= nl2br(e($company['company_address'] ?? '')) ?>
-                    <?php if (!empty($company['company_npwp'])): ?><br>NPWP: <?= e($company['company_npwp']) ?><?php endif; ?>
+                    <?php if (!empty($company['company_npwp']) && empty($company['company_npwp_card'])): ?><br>NPWP: <?= e($company['company_npwp']) ?><?php endif; ?>
                 </div>
                 <div>
                     <?= e($company['company_phone'] ?? '') ?>
                     <?php if (!empty($company['company_email'])): ?><br><?= e($company['company_email']) ?><?php endif; ?>
                 </div>
+                <?php if (!empty($company['company_npwp_card'])): ?>
+                    <div>
+                        <img class="npwp-card" src="<?= BASE_URL ?>/<?= e($company['company_npwp_card']) ?>" alt="Kartu NPWP">
+                    </div>
+                <?php endif; ?>
             </div>
         <?php endif; ?>
     </div>

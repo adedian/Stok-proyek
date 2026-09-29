@@ -38,6 +38,16 @@
                     <label class="form-label">NPWP</label>
                     <input type="text" name="company_npwp" class="form-control" value="<?= e($company['company_npwp'] ?? '') ?>">
                 </div>
+                <div class="col-md-6">
+                    <label class="form-label">Foto Kartu NPWP</label>
+                    <input type="file" name="company_npwp_card" class="form-control" accept=".jpg,.jpeg,.png,.webp">
+                    <?php if (!empty($company['company_npwp_card'])): ?>
+                        <div class="form-text">
+                            Foto saat ini: <a href="<?= BASE_URL ?>/<?= e($company['company_npwp_card']) ?>" target="_blank">lihat kartu NPWP</a>
+                        </div>
+                    <?php endif; ?>
+                    <div class="form-text">Ditampilkan di footer bawah cetak PO.</div>
+                </div>
                 <div class="col-12">
                     <label class="form-label">Alamat</label>
                     <textarea name="company_address" class="form-control" rows="2"><?= e($company['company_address'] ?? '') ?></textarea>

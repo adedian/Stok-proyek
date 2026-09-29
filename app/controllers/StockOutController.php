@@ -186,6 +186,7 @@ class StockOutController extends Controller
             setFlash('error', 'Data pengeluaran barang tidak ditemukan.');
             $this->redirect('stock_out', 'index');
         }
+        $this->assertValidationAllowsChange($stockOut, 'diubah');
 
         $this->view('stock_out/form', [
             'pageTitle'    => 'Edit Pengeluaran Barang',
@@ -219,6 +220,7 @@ class StockOutController extends Controller
             setFlash('error', 'Data pengeluaran barang tidak ditemukan.');
             $this->redirect('stock_out', 'index');
         }
+        $this->assertValidationAllowsChange($existing, 'diubah');
 
         $data = $this->collectInput();
         $errors = $this->validateInput($data);
@@ -307,6 +309,7 @@ class StockOutController extends Controller
             setFlash('error', 'Data pengeluaran barang tidak ditemukan.');
             $this->redirect('stock_out', 'index');
         }
+        $this->assertValidationAllowsChange($existing, 'dihapus');
 
         assertPeriodOpen('stock_out', $existing['out_date'], 'stock_out', 'index');
         $res = $this->deleteOneRecord($id);
@@ -578,6 +581,20 @@ class StockOutController extends Controller
      * (karena kita mau gagal cepat kalau stok tidak cukup, sebelum insert apapun).
      * Makanya reference_id-nya perlu di-patch belakangan setelah id stock_out diketahui.
      */
+    /**
+     * Pengeluaran barang yang SUDAH 'tervalidasi' terkunci -- hanya Super Admin
+     * yang boleh mengubah/menghapus (pola identik Kas: CashTransaction::
+     * assertValidationAllowsChange()). 'menunggu' & 'ditolak' tetap bebas
+     * diedit/dihapus pembuatnya seperti sebelumnya.
+     */
+    private function assertValidationAllowsChange(array $row, string $verb): void
+    {
+        if (($row['validation_status'] ?? 'menunggu') === 'tervalidasi'
+            && currentUserRole() !== ROLE_SUPER_ADMIN) {
+            denyAccess("Pengeluaran barang '{$row['stock_out_number']}' sudah divalidasi -- tidak bisa {$verb}. Hubungi Super Admin bila perlu koreksi.");
+        }
+    }
+
     private function fixLastTransactionReference(int $inventoryId, int $stockOutId): void
     {
         $db = new Database();

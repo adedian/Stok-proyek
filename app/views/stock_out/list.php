@@ -97,12 +97,13 @@
                         <th>Tujuan</th>
                         <th>PIC</th>
                         <th>Surat Jalan</th>
+                        <th>Validasi</th>
                         <th class="text-center">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($stockOuts)): ?>
-                        <tr><td colspan="9" class="p-0">
+                        <tr><td colspan="10" class="p-0">
                             <div class="empty-state">
                                 <i class="bi bi-box-arrow-up empty-icon"></i>
                                 <div class="empty-title">Belum ada pengeluaran barang</div>
@@ -158,6 +159,14 @@
                                 <?php else: ?>
                                     <span class="text-muted small">-</span>
                                 <?php endif; ?>
+                            </td>
+                            <td>
+                                <?php
+                                    $soValBadge = ['menunggu' => 'warning text-dark', 'tervalidasi' => 'success', 'ditolak' => 'danger'];
+                                    $soValLabel = ['menunggu' => 'Menunggu', 'tervalidasi' => 'Tervalidasi', 'ditolak' => 'Ditolak'];
+                                    $soVs = $so['validation_status'] ?? 'tervalidasi';
+                                ?>
+                                <span class="badge bg-<?= $soValBadge[$soVs] ?? 'secondary' ?>"><?= $soValLabel[$soVs] ?? $soVs ?></span>
                             </td>
                             <td class="text-center">
                                 <?php if (can('stock_out', 'edit') || can('stock_out', 'delete')): ?>

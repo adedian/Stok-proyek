@@ -88,4 +88,79 @@ class StockOut extends Model
             ['id' => $deliveryNoteId]
         );
     }
+
+    // ===================== Validasi Pengeluaran Barang =====================
+
+    /**
+     * Daftar stock_out untuk halaman Validasi Pengeluaran Barang.
+     * $status: 'menunggu' | 'tervalidasi' | 'ditolak' | '' (semua).
+     */
+    public function listForValidation(string $status = 'menunggu', array $filters = []): array
+    {
+        $sql = "SELECT so.*, inv.item_name, inv.unit, p.project_name,
+                       si.invoice_number, c.client_name,
+                       cb.full_name AS created_by_name, vb.full_name AS validated_by_name
+                FROM stock_out so
+                JOIN inventory inv ON inv.id = so.inventory_id
+                LEFT JOIN projects p ON p.id = so.project_id
+                LEFT JOIN sales_invoices si ON si.id = so.sales_invoice_id
+                LEFT JOIN clients c ON c.id = si.client_id
+                LEFT JOIN users cb ON cb.id = so.created_by
+                LEFT JOIN users vb ON vb.id = so.validated_by
+                WHERE so.deleted_at IS NULL";
+        $params = [];
+
+        if (in_array($status, ['menunggu', 'tervalidasi', 'ditolak'], true)) {
+            $sql .= " AND so.validation_status = :st";
+            $params['st'] = $status;
+        }
+        if (!empty($filters['project_id'])) {
+            $sql .= " AND so.project_id = :project_id";
+            $params['project_id'] = $filters['project_id'];
+        }
+        if (!empty($filters['keyword'])) {
+            [$ssSql, $ssParams] = SmartSearch::clause(
+                $filters['keyword'],
+                ['inv.item_name', 'so.destination', 'so.pic_name'],
+                ['so.stock_out_number'],
+                'sovkw'
+            );
+            if ($ssSql !== '') {
+                $sql .= " AND {$ssSql}";
+                $params += $ssParams;
+            }
+        }
+        if (!empty($filters['date_from'])) {
+            $sql .= " AND so.out_date >= :date_from";
+            $params['date_from'] = $filters['date_from'];
+        }
+        if (!empty($filters['date_to'])) {
+            $sql .= " AND so.out_date <= :date_to";
+            $params['date_to'] = $filters['date_to'];
+        }
+
+        $sql .= " ORDER BY so.created_at DESC";
+
+        return $this->db->fetchAll($sql, $params);
+    }
+
+    public function countPendingValidation(): int
+    {
+        $row = $this->db->fetchOne(
+            "SELECT COUNT(*) AS n FROM stock_out WHERE deleted_at IS NULL AND validation_status = 'menunggu'"
+        );
+        return (int) ($row['n'] ?? 0);
+    }
+
+    /** Set hasil validasi. $status = 'tervalidasi' | 'ditolak'. */
+    public function setValidation(int $id, string $status, int $userId, ?string $note): void
+    {
+        $this->db->query(
+            "UPDATE stock_out
+                SET validation_status = :st, validated_by = :uid, validated_at = NOW(),
+                    validation_note = :note, updated_at = NOW()
+              WHERE id = :id",
+            ['st' => $status, 'uid' => $userId, 'note' => ($note !== '' ? $note : null), 'id' => $id]
+        );
+    }
 }

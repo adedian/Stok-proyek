@@ -3,6 +3,7 @@ require_once ROOT_PATH . '/core/Database.php';
 require_once ROOT_PATH . '/app/models/SystemSetting.php';
 require_once ROOT_PATH . '/app/models/Item.php';
 require_once ROOT_PATH . '/app/models/CashTransaction.php';
+require_once ROOT_PATH . '/app/models/StockOut.php';
 require_once ROOT_PATH . '/app/models/Information.php';
 
 /**
@@ -233,6 +234,19 @@ class DashboardStat
                     'title' => 'Validasi Barang',
                     'desc' => "{$count} item penerimaan barang (sesuai pesanan) menunggu validasi Anda.",
                     'url' => route('validation', 'index', ['validated' => 'no']),
+                    'cta' => 'Validasi Sekarang',
+                ];
+            }
+        }
+
+        if ($settingModel->getBool('notify_stock_out_validation', true) && can('stock_out_validation', 'validate')) {
+            $count = (new StockOut())->countPendingValidation();
+            if ($count > 0) {
+                $items[] = [
+                    'icon' => 'bi-patch-check-fill', 'variant' => 'warning',
+                    'title' => 'Validasi Pengeluaran Barang',
+                    'desc' => "{$count} pengeluaran barang menunggu validasi Anda.",
+                    'url' => route('stock_out_validation'),
                     'cta' => 'Validasi Sekarang',
                 ];
             }

@@ -21,6 +21,7 @@ function appMenus(): array
         ['label' => 'Penerimaan Barang', 'module' => 'goods_receipt', 'icon' => 'bi-box-seam', 'roles' => permissionRoles('goods_receipt', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Validasi Barang', 'module' => 'validation', 'icon' => 'bi-check2-square', 'roles' => permissionRoles('validation', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Pengeluaran Barang', 'module' => 'stock_out', 'icon' => 'bi-box-arrow-up', 'roles' => permissionRoles('stock_out', 'view'), 'active' => true, 'group' => 'Transaksi'],
+        ['label' => 'Validasi Pengeluaran Barang', 'module' => 'stock_out_validation', 'icon' => 'bi-patch-check', 'roles' => permissionRoles('stock_out_validation', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Stok & Opname', 'module' => 'inventory', 'icon' => 'bi-clipboard-data', 'roles' => permissionRoles('inventory', 'view'), 'active' => true, 'group' => 'Transaksi'],
         // Modul "Invoice" (AP, invoice masuk dari supplier -- InvoiceController,
         // InvoiceValidation, tabel invoices/invoice_validations) sempat cuma

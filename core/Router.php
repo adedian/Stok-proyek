@@ -19,6 +19,7 @@ class Router
         'goods_receipt'   => 'GoodsReceiptController',
         'validation'      => 'ValidationController',
         'stock_out'       => 'StockOutController',
+        'stock_out_validation' => 'StockOutValidationController',
         'inventory'       => 'InventoryController',
         'offline_purchase' => 'OfflinePurchaseController',
         'report'          => 'ReportController',

@@ -6,6 +6,8 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/choices.js@11.1.0/public/assets/scripts/choices.min.js"></script>
+    <script src="<?= assetUrl('/assets/js/searchable-select.js') ?>"></script>
     <script src="<?= assetUrl('/assets/js/custom.js') ?>"></script>
     <script src="<?= assetUrl('/assets/js/quick-add.js') ?>"></script>
     <script src="<?= assetUrl('/assets/js/layout.js') ?>"></script>

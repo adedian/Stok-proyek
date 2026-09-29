@@ -90,6 +90,13 @@ function initQuickAdd(config) {
 
                 targetSelect.value = String(result.data.id);
                 targetSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                // Kalau target (atau select lain yang ikut broadcast) sudah di-enhance
+                // search bar (searchable-select.js), widgetnya punya salinan state
+                // sendiri -- paksa sync supaya opsi baru + pilihan otomatis di atas
+                // langsung kelihatan di widget, bukan cuma di <select> aslinya.
+                if (window.resyncSearchableSelect) {
+                    targets.forEach(function (sel) { window.resyncSearchableSelect(sel); });
+                }
 
                 formEl.reset();
                 bsModal.hide();

@@ -43,6 +43,7 @@
     <link rel="icon" type="image/png" sizes="16x16" href="<?= BASE_URL ?>/assets/img/pwa/favicon-16.png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/choices.js@11.1.0/public/assets/styles/choices.min.css" rel="stylesheet">
     <?php /* 15 file CSS aplikasi digabung jadi 1 request (public/assets/css/app.php). */ ?>
     <link href="<?= cssAppBundleUrl() ?>" rel="stylesheet">
     <?php

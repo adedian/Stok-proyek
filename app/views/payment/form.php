@@ -149,6 +149,9 @@ $selectedPoId = $selectedPo['id'] ?? ($payment['purchase_order_id'] ?? '');
         paymentMethodSelect.required = isBank;
         if (!isBank) {
             paymentMethodSelect.value = '';
+            if (window.resyncSearchableSelect) {
+                window.resyncSearchableSelect(paymentMethodSelect);
+            }
         }
     }
 

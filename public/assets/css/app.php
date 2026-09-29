@@ -18,7 +18,7 @@ declare(strict_types=1);
 // URUTAN WAJIB SAMA seperti dulu di header.php (cascade & override bergantung ini).
 $files = [
     'variables', 'layout', 'topbar', 'sidebar', 'dashboard', 'cards',
-    'tables', 'forms', 'buttons', 'badges', 'modals', 'alerts',
+    'tables', 'forms', 'searchable-select', 'buttons', 'badges', 'modals', 'alerts',
     'utilities', 'responsive', 'pwa',
 ];
 

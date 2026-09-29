@@ -339,6 +339,9 @@ if (!$canClientDest) {
         });
         sel.disabled = currentItems.length === 0;
         updateRowStock(sel.closest('.so-item-row'));
+        if (window.resyncSearchableSelect) {
+            window.resyncSearchableSelect(sel);
+        }
     }
 
     function renderAllRows() {
@@ -446,9 +449,11 @@ if (!$canClientDest) {
             applyDestinationType(this.value);
             if (this.value === 'client') {
                 projectSelect.value = '';
+                if (window.resyncSearchableSelect) { window.resyncSearchableSelect(projectSelect); }
                 if (invoiceSelect.value) { loadOfficeItems(); } else { resetItems('Pilih Client (Invoice) dulu.'); }
             } else {
                 invoiceSelect.value = '';
+                if (window.resyncSearchableSelect) { window.resyncSearchableSelect(invoiceSelect); }
                 resetItems('Pilih Project dulu untuk melihat barang yang tersedia.');
             }
         });

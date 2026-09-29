@@ -190,10 +190,8 @@ class SalesInvoiceController extends Controller
             'pageTitle' => 'Detail Invoice Keluar',
             'invoice'   => $invoice,
             'items'     => $this->itemModel->itemsByInvoice($id),
-            'terms'     => $this->termModel->termsWithPaymentInfo($id),
+            'terms'     => $this->termModel->termsByInvoice($id),
             'isBilled'  => $this->invoiceModel->isBilled($id),
-            'termStatusLabels'     => $this->termModel->statusLabels,
-            'termStatusBadgeClass' => $this->termModel->statusBadgeClass,
         ]);
     }
 

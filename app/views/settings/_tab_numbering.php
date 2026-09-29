@@ -49,11 +49,6 @@
                     <input type="text" name="prefix_tt" class="form-control" value="<?= e($numbering['prefix_tt'] ?? 'TT.HME') ?>">
                     <div class="form-text">Contoh: 001/<?= e($numbering['prefix_tt'] ?? 'TT.HME') ?>/VIII/2026</div>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label">Kode Pembayaran Invoice (Kwitansi)</label>
-                    <input type="text" name="prefix_inv_pay" class="form-control" value="<?= e($numbering['prefix_inv_pay'] ?? 'KW.HME') ?>">
-                    <div class="form-text">Contoh: 001/<?= e($numbering['prefix_inv_pay'] ?? 'KW.HME') ?>/VIII/2026</div>
-                </div>
             </div>
             <hr>
             <div class="row g-3">

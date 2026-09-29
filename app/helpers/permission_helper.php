@@ -72,7 +72,6 @@ function permissionLabelMaps(): array
             'payment' => 'Pembayaran', 'goods_receipt' => 'Penerimaan Barang', 'validation' => 'Validasi Barang',
             'stock_out' => 'Pengeluaran Barang', 'inventory' => 'Stok & Opname', 'offline_purchase' => 'Pembelian Offline',
             'sales_invoice' => 'Invoice Keluar', 'delivery_note' => 'Surat Jalan', 'collection_receipt' => 'Tanda Terima',
-            'sales_invoice_payment' => 'Pembayaran Invoice',
             'cash' => 'Kas', 'cash_validation' => 'Validasi Kas', 'cash_category' => 'Kategori Kas', 'user_pic' => 'PIC Kas',
             'bank' => 'Bank', 'master_bank' => 'Master Bank', 'master_rekening' => 'Master Rekening',
             'report' => 'Laporan', 'user' => 'User Management', 'master_data' => 'Master Data', 'master_kode' => 'Master Kode',

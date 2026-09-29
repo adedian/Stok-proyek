@@ -214,7 +214,7 @@ if (empty($terms)) {
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <div>
                     <label class="form-label mb-0 fw-semibold">Termin Tagihan</label>
-                    <div class="small text-muted">Pecah tagihan invoice ini jadi beberapa tahap (mis. DP 30%, Progress 40%, Pelunasan 30%). Total persentase maks. 100%.</div>
+                    <div class="small text-muted">Pecah tagihan invoice ini jadi beberapa tahap (mis. Termin 1 30%, Progress 40%, Pelunasan 30%). Total persentase maks. 100%.</div>
                 </div>
                 <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddTerm">
                     <i class="bi bi-plus-lg"></i> Tambah Termin
@@ -241,15 +241,15 @@ if (empty($terms)) {
                                     <select class="form-select form-select-sm term-preset-select">
                                         <option value="">-- Bebas --</option>
                                         <?php foreach ($dpPercentages as $dp): ?>
-                                            <option value="<?= (int) $dp['id'] ?>" data-percentage="<?= e($dp['percentage']) ?>" data-label="<?= e($dp['name']) ?>"
+                                            <option value="<?= (int) $dp['id'] ?>" data-percentage="<?= e($dp['percentage']) ?>" data-label="<?= formatPercent($dp['percentage']) ?>%"
                                                 <?= (int) ($term['dp_percentage_id'] ?? 0) === (int) $dp['id'] ? 'selected' : '' ?>>
-                                                <?= e($dp['name']) ?>
+                                                <?= formatPercent($dp['percentage']) ?>%
                                             </option>
                                         <?php endforeach; ?>
                                     </select>
                                     <input type="hidden" name="term_dp_percentage_id[]" class="term-dp-id-input" value="<?= (int) ($term['dp_percentage_id'] ?? 0) ?: '' ?>">
                                 </td>
-                                <td><input type="text" name="term_label[]" class="form-control form-control-sm term-label-input" value="<?= e($term['label'] ?? '') ?>" placeholder="mis. DP, Termin 2" required></td>
+                                <td><input type="text" name="term_label[]" class="form-control form-control-sm term-label-input" value="<?= e($term['label'] ?? '') ?>" placeholder="mis. Termin 1, Pelunasan" required></td>
                                 <td><input type="number" name="term_percentage[]" class="form-control form-control-sm term-percentage-input" value="<?= e($term['percentage'] ?? '') ?>" min="0.01" max="100" step="0.01" required></td>
                                 <td><input type="date" name="term_due_date[]" class="form-control form-control-sm term-duedate-input" value="<?= e($term['due_date'] ?? '') ?>"></td>
                                 <td class="text-end term-amount-cell">Rp 0.00</td>
@@ -273,7 +273,7 @@ if (empty($terms)) {
             <template id="termPresetOptionsTemplate">
                 <option value="">-- Bebas --</option>
                 <?php foreach ($dpPercentages as $dp): ?>
-                    <option value="<?= (int) $dp['id'] ?>" data-percentage="<?= e($dp['percentage']) ?>" data-label="<?= e($dp['name']) ?>"><?= e($dp['name']) ?></option>
+                    <option value="<?= (int) $dp['id'] ?>" data-percentage="<?= e($dp['percentage']) ?>" data-label="<?= formatPercent($dp['percentage']) ?>%"><?= formatPercent($dp['percentage']) ?>%</option>
                 <?php endforeach; ?>
             </template>
         </div>
@@ -437,7 +437,7 @@ if (empty($terms)) {
                 '<select class="form-select form-select-sm term-preset-select">' + termPresetOptionsHtml + '</select>' +
                 '<input type="hidden" name="term_dp_percentage_id[]" class="term-dp-id-input" value="">' +
             '</td>' +
-            '<td><input type="text" name="term_label[]" class="form-control form-control-sm term-label-input" placeholder="mis. DP, Termin 2" required></td>' +
+            '<td><input type="text" name="term_label[]" class="form-control form-control-sm term-label-input" placeholder="mis. Termin 1, Pelunasan" required></td>' +
             '<td><input type="number" name="term_percentage[]" class="form-control form-control-sm term-percentage-input" min="0.01" max="100" step="0.01" required></td>' +
             '<td><input type="date" name="term_due_date[]" class="form-control form-control-sm term-duedate-input"></td>' +
             '<td class="text-end term-amount-cell">Rp 0.00</td>' +

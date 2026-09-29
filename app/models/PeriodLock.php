@@ -23,7 +23,6 @@ class PeriodLock extends Model
         'offline_purchase' => 'Pembelian Offline',
         'sales_invoice'    => 'Invoice Keluar',
         'stock_opname'     => 'Stok Opname',
-        'sales_invoice_payment' => 'Pembayaran Invoice',
     ];
 
     /** Batas tanggal terkunci untuk satu modul ('YYYY-MM-DD') atau null bila belum ada. */

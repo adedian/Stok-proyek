@@ -103,14 +103,7 @@
 
         <div class="card border-0 shadow-sm mb-3">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <label class="form-label mb-0 fw-semibold">Termin &amp; Status Pembayaran</label>
-                    <?php if (can('sales_invoice_payment', 'create')): ?>
-                        <a href="<?= BASE_URL ?>/index.php?module=sales_invoice_payment&action=create&sales_invoice_id=<?= (int) $invoice['id'] ?>" class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-plus-lg"></i> Catat Pembayaran
-                        </a>
-                    <?php endif; ?>
-                </div>
+                <label class="form-label mb-2 fw-semibold">Termin Tagihan</label>
                 <div class="table-responsive">
                     <table class="table table-sm align-middle mb-0 entry-cards">
                         <thead class="table-light">
@@ -121,8 +114,6 @@
                                 <th class="text-end">Nominal</th>
                                 <th class="text-end">PPN</th>
                                 <th class="text-end">Total</th>
-                                <th class="text-end">Sudah Dibayar</th>
-                                <th>Status</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -134,12 +125,6 @@
                                     <td class="text-end"><?= formatRupiah($t['amount']) ?></td>
                                     <td class="text-end"><?= formatRupiah($t['ppn_amount']) ?></td>
                                     <td class="text-end fw-semibold"><?= formatRupiah($t['total_amount']) ?></td>
-                                    <td class="text-end"><?= formatRupiah($t['total_paid']) ?></td>
-                                    <td>
-                                        <span class="badge text-bg-<?= $termStatusBadgeClass[$t['status']] ?>">
-                                            <?= e($termStatusLabels[$t['status']]) ?>
-                                        </span>
-                                    </td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>

@@ -14,7 +14,6 @@ require_once ROOT_PATH . '/app/models/GoodsReceipt.php';
 require_once ROOT_PATH . '/app/models/StockOut.php';
 require_once ROOT_PATH . '/app/models/StockOpname.php';
 require_once ROOT_PATH . '/app/models/SalesInvoice.php';
-require_once ROOT_PATH . '/app/models/SalesInvoicePayment.php';
 require_once ROOT_PATH . '/app/models/OfflinePurchase.php';
 require_once ROOT_PATH . '/app/models/ItemCategory.php';
 require_once ROOT_PATH . '/app/models/Unit.php';
@@ -135,11 +134,6 @@ class TrashController extends Controller
                 'label' => 'Pembayaran Invoice',
                 'model' => new CollectionReceipt(),
                 'display' => fn(array $r) => $r['receipt_number'] ?? '-',
-            ],
-            'sales_invoice_payment' => [
-                'label' => 'Kwitansi Pembayaran Invoice',
-                'model' => new SalesInvoicePayment(),
-                'display' => fn(array $r) => $r['payment_number'] ?? '-',
             ],
             'cash' => [
                 'label' => 'Kas',

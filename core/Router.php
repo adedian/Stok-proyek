@@ -38,7 +38,6 @@ class Router
         'sales_invoice'      => 'SalesInvoiceController',
         'delivery_note'      => 'DeliveryNoteController',
         'collection_receipt' => 'CollectionReceiptController',
-        'sales_invoice_payment' => 'SalesInvoicePaymentController',
         'dp_percentage'      => 'DpPercentageController',
         'trash'              => 'TrashController',
         'cash'               => 'CashController',

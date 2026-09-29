@@ -47,6 +47,7 @@ class DocumentNumber extends Model
         'payment_bk'          => 'Pembayaran - Bank',
         'payment_kk'          => 'Pembayaran - Kas Kecil',
         'payment_kkp'         => 'Pembayaran - Kas Project',
+        'sales_invoice_payment' => 'Pembayaran Invoice (Kwitansi)',
     ];
 
     public static function romanMonth(int $month): string

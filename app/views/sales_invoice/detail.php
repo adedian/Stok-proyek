@@ -87,9 +87,7 @@
                         </tbody>
                         <tfoot>
                             <tr><td colspan="4" class="text-end fw-semibold">Jumlah</td><td class="text-end fw-semibold"><?= formatRupiah($invoice['subtotal']) ?></td></tr>
-                            <tr><td colspan="4" class="text-end fw-semibold">Tagihan (DP <?= formatPercent($invoice['dp_percentage']) ?>%)</td><td class="text-end fw-semibold"><?= formatRupiah($invoice['dp_amount']) ?></td></tr>
-                            <tr><td colspan="4" class="text-end fw-semibold">PPN (<?= formatPercent($invoice['ppn_percent']) ?>%)</td><td class="text-end fw-semibold"><?= formatRupiah($invoice['ppn_amount']) ?></td></tr>
-                            <tr class="table-light"><td colspan="4" class="text-end fw-bold">Total</td><td class="text-end fw-bold"><?= formatRupiah($invoice['total_amount']) ?></td></tr>
+                            <tr class="table-light"><td colspan="4" class="text-end fw-bold">Total (semua termin)</td><td class="text-end fw-bold"><?= formatRupiah($invoice['total_amount']) ?></td></tr>
                         </tfoot>
                     </table>
                 </div>
@@ -100,6 +98,53 @@
                         <div><?= nl2br(e($invoice['notes'])) ?></div>
                     </div>
                 <?php endif; ?>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <label class="form-label mb-0 fw-semibold">Termin &amp; Status Pembayaran</label>
+                    <?php if (can('sales_invoice_payment', 'create')): ?>
+                        <a href="<?= BASE_URL ?>/index.php?module=sales_invoice_payment&action=create&sales_invoice_id=<?= (int) $invoice['id'] ?>" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-plus-lg"></i> Catat Pembayaran
+                        </a>
+                    <?php endif; ?>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0 entry-cards">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Label</th>
+                                <th class="text-end">%</th>
+                                <th>Jatuh Tempo</th>
+                                <th class="text-end">Nominal</th>
+                                <th class="text-end">PPN</th>
+                                <th class="text-end">Total</th>
+                                <th class="text-end">Sudah Dibayar</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($terms as $t): ?>
+                                <tr>
+                                    <td><?= e($t['label']) ?></td>
+                                    <td class="text-end"><?= formatPercent($t['percentage']) ?>%</td>
+                                    <td><?= !empty($t['due_date']) ? formatTanggal($t['due_date']) : '-' ?></td>
+                                    <td class="text-end"><?= formatRupiah($t['amount']) ?></td>
+                                    <td class="text-end"><?= formatRupiah($t['ppn_amount']) ?></td>
+                                    <td class="text-end fw-semibold"><?= formatRupiah($t['total_amount']) ?></td>
+                                    <td class="text-end"><?= formatRupiah($t['total_paid']) ?></td>
+                                    <td>
+                                        <span class="badge text-bg-<?= $termStatusBadgeClass[$t['status']] ?>">
+                                            <?= e($termStatusLabels[$t['status']]) ?>
+                                        </span>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>

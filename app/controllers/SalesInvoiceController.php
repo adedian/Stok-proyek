@@ -3,6 +3,7 @@ require_once ROOT_PATH . '/core/Controller.php';
 require_once ROOT_PATH . '/core/Middleware.php';
 require_once ROOT_PATH . '/app/models/SalesInvoice.php';
 require_once ROOT_PATH . '/app/models/SalesInvoiceItem.php';
+require_once ROOT_PATH . '/app/models/SalesInvoiceTerm.php';
 require_once ROOT_PATH . '/app/models/Client.php';
 require_once ROOT_PATH . '/app/models/Project.php';
 require_once ROOT_PATH . '/app/models/Signature.php';
@@ -24,6 +25,7 @@ class SalesInvoiceController extends Controller
 {
     private SalesInvoice $invoiceModel;
     private SalesInvoiceItem $itemModel;
+    private SalesInvoiceTerm $termModel;
     private Client $clientModel;
     private Project $projectModel;
     private Signature $signatureModel;
@@ -40,6 +42,7 @@ class SalesInvoiceController extends Controller
 
         $this->invoiceModel      = new SalesInvoice();
         $this->itemModel         = new SalesInvoiceItem();
+        $this->termModel         = new SalesInvoiceTerm();
         $this->clientModel       = new Client();
         $this->projectModel      = new Project();
         $this->signatureModel    = new Signature();
@@ -101,8 +104,8 @@ class SalesInvoiceController extends Controller
         }
         verifyCsrf();
 
-        [$data, $items] = $this->collectInput();
-        $errors = $this->validateInput($data, $items);
+        [$data, $items, $terms] = $this->collectInput();
+        $errors = $this->validateInput($data, $items, $terms);
 
         if (!empty($errors)) {
             setFlash('error', implode(' ', $errors));
@@ -124,18 +127,21 @@ class SalesInvoiceController extends Controller
         try {
             $pdo->beginTransaction();
 
-            $totals = $this->calculateTotals($items, $data['dp_percentage'], $data['ppn_percent']);
+            $totals = $this->calculateTotals($items, $terms, $data['ppn_percent']);
 
             $invoiceId = $this->invoiceModel->create(array_merge($data, [
-                'invoice_number' => $invoiceNumber,
-                'subtotal'       => $totals['subtotal'],
-                'dp_amount'      => $totals['dp_amount'],
-                'ppn_amount'     => $totals['ppn_amount'],
-                'total_amount'   => $totals['total'],
-                'created_by'     => currentUserId(),
+                'invoice_number'   => $invoiceNumber,
+                'subtotal'         => $totals['subtotal'],
+                'dp_percentage_id' => $totals['dp_percentage_id'],
+                'dp_percentage'    => $totals['dp_percentage'],
+                'dp_amount'        => $totals['dp_amount'],
+                'ppn_amount'       => $totals['ppn_amount'],
+                'total_amount'     => $totals['total'],
+                'created_by'       => currentUserId(),
             ]));
 
             $this->saveItems($invoiceId, $items);
+            $this->saveTerms($invoiceId, $totals['terms']);
 
             $this->activityLog->log(currentUserId(), 'sales_invoice', 'create', "Invoice Keluar {$invoiceNumber} dibuat");
 
@@ -184,7 +190,10 @@ class SalesInvoiceController extends Controller
             'pageTitle' => 'Detail Invoice Keluar',
             'invoice'   => $invoice,
             'items'     => $this->itemModel->itemsByInvoice($id),
+            'terms'     => $this->termModel->termsWithPaymentInfo($id),
             'isBilled'  => $this->invoiceModel->isBilled($id),
+            'termStatusLabels'     => $this->termModel->statusLabels,
+            'termStatusBadgeClass' => $this->termModel->statusBadgeClass,
         ]);
     }
 
@@ -205,11 +214,12 @@ class SalesInvoiceController extends Controller
             'mode'      => 'edit',
             'invoice'   => $invoice,
             'items'     => $this->itemModel->itemsByInvoice($id),
+            'terms'     => $this->termModel->termsByInvoice($id),
             'clients'   => $this->clientModel->activeList(),
             'projects'  => $this->projectModel->activeList(),
             'signatures' => $this->signatureModel->activeList(),
             'units'     => $this->unitModel->activeList(),
-            'dpPercentages' => $this->dpPercentagesForEdit($invoice),
+            'dpPercentages' => $this->dpPercentageModel->activeList(),
             'itemCatalog'    => $this->itemCatalogForEdit($this->itemModel->itemsByInvoice($id)),
             'itemCategories' => $this->itemCategoryModel->activeList(),
             'picUsers'       => $this->userModel->activeList(),
@@ -233,8 +243,8 @@ class SalesInvoiceController extends Controller
             $this->redirect('sales_invoice', 'index');
         }
 
-        [$data, $items] = $this->collectInput();
-        $errors = $this->validateInput($data, $items);
+        [$data, $items, $terms] = $this->collectInput();
+        $errors = $this->validateInput($data, $items, $terms);
 
         if (!empty($errors)) {
             setFlash('error', implode(' ', $errors));
@@ -251,31 +261,26 @@ class SalesInvoiceController extends Controller
         // ini lapisan pertahanan kedua supaya tidak bisa dipalsukan lewat request manual.
         $data['invoice_type'] = $existing['invoice_type'];
 
-        // Kalau user TIDAK mengganti pilihan Tagihan DP (id sama dengan yang sudah
-        // tersimpan), pertahankan nilai % yang SUDAH tersnapshot di invoice ini --
-        // JANGAN ambil ulang dari master, walau baris masternya sudah diedit/diubah
-        // persentasenya sejak invoice ini dibuat. Snapshot cuma boleh berubah kalau
-        // user benar-benar memilih baris DP yang BERBEDA (poin #7/#8 revisi: invoice
-        // lama tidak boleh ikut berubah hanya karena master DP diedit belakangan).
-        if ($data['dp_percentage_id'] !== null && $data['dp_percentage_id'] === (int) $existing['dp_percentage_id']) {
-            $data['dp_percentage'] = (float) $existing['dp_percentage'];
-        }
-
         $pdo = getPDO();
         try {
             $pdo->beginTransaction();
 
-            $totals = $this->calculateTotals($items, $data['dp_percentage'], $data['ppn_percent']);
+            $totals = $this->calculateTotals($items, $terms, $data['ppn_percent']);
 
             $this->invoiceModel->updateById($id, array_merge($data, [
-                'subtotal'     => $totals['subtotal'],
-                'dp_amount'    => $totals['dp_amount'],
-                'ppn_amount'   => $totals['ppn_amount'],
-                'total_amount' => $totals['total'],
+                'subtotal'         => $totals['subtotal'],
+                'dp_percentage_id' => $totals['dp_percentage_id'],
+                'dp_percentage'    => $totals['dp_percentage'],
+                'dp_amount'        => $totals['dp_amount'],
+                'ppn_amount'       => $totals['ppn_amount'],
+                'total_amount'     => $totals['total'],
             ]));
 
             $this->itemModel->deleteByInvoice($id);
             $this->saveItems($id, $items);
+
+            $this->termModel->deleteByInvoice($id);
+            $this->saveTerms($id, $totals['terms']);
 
             $this->activityLog->log(currentUserId(), 'sales_invoice', 'update', "Invoice Keluar {$existing['invoice_number']} diperbarui");
 
@@ -418,6 +423,7 @@ class SalesInvoiceController extends Controller
 
         foreach ($invoices as &$inv) {
             $inv['items'] = $this->itemModel->itemsByInvoice((int) $inv['id']);
+            $inv['terms'] = $this->termModel->termsByInvoice((int) $inv['id']);
         }
 
         $this->view('sales_invoice/print', [
@@ -432,19 +438,6 @@ class SalesInvoiceController extends Controller
 
     private function collectInput(): array
     {
-        // Persentase DP TIDAK BOLEH dipercaya dari input manual -- ambil dari ID
-        // yang dipilih user, lalu resolve nilai % dari master (atau dari invoice
-        // yang sedang diedit kalau baris masternya sudah dihapus/dinonaktifkan --
-        // lihat dpPercentagesForEdit()). $dpPercentageId null/0 => 'dp_percentage'
-        // null, ditolak di validateInput() (wajib pilih salah satu).
-        $dpPercentageId = !empty($_POST['dp_percentage_id']) ? (int) $_POST['dp_percentage_id'] : null;
-        // findAny() (bukan find()) SENGAJA -- kalau invoice diedit tanpa mengubah
-        // pilihan DP, dan baris masternya sudah dihapus/dinonaktifkan di antara
-        // waktu itu, edit tidak boleh gagal validasi hanya karena hal itu (nilai %
-        // tetap diambil dari baris master aslinya, id-nya nyata & tidak bisa
-        // dipalsukan ke angka sembarang, jadi tetap aman bukan trust-dari-browser).
-        $dpRow = $dpPercentageId ? $this->dpPercentageModel->findAny($dpPercentageId) : null;
-
         $invoiceType = $_POST['invoice_type'] ?? '';
 
         $data = [
@@ -455,8 +448,6 @@ class SalesInvoiceController extends Controller
             'invoice_date'     => $_POST['invoice_date'] ?? '',
             'contract_number'  => trim($_POST['contract_number'] ?? '') ?: null,
             'contract_date'    => trim($_POST['contract_date'] ?? '') ?: null,
-            'dp_percentage_id' => $dpRow ? $dpPercentageId : null,
-            'dp_percentage'    => $dpRow ? (float) $dpRow['percentage'] : null,
             'ppn_percent'      => (float) ($_POST['ppn_percent'] ?? 11),
             'tax_invoice_number' => trim($_POST['tax_invoice_number'] ?? '') ?: null,
             'signature_id'     => !empty($_POST['signature_id']) ? (int) $_POST['signature_id'] : null,
@@ -492,10 +483,35 @@ class SalesInvoiceController extends Controller
             ];
         }
 
-        return [$data, $items];
+        // Termin (Revisi 10 Fase 5): label+percentage DIPERCAYA langsung dari
+        // input user -- sama seperti description/unit_price baris item di atas
+        // (dropdown preset dari master dp_percentages cuma prefill JS, BUKAN
+        // di-resolve ulang server-side). dp_percentage_id yang ikut terkirim
+        // hanya disimpan sebagai jejak audit "preset mana yang dipakai".
+        $terms = [];
+        $termDpIds = $_POST['term_dp_percentage_id'] ?? [];
+        $termLabels = $_POST['term_label'] ?? [];
+        $termPercentages = $_POST['term_percentage'] ?? [];
+        $termDueDates = $_POST['term_due_date'] ?? [];
+
+        foreach ($termLabels as $i => $label) {
+            $label = trim($label);
+            $percentage = (float) ($termPercentages[$i] ?? 0);
+            if ($label === '' && $percentage <= 0) {
+                continue;
+            }
+            $terms[] = [
+                'dp_percentage_id' => !empty($termDpIds[$i]) ? (int) $termDpIds[$i] : null,
+                'label'            => $label !== '' ? $label : 'Termin',
+                'percentage'       => $percentage,
+                'due_date'         => trim($termDueDates[$i] ?? '') ?: null,
+            ];
+        }
+
+        return [$data, $items, $terms];
     }
 
-    private function validateInput(array $data, array $items): array
+    private function validateInput(array $data, array $items, array $terms): array
     {
         $errors = [];
 
@@ -504,9 +520,6 @@ class SalesInvoiceController extends Controller
         }
         if (empty($data['invoice_date'])) {
             $errors[] = 'Tanggal invoice wajib diisi.';
-        }
-        if ($data['dp_percentage'] === null) {
-            $errors[] = 'Tagihan DP wajib dipilih.';
         }
         if ($data['ppn_percent'] < 0) {
             $errors[] = 'PPN tidak boleh negatif.';
@@ -525,65 +538,102 @@ class SalesInvoiceController extends Controller
             }
         }
 
+        if (empty($terms)) {
+            $errors[] = 'Minimal 1 baris termin tagihan wajib diisi.';
+        }
+        $percentageSum = 0.0;
+        foreach ($terms as $term) {
+            if ($term['percentage'] <= 0) {
+                $errors[] = 'Persentase setiap baris termin harus lebih dari 0%.';
+                break;
+            }
+            $percentageSum += $term['percentage'];
+        }
+        if ($percentageSum > 100.01) {
+            $errors[] = 'Total persentase seluruh termin tidak boleh melebihi 100%.';
+        }
+
         return $errors;
     }
 
     /**
-     * Rumus Invoice Keluar (revisi Tagihan DP):
-     *   Jumlah      = SUM(harga jumlah tiap item)
-     *   Tagihan DP  = Jumlah x DP%
-     *   PPN         = Tagihan DP x PPN%   (BUKAN dari Jumlah)
-     *   Total       = Tagihan DP + PPN
-     * SELALU dihitung ulang di backend dari item + persentase yang tersimpan --
-     * subtotal/dp_amount/ppn_amount/total dari browser TIDAK PERNAH dipakai
-     * langsung (poin #20 revisi), JS di form.php cuma preview UX.
+     * Rumus Invoice Keluar (revisi Termin, Revisi 10 Fase 5):
+     *   Jumlah        = SUM(harga jumlah tiap item)
+     *   Nominal termin = Jumlah x %termin
+     *   PPN termin     = Nominal termin x PPN%   (BUKAN dari Jumlah)
+     *   Total termin   = Nominal termin + PPN termin
+     *   Total invoice  = SUM(Total tiap termin)
+     * SELALU dihitung ulang di backend dari item + termin yang dikirim --
+     * subtotal/nominal/ppn/total dari browser TIDAK PERNAH dipakai langsung,
+     * JS di form.php cuma preview UX. Kolom agregat di sales_invoices
+     * (dp_percentage/dp_amount/ppn_amount/total_amount) dipertahankan
+     * (additive-only) sebagai SUM seluruh termin, supaya Tanda Terima &
+     * Laporan Invoice Keluar (yang membaca kolom itu langsung) tetap benar
+     * tanpa perubahan.
      */
-    private function calculateTotals(array $items, float $dpPercent, float $ppnPercent): array
+    private function calculateTotals(array $items, array $terms, float $ppnPercent): array
     {
         $subtotal = 0.0;
         foreach ($items as $item) {
             $subtotal += $item['subtotal'];
         }
         $subtotal = round($subtotal, 2);
-        $dpAmount = round($subtotal * $dpPercent / 100, 2);
-        $ppnAmount = round($dpAmount * $ppnPercent / 100, 2);
+
+        $computedTerms = [];
+        $sumPercentage = 0.0;
+        $sumAmount = 0.0;
+        $sumPpn = 0.0;
+        $sumTotal = 0.0;
+
+        foreach ($terms as $i => $term) {
+            $amount = round($subtotal * $term['percentage'] / 100, 2);
+            $ppnAmount = round($amount * $ppnPercent / 100, 2);
+            $total = round($amount + $ppnAmount, 2);
+
+            $computedTerms[] = [
+                'term_no'          => $i + 1,
+                'dp_percentage_id' => $term['dp_percentage_id'],
+                'label'            => $term['label'],
+                'percentage'       => $term['percentage'],
+                'amount'           => $amount,
+                'ppn_amount'       => $ppnAmount,
+                'total_amount'     => $total,
+                'due_date'         => $term['due_date'],
+            ];
+
+            $sumPercentage += $term['percentage'];
+            $sumAmount += $amount;
+            $sumPpn += $ppnAmount;
+            $sumTotal += $total;
+        }
 
         return [
-            'subtotal'   => $subtotal,
-            'dp_amount'  => $dpAmount,
-            'ppn_amount' => $ppnAmount,
-            'total'      => round($dpAmount + $ppnAmount, 2),
+            'subtotal'         => $subtotal,
+            'terms'            => $computedTerms,
+            // dp_percentage_id agregat hanya bermakna kalau invoice ini PERSIS
+            // 1 termin (mirip perilaku lama) -- kalau lebih dari 1, tidak ada
+            // "satu preset" yang mewakili, jadi null.
+            'dp_percentage_id' => count($computedTerms) === 1 ? $computedTerms[0]['dp_percentage_id'] : null,
+            'dp_percentage'    => round($sumPercentage, 2),
+            'dp_amount'        => round($sumAmount, 2),
+            'ppn_amount'       => round($sumPpn, 2),
+            'total'            => round($sumTotal, 2),
         ];
     }
 
-    /**
-     * Pilihan dropdown "Tagihan DP" untuk form Edit: daftar aktif + (kalau
-     * perlu) baris DP yang dipakai invoice ini sendiri walau sudah dihapus/
-     * dinonaktifkan di master -- supaya dropdown tetap menampilkan pilihan
-     * yang sedang tersimpan tanpa memaksa user mengganti-nya.
-     */
-    private function dpPercentagesForEdit(array $invoice): array
+    private function saveTerms(int $invoiceId, array $computedTerms): void
     {
-        $active = $this->dpPercentageModel->activeList();
-        $currentId = (int) ($invoice['dp_percentage_id'] ?? 0);
-
-        $activeIds = array_map('intval', array_column($active, 'id'));
-        if ($currentId > 0 && !in_array($currentId, $activeIds, true)) {
-            $currentRow = $this->dpPercentageModel->findAny($currentId);
-            if ($currentRow) {
-                $active[] = $currentRow;
-            }
+        foreach ($computedTerms as $term) {
+            $this->termModel->create(array_merge($term, ['sales_invoice_id' => $invoiceId]));
         }
-
-        return $active;
     }
 
     /**
      * Katalog Barang untuk dropdown "Pilih dari Master Barang" di form Edit:
      * daftar aktif + (kalau perlu) barang yang dipakai baris invoice ini sendiri
-     * walau sudah dihapus/dinonaktifkan di master -- sama seperti pola
-     * dpPercentagesForEdit(), supaya dropdown tetap menampilkan barang yang
-     * sedang tersimpan tanpa memaksa user mengganti pilihannya.
+     * walau sudah dihapus/dinonaktifkan di master -- supaya dropdown tetap
+     * menampilkan barang yang sedang tersimpan tanpa memaksa user mengganti
+     * pilihannya.
      */
     private function itemCatalogForEdit(array $invoiceItems): array
     {

@@ -23,10 +23,11 @@ class FileController extends Controller
      * Purchase malah tidak bisa melihat bukti/invoice yang mereka unggah).
      */
     private const GATED = [
-        'payments'           => 'payment',
-        'bukti_pembelian'    => 'offline_purchase',
-        'invoice_penerimaan' => 'goods_receipt',
-        'invoice'            => 'sales_invoice',
+        'payments'                => 'payment',
+        'bukti_pembelian'         => 'offline_purchase',
+        'invoice_penerimaan'      => 'goods_receipt',
+        'invoice'                 => 'sales_invoice',
+        'sales_invoice_payments'  => 'sales_invoice_payment',
     ];
 
     public function __construct()

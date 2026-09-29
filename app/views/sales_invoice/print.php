@@ -260,14 +260,12 @@
                     <td colspan="5" class="num">Jumlah</td>
                     <td class="num"><?= formatRupiah($inv['subtotal']) ?></td>
                 </tr>
-                <tr class="inv-print-total-row">
-                    <td colspan="5" class="num">Tagihan (DP <?= formatPercent($inv['dp_percentage']) ?>%)</td>
-                    <td class="num"><?= formatRupiah($inv['dp_amount']) ?></td>
-                </tr>
-                <tr class="inv-print-total-row">
-                    <td colspan="5" class="num">PPN<?= (float) $inv['ppn_percent'] > 0 ? ' (' . formatPercent($inv['ppn_percent']) . '%)' : '' ?></td>
-                    <td class="num"><?= formatRupiah($inv['ppn_amount']) ?></td>
-                </tr>
+                <?php foreach ($inv['terms'] as $t): ?>
+                    <tr class="inv-print-total-row">
+                        <td colspan="5" class="num"><?= e($t['label']) ?> (<?= formatPercent($t['percentage']) ?>%)<?= (float) $inv['ppn_percent'] > 0 ? ' + PPN ' . formatPercent($inv['ppn_percent']) . '%' : '' ?></td>
+                        <td class="num"><?= formatRupiah($t['total_amount']) ?></td>
+                    </tr>
+                <?php endforeach; ?>
                 <tr class="inv-print-total-row grand">
                     <td colspan="5" class="num">Total</td>
                     <td class="num"><?= formatRupiah($inv['total_amount']) ?></td>

@@ -53,7 +53,10 @@ class SalesInvoice extends Model
     public function listWithRelations(array $filters = []): array
     {
         $sql = "SELECT si.*, c.client_name, c.client_code, p.project_name, s.name AS signature_name,
-                       " . self::TERTAGIH_EXISTS . " AS is_tertagih
+                       " . self::TERTAGIH_EXISTS . " AS is_tertagih,
+                       COALESCE((SELECT SUM(sip.amount) FROM sales_invoice_terms t
+                                 JOIN sales_invoice_payments sip ON sip.sales_invoice_term_id = t.id AND sip.deleted_at IS NULL
+                                 WHERE t.sales_invoice_id = si.id), 0) AS total_paid
                 FROM sales_invoices si
                 JOIN clients c ON c.id = si.client_id
                 LEFT JOIN projects p ON p.id = si.project_id
@@ -109,7 +112,21 @@ class SalesInvoice extends Model
 
         $sql .= " ORDER BY si.invoice_date DESC, si.id DESC";
 
-        return $this->db->fetchAll($sql, $params);
+        $rows = $this->db->fetchAll($sql, $params);
+        foreach ($rows as &$row) {
+            $totalAmount = (float) $row['total_amount'];
+            $totalPaid = (float) $row['total_paid'];
+            $row['total_paid'] = $totalPaid;
+            if ($totalPaid <= 0) {
+                $row['payment_status'] = 'pending';
+            } elseif ($totalPaid >= $totalAmount) {
+                $row['payment_status'] = 'paid';
+            } else {
+                $row['payment_status'] = 'partial';
+            }
+        }
+
+        return $rows;
     }
 
     public function findWithRelations(int $id)

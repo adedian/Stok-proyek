@@ -5,6 +5,10 @@ $items = $items ?? [];
 if (empty($items)) {
     $items = [['description' => '', 'qty' => '', 'unit' => '', 'unit_price' => '']];
 }
+$terms = $terms ?? [];
+if (empty($terms)) {
+    $terms = [['label' => '', 'percentage' => '', 'dp_percentage_id' => null, 'due_date' => '']];
+}
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
@@ -99,24 +103,10 @@ if (empty($items)) {
                     <input type="text" name="tax_invoice_number" class="form-control" value="<?= e($invoice['tax_invoice_number'] ?? '') ?>">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Tagihan DP <span class="text-danger">*</span></label>
-                    <select name="dp_percentage_id" id="dpPercentageSelect" class="form-select" required>
-                        <option value="">-- Pilih DP --</option>
-                        <?php foreach ($dpPercentages as $dp): ?>
-                            <option value="<?= (int) $dp['id'] ?>" data-percentage="<?= e($dp['percentage']) ?>"
-                                <?= (int) ($invoice['dp_percentage_id'] ?? 0) === (int) $dp['id'] ? 'selected' : '' ?>>
-                                <?= e($dp['name']) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                    <?php if ($isEdit && empty($dpPercentages)): ?>
-                        <div class="form-text text-danger">Belum ada persentase DP aktif di Master Data.</div>
-                    <?php endif; ?>
-                </div>
-                <div class="col-md-3">
                     <label class="form-label">PPN (%)</label>
                     <input type="number" name="ppn_percent" id="ppnPercent" class="form-control"
                            value="<?= e($invoice['ppn_percent'] ?? '11.00') ?>" min="0" step="0.01">
+                    <div class="form-text">Berlaku untuk semua baris termin di bawah.</div>
                 </div>
             </div>
         </div>
@@ -194,21 +184,6 @@ if (empty($items)) {
                             <td class="text-end fw-semibold" id="sumSubtotal">Rp 0.00</td>
                             <td></td>
                         </tr>
-                        <tr>
-                            <td colspan="4" class="text-end fw-semibold" id="sumDpLabel">Tagihan (DP)</td>
-                            <td class="text-end fw-semibold" id="sumDp">Rp 0.00</td>
-                            <td></td>
-                        </tr>
-                        <tr>
-                            <td colspan="4" class="text-end fw-semibold">PPN</td>
-                            <td class="text-end fw-semibold" id="sumPpn">Rp 0.00</td>
-                            <td></td>
-                        </tr>
-                        <tr class="table-light">
-                            <td colspan="4" class="text-end fw-bold">Total</td>
-                            <td class="text-end fw-bold" id="sumTotal">Rp 0.00</td>
-                            <td></td>
-                        </tr>
                     </tfoot>
                 </table>
             </div>
@@ -229,6 +204,76 @@ if (empty($items)) {
                 <option value="">-- Pilih dari Master Barang (opsional) --</option>
                 <?php foreach ($itemCatalog as $ic): ?>
                     <option value="<?= (int) $ic['id'] ?>" data-unit="<?= e($ic['unit_name']) ?>" data-itemcode="<?= e($ic['item_code']) ?>"><?= e($ic['item_name']) ?></option>
+                <?php endforeach; ?>
+            </template>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                    <label class="form-label mb-0 fw-semibold">Termin Tagihan</label>
+                    <div class="small text-muted">Pecah tagihan invoice ini jadi beberapa tahap (mis. DP 30%, Progress 40%, Pelunasan 30%). Total persentase maks. 100%.</div>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddTerm">
+                    <i class="bi bi-plus-lg"></i> Tambah Termin
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0 entry-cards">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 180px;">Preset <span class="text-muted small">(opsional)</span></th>
+                            <th style="width: 180px;">Label</th>
+                            <th style="width: 90px;">%</th>
+                            <th style="width: 140px;">Jatuh Tempo</th>
+                            <th style="width: 130px;" class="text-end">Nominal</th>
+                            <th style="width: 120px;" class="text-end">PPN</th>
+                            <th style="width: 130px;" class="text-end">Total</th>
+                            <th style="width: 40px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="termTableBody">
+                        <?php foreach ($terms as $term): ?>
+                            <tr class="term-row">
+                                <td>
+                                    <select class="form-select form-select-sm term-preset-select">
+                                        <option value="">-- Bebas --</option>
+                                        <?php foreach ($dpPercentages as $dp): ?>
+                                            <option value="<?= (int) $dp['id'] ?>" data-percentage="<?= e($dp['percentage']) ?>" data-label="<?= e($dp['name']) ?>"
+                                                <?= (int) ($term['dp_percentage_id'] ?? 0) === (int) $dp['id'] ? 'selected' : '' ?>>
+                                                <?= e($dp['name']) ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <input type="hidden" name="term_dp_percentage_id[]" class="term-dp-id-input" value="<?= (int) ($term['dp_percentage_id'] ?? 0) ?: '' ?>">
+                                </td>
+                                <td><input type="text" name="term_label[]" class="form-control form-control-sm term-label-input" value="<?= e($term['label'] ?? '') ?>" placeholder="mis. DP, Termin 2" required></td>
+                                <td><input type="number" name="term_percentage[]" class="form-control form-control-sm term-percentage-input" value="<?= e($term['percentage'] ?? '') ?>" min="0.01" max="100" step="0.01" required></td>
+                                <td><input type="date" name="term_due_date[]" class="form-control form-control-sm term-duedate-input" value="<?= e($term['due_date'] ?? '') ?>"></td>
+                                <td class="text-end term-amount-cell">Rp 0.00</td>
+                                <td class="text-end term-ppn-cell">Rp 0.00</td>
+                                <td class="text-end fw-semibold term-total-cell">Rp 0.00</td>
+                                <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger btn-remove-term"><i class="bi bi-trash"></i></button></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-light">
+                            <td colspan="4" class="text-end fw-bold">Total Keseluruhan</td>
+                            <td class="text-end fw-bold" id="sumTermAmount">Rp 0.00</td>
+                            <td class="text-end fw-bold" id="sumTermPpn">Rp 0.00</td>
+                            <td class="text-end fw-bold" id="sumTermTotal">Rp 0.00</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            <template id="termPresetOptionsTemplate">
+                <option value="">-- Bebas --</option>
+                <?php foreach ($dpPercentages as $dp): ?>
+                    <option value="<?= (int) $dp['id'] ?>" data-percentage="<?= e($dp['percentage']) ?>" data-label="<?= e($dp['name']) ?>"><?= e($dp['name']) ?></option>
                 <?php endforeach; ?>
             </template>
         </div>
@@ -281,8 +326,8 @@ if (empty($items)) {
 <script>
 (function () {
     const tableBody = document.getElementById('itemTableBody');
+    const termTableBody = document.getElementById('termTableBody');
     const ppnInput = document.getElementById('ppnPercent');
-    const dpSelect = document.getElementById('dpPercentageSelect');
 
     function formatRupiah(num) {
         return 'Rp ' + Number(num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -298,33 +343,38 @@ if (empty($items)) {
 
     // Rumus (lihat SalesInvoiceController::calculateTotals() -- backend menghitung
     // ulang persis rumus yang sama saat save, angka di sini murni preview UX):
-    //   Jumlah = SUM(subtotal item)
-    //   Tagihan DP = Jumlah x DP%
-    //   PPN = Tagihan DP x PPN%   (BUKAN dari Jumlah)
-    //   Total = Tagihan DP + PPN
+    //   Jumlah        = SUM(subtotal item)
+    //   Nominal termin = Jumlah x %termin
+    //   PPN termin     = Nominal termin x PPN%   (BUKAN dari Jumlah)
+    //   Total termin   = Nominal termin + PPN termin
     function recalcAll() {
         let subtotal = 0;
         tableBody.querySelectorAll('.item-row').forEach(function (row) {
             subtotal += recalcRow(row);
         });
-
-        const dpOption = dpSelect.options[dpSelect.selectedIndex];
-        const dpPercent = dpOption ? parseFloat(dpOption.dataset.percentage || '0') : 0;
-        const dpAmount = subtotal * dpPercent / 100;
+        document.getElementById('sumSubtotal').textContent = formatRupiah(subtotal);
 
         const ppnPercent = parseFloat(ppnInput.value) || 0;
-        const ppnAmount = dpAmount * ppnPercent / 100;
+        let sumAmount = 0, sumPpn = 0, sumTotal = 0;
 
-        // Label SELALU dibangun dari angka persentase ("Tagihan (DP 50%)"), bukan
-        // dari nama bebas master (admin bisa menamai baris masternya apa saja) --
-        // sinkron dengan cara print.php/detail.php membangun label yang sama.
-        document.getElementById('sumSubtotal').textContent = formatRupiah(subtotal);
-        document.getElementById('sumDpLabel').textContent = dpOption && dpOption.value
-            ? 'Tagihan (DP ' + (dpPercent % 1 === 0 ? dpPercent : dpPercent.toFixed(2)) + '%)'
-            : 'Tagihan (DP)';
-        document.getElementById('sumDp').textContent = formatRupiah(dpAmount);
-        document.getElementById('sumPpn').textContent = formatRupiah(ppnAmount);
-        document.getElementById('sumTotal').textContent = formatRupiah(dpAmount + ppnAmount);
+        termTableBody.querySelectorAll('.term-row').forEach(function (row) {
+            const pct = parseFloat(row.querySelector('.term-percentage-input').value) || 0;
+            const amount = subtotal * pct / 100;
+            const ppnAmount = amount * ppnPercent / 100;
+            const total = amount + ppnAmount;
+
+            row.querySelector('.term-amount-cell').textContent = formatRupiah(amount);
+            row.querySelector('.term-ppn-cell').textContent = formatRupiah(ppnAmount);
+            row.querySelector('.term-total-cell').textContent = formatRupiah(total);
+
+            sumAmount += amount;
+            sumPpn += ppnAmount;
+            sumTotal += total;
+        });
+
+        document.getElementById('sumTermAmount').textContent = formatRupiah(sumAmount);
+        document.getElementById('sumTermPpn').textContent = formatRupiah(sumPpn);
+        document.getElementById('sumTermTotal').textContent = formatRupiah(sumTotal);
     }
 
     tableBody.addEventListener('input', function (e) {
@@ -333,7 +383,69 @@ if (empty($items)) {
         }
     });
     ppnInput.addEventListener('input', recalcAll);
-    dpSelect.addEventListener('change', recalcAll);
+
+    // Preset (master Persentase DP) dipilih -> prefill label+persen baris termin
+    // ini SAJA (bukan trust server, cuma UX -- lihat SalesInvoiceController::
+    // collectInput(), label/percentage tetap boleh diedit manual setelahnya).
+    termTableBody.addEventListener('change', function (e) {
+        if (!e.target.classList.contains('term-preset-select')) {
+            return;
+        }
+        const select = e.target;
+        const row = select.closest('.term-row');
+        const opt = select.options[select.selectedIndex];
+        const idInput = row.querySelector('.term-dp-id-input');
+        const labelInput = row.querySelector('.term-label-input');
+        const pctInput = row.querySelector('.term-percentage-input');
+
+        if (opt.value) {
+            idInput.value = opt.value;
+            labelInput.value = opt.dataset.label || '';
+            pctInput.value = opt.dataset.percentage || '';
+        } else {
+            idInput.value = '';
+        }
+        recalcAll();
+    });
+
+    termTableBody.addEventListener('input', function (e) {
+        if (e.target.classList.contains('term-percentage-input')) {
+            recalcAll();
+        }
+    });
+
+    termTableBody.addEventListener('click', function (e) {
+        const removeBtn = e.target.closest('.btn-remove-term');
+        if (removeBtn) {
+            const rows = termTableBody.querySelectorAll('.term-row');
+            if (rows.length <= 1) {
+                alert('Minimal harus ada 1 baris termin.');
+                return;
+            }
+            removeBtn.closest('.term-row').remove();
+            recalcAll();
+        }
+    });
+
+    const termPresetOptionsHtml = document.getElementById('termPresetOptionsTemplate').innerHTML;
+
+    document.getElementById('btnAddTerm').addEventListener('click', function () {
+        const tr = document.createElement('tr');
+        tr.className = 'term-row';
+        tr.innerHTML =
+            '<td>' +
+                '<select class="form-select form-select-sm term-preset-select">' + termPresetOptionsHtml + '</select>' +
+                '<input type="hidden" name="term_dp_percentage_id[]" class="term-dp-id-input" value="">' +
+            '</td>' +
+            '<td><input type="text" name="term_label[]" class="form-control form-control-sm term-label-input" placeholder="mis. DP, Termin 2" required></td>' +
+            '<td><input type="number" name="term_percentage[]" class="form-control form-control-sm term-percentage-input" min="0.01" max="100" step="0.01" required></td>' +
+            '<td><input type="date" name="term_due_date[]" class="form-control form-control-sm term-duedate-input"></td>' +
+            '<td class="text-end term-amount-cell">Rp 0.00</td>' +
+            '<td class="text-end term-ppn-cell">Rp 0.00</td>' +
+            '<td class="text-end fw-semibold term-total-cell">Rp 0.00</td>' +
+            '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger btn-remove-term"><i class="bi bi-trash"></i></button></td>';
+        termTableBody.appendChild(tr);
+    });
 
     const itemSelectOptionsHtml = document.getElementById('itemSelectOptionsTemplate').innerHTML;
     const hasQuickAddItem = document.getElementById('modalQuickAddItem') !== null;

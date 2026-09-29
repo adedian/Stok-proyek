@@ -199,6 +199,16 @@ return [
         'delete' => [ROLE_SUPER_ADMIN],
     ],
 
+    // Pembayaran Invoice (Revisi 10 Fase 5) -- uang masuk dari client per
+    // termin Invoice Keluar. Ikut pola 'payment' (AP): SA+Accounting saja
+    // (urusan pembukuan/pencatatan uang masuk), delete khusus SA.
+    'sales_invoice_payment' => [
+        'view'   => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'create' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'edit'   => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'delete' => [ROLE_SUPER_ADMIN],
+    ],
+
     // ================= KAS (Revisi 9) =================
     // 'view'   -> boleh buka modul Kas (isi list dibatasi per-PIC di controller).
     // 'delete' -> Accounting & Project Manager SENGAJA tidak ada. Purchase/PIC

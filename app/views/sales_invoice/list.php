@@ -107,15 +107,16 @@
                         <th>Client</th>
                         <th>Project</th>
                         <th>Tanggal</th>
-                        <th class="text-center">DP</th>
+                        <th class="text-center">Termin</th>
                         <th class="text-end">Total</th>
                         <th class="text-center">Status Tagih</th>
+                        <th class="text-center">Status Bayar</th>
                         <th class="text-center no-print">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($invoices)): ?>
-                        <tr><td colspan="10" class="p-0">
+                        <tr><td colspan="11" class="p-0">
                             <div class="empty-state">
                                 <i class="bi bi-cash-stack empty-icon"></i>
                                 <div class="empty-title">Belum ada Invoice Keluar</div>
@@ -145,6 +146,13 @@
                                 <?php else: ?>
                                     <span class="badge text-bg-warning">Belum Tertagih</span>
                                 <?php endif; ?>
+                            </td>
+                            <td class="text-center">
+                                <?php
+                                    $payStatusMap = ['pending' => ['secondary', 'Belum Dibayar'], 'partial' => ['warning', 'Sebagian'], 'paid' => ['success', 'Lunas']];
+                                    [$payBadge, $payLabel] = $payStatusMap[$inv['payment_status']] ?? ['secondary', '-'];
+                                ?>
+                                <span class="badge text-bg-<?= $payBadge ?>"><?= $payLabel ?></span>
                             </td>
                             <td class="text-center no-print">
                                 <div class="dropdown row-actions">

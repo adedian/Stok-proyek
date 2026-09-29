@@ -196,6 +196,12 @@
         align-items: flex-start;
         gap: 20px;
     }
+    .po-print-signoff-npwp {
+        /* Geser kiri supaya tepi kiri kartu NPWP sejajar kolom "Disc" di tabel
+           item di atasnya (bukan mepet tepi kanan halaman/kolom Kategori) --
+           nilai diukur langsung dari posisi render kolom Disc vs kartu. */
+        margin-right: 100px;
+    }
     .po-print-signoff-npwp img.npwp-card {
         display: block;
         height: 78px;

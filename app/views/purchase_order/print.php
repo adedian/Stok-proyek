@@ -243,9 +243,6 @@
                     <?php endif; ?>
                 </div>
             <?php endif; ?>
-            <?php if (!empty($company['company_npwp'])): ?>
-                <div class="po-print-company-meta">NPWP: <?= e($company['company_npwp']) ?></div>
-            <?php endif; ?>
         </div>
 
         <div class="po-print-title">PURCHASE ORDER</div>
@@ -298,7 +295,6 @@
                     <th style="width: 48px;">Satuan</th>
                     <th class="num" style="width: 85px;">Harga Satuan</th>
                     <th class="num" style="width: 40px;">Disc</th>
-                    <th class="num" style="width: 40px;">PPN</th>
                     <th class="num" style="width: 95px;">Total</th>
                     <th style="width: 80px;">Kategori</th>
                 </tr>
@@ -312,20 +308,19 @@
                         <td><?= e($item['unit']) ?></td>
                         <td class="num"><?= formatRupiah($item['price']) ?></td>
                         <td class="num"><?= (float) ($item['discount_percent'] ?? 0) > 0 ? number_format((float) $item['discount_percent'], 0, ',', '.') . '%' : '-' ?></td>
-                        <td class="num"><?= !empty($item['ppn_enabled']) ? number_format((float) $item['ppn_percent'], 0, ',', '.') . '%' : '-' ?></td>
                         <td class="num"><?= formatRupiah($item['subtotal']) ?></td>
                         <td><?= e($item['category'] ?? '') ?></td>
                     </tr>
                 <?php endforeach; ?>
                 <?php foreach ($po['extraCosts'] ?? [] as $cost): ?>
                     <tr>
-                        <td colspan="7" class="num">Biaya Tambahan: <?= e($cost['cost_name']) ?></td>
+                        <td colspan="6" class="num">Biaya Tambahan: <?= e($cost['cost_name']) ?></td>
                         <td class="num"><?= formatRupiah($cost['amount']) ?></td>
                         <td></td>
                     </tr>
                 <?php endforeach; ?>
                 <tr class="po-print-total-row">
-                    <td colspan="7" class="num">TOTAL</td>
+                    <td colspan="6" class="num">TOTAL</td>
                     <td class="num"><?= formatRupiah($po['total_amount']) ?></td>
                     <td></td>
                 </tr>
@@ -357,9 +352,12 @@
             <?php endif; ?>
         </div>
 
-        <?php if (!empty($company['company_address']) || !empty($company['company_phone']) || !empty($company['company_email'])): ?>
+        <?php if (!empty($company['company_address']) || !empty($company['company_phone']) || !empty($company['company_email']) || !empty($company['company_npwp'])): ?>
             <div class="po-print-footer-strip">
-                <div><?= nl2br(e($company['company_address'] ?? '')) ?></div>
+                <div>
+                    <?= nl2br(e($company['company_address'] ?? '')) ?>
+                    <?php if (!empty($company['company_npwp'])): ?><br>NPWP: <?= e($company['company_npwp']) ?><?php endif; ?>
+                </div>
                 <div>
                     <?= e($company['company_phone'] ?? '') ?>
                     <?php if (!empty($company['company_email'])): ?><br><?= e($company['company_email']) ?><?php endif; ?>

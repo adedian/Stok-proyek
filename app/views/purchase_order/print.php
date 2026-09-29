@@ -187,9 +187,18 @@
         border-left: 1px solid #adb5bd;
         padding-left: 16px;
     }
-    .po-print-footer-strip img.npwp-card {
+    /* Kartu NPWP -- ditampilkan di sebelah kanan blok tanda tangan (bukan di
+       footer-strip paling bawah), meniru posisi contoh yang diberikan user:
+       sejajar horizontal dengan nama perusahaan/TTD, di kanan halaman. */
+    .po-print-signoff-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 20px;
+    }
+    .po-print-signoff-npwp img.npwp-card {
         display: block;
-        height: 62px;
+        height: 78px;
         width: auto;
         max-width: none;
     }
@@ -341,24 +350,33 @@
         <?php endif; ?>
 
         <div class="po-print-signoff">
-            <div class="po-print-signoff-company"><?= e($company['company_name'] ?: 'Perusahaan') ?></div>
-            <?php if (!empty($po['signature_image'])): ?>
-                <div class="po-signature-image-wrap">
-                    <img class="po-signature-img" src="<?= BASE_URL ?>/<?= e($po['signature_image']) ?>" alt="TTD <?= e($po['signature_name']) ?>">
-                    <?php if (!empty($company['company_stamp'])): ?>
-                        <img class="po-stamp-overlay" src="<?= BASE_URL ?>/<?= e($company['company_stamp']) ?>" alt="Stempel Perusahaan">
+            <div class="po-print-signoff-row">
+                <div class="po-print-signoff-left">
+                    <div class="po-print-signoff-company"><?= e($company['company_name'] ?: 'Perusahaan') ?></div>
+                    <?php if (!empty($po['signature_image'])): ?>
+                        <div class="po-signature-image-wrap">
+                            <img class="po-signature-img" src="<?= BASE_URL ?>/<?= e($po['signature_image']) ?>" alt="TTD <?= e($po['signature_name']) ?>">
+                            <?php if (!empty($company['company_stamp'])): ?>
+                                <img class="po-stamp-overlay" src="<?= BASE_URL ?>/<?= e($company['company_stamp']) ?>" alt="Stempel Perusahaan">
+                            <?php endif; ?>
+                        </div>
+                        <div class="po-signature-name"><?= e($po['signature_name']) ?></div>
+                        <div class="po-signature-position"><?= e($po['signature_position']) ?></div>
+                    <?php else: ?>
+                        <div class="po-signature-placeholder">(.....................)</div>
+                        <div class="po-signature-name"><?= e($po['pembuat_po'] ?: '-') ?></div>
+                        <div class="po-signature-position">Pembuat PO</div>
                     <?php endif; ?>
                 </div>
-                <div class="po-signature-name"><?= e($po['signature_name']) ?></div>
-                <div class="po-signature-position"><?= e($po['signature_position']) ?></div>
-            <?php else: ?>
-                <div class="po-signature-placeholder">(.....................)</div>
-                <div class="po-signature-name"><?= e($po['pembuat_po'] ?: '-') ?></div>
-                <div class="po-signature-position">Pembuat PO</div>
-            <?php endif; ?>
+                <?php if (!empty($company['company_npwp_card'])): ?>
+                    <div class="po-print-signoff-npwp">
+                        <img class="npwp-card" src="<?= BASE_URL ?>/<?= e($company['company_npwp_card']) ?>" alt="Kartu NPWP">
+                    </div>
+                <?php endif; ?>
+            </div>
         </div>
 
-        <?php if (!empty($company['company_address']) || !empty($company['company_phone']) || !empty($company['company_email']) || !empty($company['company_npwp']) || !empty($company['company_npwp_card'])): ?>
+        <?php if (!empty($company['company_address']) || !empty($company['company_phone']) || !empty($company['company_email']) || !empty($company['company_npwp'])): ?>
             <div class="po-print-footer-strip">
                 <div>
                     <?= nl2br(e($company['company_address'] ?? '')) ?>
@@ -368,11 +386,6 @@
                     <?= e($company['company_phone'] ?? '') ?>
                     <?php if (!empty($company['company_email'])): ?><br><?= e($company['company_email']) ?><?php endif; ?>
                 </div>
-                <?php if (!empty($company['company_npwp_card'])): ?>
-                    <div>
-                        <img class="npwp-card" src="<?= BASE_URL ?>/<?= e($company['company_npwp_card']) ?>" alt="Kartu NPWP">
-                    </div>
-                <?php endif; ?>
             </div>
         <?php endif; ?>
     </div>

@@ -476,6 +476,47 @@ class GoodsReceiptController extends Controller
     }
 
     /**
+     * Hapus SATU lampiran Surat Jalan/dokumen (bukan seluruh Penerimaan Barang).
+     * File di disk SENGAJA tidak ikut di-unlink -- konsisten dengan konvensi
+     * upload lain di controller ini (foto/invoice lama juga tidak pernah
+     * dihapus fisik saat diganti), supaya tidak ada risiko salah hapus file
+     * yang masih dirujuk dari tempat lain.
+     */
+    public function deleteDocument(): void
+    {
+        Middleware::requirePermission('goods_receipt', 'edit');
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('goods_receipt', 'index');
+        }
+        verifyCsrf();
+
+        $docId = (int) ($_POST['document_id'] ?? 0);
+        $doc = $this->documentModel->find($docId);
+        if (!$doc) {
+            setFlash('error', 'Lampiran tidak ditemukan.');
+            $this->redirect('goods_receipt', 'index');
+        }
+
+        $receipt = $this->receiptModel->find((int) $doc['goods_receipt_id']);
+        if (!$receipt) {
+            setFlash('error', 'Penerimaan barang terkait tidak ditemukan.');
+            $this->redirect('goods_receipt', 'index');
+        }
+        assertPeriodOpen('goods_receipt', $receipt['receipt_date'], 'goods_receipt', 'edit', ['id' => $receipt['id']]);
+
+        $this->documentModel->deleteById($docId);
+        $this->activityLog->log(
+            currentUserId(),
+            'goods_receipt',
+            'update',
+            "Lampiran dokumen dihapus dari Penerimaan Barang #{$receipt['id']}"
+        );
+
+        setFlash('success', 'Lampiran berhasil dihapus.');
+        $this->redirect('goods_receipt', 'edit', ['id' => $receipt['id']]);
+    }
+
+    /**
      * Hapus 1 penerimaan barang ke Tempat Sampah + reverse stok yang sudah
      * diposting. true = sukses, string = alasan skip. Dipakai delete() & rangeDelete().
      */

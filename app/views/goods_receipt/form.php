@@ -163,9 +163,21 @@ $canOfflineSource = can('offline_purchase', 'view');
                         <div class="form-text">
                             Dokumen tersimpan:
                             <?php foreach ($documents as $doc): ?>
-                                <a href="<?= BASE_URL ?>/<?= e($doc['file_path']) ?>" target="_blank" class="me-2">
-                                    <i class="bi bi-file-earmark"></i> <?= e($doc['document_number'] ?? 'lihat') ?>
-                                </a>
+                                <span class="d-inline-flex align-items-center gap-1 me-2 mb-1">
+                                    <a href="<?= BASE_URL ?>/<?= e($doc['file_path']) ?>" target="_blank">
+                                        <i class="bi bi-file-earmark"></i> <?= e($doc['document_number'] ?? 'lihat') ?>
+                                    </a>
+                                    <?php if (can('goods_receipt', 'edit')): ?>
+                                        <form method="POST" action="<?= BASE_URL ?>/index.php?module=goods_receipt&action=deleteDocument"
+                                              onsubmit="return confirm('Hapus lampiran ini?');" class="d-inline">
+                                            <?= csrfField() ?>
+                                            <input type="hidden" name="document_id" value="<?= (int) $doc['id'] ?>">
+                                            <button type="submit" class="btn btn-sm btn-link text-danger p-0" title="Hapus lampiran">
+                                                <i class="bi bi-x-circle"></i>
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
+                                </span>
                             <?php endforeach; ?>
                         </div>
                     <?php endif; ?>

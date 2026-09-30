@@ -11,7 +11,7 @@ $modals = ''; // dikumpulkan lalu dirender DI LUAR <table> (form dalam <tbody> r
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
         <h4 class="mb-0">Validasi Pengeluaran Barang</h4>
-        <small class="text-muted">Persetujuan transaksi Pengeluaran Barang sebelum dianggap final.</small>
+        <small class="text-muted">Persetujuan Pengeluaran Barang <strong>Project</strong>. Pengeluaran tanpa Project (mis. ke Client) tidak perlu divalidasi dan tidak tampil di sini.</small>
     </div>
 </div>
 

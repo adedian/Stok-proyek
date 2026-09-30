@@ -162,8 +162,8 @@
                             </td>
                             <td>
                                 <?php
-                                    $soValBadge = ['menunggu' => 'warning text-dark', 'tervalidasi' => 'success', 'ditolak' => 'danger'];
-                                    $soValLabel = ['menunggu' => 'Menunggu', 'tervalidasi' => 'Tervalidasi', 'ditolak' => 'Ditolak'];
+                                    $soValBadge = ['menunggu' => 'warning text-dark', 'tervalidasi' => 'success', 'ditolak' => 'danger', 'tidak_perlu' => 'light text-muted border'];
+                                    $soValLabel = ['menunggu' => 'Menunggu', 'tervalidasi' => 'Tervalidasi', 'ditolak' => 'Ditolak', 'tidak_perlu' => 'Tidak perlu (non-project)'];
                                     $soVs = $so['validation_status'] ?? 'tervalidasi';
                                 ?>
                                 <span class="badge bg-<?= $soValBadge[$soVs] ?? 'secondary' ?>"><?= $soValLabel[$soVs] ?? $soVs ?></span>
@@ -175,7 +175,16 @@
                                         <i class="bi bi-three-dots-vertical"></i>
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end">
-                                        <?php if (isPeriodClosed('stock_out', $so['out_date'])): ?>
+                                        <?php
+                                            // Sama dengan StockOutController::assertValidationAllowsChange():
+                                            // pengeluaran PROJECT yang sudah tervalidasi hanya bisa diubah Super Admin.
+                                            $soLocked = StockOut::requiresValidation($so['project_id'] ?? null)
+                                                && ($so['validation_status'] ?? '') === 'tervalidasi'
+                                                && currentUserRole() !== ROLE_SUPER_ADMIN;
+                                        ?>
+                                        <?php if ($soLocked): ?>
+                                        <li><span class="dropdown-item-text text-muted small"><i class="bi bi-lock-fill"></i> Sudah divalidasi (hubungi Super Admin)</span></li>
+                                        <?php elseif (isPeriodClosed('stock_out', $so['out_date'])): ?>
                                         <li><span class="dropdown-item-text text-muted small"><i class="bi bi-lock-fill"></i> Periode ditutup</span></li>
                                         <?php else: ?>
                                         <?php if (can('stock_out', 'edit')): ?>

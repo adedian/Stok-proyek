@@ -141,6 +141,11 @@ class StockOutController extends Controller
                     'qty'          => $item['qty'],
                     'out_date'     => $data['out_date'],
                     'notes'        => $data['notes'],
+                    // Ditentukan SERVER dari project_id (bukan dari input form):
+                    // project -> 'menunggu' validasi, tanpa project -> 'tidak_perlu'.
+                    'validation_status' => StockOut::initialValidationStatus(
+                        $data['destination_type'] === 'project' ? $data['project_id'] : null
+                    ),
                     'created_by'   => currentUserId(),
                 ]);
 
@@ -259,9 +264,10 @@ class StockOutController extends Controller
                 "Keluar ke {$data['destination']} (setelah edit)"
             );
 
-            $this->stockOutModel->updateById($id, [
+            $newProjectId = $data['destination_type'] === 'project' ? $data['project_id'] : null;
+            $updateFields = [
                 'inventory_id'     => $data['inventory_id'],
-                'project_id'       => $data['destination_type'] === 'project' ? $data['project_id'] : null,
+                'project_id'       => $newProjectId,
                 'destination_type' => $data['destination_type'],
                 'sales_invoice_id' => $data['destination_type'] === 'client' ? $data['sales_invoice_id'] : null,
                 'pic_name'     => $data['pic_name'],
@@ -269,7 +275,21 @@ class StockOutController extends Controller
                 'qty'          => $data['qty'],
                 'out_date'     => $data['out_date'],
                 'notes'        => $data['notes'],
-            ]);
+            ];
+            // Status validasi ikut data project. Berubah dari/ke project -> reset
+            // (project baru -> 'menunggu', bukan-project -> 'tidak_perlu' & bersihkan
+            // jejak validasi). Project tetap + sebelumnya 'ditolak' -> kembali
+            // 'menunggu' supaya bisa diajukan ulang. Selain itu status dipertahankan.
+            $wasProject = StockOut::requiresValidation($existing['project_id']);
+            $nowProject = StockOut::requiresValidation($newProjectId);
+            if ($wasProject !== $nowProject
+                || ($nowProject && ($existing['validation_status'] ?? '') === 'ditolak')) {
+                $updateFields['validation_status'] = StockOut::initialValidationStatus($newProjectId);
+                $updateFields['validated_by']      = null;
+                $updateFields['validated_at']      = null;
+                $updateFields['validation_note']   = null;
+            }
+            $this->stockOutModel->updateById($id, $updateFields);
 
             $this->activityLog->log(
                 currentUserId(),
@@ -589,7 +609,10 @@ class StockOutController extends Controller
      */
     private function assertValidationAllowsChange(array $row, string $verb): void
     {
-        if (($row['validation_status'] ?? 'menunggu') === 'tervalidasi'
+        // Hanya pengeluaran PROJECT yang terkunci setelah tervalidasi; non-project
+        // tidak butuh validasi sehingga workflow edit/hapusnya tidak berubah.
+        if (StockOut::requiresValidation($row['project_id'] ?? null)
+            && ($row['validation_status'] ?? 'menunggu') === 'tervalidasi'
             && currentUserRole() !== ROLE_SUPER_ADMIN) {
             denyAccess("Pengeluaran barang '{$row['stock_out_number']}' sudah divalidasi -- tidak bisa {$verb}. Hubungi Super Admin bila perlu koreksi.");
         }

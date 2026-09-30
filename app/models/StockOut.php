@@ -92,8 +92,26 @@ class StockOut extends Model
     // ===================== Validasi Pengeluaran Barang =====================
 
     /**
+     * Aturan tunggal: pengeluaran barang WAJIB divalidasi hanya kalau punya
+     * project (project_id valid). Tanpa project (mis. tujuan Client) tidak perlu.
+     * Murni data-driven -- tidak bergantung nama project/kategori.
+     */
+    public static function requiresValidation($projectId): bool
+    {
+        return (int) $projectId > 0;
+    }
+
+    /** Status validasi awal saat pengeluaran dibuat / project-nya berubah. */
+    public static function initialValidationStatus($projectId): string
+    {
+        return self::requiresValidation($projectId) ? 'menunggu' : 'tidak_perlu';
+    }
+
+    /**
      * Daftar stock_out untuk halaman Validasi Pengeluaran Barang.
      * $status: 'menunggu' | 'tervalidasi' | 'ditolak' | '' (semua).
+     * SELALU hanya pengeluaran project (project_id NOT NULL) -- pengeluaran
+     * non-project tidak pernah muncul di sini.
      */
     public function listForValidation(string $status = 'menunggu', array $filters = []): array
     {
@@ -107,7 +125,7 @@ class StockOut extends Model
                 LEFT JOIN clients c ON c.id = si.client_id
                 LEFT JOIN users cb ON cb.id = so.created_by
                 LEFT JOIN users vb ON vb.id = so.validated_by
-                WHERE so.deleted_at IS NULL";
+                WHERE so.deleted_at IS NULL AND so.project_id IS NOT NULL";
         $params = [];
 
         if (in_array($status, ['menunggu', 'tervalidasi', 'ditolak'], true)) {
@@ -147,20 +165,30 @@ class StockOut extends Model
     public function countPendingValidation(): int
     {
         $row = $this->db->fetchOne(
-            "SELECT COUNT(*) AS n FROM stock_out WHERE deleted_at IS NULL AND validation_status = 'menunggu'"
+            "SELECT COUNT(*) AS n FROM stock_out
+              WHERE deleted_at IS NULL AND project_id IS NOT NULL AND validation_status = 'menunggu'"
         );
         return (int) ($row['n'] ?? 0);
     }
 
-    /** Set hasil validasi. $status = 'tervalidasi' | 'ditolak'. */
-    public function setValidation(int $id, string $status, int $userId, ?string $note): void
+    /**
+     * Set hasil validasi. $status = 'tervalidasi' | 'ditolak'.
+     * ATOMIK & idempotent: UPDATE bersyarat (masih 'menunggu', punya project,
+     * belum dihapus) -- dua request bersamaan/berulang hanya 1 yang berhasil.
+     * Mengembalikan true kalau baris benar-benar berubah. Tidak menyentuh stok.
+     */
+    public function setValidation(int $id, string $status, int $userId, ?string $note): bool
     {
-        $this->db->query(
+        $stmt = $this->db->query(
             "UPDATE stock_out
                 SET validation_status = :st, validated_by = :uid, validated_at = NOW(),
                     validation_note = :note, updated_at = NOW()
-              WHERE id = :id",
+              WHERE id = :id
+                AND deleted_at IS NULL
+                AND project_id IS NOT NULL
+                AND validation_status = 'menunggu'",
             ['st' => $status, 'uid' => $userId, 'note' => ($note !== '' ? $note : null), 'id' => $id]
         );
+        return $stmt->rowCount() === 1;
     }
 }

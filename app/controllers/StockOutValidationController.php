@@ -75,6 +75,13 @@ class StockOutValidationController extends Controller
             $this->redirect('stock_out_validation', 'index');
         }
 
+        // Hanya Pengeluaran Barang PROJECT yang boleh divalidasi -- dicek dari
+        // data transaksi di DB (project_id), tidak mempercayai apa pun dari request.
+        if (!StockOut::requiresValidation($row['project_id'] ?? null)) {
+            setFlash('error', 'Pengeluaran barang ini bukan transaksi Project, tidak memerlukan validasi.');
+            $this->redirect('stock_out_validation', 'index');
+        }
+
         if (($row['validation_status'] ?? 'menunggu') !== 'menunggu') {
             setFlash('error', 'Transaksi ini sudah ' . $row['validation_status'] . ', tidak bisa divalidasi lagi.');
             $this->redirect('stock_out_validation', 'index');
@@ -89,7 +96,13 @@ class StockOutValidationController extends Controller
             $this->redirect('stock_out_validation', 'index');
         }
 
-        $this->stockOutModel->setValidation($id, $decision, (int) currentUserId(), $note);
+        // UPDATE bersyarat atomik (masih 'menunggu' + project). Request ganda/
+        // bersamaan: hanya satu yang berhasil, sisanya berhenti di sini. Stok
+        // tidak disentuh sama sekali (sudah didebit saat pengeluaran dibuat).
+        if (!$this->stockOutModel->setValidation($id, $decision, (int) currentUserId(), $note)) {
+            setFlash('error', 'Transaksi ini sudah diproses oleh user lain, tidak bisa divalidasi lagi.');
+            $this->redirect('stock_out_validation', 'index');
+        }
 
         $this->activityLog->log(
             currentUserId(),

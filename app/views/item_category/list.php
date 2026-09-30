@@ -77,11 +77,14 @@ function categorySortLink(string $col, string $label, string $sort, string $dir)
                                         <i class="bi bi-three-dots-vertical"></i>
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end">
+                                        <?php if (can('item_category', 'edit')): ?>
                                         <li>
                                             <a class="dropdown-item" href="<?= BASE_URL ?>/item_category/edit/<?= (int) $c['id'] ?>">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
                                         </li>
+                                        <?php endif; ?>
+                                        <?php if (can('item_category', 'delete')): ?>
                                         <li>
                                             <form method="POST" action="<?= BASE_URL ?>/index.php?module=item_category&action=delete"
                                                   class="js-confirm-delete" data-message="Hapus kategori <?= e($c['category_name']) ?>?">
@@ -92,6 +95,7 @@ function categorySortLink(string $col, string $label, string $sort, string $dir)
                                                 </button>
                                             </form>
                                         </li>
+                                        <?php endif; ?>
                                     </ul>
                                 </div>
                             </td>

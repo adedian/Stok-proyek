@@ -130,11 +130,14 @@ function itemSortLink(string $col, string $label, string $sort, string $dir): st
                                         <i class="bi bi-three-dots-vertical"></i>
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end">
+                                        <?php if (can('item', 'edit')): ?>
                                         <li>
                                             <a class="dropdown-item" href="<?= BASE_URL ?>/item/edit/<?= (int) $i['id'] ?>">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
                                         </li>
+                                        <?php endif; ?>
+                                        <?php if (can('item', 'delete')): ?>
                                         <li>
                                             <form method="POST" action="<?= BASE_URL ?>/index.php?module=item&action=delete"
                                                   class="js-confirm-delete" data-message="Hapus barang <?= e($i['item_name']) ?>?">
@@ -145,6 +148,7 @@ function itemSortLink(string $col, string $label, string $sort, string $dir): st
                                                 </button>
                                             </form>
                                         </li>
+                                        <?php endif; ?>
                                     </ul>
                                 </div>
                             </td>

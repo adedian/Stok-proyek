@@ -99,11 +99,13 @@ function projectSortLink(string $col, string $label, string $sort, string $dir):
                                         <i class="bi bi-three-dots-vertical"></i>
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end">
+                                        <?php if (can('project', 'edit')): ?>
                                         <li>
                                             <a class="dropdown-item" href="<?= BASE_URL ?>/project/edit/<?= (int) $p['id'] ?>">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
                                         </li>
+                                        <?php endif; ?>
                                         <?php if (can('project', 'manage_access')): ?>
                                         <li>
                                             <a class="dropdown-item" href="<?= BASE_URL ?>/project/access/<?= (int) $p['id'] ?>">
@@ -121,6 +123,7 @@ function projectSortLink(string $col, string $label, string $sort, string $dir):
                                                 </button>
                                             </form>
                                         </li>
+                                        <?php if (can('project', 'delete')): ?>
                                         <li>
                                             <form method="POST" action="<?= BASE_URL ?>/index.php?module=project&action=delete"
                                                   class="js-confirm-delete" data-message="Hapus project <?= e($p['project_name']) ?>?">
@@ -131,6 +134,7 @@ function projectSortLink(string $col, string $label, string $sort, string $dir):
                                                 </button>
                                             </form>
                                         </li>
+                                        <?php endif; ?>
                                     </ul>
                                 </div>
                             </td>

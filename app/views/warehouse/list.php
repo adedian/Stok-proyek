@@ -97,11 +97,14 @@ function warehouseSortLink(string $col, string $label, string $sort, string $dir
                                         <i class="bi bi-three-dots-vertical"></i>
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end">
+                                        <?php if (can('warehouse', 'edit')): ?>
                                         <li>
                                             <a class="dropdown-item" href="<?= BASE_URL ?>/warehouse/edit/<?= (int) $w['id'] ?>">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
                                         </li>
+                                        <?php endif; ?>
+                                        <?php if (can('warehouse', 'delete')): ?>
                                         <li>
                                             <form method="POST" action="<?= BASE_URL ?>/index.php?module=warehouse&action=delete"
                                                   class="js-confirm-delete" data-message="Hapus gudang <?= e($w['warehouse_name']) ?>?">
@@ -112,6 +115,7 @@ function warehouseSortLink(string $col, string $label, string $sort, string $dir
                                                 </button>
                                             </form>
                                         </li>
+                                        <?php endif; ?>
                                     </ul>
                                 </div>
                             </td>

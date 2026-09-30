@@ -100,6 +100,11 @@ class GoodsReceiptController extends Controller
         if ($offlinePurchaseId && !can('offline_purchase', 'view')) {
             $offlinePurchaseId = 0;
         }
+        // Guard scope PIC juga di jalur BACA (bukan cuma store()): po_id di URL
+        // tidak boleh membuka data PO project yang bukan scope user (IDOR baca).
+        if ($poId && !$this->poModel->isReceivableByUser($poId, (int) currentUserId(), (string) currentUserRole())) {
+            denyAccess('PO ini bukan milik project yang Anda tangani (PIC Penerimaan berbeda).');
+        }
         $selectedPo = $poId ? $this->poModel->findWithRelations($poId) : null;
         $poItems = $poId ? $this->receiptItemModel->poItemsForReceipt($poId) : [];
         $selectedOfflinePurchase = $offlinePurchaseId ? $this->offlinePurchaseModel->findWithRelations($offlinePurchaseId) : null;
@@ -248,7 +253,12 @@ class GoodsReceiptController extends Controller
                 error_log('Push validasi_barang gagal: ' . $e->getMessage());
             }
 
-            setFlash('success', 'Penerimaan barang berhasil disimpan.');
+            $this->logAttachmentUpload($receiptId, $photoGoods ?? null, $invoiceFile ?? null);
+            if ($this->docUploadErrors) {
+                setFlash('warning', 'Penerimaan barang disimpan, TETAPI ' . count($this->docUploadErrors) . ' dokumen pengiriman gagal diunggah: ' . implode('; ', $this->docUploadErrors));
+            } else {
+                setFlash('success', 'Penerimaan barang berhasil disimpan.');
+            }
             $this->redirect('goods_receipt', 'detail', ['id' => $receiptId]);
         } catch (Throwable $e) {
             $pdo->rollBack();
@@ -442,7 +452,12 @@ class GoodsReceiptController extends Controller
 
             $pdo->commit();
 
-            setFlash('success', 'Penerimaan barang berhasil diperbarui.');
+            $this->logAttachmentUpload($id, $photoGoods ?? null, $invoiceFile ?? null);
+            if ($this->docUploadErrors) {
+                setFlash('warning', 'Penerimaan barang diperbarui, TETAPI ' . count($this->docUploadErrors) . ' dokumen pengiriman gagal diunggah: ' . implode('; ', $this->docUploadErrors));
+            } else {
+                setFlash('success', 'Penerimaan barang berhasil diperbarui.');
+            }
             $this->redirect('goods_receipt', 'detail', ['id' => $id]);
         } catch (Throwable $e) {
             $pdo->rollBack();
@@ -675,6 +690,11 @@ class GoodsReceiptController extends Controller
 
         if (!$po) {
             $this->json(['error' => 'PO tidak ditemukan'], 404);
+        }
+        // Scope PIC Penerimaan: sama dengan dropdown & store() -- jangan bocorkan
+        // item PO project lain lewat AJAX.
+        if (!$this->poModel->isReceivableByUser($poId, (int) currentUserId(), (string) currentUserRole())) {
+            $this->json(['error' => 'PO ini bukan milik project yang Anda tangani'], 403);
         }
 
         $items = $this->receiptItemModel->poItemsForReceipt($poId);
@@ -1009,6 +1029,23 @@ class GoodsReceiptController extends Controller
     /**
      * Upload multi-foto surat jalan (bisa lebih dari 1 file)
      */
+    /** Pesan gagal upload dokumen pengiriman pada request ini (untuk flash peringatan). */
+    private array $docUploadErrors = [];
+    /** Jumlah dokumen pengiriman yang berhasil tersimpan pada request ini. */
+    private int $docUploadCount = 0;
+
+    /** Catat lampiran yang diunggah pada penerimaan ke Riwayat Aktivitas. */
+    private function logAttachmentUpload(int $receiptId, ?string $photo, ?string $invoice): void
+    {
+        $parts = [];
+        if ($photo) { $parts[] = 'foto barang'; }
+        if ($invoice) { $parts[] = 'invoice'; }
+        if ($this->docUploadCount > 0) { $parts[] = $this->docUploadCount . ' dokumen pengiriman'; }
+        if (!$parts) { return; }
+        $number = $this->receiptModel->find($receiptId)['receipt_number'] ?? ('#' . $receiptId);
+        $this->activityLog->log(currentUserId(), 'goods_receipt', 'upload', "Lampiran penerimaan {$number} diunggah: " . implode(', ', $parts));
+    }
+
     private function saveDeliveryDocuments(int $receiptId): void
     {
         if (empty($_FILES['delivery_documents']) || empty($_FILES['delivery_documents']['name'][0])) {
@@ -1038,6 +1075,7 @@ class GoodsReceiptController extends Controller
             try {
                 $path = handleFileUpload('delivery_documents_single', 'surat_jalan', ['jpg', 'jpeg', 'png', 'webp', 'pdf'], 5);
                 if ($path) {
+                    $this->docUploadCount++;
                     $this->documentModel->create([
                         'goods_receipt_id' => $receiptId,
                         'document_number'  => trim($_POST['document_number'] ?? '') ?: null,
@@ -1047,6 +1085,8 @@ class GoodsReceiptController extends Controller
                 }
             } catch (RuntimeException $e) {
                 error_log("Gagal upload surat jalan index {$i}: " . $e->getMessage());
+                // Jangan gagal diam-diam: kumpulkan supaya user diberi tahu setelah simpan.
+                $this->docUploadErrors[] = ($files['name'][$i] !== '' ? $files['name'][$i] : 'file ' . ($i + 1)) . ' (' . $e->getMessage() . ')';
             }
 
             unset($_FILES['delivery_documents_single']);

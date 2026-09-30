@@ -102,11 +102,14 @@ function clientSortLink(string $col, string $label, string $sort, string $dir): 
                                         <i class="bi bi-three-dots-vertical"></i>
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end">
+                                        <?php if (can('client', 'edit')): ?>
                                         <li>
                                             <a class="dropdown-item" href="<?= BASE_URL ?>/client/edit/<?= (int) $c['id'] ?>">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
                                         </li>
+                                        <?php endif; ?>
+                                        <?php if (can('client', 'delete')): ?>
                                         <li>
                                             <form method="POST" action="<?= BASE_URL ?>/index.php?module=client&action=delete"
                                                   class="js-confirm-delete" data-message="Hapus client <?= e($c['client_name']) ?>?">
@@ -117,6 +120,7 @@ function clientSortLink(string $col, string $label, string $sort, string $dir): 
                                                 </button>
                                             </form>
                                         </li>
+                                        <?php endif; ?>
                                     </ul>
                                 </div>
                             </td>

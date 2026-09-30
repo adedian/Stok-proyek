@@ -85,11 +85,14 @@ function signatureSortLink(string $col, string $label, string $sort, string $dir
                                         <i class="bi bi-three-dots-vertical"></i>
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end">
+                                        <?php if (can('signature', 'edit')): ?>
                                         <li>
                                             <a class="dropdown-item" href="<?= BASE_URL ?>/signature/edit/<?= (int) $s['id'] ?>">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
                                         </li>
+                                        <?php endif; ?>
+                                        <?php if (can('signature', 'delete')): ?>
                                         <li>
                                             <form method="POST" action="<?= BASE_URL ?>/index.php?module=signature&action=delete"
                                                   class="js-confirm-delete" data-message="Hapus tanda tangan <?= e($s['name']) ?>?">
@@ -100,6 +103,7 @@ function signatureSortLink(string $col, string $label, string $sort, string $dir
                                                 </button>
                                             </form>
                                         </li>
+                                        <?php endif; ?>
                                     </ul>
                                 </div>
                             </td>

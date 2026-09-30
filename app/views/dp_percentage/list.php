@@ -53,11 +53,13 @@
                                         <i class="bi bi-three-dots-vertical"></i>
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end">
+                                        <?php if (can('dp_percentage', 'edit')): ?>
                                         <li>
                                             <a class="dropdown-item" href="<?= BASE_URL ?>/dp_percentage/edit/<?= (int) $r['id'] ?>">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
                                         </li>
+                                        <?php endif; ?>
                                         <li>
                                             <form method="POST" action="<?= BASE_URL ?>/index.php?module=dp_percentage&action=toggleStatus">
                                                 <?= csrfField() ?>
@@ -71,6 +73,7 @@
                                                 </button>
                                             </form>
                                         </li>
+                                        <?php if (can('dp_percentage', 'delete')): ?>
                                         <li>
                                             <form method="POST" action="<?= BASE_URL ?>/index.php?module=dp_percentage&action=delete"
                                                   class="js-confirm-delete" data-message="Hapus persentase DP <?= e($r['name']) ?>? Invoice yang sudah dibuat dengan persentase ini tidak akan berubah.">
@@ -81,6 +84,7 @@
                                                 </button>
                                             </form>
                                         </li>
+                                        <?php endif; ?>
                                     </ul>
                                 </div>
                             </td>

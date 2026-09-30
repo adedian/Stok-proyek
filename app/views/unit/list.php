@@ -77,11 +77,14 @@ function unitSortLink(string $col, string $label, string $sort, string $dir): st
                                         <i class="bi bi-three-dots-vertical"></i>
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end">
+                                        <?php if (can('unit', 'edit')): ?>
                                         <li>
                                             <a class="dropdown-item" href="<?= BASE_URL ?>/unit/edit/<?= (int) $u['id'] ?>">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
                                         </li>
+                                        <?php endif; ?>
+                                        <?php if (can('unit', 'delete')): ?>
                                         <li>
                                             <form method="POST" action="<?= BASE_URL ?>/index.php?module=unit&action=delete"
                                                   class="js-confirm-delete" data-message="Hapus satuan <?= e($u['unit_name']) ?>?">
@@ -92,6 +95,7 @@ function unitSortLink(string $col, string $label, string $sort, string $dir): st
                                                 </button>
                                             </form>
                                         </li>
+                                        <?php endif; ?>
                                     </ul>
                                 </div>
                             </td>

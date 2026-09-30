@@ -77,11 +77,14 @@ function paymentMethodSortLink(string $col, string $label, string $sort, string 
                                         <i class="bi bi-three-dots-vertical"></i>
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end">
+                                        <?php if (can('payment_method', 'edit')): ?>
                                         <li>
                                             <a class="dropdown-item" href="<?= BASE_URL ?>/payment_method/edit/<?= (int) $m['id'] ?>">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
                                         </li>
+                                        <?php endif; ?>
+                                        <?php if (can('payment_method', 'delete')): ?>
                                         <li>
                                             <form method="POST" action="<?= BASE_URL ?>/index.php?module=payment_method&action=delete"
                                                   class="js-confirm-delete" data-message="Hapus metode pembayaran <?= e($m['method_name']) ?>?">
@@ -92,6 +95,7 @@ function paymentMethodSortLink(string $col, string $label, string $sort, string 
                                                 </button>
                                             </form>
                                         </li>
+                                        <?php endif; ?>
                                     </ul>
                                 </div>
                             </td>

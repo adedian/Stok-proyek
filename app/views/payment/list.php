@@ -182,11 +182,14 @@
                                         <?php if (isPeriodClosed('payment', $pay['payment_date'])): ?>
                                         <li><span class="dropdown-item-text text-muted small"><i class="bi bi-lock-fill"></i> Periode ditutup</span></li>
                                         <?php else: ?>
+                                        <?php if (can('payment', 'edit')): ?>
                                         <li>
                                             <a class="dropdown-item" href="<?= BASE_URL ?>/payment/edit/<?= (int) $pay['id'] ?>">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
                                         </li>
+                                        <?php endif; ?>
+                                        <?php if (can('payment', 'delete')): ?>
                                         <li>
                                             <form method="POST" action="<?= BASE_URL ?>/index.php?module=payment&action=delete"
                                                   onsubmit="return confirm('Yakin ingin menghapus pembayaran <?= e($pay['payment_number']) ?>?');">
@@ -197,6 +200,7 @@
                                                 </button>
                                             </form>
                                         </li>
+                                        <?php endif; ?>
                                         <?php endif; ?>
                                     </ul>
                                 </div>

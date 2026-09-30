@@ -359,7 +359,41 @@ $actionUrl = $isEdit ? 'update' : 'store';
     }
 
     // Delegasi event untuk input qty/price/diskon/ppn yang bisa bertambah secara dinamis
+    // PPN per baris: input persen HANYA aktif kalau checkbox dicentang, hanya
+    // menerima angka (boleh 1 pemisah desimal), dan nilainya disalin ke hidden
+    // ppn_percent[] yang selalu ter-submit (kosong kalau PPN mati).
+    function syncPpnRow(row) {
+        const toggle = row.querySelector('.ppn-toggle-visible');
+        const enabledHidden = row.querySelector('.ppn-enabled-input');
+        const percentInput = row.querySelector('.ppn-percent-input');
+        const percentHidden = row.querySelector('.ppn-percent-hidden');
+        if (!toggle || !percentInput || !percentHidden) return;
+        if (toggle.checked) {
+            percentInput.disabled = false;
+            enabledHidden.value = '1';
+            percentHidden.value = percentInput.value;
+        } else {
+            percentInput.value = '';
+            percentInput.disabled = true;
+            enabledHidden.value = '';
+            percentHidden.value = '';
+        }
+    }
+    function sanitizePpn(str) {
+        str = (str || '').replace(/[^0-9.,]/g, '');
+        const m = str.match(/[.,]/);
+        if (!m) return str;
+        const idx = m.index;
+        return str.slice(0, idx + 1) + str.slice(idx + 1).replace(/[.,]/g, '');
+    }
+    tableBody.querySelectorAll('.item-row').forEach(syncPpnRow);
+
     tableBody.addEventListener('input', function (e) {
+        if (e.target.classList.contains('ppn-percent-input')) {
+            const clean = sanitizePpn(e.target.value);
+            if (clean !== e.target.value) e.target.value = clean;
+            e.target.closest('tr').querySelector('.ppn-percent-hidden').value = clean;
+        }
         if (e.target.classList.contains('qty-input') || e.target.classList.contains('price-input')
             || e.target.classList.contains('discount-input') || e.target.classList.contains('ppn-percent-input')) {
             recalcAll();
@@ -368,11 +402,8 @@ $actionUrl = $isEdit ? 'update' : 'store';
     tableBody.addEventListener('change', function (e) {
         if (e.target.classList.contains('ppn-toggle-visible')) {
             const row = e.target.closest('tr');
-            const hiddenInput = row.querySelector('.ppn-enabled-input');
-            const percentInput = row.querySelector('.ppn-percent-input');
-            hiddenInput.value = e.target.checked ? '1' : '';
-            percentInput.classList.toggle('bg-light', !e.target.checked);
-            if (!e.target.checked) percentInput.value = '';
+            syncPpnRow(row);
+            if (e.target.checked) row.querySelector('.ppn-percent-input').focus();
             recalcAll();
         }
     });

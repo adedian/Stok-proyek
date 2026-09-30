@@ -55,7 +55,11 @@
     function isEligible(select) {
         return select instanceof HTMLSelectElement
             && !select.closest('.choices') // sudah dibungkus Choices (termasuk yang sedang di-init)
-            && !select.hasAttribute('data-no-search');
+            && !select.hasAttribute('data-no-search')
+            // <select class="swal2-select"> tersembunyi milik SweetAlert2 (toast/
+            // dialog) ikut tertangkap MutationObserver dan muncul sebagai dropdown
+            // kosong di dalam notifikasi -- jangan disentuh.
+            && !select.closest('.swal2-container');
     }
 
     function syncSelectedAttribute(select) {

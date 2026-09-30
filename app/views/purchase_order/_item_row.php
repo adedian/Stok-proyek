@@ -88,8 +88,14 @@ $selectedCategory = $item['category'] ?? '';
                        <?= !empty($item['ppn_enabled']) ? 'checked' : '' ?> title="Pakai PPN">
             </span>
             <input type="hidden" name="ppn_enabled[]" class="ppn-enabled-input" value="<?= !empty($item['ppn_enabled']) ? '1' : '' ?>">
-            <input type="text" inputmode="decimal" name="ppn_percent[]" class="form-control form-control-sm ppn-percent-input"
-                   value="<?= e($item['ppn_percent'] !== null ? (string) $item['ppn_percent'] : '') ?>" placeholder="%">
+            <!-- Input persen TANPA name + disabled saat PPN tidak dicentang: input
+                 disabled tidak ikut ter-submit dan itu menggeser index array antar
+                 baris. Nilainya disalin JS ke hidden ppn_percent[] (selalu 1 entri
+                 per baris; kosong kalau PPN mati). Server tetap validasi ulang. -->
+            <?php $ppnOnRow = !empty($item['ppn_enabled']); $ppnValRow = ($ppnOnRow && $item['ppn_percent'] !== null) ? (string) $item['ppn_percent'] : ''; ?>
+            <input type="hidden" name="ppn_percent[]" class="ppn-percent-hidden" value="<?= e($ppnValRow) ?>">
+            <input type="text" inputmode="decimal" autocomplete="off" class="form-control form-control-sm ppn-percent-input"
+                   value="<?= e($ppnValRow) ?>" placeholder="%" <?= $ppnOnRow ? '' : 'disabled' ?>>
         </div>
     </td>
     <td style="width: 150px;" class="text-end subtotal-cell">Rp 0.00</td>

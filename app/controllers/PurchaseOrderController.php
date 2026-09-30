@@ -581,7 +581,13 @@ class PurchaseOrderController extends Controller
             $price = parseCurrencyInput($prices[$i] ?? 0);
             $discountPercent = max(0, min(100, parseQtyInput($discounts[$i] ?? 0)));
             $ppnOn = !empty($ppnEnabled[$i]);
-            $ppnPercent = $ppnOn ? max(0, min(100, parseQtyInput($ppnPercents[$i] ?? 0))) : null;
+            // PPN mati -> selalu null/0, apa pun yang dikirim klien. PPN aktif ->
+            // nilai HARUS angka murni (boleh 1 pemisah desimal); yang tidak lolos
+            // ditandai ppn_invalid dan ditolak di validatePoInput() (bukan diam-diam
+            // dikoreksi), supaya request manual/DevTools tidak bisa menyelundupkan huruf.
+            $ppnRaw = trim((string) ($ppnPercents[$i] ?? ''));
+            $ppnInvalid = $ppnOn && $ppnRaw !== '' && !preg_match('/^\d{1,3}([.,]\d{1,4})?$/', $ppnRaw);
+            $ppnPercent = ($ppnOn && !$ppnInvalid) ? max(0, parseQtyInput($ppnRaw)) : null;
 
             $afterDiscount = $qty * $price * (1 - $discountPercent / 100);
             $ppnAmount = $ppnOn ? $afterDiscount * ($ppnPercent / 100) : 0;
@@ -597,6 +603,7 @@ class PurchaseOrderController extends Controller
                 'discount_percent' => $discountPercent,
                 'ppn_enabled' => $ppnOn,
                 'ppn_percent' => $ppnPercent,
+                'ppn_invalid' => $ppnInvalid,
                 'subtotal'  => $subtotal,
             ];
         }
@@ -666,7 +673,11 @@ class PurchaseOrderController extends Controller
             if ($item['price'] < 0) {
                 $errors[] = "Harga untuk item '{$item['item_name']}' tidak boleh negatif.";
             }
-            if ($item['ppn_enabled'] && ($item['ppn_percent'] === null || $item['ppn_percent'] <= 0)) {
+            if (!empty($item['ppn_invalid'])) {
+                $errors[] = "PPN untuk item '{$item['item_name']}' harus berupa angka (0-100).";
+            } elseif ($item['ppn_enabled'] && $item['ppn_percent'] > 100) {
+                $errors[] = "PPN untuk item '{$item['item_name']}' tidak boleh lebih dari 100%.";
+            } elseif ($item['ppn_enabled'] && ($item['ppn_percent'] === null || $item['ppn_percent'] <= 0)) {
                 $errors[] = "PPN untuk item '{$item['item_name']}' dicentang tapi persentasenya belum diisi.";
             }
         }

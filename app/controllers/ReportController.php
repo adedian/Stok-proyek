@@ -219,6 +219,61 @@ class ReportController extends Controller
     }
 
     /**
+     * Bersihkan Riwayat Aktivitas (hapus PERMANEN, bukan ke Tempat Sampah) supaya
+     * tabel tidak menggerus ruang hosting. KHUSUS Super Admin -- dijaga keras di
+     * sini walau halaman laporannya juga terbuka untuk Accounting. Satu baris
+     * ringkasan ditulis SETELAH penghapusan supaya pembersihan itu sendiri tetap
+     * tercatat. Catatan: baris login gagal ikut terhapus -> hitungan kunci
+     * sementara login (throttling) ikut ke-reset.
+     */
+    public function purgeActivityLog(): void
+    {
+        if (!hasRole([ROLE_SUPER_ADMIN])) {
+            denyAccess('Pembersihan Riwayat Aktivitas hanya untuk Super Admin.');
+        }
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('report', 'activityLog');
+        }
+        verifyCsrf();
+
+        $mode = $_POST['purge_mode'] ?? '';
+        $model = new ActivityLog();
+        $label = '';
+
+        if ($mode === 'older') {
+            $days = (int) ($_POST['older_days'] ?? 0);
+            if (!in_array($days, [30, 90, 180, 365], true)) {
+                setFlash('error', 'Pilihan usia log tidak valid.');
+                $this->redirect('report', 'activityLog');
+            }
+            $deleted = $model->purge('older', $days);
+            $label = "lebih lama dari {$days} hari";
+        } elseif ($mode === 'range') {
+            [$from, $to] = rangeDeleteReadDates();
+            if ($err = rangeDeleteValidate($from, $to)) {
+                setFlash('error', $err);
+                $this->redirect('report', 'activityLog');
+            }
+            $deleted = $model->purge('range', 0, $from, $to);
+            $label = "rentang {$from} s/d {$to}";
+        } elseif ($mode === 'all') {
+            if (trim($_POST['confirm_text'] ?? '') !== 'HAPUS') {
+                setFlash('error', 'Ketik HAPUS untuk mengonfirmasi penghapusan semua log.');
+                $this->redirect('report', 'activityLog');
+            }
+            $deleted = $model->purge('all');
+            $label = 'semua log';
+        } else {
+            setFlash('error', 'Mode pembersihan tidak valid.');
+            $this->redirect('report', 'activityLog');
+        }
+
+        $model->log(currentUserId(), 'report', 'purge', "Pembersihan Riwayat Aktivitas ({$label}): {$deleted} baris dihapus permanen.");
+        setFlash($deleted > 0 ? 'success' : 'info', $deleted > 0 ? "{$deleted} baris Riwayat Aktivitas dihapus permanen." : 'Tidak ada log yang cocok untuk dihapus.');
+        $this->redirect('report', 'activityLog');
+    }
+
+    /**
      * Export Excel BERGAYA (judul/nama perusahaan/periode + header bold+border,
      * sama seperti "Laporan Rekap PO") untuk 8 laporan generik lainnya (Pembayaran,
      * Penerimaan Barang, dst) -- reuse definisi kolom/rows dari buildReport() yang

@@ -28,6 +28,36 @@ class ActivityLog extends Model
     }
 
     /**
+     * Hapus PERMANEN (hard delete) baris audit trail untuk membebaskan ruang.
+     * Mode: 'older' (created_at < hari ini - $days), 'range' ($from..$to
+     * inklusif, YYYY-MM-DD), 'all'. Mengembalikan jumlah baris terhapus.
+     * Validasi input dilakukan pemanggil; di sini semua nilai tetap di-bind.
+     */
+    public function purge(string $mode, int $days = 0, string $from = '', string $to = ''): int
+    {
+        switch ($mode) {
+            case 'older':
+                $stmt = $this->db->query(
+                    "DELETE FROM activity_logs WHERE created_at < :cutoff",
+                    ['cutoff' => date('Y-m-d 00:00:00', strtotime('-' . max(1, $days) . ' days'))]
+                );
+                break;
+            case 'range':
+                $stmt = $this->db->query(
+                    "DELETE FROM activity_logs WHERE created_at >= :df AND created_at <= :dt",
+                    ['df' => $from . ' 00:00:00', 'dt' => $to . ' 23:59:59']
+                );
+                break;
+            case 'all':
+                $stmt = $this->db->query("DELETE FROM activity_logs");
+                break;
+            default:
+                return 0;
+        }
+        return $stmt->rowCount();
+    }
+
+    /**
      * Bangun klausa WHERE + params dari filter audit trail (dipakai bareng
      * listWithFilters() & countWithFilters()).
      */

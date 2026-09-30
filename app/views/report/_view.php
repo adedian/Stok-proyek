@@ -10,10 +10,103 @@
             </div>
         <?php endif; ?>
     </div>
-    <a href="<?= BASE_URL ?>/report" class="btn btn-outline-secondary no-print">
-        <i class="bi bi-arrow-left"></i> Daftar Laporan
-    </a>
+    <div class="d-flex gap-2 no-print">
+        <?php if ($reportKey === 'activityLog' && hasRole([ROLE_SUPER_ADMIN])): ?>
+            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#purgeLogModal">
+                <i class="bi bi-trash3"></i> Bersihkan Log
+            </button>
+        <?php endif; ?>
+        <a href="<?= BASE_URL ?>/report" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Daftar Laporan
+        </a>
+    </div>
 </div>
+
+<?php if ($reportKey === 'activityLog' && hasRole([ROLE_SUPER_ADMIN])): ?>
+<div class="modal fade" id="purgeLogModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="<?= BASE_URL ?>/report/purgeActivityLog" id="purgeLogForm">
+                <div class="modal-header">
+                    <h5 class="modal-title text-danger"><i class="bi bi-trash3"></i> Bersihkan Riwayat Aktivitas</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                </div>
+                <div class="modal-body">
+                    <?= csrfField() ?>
+                    <div class="alert alert-warning py-2 small mb-3">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        Log dihapus <strong>permanen</strong> (tidak masuk Tempat Sampah, tidak bisa dipulihkan).
+                        Riwayat percobaan login gagal ikut terhapus, jadi kunci sementara login ikut ter-reset.
+                        Total log saat ini: <strong><?= number_format((new ActivityLog())->countWithFilters([]), 0, ',', '.') ?></strong> baris.
+                    </div>
+
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="radio" name="purge_mode" id="purgeOlder" value="older" checked>
+                        <label class="form-check-label" for="purgeOlder">Hapus log yang lebih lama dari</label>
+                        <select name="older_days" class="form-select form-select-sm d-inline-block w-auto ms-1" data-no-search>
+                            <option value="30">30 hari</option>
+                            <option value="90" selected>90 hari</option>
+                            <option value="180">180 hari</option>
+                            <option value="365">365 hari</option>
+                        </select>
+                    </div>
+
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="radio" name="purge_mode" id="purgeRange" value="range">
+                        <label class="form-check-label" for="purgeRange">Hapus per rentang tanggal</label>
+                        <div class="row g-2 mt-1">
+                            <div class="col-6"><input type="date" name="range_from" class="form-control form-control-sm" disabled></div>
+                            <div class="col-6"><input type="date" name="range_to" class="form-control form-control-sm" disabled></div>
+                        </div>
+                    </div>
+
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="radio" name="purge_mode" id="purgeAll" value="all">
+                        <label class="form-check-label text-danger" for="purgeAll">Hapus <strong>semua</strong> log</label>
+                        <input type="text" name="confirm_text" class="form-control form-control-sm mt-1" placeholder="Ketik HAPUS untuk konfirmasi" autocomplete="off" disabled>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-danger"><i class="bi bi-trash3"></i> Hapus Log</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var f = document.getElementById('purgeLogForm');
+    if (!f) return;
+    function mode() { return f.querySelector('input[name=purge_mode]:checked').value; }
+    function sync() {
+        var m = mode();
+        f.older_days.disabled = m !== 'older';
+        f.range_from.disabled = f.range_to.disabled = m !== 'range';
+        f.confirm_text.disabled = m !== 'all';
+        f.range_from.required = f.range_to.required = m === 'range';
+        f.confirm_text.required = m === 'all';
+    }
+    f.querySelectorAll('input[name=purge_mode]').forEach(function (r) { r.addEventListener('change', sync); });
+    sync();
+    f.addEventListener('submit', function (e) {
+        if (f.dataset.confirmed) return;
+        e.preventDefault();
+        if (!f.reportValidity()) return;
+        var m = mode();
+        var msg = m === 'older' ? 'Hapus PERMANEN semua log yang lebih lama dari ' + f.older_days.value + ' hari?'
+            : m === 'range' ? 'Hapus PERMANEN log tanggal ' + f.range_from.value + ' s/d ' + f.range_to.value + '?'
+            : 'Hapus PERMANEN SEMUA log?';
+        var go = function () { f.dataset.confirmed = '1'; f.submit(); };
+        if (typeof confirmAction === 'function') {
+            confirmAction(msg, 'Ya, hapus permanen').then(function (ok) { if (ok) go(); });
+        } else if (window.confirm(msg)) {
+            go();
+        }
+    });
+});
+</script>
+<?php endif; ?>
 
 <div class="card border-0 shadow-sm mb-3 no-print">
     <div class="card-body">

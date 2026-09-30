@@ -126,6 +126,7 @@ function activityLogActionLabel(string $slug): string
         'kas_login' => 'Verifikasi Kas', 'kas_logout' => 'Keluar Sesi Kas',
         'kas_login_failed' => 'Verifikasi Kas Gagal', 'kas_view_balance' => 'Lihat Saldo Kas',
         'activate' => 'Aktifkan', 'deactivate' => 'Nonaktifkan',
+        'purge' => 'Bersihkan Log',
     ];
     return $map[$slug] ?? ucwords(str_replace('_', ' ', $slug));
 }

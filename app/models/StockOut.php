@@ -40,7 +40,7 @@ class StockOut extends Model
             [$ssSql, $ssParams] = SmartSearch::clause(
                 $filters['keyword'],
                 ['inv.item_name', 'so.destination', 'so.pic_name'],
-                [],
+                ['so.stock_out_number'],
                 'sokw'
             );
             if ($ssSql !== '') {

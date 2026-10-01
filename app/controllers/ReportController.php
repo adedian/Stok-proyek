@@ -26,6 +26,28 @@ class ReportController extends Controller
     {
         Middleware::requirePermission('report', 'view');
         $this->guardReportScope();
+        $this->logReportOutput();
+    }
+
+    /**
+     * Catat Export/Cetak laporan ke Riwayat Aktivitas (jejak audit: siapa menarik
+     * data apa). Dipanggil setelah izin & scope laporan lolos, jadi permintaan
+     * yang ditolak tidak tercatat di sini (sudah tercatat sebagai access_denied).
+     */
+    private function logReportOutput(): void
+    {
+        $action = (string) ($_GET['action'] ?? '');
+        if (!preg_match('/^(export|print)/', $action)) {
+            return;
+        }
+        $kind = strpos($action, 'export') === 0 ? 'export' : 'print';
+        $type = $this->reportTypeForRequest();
+        (new ActivityLog())->log(
+            currentUserId(),
+            'report',
+            $kind,
+            ($kind === 'export' ? 'Export' : 'Cetak') . ' laporan ' . ($type !== '' ? $type : 'umum') . " ({$action})"
+        );
     }
 
     /**

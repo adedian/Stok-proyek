@@ -24,6 +24,7 @@ require_once ROOT_PATH . '/app/helpers/pdf_compress_helper.php';
 require_once ROOT_PATH . '/app/helpers/upload_helper.php';
 require_once ROOT_PATH . '/app/helpers/pdf_helper.php';
 require_once ROOT_PATH . '/app/helpers/excel_helper.php';
+require_once ROOT_PATH . '/app/helpers/excel_pengajuan_helper.php';
 require_once ROOT_PATH . '/app/helpers/permission_helper.php';
 require_once ROOT_PATH . '/app/helpers/push_helper.php';
 require_once ROOT_PATH . '/app/helpers/kas_auth_helper.php';

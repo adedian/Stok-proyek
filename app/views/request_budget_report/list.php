@@ -11,11 +11,13 @@ $badge = function (?string $st) use ($apprLabel) {
         <small class="text-muted">Seluruh Request Budget yang sudah diajukan &mdash; approval, data Purchase, dan pengajuan ke Purwati/Nissa</small>
     </div>
     <div class="d-flex gap-2">
-        <?php // Format cetak/export mengikuti template Excel Accounting -- menunggu file template. ?>
-        <button type="button" class="btn btn-outline-secondary" disabled
-                title="Format cetak/export mengikuti template Excel dari Accounting -- menunggu file template.">
-            <i class="bi bi-printer"></i> Cetak / Export
-        </button>
+        <?php if (can('request_budget_report', 'export')): ?>
+            <a href="<?= BASE_URL ?>/request_budget_report/exportExcel<?= count(array_filter($filters)) ? '?' . e(http_build_query(array_filter($filters))) : '' ?>"
+               class="btn btn-success"
+               title="Template Pengajuan Pembayaran (Permintaan Otorisasi). Hanya Request Budget yang sudah disetujui; mengikuti filter di bawah.">
+                <i class="bi bi-file-earmark-excel"></i> Export Excel (Pengajuan Pembayaran)
+            </a>
+        <?php endif; ?>
         <a href="<?= BASE_URL ?>/report" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Laporan</a>
     </div>
 </div>

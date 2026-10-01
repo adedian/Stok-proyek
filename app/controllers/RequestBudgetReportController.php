@@ -13,8 +13,8 @@ require_once ROOT_PATH . '/app/models/ActivityLog.php';
  * hak apa pun untuk mengubah workflow (tidak ada tombol/endpoint aksi di controller ini).
  * Laporan lintas project, hanya request yang sudah disubmit (bukan Draft).
  *
- * Cetak/Export mengikuti template Excel dari Accounting -- belum diimplementasikan karena
- * file template belum diterima (lihat catatan di views/request_budget_report/list.php).
+ * Export Excel "Permintaan Otorisasi" mengikuti template Accounting ("Pengajuan Pembayaran.xlsx"):
+ * lihat exportExcel() dan streamPengajuanPembayaran() di app/helpers/excel_pengajuan_helper.php.
  */
 class RequestBudgetReportController extends Controller
 {
@@ -60,6 +60,24 @@ class RequestBudgetReportController extends Controller
             'statuses'   => array_diff_key(RequestBudget::STATUS_LABELS, [RequestBudget::DRAFT => 1]),
             'purchaseUsers' => $this->rbModel->purchaseUserOptions(),
         ]);
+    }
+
+    /**
+     * Export Excel "Permintaan Otorisasi" (template Pengajuan Pembayaran). Memakai filter yang sama dengan
+     * layar; hanya Request Budget yang SUDAH disetujui lengkap yang ikut (bukan Menunggu Approval/Ditolak).
+     */
+    public function exportExcel()
+    {
+        Middleware::requirePermission('request_budget_report', 'export');
+        $filters = $this->filters();
+        $blocks = $this->rbModel->reportExportBlocks($filters);
+        if (!$blocks) {
+            setFlash('error', 'Tidak ada Request Budget yang sudah disetujui sesuai filter ini untuk diexport.');
+            $this->redirect('request_budget_report', 'index', array_filter($filters));
+        }
+        (new ActivityLog())->log(currentUserId(), 'request_budget_report', 'export',
+            'Export Excel Permintaan Otorisasi (' . count($blocks) . ' Request Budget)');
+        streamPengajuanPembayaran($blocks, 'TGL. ' . formatTanggal(date('Y-m-d')), 'Pengajuan_Pembayaran_' . date('Ymd_His'));
     }
 
     /** Detail lifecycle lengkap (read-only) -- tidak ada aksi workflow di halaman ini. */

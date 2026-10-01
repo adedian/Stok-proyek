@@ -683,6 +683,10 @@ class RequestBudget extends Model
     {
         $sql = " WHERE rb.deleted_at IS NULL AND rb.status <> 'DRAFT'";
         $p = [];
+        // Khusus export Pengajuan Pembayaran: hanya yang SUDAH disetujui lengkap (bukan Menunggu Approval/Ditolak).
+        if (!empty($f['only_approved'])) {
+            $sql .= " AND rb.status IN ('APPROVED','PURCHASE_COMPLETED','FORWARDED','COMPLETED')";
+        }
         if (!empty($f['date_from'])) { $sql .= " AND rb.request_date >= :r_from"; $p['r_from'] = $f['date_from']; }
         if (!empty($f['date_to']))   { $sql .= " AND rb.request_date <= :r_to";   $p['r_to'] = $f['date_to']; }
         if (!empty($f['project_id'])) { $sql .= " AND rb.project_id = :r_proj"; $p['r_proj'] = (int) $f['project_id']; }
@@ -734,6 +738,66 @@ class RequestBudget extends Model
             . $where . " ORDER BY rb.request_date DESC, rb.id DESC LIMIT " . max(1, $limit) . " OFFSET " . max(0, $offset),
             $params
         );
+    }
+
+    /**
+     * Blok data untuk export "Permintaan Otorisasi" (template Pengajuan Pembayaran Accounting).
+     * Satu blok per Request Budget (urut tanggal, lalu nomor): Keterangan = keperluan (+periode, PO, invoice,
+     * no. request), Kategori = "Project <nama>", Rekening Tujuan = vendor dari PO/Invoice (bila ada),
+     * Jumlah = total request, item = baris anak (nama barang/kebutuhan + jumlahnya).
+     * @return array<int,array>
+     */
+    public function reportExportBlocks(array $filters, int $limit = 2000): array
+    {
+        $filters['only_approved'] = true;
+        $rows = $this->reportRows($filters, $limit, 0);
+        if (!$rows) {
+            return [];
+        }
+        usort($rows, fn($a, $b) => [$a['request_date'], (int) $a['id']] <=> [$b['request_date'], (int) $b['id']]);
+
+        $ids = array_map(fn($r) => (int) $r['id'], $rows);
+        $marks = implode(',', array_fill(0, count($ids), '?'));
+        $items = [];
+        foreach ($this->db->fetchAll(
+            "SELECT request_budget_id, item_name, description, qty, unit_name, estimated_total
+               FROM request_budget_items WHERE request_budget_id IN ({$marks}) ORDER BY id ASC",
+            $ids
+        ) as $it) {
+            $label = $it['item_name'];
+            if (!empty($it['description'])) {
+                $label .= ' - ' . $it['description'];
+            }
+            if ((float) $it['qty'] > 0) {
+                $qty = rtrim(rtrim(number_format((float) $it['qty'], 2, ',', '.'), '0'), ',');
+                $label .= ' (' . $qty . (!empty($it['unit_name']) ? ' ' . $it['unit_name'] : '') . ')';
+            }
+            $items[(int) $it['request_budget_id']][] = ['label' => $label, 'amount' => (float) $it['estimated_total']];
+        }
+
+        $blocks = [];
+        foreach ($rows as $r) {
+            $ket = $r['purpose'];
+            if (!empty($r['period_label'])) {
+                $ket .= ' (' . $r['period_label'] . ')';
+            }
+            if (!empty($r['po_numbers'])) {
+                $ket .= ' - PO: ' . $r['po_numbers'];
+            }
+            if (!empty($r['invoice_numbers'])) {
+                $ket .= ' - Invoice: ' . $r['invoice_numbers'];
+            }
+            $ket .= ' [' . $r['request_number'] . ']';
+            $proj = (string) $r['project_name'];
+            $blocks[] = [
+                'keterangan' => $ket,
+                'kategori'   => stripos($proj, 'project') === 0 ? $proj : 'Project ' . $proj,
+                'rekening'   => (string) ($r['vendors'] ?? ''),
+                'total'      => (float) $r['total_amount'],
+                'items'      => $items[(int) $r['id']] ?? [],
+            ];
+        }
+        return $blocks;
     }
 
     public function reportCount(array $filters): int

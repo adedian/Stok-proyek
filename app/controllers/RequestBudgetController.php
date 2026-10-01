@@ -379,6 +379,12 @@ class RequestBudgetController extends Controller
         }
         $id = (int) $rb['id'];
         $slots = $this->mySlots($id, $rb);
+        // Urutan wajib juga untuk menolak: Purchase baru bertindak setelah Project Manager menyetujui.
+        if (in_array('purchase', $slots, true) && !in_array('pm', $slots, true)
+            && ($this->rbModel->approvals($id)['pm']['status'] ?? '') !== 'APPROVED') {
+            setFlash('error', 'Tindakan Purchase baru bisa dilakukan setelah Project Manager menyetujui Request Budget ini.');
+            $this->redirect('request_budget', 'detail', ['id' => $id]);
+        }
         $role = $this->rbModel->roleNameOf(currentUserId());
         $pdo = getPDO();
         try {
@@ -715,7 +721,8 @@ class RequestBudgetController extends Controller
             if ($myPending && !$purchaseWaitsPm && can('request_budget', 'approve')) {
                 $a['approve'] = true;
             }
-            if ($myPending && can('request_budget', 'reject')) {
+            // Tolak juga baru muncul untuk Purchase setelah Project Manager menyetujui.
+            if ($myPending && !$purchaseWaitsPm && can('request_budget', 'reject')) {
                 $a['reject'] = true;
             }
         }

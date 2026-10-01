@@ -248,8 +248,6 @@ class PurchaseOrderController extends Controller
             setFlash('error', 'Purchase Order tidak ditemukan.');
             $this->redirect('purchase_order', 'index');
         }
-        $this->assertApprovalLock($po);
-
         $this->view('purchase_order/form', [
             'pageTitle' => 'Edit Purchase Order',
             'mode'      => 'edit',
@@ -288,9 +286,18 @@ class PurchaseOrderController extends Controller
             setFlash('error', 'Purchase Order tidak ditemukan.');
             $this->redirect('purchase_order', 'index');
         }
-        $this->assertApprovalLock($existing);
-
         $data = $this->collectPoInput();
+
+        // PO yang sudah disetujui: data PO tetap boleh diedit, tapi STATUS-nya hanya
+        // boleh diubah Super Admin. Field status di form di-disable (tidak ikut terkirim),
+        // jadi nilainya selalu diambil dari DB; kalau ada yang memaksa mengirim status
+        // lain lewat POST -> ditolak.
+        if ($this->isApprovalLocked($existing) && currentUserRole() !== ROLE_SUPER_ADMIN) {
+            if (isset($_POST['status']) && $_POST['status'] !== $existing['status']) {
+                denyAccess("Status Purchase Order '{$existing['po_number']}' sudah disetujui -- hanya Super Admin yang bisa mengubahnya.");
+            }
+            $data['status'] = $existing['status'];
+        }
         $errors = $this->validatePoInput($data);
 
         if (!empty($errors)) {
@@ -335,7 +342,7 @@ class PurchaseOrderController extends Controller
                 'signature_id' => $data['signature_id'],
                 'quote_number' => $data['quote_number'],
                 'quote_date'   => $data['quote_date'],
-            ] + ($data['status'] === 'approved' && empty($existing['approved_at']) ? $this->approvalStamp() : []));
+            ] + ($data['status'] === 'approved' && $existing['status'] !== 'approved' && empty($existing['approved_at']) ? $this->approvalStamp() : []));
 
             if (!$itemsLocked) {
                 $this->itemModel->deleteByPo($id);

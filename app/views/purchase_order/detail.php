@@ -18,7 +18,7 @@
                 </button>
             </form>
         <?php endif; ?>
-        <?php if (!(!empty($po['approved_at']) || in_array($po['status'] ?? '', ['approved', 'partial_received', 'completed'], true)) || hasRole([ROLE_SUPER_ADMIN])): ?>
+        <?php if (can('purchase_order', 'edit')): ?>
             <a href="<?= BASE_URL ?>/purchase_order/edit/<?= (int) $po['id'] ?>"
                class="btn btn-outline-primary">
                 <i class="bi bi-pencil"></i> Edit

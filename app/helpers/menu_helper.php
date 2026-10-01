@@ -11,8 +11,10 @@ function appMenus(): array
     return [
         ['label' => 'Dashboard', 'module' => 'dashboard', 'icon' => 'bi-speedometer2', 'roles' => permissionRoles('dashboard', 'view'), 'active' => true, 'group' => null],
         ['label' => 'Pusat Informasi', 'module' => 'information', 'icon' => 'bi-info-circle', 'roles' => permissionRoles('information', 'view'), 'active' => true, 'group' => null],
+        ['label' => 'Request PO', 'module' => 'request_po', 'icon' => 'bi-file-earmark-text', 'roles' => permissionRoles('request_po', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Purchase Order', 'module' => 'purchase_order', 'icon' => 'bi-cart-check', 'roles' => permissionRoles('purchase_order', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Pembayaran', 'module' => 'payment', 'icon' => 'bi-credit-card', 'roles' => permissionRoles('payment', 'view'), 'active' => true, 'group' => 'Transaksi'],
+        ['label' => 'Request Budget', 'module' => 'request_budget', 'icon' => 'bi-wallet2', 'roles' => permissionRoles('request_budget', 'view'), 'active' => true, 'group' => 'Transaksi'],
         // "Bank" TIDAK lagi menu sendiri (revisi lanjutan) -- transaksi Bank
         // digabung tampil di menu Kas (CashController::index(), khusus
         // can('bank','view')). module tetap 'cash' supaya sidebar highlight benar.
@@ -29,8 +31,6 @@ function appMenus(): array
         // sudah 0 data aktif sejak digantikan "Invoice Keluar" di bawah).
         ['label' => 'Invoice Keluar', 'module' => 'sales_invoice', 'icon' => 'bi-cash-stack', 'roles' => permissionRoles('sales_invoice', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Tanda Terima', 'module' => 'collection_receipt', 'icon' => 'bi-journal-check', 'roles' => permissionRoles('collection_receipt', 'view'), 'active' => true, 'group' => 'Transaksi'],
-        ['label' => 'Request Budget', 'module' => 'request_budget', 'icon' => 'bi-wallet2', 'roles' => permissionRoles('request_budget', 'view'), 'active' => true, 'group' => 'Transaksi'],
-        ['label' => 'Request PO', 'module' => 'request_po', 'icon' => 'bi-file-earmark-text', 'roles' => permissionRoles('request_po', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Pembelian Offline', 'module' => 'offline_purchase', 'icon' => 'bi-shop', 'roles' => permissionRoles('offline_purchase', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Laporan', 'module' => 'report', 'icon' => 'bi-bar-chart-line', 'roles' => permissionRoles('report', 'view'), 'active' => true, 'group' => 'Laporan & Administrasi'],
         ['label' => 'User Management', 'module' => 'user', 'icon' => 'bi-people', 'roles' => permissionRoles('user', 'view'), 'active' => true, 'group' => 'Laporan & Administrasi'],

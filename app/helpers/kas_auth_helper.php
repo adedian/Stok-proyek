@@ -27,6 +27,7 @@ function kasExemptRoles(): array
 
 function kasIsExemptRole(?string $roleSlug): bool
 {
+    $roleSlug = roleAlias($roleSlug);
     return $roleSlug !== null && in_array($roleSlug, kasExemptRoles(), true);
 }
 
@@ -62,6 +63,7 @@ function kasSessionTimeout(): int
  */
 function kasDivisionForRole(?string $roleSlug): string
 {
+    $roleSlug = roleAlias($roleSlug);
     switch ($roleSlug) {
         case ROLE_PIC_PROJECT:
         case ROLE_ADMIN_PROJECT:
@@ -97,6 +99,7 @@ function kasDivisionLabel(string $division): string
 /** Daftar divisi yang boleh divalidasi oleh sebuah role. */
 function kasValidatableDivisions(?string $roleSlug): array
 {
+    $roleSlug = roleAlias($roleSlug);
     if ($roleSlug === ROLE_SUPER_ADMIN) {
         return ['accounting', 'purchase', 'project', 'umum'];
     }
@@ -286,6 +289,7 @@ function kasProjectGateRoles(): array
 
 function kasIsProjectGateRole(?string $roleSlug): bool
 {
+    $roleSlug = roleAlias($roleSlug);
     return $roleSlug !== null && in_array($roleSlug, kasProjectGateRoles(), true);
 }
 

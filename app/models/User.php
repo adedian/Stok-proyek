@@ -71,6 +71,7 @@ class User extends Model
                     WHEN 'super_admin'     THEN 1
                     WHEN 'project_manager' THEN 2
                     WHEN 'accounting'      THEN 3
+                    WHEN 'finance'         THEN 3
                     WHEN 'purchase'        THEN 4
                     WHEN 'pic_project'     THEN 5
                     WHEN 'admin_project'   THEN 6

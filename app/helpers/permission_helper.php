@@ -266,6 +266,7 @@ function can(string $module, string $action): bool
  */
 function canForUser(int $userId, ?string $role, string $module, string $action): bool
 {
+    $role = roleAlias($role); // Finance diperlakukan sebagai Accounting
     if (!$role) {
         return false;
     }

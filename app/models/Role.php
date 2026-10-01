@@ -7,14 +7,15 @@ class Role extends Model
 
     /**
      * Role yang boleh DIPILIH saat membuat/mengubah user (Revisi 9).
-     * 'finance' & 'gudang' dikecualikan -- baris rolenya tetap ada di DB
+     * 'gudang' dikecualikan (nonaktif); 'finance' DIAKTIFKAN KEMBALI (2026-10-05) sebagai alias Accounting
+     * (lihat roleAlias()). Baris role gudang tetap ada di DB
      * untuk histori, tapi tidak lagi ditawarkan sebagai pilihan aktif.
      */
     public function assignableList(): array
     {
         return $this->db->fetchAll(
             "SELECT * FROM roles
-              WHERE role_slug NOT IN ('finance','gudang')
+              WHERE role_slug NOT IN ('gudang')
               ORDER BY role_name ASC"
         );
     }

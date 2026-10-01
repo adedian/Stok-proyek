@@ -326,7 +326,7 @@ class UserController extends Controller
             $errors[] = 'Role wajib dipilih.';
         } else {
             // Revisi 9: cegah assign ke role yang sudah dinonaktifkan
-            // (finance/gudang) walau id-nya diselundupkan lewat POST.
+            // (gudang) walau id-nya diselundupkan lewat POST.
             $assignableIds = array_map(static fn($r) => (int) $r['id'], $this->roleModel->assignableList());
             if (!in_array((int) $data['role_id'], $assignableIds, true)) {
                 $errors[] = 'Role tidak valid / sudah tidak aktif.';

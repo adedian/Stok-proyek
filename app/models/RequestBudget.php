@@ -648,17 +648,14 @@ class RequestBudget extends Model
 
     /**
      * Kelengkapan data Purchase sebelum boleh "Dilengkapi" / diajukan ke Purwati/Nissa.
-     * Aturan sementara (menunggu template Excel): minimal 1 PO ATAU 1 Invoice, dan
-     * setiap PO/Invoice punya nomor + tanggal (dijaga NOT NULL di DB).
+     * PO, Invoice, dan dokumen pendukung SEMUANYA OPSIONAL (permintaan user): request boleh
+     * diajukan tanpa lampiran apa pun. Method dipertahankan sebagai satu titik aturan kalau
+     * nanti ada syarat wajib dari template Excel.
      * @return string[] daftar masalah; kosong = lengkap
      */
     public function purchaseDataProblems(int $id): array
     {
-        $problems = [];
-        if (count($this->pos($id)) === 0 && count($this->invoices($id)) === 0) {
-            $problems[] = 'Tambahkan minimal 1 PO atau 1 Invoice.';
-        }
-        return $problems;
+        return [];
     }
 
     /** Request ini punya file dengan path tsb? -> id request (untuk guard akses file). */

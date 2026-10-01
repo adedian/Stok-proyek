@@ -87,7 +87,7 @@ function roleLabelMap(): array
         ROLE_PIC_PROJECT     => 'PIC Project',
         ROLE_ADMIN_PROJECT   => 'Admin Project',
         ROLE_PROJECT_MANAGER => 'Project Manager',
-        ROLE_FINANCE         => 'Finance (nonaktif)',
+        ROLE_FINANCE         => 'Finance',
         ROLE_GUDANG          => 'Gudang (nonaktif)',
     ];
 }

@@ -153,7 +153,7 @@ if (!function_exists('renderTopbarAvatar')) {
                 <?= renderTopbarAvatar($avatarPhoto, $initials) ?>
                 <span class="d-none d-sm-block text-start">
                     <span class="d-block small lh-1"><?= e(currentUserName()) ?></span>
-                    <span class="d-block" style="font-size:.68rem; opacity:.75;"><?= e(roleSubtitle(currentUserRole())) ?></span>
+                    <span class="d-block" style="font-size:.68rem; opacity:.75;"><?= e(roleSubtitle(currentUserRealRole())) ?></span>
                 </span>
                 <i class="bi bi-chevron-down small"></i>
             </button>
@@ -162,7 +162,7 @@ if (!function_exists('renderTopbarAvatar')) {
                     <?= renderTopbarAvatar($avatarPhoto, $initials) ?>
                     <span>
                         <span class="d-block fw-semibold"><?= e(currentUserName()) ?></span>
-                        <span class="d-block small text-muted"><?= e(roleSubtitle(currentUserRole())) ?></span>
+                        <span class="d-block small text-muted"><?= e(roleSubtitle(currentUserRealRole())) ?></span>
                     </span>
                 </div>
                 <a class="dropdown-item px-3 py-2" href="<?= BASE_URL ?>/account">

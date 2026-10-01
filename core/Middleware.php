@@ -67,7 +67,7 @@ class Middleware
     {
         self::requireAuth();
 
-        $userRole = $_SESSION['role_slug'] ?? null;
+        $userRole = roleAlias($_SESSION['role_slug'] ?? null);
 
         if (!$userRole || !in_array($userRole, $allowedRoles, true)) {
             $module = $_GET['module'] ?? '-';

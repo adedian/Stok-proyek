@@ -30,3 +30,12 @@ Options -Indexes -ExecCGI -MultiViews
     Header set Content-Security-Policy "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; object-src 'none'"
     Header set Referrer-Policy "no-referrer"
 </IfModule>
+
+# --- Folder SENSITIF: tidak boleh dibuka langsung lewat URL ---
+# File di folder ini HANYA boleh dilayani FileController (cek login + hak akses modul).
+# FileController membaca lewat filesystem, jadi tidak terpengaruh aturan ini.
+# Daftar harus sama dengan FileController::GATED + request_budget.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(payments|bukti_pembelian|invoice_penerimaan|invoice|request_budget)/ - [F,L]
+</IfModule>

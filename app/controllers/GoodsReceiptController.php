@@ -15,6 +15,8 @@ require_once ROOT_PATH . '/app/models/Signature.php';
 
 class GoodsReceiptController extends Controller
 {
+    private const MSG_NO_VALID_ITEMS = 'Tidak ada item penerimaan yang valid -- pastikan item yang dipilih memang milik dokumen sumber. Data tidak disimpan.';
+
     private GoodsReceipt $receiptModel;
     private GoodsReceiptItem $receiptItemModel;
     private DeliveryDocument $documentModel;
@@ -193,7 +195,11 @@ class GoodsReceiptController extends Controller
                 'created_by'        => currentUserId(),
             ]);
 
-            $this->saveReceiptItems($receiptId, $data);
+            // Header tanpa item = data rusak (mis. po_item_id bukan milik PO ini):
+            // batalkan seluruh transaksi, jangan simpan penerimaan kosong.
+            if ($this->saveReceiptItems($receiptId, $data) === 0) {
+                throw new DomainException(self::MSG_NO_VALID_ITEMS);
+            }
             $this->saveDeliveryDocuments($receiptId);
 
             if ($data['purchase_order_id']) {
@@ -265,7 +271,7 @@ class GoodsReceiptController extends Controller
         } catch (Throwable $e) {
             $pdo->rollBack();
             error_log('Goods receipt store error: ' . $e->getMessage());
-            setFlash('error', 'Gagal menyimpan penerimaan barang. Silakan coba lagi.');
+            setFlash('error', $e instanceof DomainException ? $e->getMessage() : 'Gagal menyimpan penerimaan barang. Silakan coba lagi.');
             $this->redirect('goods_receipt', 'create', ['po_id' => $data['purchase_order_id']]);
         }
     }
@@ -434,7 +440,9 @@ class GoodsReceiptController extends Controller
             $this->receiptModel->updateById($id, $updateData);
 
             $this->receiptItemModel->deleteByReceipt($id);
-            $this->saveReceiptItems($id, $data);
+            if ($this->saveReceiptItems($id, $data) === 0) {
+                throw new DomainException(self::MSG_NO_VALID_ITEMS);
+            }
             $this->saveDeliveryDocuments($id);
 
             if ($data['purchase_order_id']) {
@@ -467,7 +475,7 @@ class GoodsReceiptController extends Controller
         } catch (Throwable $e) {
             $pdo->rollBack();
             error_log('Goods receipt update error: ' . $e->getMessage());
-            setFlash('error', 'Gagal memperbarui penerimaan barang.');
+            setFlash('error', $e instanceof DomainException ? $e->getMessage() : 'Gagal memperbarui penerimaan barang.');
             $this->redirect('goods_receipt', 'edit', ['id' => $id]);
         }
     }
@@ -970,8 +978,10 @@ class GoodsReceiptController extends Controller
      * ke inventory saat item ini DIVALIDASI (lihat ValidationController::validateItem()),
      * supaya barang yang belum/tidak lolos validasi tidak pernah dianggap stok valid.
      */
-    private function saveReceiptItems(int $receiptId, array $data): void
+    /** @return int jumlah baris item yang benar-benar tersimpan */
+    private function saveReceiptItems(int $receiptId, array $data): int
     {
+        $saved = 0;
         if ($data['receipt_type'] === 'purchase_order') {
             $poItemDetails = $this->receiptItemModel->poItemsForReceipt((int) $data['purchase_order_id'], $receiptId);
             $detailByPoItemId = [];
@@ -996,9 +1006,10 @@ class GoodsReceiptController extends Controller
                     'comparison_status'      => $status,
                     'created_by'             => currentUserId(),
                 ]);
+                $saved++;
             }
 
-            $this->saveMismatchItems($receiptId, $data['mismatchItems'] ?? []);
+            $saved += $this->saveMismatchItems($receiptId, $data['mismatchItems'] ?? []);
         } elseif ($data['receipt_type'] === 'offline_purchase') {
             $offlineItemDetails = $this->receiptItemModel->offlineItemsForReceipt((int) $data['offline_purchase_id'], $receiptId);
             $detailByOfflineItemId = [];
@@ -1023,9 +1034,10 @@ class GoodsReceiptController extends Controller
                     'comparison_status'        => $status,
                     'created_by'               => currentUserId(),
                 ]);
+                $saved++;
             }
 
-            $this->saveMismatchItems($receiptId, $data['mismatchItems'] ?? []);
+            $saved += $this->saveMismatchItems($receiptId, $data['mismatchItems'] ?? []);
         } else {
             foreach ($data['items'] as $item) {
                 $this->receiptItemModel->create([
@@ -1037,8 +1049,11 @@ class GoodsReceiptController extends Controller
                     'comparison_status' => 'sesuai', // tidak ada PO/Pembelian Offline untuk dibandingkan
                     'created_by'        => currentUserId(),
                 ]);
+                $saved++;
             }
         }
+
+        return $saved;
     }
 
     /**
@@ -1046,8 +1061,9 @@ class GoodsReceiptController extends Controller
      * Offline sama sekali -- baris terpisah, tidak terikat ke item manapun,
      * selalu ditandai Barang Lain. Dipakai bareng oleh alur PO & Pembelian Offline.
      */
-    private function saveMismatchItems(int $receiptId, array $mismatchItems): void
+    private function saveMismatchItems(int $receiptId, array $mismatchItems): int
     {
+        $saved = 0;
         foreach ($mismatchItems as $item) {
             $this->receiptItemModel->create([
                 'goods_receipt_id'       => $receiptId,
@@ -1060,7 +1076,9 @@ class GoodsReceiptController extends Controller
                 'comparison_status'      => 'barang_lain',
                 'created_by'             => currentUserId(),
             ]);
+            $saved++;
         }
+        return $saved;
     }
 
     /**

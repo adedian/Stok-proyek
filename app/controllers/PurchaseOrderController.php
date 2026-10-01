@@ -164,6 +164,13 @@ class PurchaseOrderController extends Controller
             $this->redirect('purchase_order', 'create');
         }
 
+        // Status 'Disetujui' hanya boleh diberikan user yang punya izin approve --
+        // opsi di form cuma di-disable di UI, jadi WAJIB dijaga di server juga.
+        if ($data['status'] === 'approved' && !can('purchase_order', 'approve')) {
+            setFlash('error', "Anda tidak punya izin menyetujui PO. Simpan sebagai Draft/Menunggu Approval.");
+            $this->redirect('purchase_order', 'create');
+        }
+
         assertPeriodOpen('purchase_order', $data['po_date'], 'purchase_order', 'create');
 
         $pdo = getPDO();
@@ -185,7 +192,7 @@ class PurchaseOrderController extends Controller
                 'quote_number' => $data['quote_number'],
                 'quote_date'   => $data['quote_date'],
                 'created_by'  => currentUserId(),
-            ]);
+            ] + ($data['status'] === 'approved' ? $this->approvalStamp() : []));
 
             $this->saveItems($poId, $data['items']);
             $this->saveExtraCosts($poId, $data['extra_costs']);
@@ -328,7 +335,7 @@ class PurchaseOrderController extends Controller
                 'signature_id' => $data['signature_id'],
                 'quote_number' => $data['quote_number'],
                 'quote_date'   => $data['quote_date'],
-            ]);
+            ] + ($data['status'] === 'approved' && empty($existing['approved_at']) ? $this->approvalStamp() : []));
 
             if (!$itemsLocked) {
                 $this->itemModel->deleteByPo($id);
@@ -553,9 +560,22 @@ class PurchaseOrderController extends Controller
      * diedit/dihapus lagi kecuali oleh Super Admin. Pola sama persis dengan
      * CashController::assertValidationAllowsChange() (Validasi Kas).
      */
+    /** Terkunci kalau pernah disetujui (approved_at) ATAU statusnya sudah Disetujui/Sebagian/Selesai. */
+    private function isApprovalLocked(array $po): bool
+    {
+        return !empty($po['approved_at'])
+            || in_array($po['status'] ?? '', ['approved', 'partial_received', 'completed'], true);
+    }
+
+    /** Cap persetujuan supaya PO berstatus Disetujui selalu punya approved_by/approved_at. */
+    private function approvalStamp(): array
+    {
+        return ['approved_by' => currentUserId(), 'approved_at' => date('Y-m-d H:i:s')];
+    }
+
     private function assertApprovalLock(array $po): void
     {
-        if (!empty($po['approved_at']) && currentUserRole() !== ROLE_SUPER_ADMIN) {
+        if ($this->isApprovalLocked($po) && currentUserRole() !== ROLE_SUPER_ADMIN) {
             denyAccess("Purchase Order '{$po['po_number']}' sudah disetujui -- tidak bisa diubah/dihapus. Hubungi Super Admin bila perlu koreksi.");
         }
     }

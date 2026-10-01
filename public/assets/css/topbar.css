@@ -165,7 +165,10 @@ img.app-user-avatar {
     border-radius: var(--radius);
     box-shadow: var(--shadow-md);
     padding: 0;
-    overflow: hidden;
+    overflow-x: hidden;
+    /* Daftar peringatan panjang harus bisa di-scroll di layar pendek, bukan terpotong. */
+    overflow-y: auto;
+    max-height: calc(100dvh - 76px);
 }
 
 .topbar-dropdown-header {

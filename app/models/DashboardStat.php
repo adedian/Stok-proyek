@@ -235,6 +235,19 @@ class DashboardStat
                 }
             }
         }
+        // Request PO -- menunggu approval user ini (hanya pemegang izin approve: Andy / Super Admin).
+        if (can('request_po', 'view') && can('request_po', 'approve')) {
+            require_once ROOT_PATH . '/app/models/RequestPo.php';
+            $count = (new RequestPo())->countAwaitingMyApproval();
+            if ($count > 0) {
+                $items[] = [
+                    'icon' => 'bi-file-earmark-text', 'variant' => 'info', 'title' => 'Request PO Menunggu Approval',
+                    'desc' => "{$count} Request PO menunggu approval Anda.",
+                    'url' => route('request_po', 'index', ['status' => RequestPo::PENDING_APPROVAL]),
+                    'cta' => 'Tinjau',
+                ];
+            }
+        }
         if ($settingModel->getBool('notify_selisih_barang', true) && can('validation', 'view')) {
             $count = $this->barangSelisihBelumValidasi();
             if ($count > 0) {

@@ -301,6 +301,19 @@ class RequestPo extends Model
         return $stmt->rowCount() > 0;
     }
 
+    /** Jumlah Request PO Menunggu Approval yang bisa ditindak user login (tanpa buatan sendiri, kecuali Super Admin). */
+    public function countAwaitingMyApproval(): int
+    {
+        $sql = "SELECT COUNT(*) AS n FROM request_pos WHERE deleted_at IS NULL AND status = :st";
+        $params = ['st' => self::PENDING_APPROVAL];
+        if (currentUserRole() !== ROLE_SUPER_ADMIN) {
+            $sql .= " AND created_by <> :me";
+            $params['me'] = (int) currentUserId();
+        }
+        $row = $this->db->fetchOne($sql, $params);
+        return (int) ($row['n'] ?? 0);
+    }
+
     /** Kunci baris (FOR UPDATE, di dalam transaksi) dan kembalikan status terkini; null = tidak ada. */
     public function lockStatus(int $id): ?string
     {

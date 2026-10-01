@@ -15,6 +15,11 @@ $btn = function (string $action, string $label, string $icon, string $class, ?st
 
 $apprBadge = ['PENDING' => ['warning text-dark', 'Menunggu'], 'APPROVED' => ['success', 'Approved'], 'REJECTED' => ['danger', 'Ditolak']];
 $slotDefs = RequestBudget::APPROVAL_SLOTS;
+// Giliran slot Purchase (mis. Andy) belum tiba: Project Manager (mis. Vicky) belum menyetujui.
+$mySlot = (new RequestBudget())->approvalSlotForCurrentUser();
+$waitingPm = $status === RequestBudget::PENDING_APPROVAL && $mySlot === 'purchase'
+    && (($approvals['purchase']['status'] ?? '') === 'PENDING') && (($approvals['pm']['status'] ?? '') !== 'APPROVED');
+$waitPmHtml = '<div class="alert alert-warning py-2 px-3 small mb-0 mt-2"><i class="bi bi-hourglass-split"></i> <strong>Menunggu persetujuan Project Manager.</strong> Approval Purchase baru bisa dilakukan setelah Project Manager menyetujui.</div>';
 $allApproved = !empty($approvals) && count(array_filter($approvals, fn($a) => $a['status'] !== 'APPROVED')) === 0;
 
 // ---- Stepper proses (dari data request, bukan dari frontend) ----
@@ -278,6 +283,7 @@ $delDoc = function (string $type, int $docId) use ($actions, $postUrl, $id) {
                         <?php if (!empty($actions['complete'])) { $btn('complete', 'Selesaikan', 'bi-check2-all', 'btn-dark', 'Selesaikan Request Budget ini?'); } ?>
                         <?php if (!empty($actions['delete'])) { $btn('delete', 'Hapus', 'bi-trash', 'btn-outline-danger', 'Hapus Request Budget ' . $rb['request_number'] . '?'); } ?>
                     </div>
+                    <?php if ($waitingPm) { echo $waitPmHtml; } ?>
                     <?php if ($status === RequestBudget::APPROVED && empty($actions['purchase_complete'])): ?>
                         <div class="form-text mt-2">Seluruh approval selesai. Menunggu Andy melengkapi PO/Invoice/dokumen.</div>
                     <?php elseif ($status === RequestBudget::PURCHASE_COMPLETED && empty($actions['forward'])): ?>
@@ -285,6 +291,8 @@ $delDoc = function (string $type, int $docId) use ($actions, $postUrl, $id) {
                     <?php endif; ?>
                 </div>
             </div>
+        <?php elseif ($waitingPm): ?>
+            <div class="card border-0 shadow-sm mb-3"><div class="card-body"><div class="card-section-title mb-0">Tindakan</div><?= $waitPmHtml ?></div></div>
         <?php elseif ($status === RequestBudget::APPROVED): ?>
             <div class="alert alert-info small mb-3">Seluruh approval selesai. Menunggu Andy melengkapi PO/Invoice/dokumen lalu mengajukannya ke Purwati/Nissa.</div>
         <?php endif; ?>

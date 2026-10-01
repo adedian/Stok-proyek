@@ -31,15 +31,57 @@ $btn = function (string $action, string $label, string $icon, string $class, ?st
     </div>
 </div>
 
-<?php if (in_array($status, [RequestBudget::REJECTED, RequestBudget::ACCOUNTING_REJECTED], true)): ?>
+<?php if ($status === RequestBudget::REJECTED): ?>
     <div class="alert alert-danger">
-        <strong><?= $status === RequestBudget::REJECTED ? 'Ditolak' : 'Ditolak Accounting' ?></strong>
-        oleh <?= e($status === RequestBudget::REJECTED ? ($rb['rejected_by_name'] ?? '-') : ($rb['accounting_rejected_by_name'] ?? '-')) ?>
-        pada <?= e($fmtDt($status === RequestBudget::REJECTED ? $rb['rejected_at'] : $rb['accounting_rejected_at'])) ?>.
-        <div class="mt-1"><strong>Alasan:</strong> <?= nl2br(e($status === RequestBudget::REJECTED ? $rb['rejection_reason'] : $rb['accounting_rejection_reason'])) ?></div>
+        <strong>Ditolak</strong> oleh <?= e($rb['rejected_by_name'] ?? '-') ?> pada <?= e($fmtDt($rb['rejected_at'])) ?>.
+        <div class="mt-1"><strong>Alasan:</strong> <?= nl2br(e($rb['rejection_reason'])) ?></div>
     </div>
 <?php endif; ?>
 
+<?php
+// Stepper proses: selesai (✓) / sedang menunggu (●) / belum (○) -- dari data request, bukan dari frontend.
+$st = $status;
+$done = fn(string ...$list) => in_array($st, $list, true);
+$steps = [];
+$steps[] = ['done', 'Request dibuat', 'Oleh: ' . $rb['requester_name'] . ($rb['requester_role'] ? ' — ' . $rb['requester_role'] : '')];
+if ($st === RequestBudget::DRAFT) {
+    $steps[] = ['wait', 'Submit', 'Belum diajukan'];
+} else {
+    $steps[] = ['done', 'Request submitted', $fmtDt($rb['submitted_at'])];
+}
+if ($st === RequestBudget::REJECTED) {
+    $steps[] = ['fail', 'Approval — Ditolak', 'Oleh: ' . ($rb['rejected_by_name'] ?? '-') . ' · ' . $fmtDt($rb['rejected_at'])];
+} elseif ($done(RequestBudget::APPROVED, RequestBudget::FORWARDED, RequestBudget::COMPLETED)) {
+    $steps[] = ['done', 'Approval', 'Approved by: ' . ($rb['approved_by_name'] ?? '-') . ' — ' . ($rb['approved_by_role'] ?? '-') . ' · ' . $fmtDt($rb['approved_at'])];
+} else {
+    $steps[] = [$st === RequestBudget::PENDING_APPROVAL ? 'wait' : 'todo', 'Approval', $st === RequestBudget::PENDING_APPROVAL ? 'Menunggu Andy / Vicky' : 'Belum diajukan'];
+}
+if ($done(RequestBudget::FORWARDED, RequestBudget::COMPLETED)) {
+    $steps[] = ['done', 'Diproses Purchase', 'Oleh: ' . ($rb['forwarded_by_name'] ?? '-') . ' — ' . ($rb['forwarded_by_role'] ?? '-')];
+    $steps[] = ['done', 'Diajukan ke ' . ($rb['forwarded_to'] ?: 'Purwati/Nissa'), $fmtDt($rb['forwarded_at'])];
+} else {
+    $steps[] = [$st === RequestBudget::APPROVED ? 'wait' : 'todo', 'Pengajuan Purchase', $st === RequestBudget::APPROVED ? 'Menunggu Andy' : 'Belum'];
+    $steps[] = ['todo', 'Purwati / Nissa', 'Belum diajukan'];
+}
+$steps[] = $st === RequestBudget::COMPLETED
+    ? ['done', 'Selesai', ($rb['completed_by_name'] ?? '-') . ' · ' . $fmtDt($rb['completed_at'])]
+    : [$st === RequestBudget::FORWARDED ? 'wait' : 'todo', 'Selesai', $st === RequestBudget::FORWARDED ? 'Menunggu hasil akhir' : 'Belum'];
+$icon = ['done' => '✓', 'wait' => '●', 'todo' => '○', 'fail' => '✕'];
+$color = ['done' => 'text-success', 'wait' => 'text-warning', 'todo' => 'text-muted', 'fail' => 'text-danger'];
+?>
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+        <div class="card-section-title mb-2">Proses Request <?= e($rb['request_number']) ?></div>
+        <ul class="list-unstyled mb-0 rb-steps">
+            <?php foreach ($steps as [$state, $title, $sub]): ?>
+                <li class="d-flex gap-2 mb-2 <?= $state === 'todo' ? 'opacity-75' : '' ?>">
+                    <span class="fw-bold <?= $color[$state] ?>" style="width:1.2rem"><?= $icon[$state] ?></span>
+                    <span><span class="fw-semibold"><?= e($title) ?></span><br><span class="small text-muted"><?= e($sub) ?></span></span>
+                </li>
+            <?php endforeach; ?>
+        </ul>
+    </div>
+</div>
 <div class="row g-3">
     <div class="col-lg-8">
         <div class="card border-0 shadow-sm mb-3">
@@ -89,10 +131,10 @@ $btn = function (string $action, string $label, string $icon, string $class, ?st
             </div>
         </div>
 
-        <?php $hasAction = array_intersect_key($actions, array_flip(['submit', 'approve', 'reject', 'revise', 'submit_accounting', 'accounting_process', 'accounting_reject', 'mark_received', 'complete', 'delete'])); ?>
+                <?php $hasAction = array_intersect_key($actions, array_flip(['submit', 'approve', 'reject', 'revise', 'forward', 'complete', 'delete'])); ?>
         <?php if ($hasAction): ?>
             <div class="card border-0 shadow-sm mb-3" id="aksi-tolak">
-                <div class="card-body">
+                <div class="card-body" id="aksi-teruskan">
                     <div class="card-section-title mb-2">Tindakan</div>
                     <div class="d-flex gap-2 flex-wrap align-items-center">
                         <?php if (!empty($actions['submit'])) { $btn('submit', 'Submit untuk Approval', 'bi-send', 'btn-success', 'Ajukan Request Budget ini untuk approval?'); } ?>
@@ -101,35 +143,32 @@ $btn = function (string $action, string $label, string $icon, string $class, ?st
                         <?php if (!empty($actions['reject'])): ?>
                             <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#rbRejectModal"><i class="bi bi-x-circle"></i> Tolak</button>
                         <?php endif; ?>
-                        <?php if (!empty($actions['submit_accounting'])) { $btn('submitAccounting', 'Ajukan ke Accounting', 'bi-box-arrow-in-right', 'btn-primary', 'Ajukan Request Budget ini ke Accounting?'); } ?>
-                        <?php if (!empty($actions['accounting_process'])) { $btn('accountingProcess', 'Proses', 'bi-gear', 'btn-primary', 'Proses Request Budget ini?'); } ?>
-                        <?php if (!empty($actions['accounting_reject'])): ?>
-                            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#rbAccRejectModal"><i class="bi bi-x-circle"></i> Tolak (Accounting)</button>
+                        <?php if (!empty($actions['forward'])): ?>
+                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#rbForwardModal"><i class="bi bi-box-arrow-in-right"></i> Teruskan ke Purwati/Nissa</button>
                         <?php endif; ?>
-                        <?php if (!empty($actions['mark_received'])) { $btn('markReceived', 'Dana Diterima', 'bi-cash-coin', 'btn-success', 'Tandai dana sudah diterima?'); } ?>
                         <?php if (!empty($actions['complete'])) { $btn('complete', 'Selesaikan', 'bi-check2-all', 'btn-dark', 'Selesaikan Request Budget ini?'); } ?>
                         <?php if (!empty($actions['delete'])) { $btn('delete', 'Hapus', 'bi-trash', 'btn-outline-danger', 'Hapus Request Budget ' . $rb['request_number'] . '?'); } ?>
                     </div>
+                    <?php if ($status === RequestBudget::APPROVED && empty($actions['forward'])): ?>
+                        <div class="form-text mt-2">Request ini sudah disetujui dan menunggu Andy meneruskannya ke Purwati/Nissa.</div>
+                    <?php endif; ?>
                 </div>
             </div>
         <?php endif; ?>
     </div>
-
     <div class="col-lg-4">
         <div class="card border-0 shadow-sm mb-3">
             <div class="card-body">
-                <div class="card-section-title mb-2">Approval &amp; Accounting</div>
+                <div class="card-section-title mb-2">Approval &amp; Pengajuan</div>
                 <dl class="row mb-0 small">
                     <dt class="col-5 text-muted">Diajukan</dt><dd class="col-7"><?= e($fmtDt($rb['submitted_at'])) ?></dd>
-                    <dt class="col-5 text-muted">Disetujui oleh</dt><dd class="col-7"><?= e($rb['approved_by_name'] ?? '-') ?><br><span class="text-muted"><?= e($fmtDt($rb['approved_at'])) ?></span></dd>
-                    <dt class="col-5 text-muted">Diajukan ke Accounting</dt><dd class="col-7"><?= e($rb['submitted_accounting_by_name'] ?? '-') ?><br><span class="text-muted"><?= e($fmtDt($rb['submitted_accounting_at'])) ?></span></dd>
-                    <dt class="col-5 text-muted">Diproses Accounting</dt><dd class="col-7"><?= e($rb['accounting_by_name'] ?? '-') ?><br><span class="text-muted"><?= e($fmtDt($rb['accounting_processed_at'])) ?></span></dd>
-                    <dt class="col-5 text-muted">Dana diterima</dt><dd class="col-7"><?= e($fmtDt($rb['funds_received_at'])) ?></dd>
+                    <dt class="col-5 text-muted">Approved by</dt><dd class="col-7"><?= e($rb['approved_by_name'] ?? '-') ?><?= !empty($rb['approved_by_role']) ? '<br><span class="text-muted">Role: ' . e($rb['approved_by_role']) . '</span>' : '' ?><br><span class="text-muted"><?= e($fmtDt($rb['approved_at'])) ?></span></dd>
+                    <dt class="col-5 text-muted">Diteruskan oleh</dt><dd class="col-7"><?= e($rb['forwarded_by_name'] ?? '-') ?><?= !empty($rb['forwarded_by_role']) ? '<br><span class="text-muted">Role: ' . e($rb['forwarded_by_role']) . '</span>' : '' ?><br><span class="text-muted"><?= e($fmtDt($rb['forwarded_at'])) ?></span></dd>
+                    <dt class="col-5 text-muted">Tujuan</dt><dd class="col-7"><?= e($rb['forwarded_to'] ?? '-') ?></dd>
                     <dt class="col-5 text-muted">Selesai</dt><dd class="col-7"><?= e($rb['completed_by_name'] ?? '-') ?><br><span class="text-muted"><?= e($fmtDt($rb['completed_at'])) ?></span></dd>
                 </dl>
             </div>
         </div>
-
         <div class="card border-0 shadow-sm">
             <div class="card-body">
                 <div class="card-section-title mb-3">Riwayat</div>
@@ -153,29 +192,45 @@ $btn = function (string $action, string $label, string $icon, string $class, ?st
     </div>
 </div>
 
-<?php foreach ([
-    'rbRejectModal'    => ['reject', 'Tolak Request Budget', 'Alasan Penolakan'],
-    'rbAccRejectModal' => ['accountingReject', 'Tolak Request Budget (Accounting)', 'Alasan Penolakan Accounting'],
-] as $modalId => [$act, $title, $label]): ?>
-    <?php if (($act === 'reject' && !empty($actions['reject'])) || ($act === 'accountingReject' && !empty($actions['accounting_reject']))): ?>
-        <div class="modal fade" id="<?= $modalId ?>" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-                <form method="POST" action="<?= e($postUrl($act)) ?>" class="modal-content rb-reason-form">
-                    <?= csrfField() ?>
-                    <input type="hidden" name="id" value="<?= $id ?>">
-                    <div class="modal-header"><h5 class="modal-title"><?= e($title) ?></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-                    <div class="modal-body">
-                        <label class="form-label"><?= e($label) ?> <span class="text-danger">*</span></label>
-                        <textarea name="reason" class="form-control" rows="3" required placeholder="mis. Harga estimasi terlalu tinggi, mohon revisi quantity."></textarea>
-                        <div class="invalid-feedback">Alasan wajib diisi.</div>
-                    </div>
-                    <div class="modal-footer"><button type="button" class="btn btn-light border" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-danger">Tolak</button></div>
-                </form>
-            </div>
+<?php if (!empty($actions['reject'])): ?>
+    <div class="modal fade" id="rbRejectModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form method="POST" action="<?= e($postUrl('reject')) ?>" class="modal-content rb-reason-form">
+                <?= csrfField() ?>
+                <input type="hidden" name="id" value="<?= $id ?>">
+                <div class="modal-header"><h5 class="modal-title">Tolak Request Budget</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <label class="form-label">Alasan Penolakan <span class="text-danger">*</span></label>
+                    <textarea name="reason" class="form-control" rows="3" required placeholder="mis. Harga estimasi terlalu tinggi, mohon revisi quantity."></textarea>
+                    <div class="invalid-feedback">Alasan wajib diisi.</div>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-light border" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-danger">Tolak</button></div>
+            </form>
         </div>
-    <?php endif; ?>
-<?php endforeach; ?>
-
+    </div>
+<?php endif; ?>
+<?php if (!empty($actions['forward'])): ?>
+    <div class="modal fade" id="rbForwardModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form method="POST" action="<?= e($postUrl('forward')) ?>" class="modal-content">
+                <?= csrfField() ?>
+                <input type="hidden" name="id" value="<?= $id ?>">
+                <div class="modal-header"><h5 class="modal-title">Teruskan ke Purwati / Nissa</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <label class="form-label">Tujuan Pengajuan <span class="text-danger">*</span></label>
+                    <select name="forward_to" class="form-select" required>
+                        <option value="">-- Pilih tujuan --</option>
+                        <?php foreach (RequestBudget::FORWARD_DESTINATIONS as $dest): ?>
+                            <option value="<?= e($dest) ?>"><?= e($dest) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <div class="form-text">Yang meneruskan: <?= e(currentUserName()) ?>. Pengajuan ini hanya mencatat alur &mdash; tidak membuat transaksi Kas/Pembayaran.</div>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-light border" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-primary">Teruskan</button></div>
+            </form>
+        </div>
+    </div>
+<?php endif; ?>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.rb-confirm').forEach(function (form) {

@@ -6,10 +6,15 @@ require_once ROOT_PATH . '/app/models/ProjectUserAccess.php';
  * RequestBudget -- pengajuan budget project (modul mandiri).
  *
  * Alur status (nilai DB konsisten, label Indonesia hanya di UI):
- *   DRAFT -> PENDING_APPROVAL -> APPROVED -> SUBMITTED_ACCOUNTING
- *         -> ACCOUNTING_PROCESS -> FUNDS_RECEIVED -> COMPLETED
+ *   DRAFT -> PENDING_APPROVAL -> APPROVED -> FORWARDED -> COMPLETED
  *   PENDING_APPROVAL -> REJECTED -> (revisi) DRAFT
- *   SUBMITTED_ACCOUNTING -> ACCOUNTING_REJECTED -> (revisi) DRAFT / (ajukan ulang) SUBMITTED_ACCOUNTING
+ *
+ *   - Approval boleh dilakukan Andy (Purchase) ATAU Vicky (PM); siapa yang approve
+ *     + role-nya dicatat (approved_by, approved_by_role, approved_at).
+ *   - APPROVED = "Menunggu Pengajuan Purchase": SETELAH approval (oleh siapa pun),
+ *     hanya pemilik izin 'forward' (Andy / Super Admin) yang boleh meneruskan ke
+ *     Purwati/Nissa -> FORWARDED (forwarded_by, forwarded_by_role, forwarded_at, forwarded_to).
+ *     Vicky sengaja TIDAK punya izin 'forward'.
  *
  * Semua perpindahan status lewat transition() yang memakai UPDATE bersyarat
  * (WHERE status = status_lama) sehingga validasi status dilakukan atomik di DB,
@@ -26,22 +31,16 @@ class RequestBudget extends Model
     public const PENDING_APPROVAL = 'PENDING_APPROVAL';
     public const APPROVED = 'APPROVED';
     public const REJECTED = 'REJECTED';
-    public const SUBMITTED_ACCOUNTING = 'SUBMITTED_ACCOUNTING';
-    public const ACCOUNTING_PROCESS = 'ACCOUNTING_PROCESS';
-    public const FUNDS_RECEIVED = 'FUNDS_RECEIVED';
+    public const FORWARDED = 'FORWARDED';
     public const COMPLETED = 'COMPLETED';
-    public const ACCOUNTING_REJECTED = 'ACCOUNTING_REJECTED';
 
     public const STATUS_LABELS = [
         self::DRAFT => 'Draft',
         self::PENDING_APPROVAL => 'Menunggu Approval',
-        self::APPROVED => 'Disetujui',
+        self::APPROVED => 'Disetujui - Menunggu Pengajuan Purchase',
         self::REJECTED => 'Ditolak',
-        self::SUBMITTED_ACCOUNTING => 'Diajukan ke Accounting',
-        self::ACCOUNTING_PROCESS => 'Diproses Accounting',
-        self::FUNDS_RECEIVED => 'Dana Diterima',
+        self::FORWARDED => 'Diajukan ke Purwati/Nissa',
         self::COMPLETED => 'Selesai',
-        self::ACCOUNTING_REJECTED => 'Ditolak Accounting',
     ];
 
     public const STATUS_BADGES = [
@@ -49,19 +48,12 @@ class RequestBudget extends Model
         self::PENDING_APPROVAL => 'warning text-dark',
         self::APPROVED => 'success',
         self::REJECTED => 'danger',
-        self::SUBMITTED_ACCOUNTING => 'info text-dark',
-        self::ACCOUNTING_PROCESS => 'primary',
-        self::FUNDS_RECEIVED => 'success',
+        self::FORWARDED => 'primary',
         self::COMPLETED => 'dark',
-        self::ACCOUNTING_REJECTED => 'danger',
     ];
 
-    /** Status yang sudah masuk ranah Accounting (daftar "Request Budget Masuk"). */
-    public const ACCOUNTING_STAGES = [
-        self::SUBMITTED_ACCOUNTING, self::ACCOUNTING_PROCESS, self::FUNDS_RECEIVED,
-        self::COMPLETED, self::ACCOUNTING_REJECTED,
-    ];
-
+    /** Tujuan pengajuan lanjutan (penerima, BUKAN hak akses -- Purwati belum punya akun di aplikasi). */
+    public const FORWARD_DESTINATIONS = ['Purwati', 'Nissa', 'Purwati & Nissa'];
     public static function statusLabel(?string $s): string
     {
         return self::STATUS_LABELS[$s] ?? (string) $s;
@@ -136,9 +128,8 @@ class RequestBudget extends Model
 
     /**
      * Cakupan lihat untuk user yang login:
-     *  - mode 'all'        : semua request (Super Admin, PM/Purchase dgn view_all + hak approve/ajukan)
-     *  - mode 'accounting' : hanya yang sudah diajukan ke Accounting (view_all tanpa hak approve)
-     *  - mode 'project'    : request buatan sendiri ATAU di project yang di-assign (Project > Akses)
+     *  - mode 'all'     : semua request (Super Admin, atau akun dengan izin view_all -- Vicky & Andy)
+     *  - mode 'project' : request buatan sendiri ATAU di project yang di-assign (Project > Akses)
      */
     public function scopeForCurrentUser(): array
     {
@@ -147,8 +138,7 @@ class RequestBudget extends Model
             return ['mode' => 'all', 'user_id' => $uid, 'project_ids' => []];
         }
         if (can('request_budget', 'view_all')) {
-            $approver = can('request_budget', 'approve') || can('request_budget', 'submit_accounting');
-            return ['mode' => $approver ? 'all' : 'accounting', 'user_id' => $uid, 'project_ids' => []];
+            return ['mode' => 'all', 'user_id' => $uid, 'project_ids' => []];
         }
         $ids = array_map(fn($p) => (int) $p['id'], (new ProjectUserAccess())->projectsForUser($uid));
         return ['mode' => 'project', 'user_id' => $uid, 'project_ids' => $ids];
@@ -159,15 +149,6 @@ class RequestBudget extends Model
     {
         if ($scope['mode'] === 'all') {
             return ['', []];
-        }
-        if ($scope['mode'] === 'accounting') {
-            $marks = [];
-            $params = [];
-            foreach (self::ACCOUNTING_STAGES as $i => $st) {
-                $marks[] = ":scst{$i}";
-                $params["scst{$i}"] = $st;
-            }
-            return [" AND {$a}.status IN (" . implode(', ', $marks) . ")", $params];
         }
         $sql = " AND ({$a}.requester_user_id = :scuid";
         $params = ['scuid' => $scope['user_id']];
@@ -189,9 +170,6 @@ class RequestBudget extends Model
         if ($scope['mode'] === 'all') {
             return true;
         }
-        if ($scope['mode'] === 'accounting') {
-            return in_array($rb['status'], self::ACCOUNTING_STAGES, true);
-        }
         return (int) $rb['requester_user_id'] === (int) $scope['user_id']
             || in_array((int) $rb['project_id'], $scope['project_ids'], true);
     }
@@ -199,16 +177,15 @@ class RequestBudget extends Model
     /** Project yang boleh dipilih saat membuat request: Super Admin semua, lainnya hanya yang di-assign. */
     public function selectableProjects(): array
     {
-        if (currentUserRole() === ROLE_SUPER_ADMIN) {
+        // Super Admin & akun dengan izin view_all (Purchase lintas project) boleh memilih semua
+        // project aktif; PIC/Admin Project hanya project yang di-assign (Project > Akses).
+        if (currentUserRole() === ROLE_SUPER_ADMIN || can('request_budget', 'view_all')) {
             return $this->db->fetchAll(
                 "SELECT id, project_code, project_name FROM projects
                   WHERE deleted_at IS NULL AND status != 'closed' ORDER BY project_name ASC"
             );
         }
-        return array_values(array_filter(
-            (new ProjectUserAccess())->projectsForUser((int) currentUserId()),
-            fn($p) => true
-        ));
+        return (new ProjectUserAccess())->projectsForUser((int) currentUserId());
     }
 
     public function projectAllowedForCreate(int $projectId): bool
@@ -231,7 +208,7 @@ class RequestBudget extends Model
                 JOIN projects p ON p.id = rb.project_id
                 JOIN users rq ON rq.id = rb.requester_user_id
                 LEFT JOIN users ap ON ap.id = rb.approved_by
-                LEFT JOIN users ac ON ac.id = rb.accounting_processed_by";
+                LEFT JOIN users fw ON fw.id = rb.forwarded_by";
     }
 
     /** @return array [where-sql, params] */
@@ -297,7 +274,7 @@ class RequestBudget extends Model
         $offset = max(0, $offset);
         return $this->db->fetchAll(
             "SELECT rb.*, p.project_name, rq.full_name AS requester_name,
-                    ap.full_name AS approved_by_name, ac.full_name AS accounting_by_name "
+                    ap.full_name AS approved_by_name, fw.full_name AS forwarded_by_name "
             . $this->baseFrom() . $where
             . " ORDER BY rb.request_date DESC, rb.id DESC LIMIT {$limit} OFFSET {$offset}",
             $params
@@ -307,22 +284,18 @@ class RequestBudget extends Model
     public function findWithRelations(int $id)
     {
         return $this->db->fetchOne(
-            "SELECT rb.*, p.project_name, p.project_code, rq.full_name AS requester_name,
+            "SELECT rb.*, p.project_name, p.project_code, rq.full_name AS requester_name, rqr.role_name AS requester_role,
                     ap.full_name AS approved_by_name, rj.full_name AS rejected_by_name,
-                    sa.full_name AS submitted_accounting_by_name,
-                    ac.full_name AS accounting_by_name, ar.full_name AS accounting_rejected_by_name,
-                    fr.full_name AS funds_received_by_name, cp.full_name AS completed_by_name,
+                    fw.full_name AS forwarded_by_name, cp.full_name AS completed_by_name,
                     sg_rq.signature_image AS requester_signature, sg_rq.name AS requester_signature_name,
                     sg_ap.signature_image AS approver_signature, sg_ap.name AS approver_signature_name
                FROM request_budgets rb
                JOIN projects p ON p.id = rb.project_id
                JOIN users rq ON rq.id = rb.requester_user_id
+               LEFT JOIN roles rqr ON rqr.id = rq.role_id
                LEFT JOIN users ap ON ap.id = rb.approved_by
                LEFT JOIN users rj ON rj.id = rb.rejected_by
-               LEFT JOIN users sa ON sa.id = rb.submitted_accounting_by
-               LEFT JOIN users ac ON ac.id = rb.accounting_processed_by
-               LEFT JOIN users ar ON ar.id = rb.accounting_rejected_by
-               LEFT JOIN users fr ON fr.id = rb.funds_received_by
+               LEFT JOIN users fw ON fw.id = rb.forwarded_by
                LEFT JOIN users cp ON cp.id = rb.completed_by
                LEFT JOIN signatures sg_rq ON sg_rq.user_id = rb.requester_user_id AND sg_rq.deleted_at IS NULL
                LEFT JOIN signatures sg_ap ON sg_ap.user_id = rb.approved_by AND sg_ap.deleted_at IS NULL
@@ -342,7 +315,8 @@ class RequestBudget extends Model
     public function history(int $id): array
     {
         return $this->db->fetchAll(
-            "SELECT h.*, u.full_name AS user_name, r.role_name
+            "SELECT h.id, h.request_budget_id, h.user_id, h.action, h.old_status, h.new_status, h.notes, h.created_at,
+                    u.full_name AS user_name, COALESCE(h.role_name, r.role_name) AS role_name
                FROM request_budget_history h
                LEFT JOIN users u ON u.id = h.user_id
                LEFT JOIN roles r ON r.id = u.role_id
@@ -351,11 +325,25 @@ class RequestBudget extends Model
         );
     }
 
+    /** Nama role (mis. 'PM', 'Purchase') pelaku -- disimpan sebagai snapshot di riwayat/approval/pengajuan. */
+    public function roleNameOf(?int $userId): ?string
+    {
+        if (!$userId) {
+            return null;
+        }
+        $row = $this->db->fetchOne(
+            "SELECT r.role_name FROM users u JOIN roles r ON r.id = u.role_id WHERE u.id = :id",
+            ['id' => $userId]
+        );
+        return $row['role_name'] ?? null;
+    }
+
     public function addHistory(int $id, ?int $userId, string $action, ?string $old, ?string $new, ?string $notes = null): void
     {
         $this->db->insert('request_budget_history', [
             'request_budget_id' => $id,
             'user_id'           => $userId,
+            'role_name'         => $this->roleNameOf($userId),
             'action'            => $action,
             'old_status'        => $old,
             'new_status'        => $new,

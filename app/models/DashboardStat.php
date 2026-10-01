@@ -212,8 +212,7 @@ class DashboardStat
             $rbScope = $rbModel->scopeForCurrentUser();
             $rbAlerts = [
                 ['approve', RequestBudget::PENDING_APPROVAL, 'Request Budget Menunggu Approval', 'menunggu approval Anda.', 'bi-wallet2', 'Tinjau'],
-                ['submit_accounting', RequestBudget::APPROVED, 'Request Budget Disetujui', 'disetujui dan siap diajukan ke Accounting.', 'bi-wallet2', 'Ajukan'],
-                ['accounting_process', RequestBudget::SUBMITTED_ACCOUNTING, 'Request Budget Masuk Accounting', 'menunggu proses Accounting.', 'bi-wallet2', 'Proses'],
+                ['forward', RequestBudget::APPROVED, 'Request Budget Menunggu Pengajuan', 'disetujui dan menunggu Anda meneruskannya ke Purwati/Nissa.', 'bi-wallet2', 'Teruskan'],
             ];
             foreach ($rbAlerts as [$perm, $st, $title, $desc, $icon, $cta]) {
                 if (!can('request_budget', $perm)) {

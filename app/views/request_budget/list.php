@@ -1,7 +1,6 @@
 <?php
 $canCreate = can('request_budget', 'create');
 $postUrl = fn(string $action) => BASE_URL . '/index.php?module=request_budget&action=' . $action;
-$isAccountingView = ($scopeMode ?? '') === 'accounting';
 
 // Satu form POST kecil untuk aksi baris (CSRF + konfirmasi). Server tetap memvalidasi ulang.
 $rowPost = function (int $id, string $action, string $label, string $icon, ?string $confirm, bool $danger = false) use ($postUrl) {
@@ -12,12 +11,8 @@ $rowPost = function (int $id, string $action, string $label, string $icon, ?stri
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
-        <h4 class="mb-0"><?= $isAccountingView ? 'Request Budget Masuk' : 'Request Budget' ?></h4>
-        <small class="text-muted">
-            <?= $isAccountingView
-                ? 'Pengajuan dana dari PM/Purchase yang menunggu proses Accounting'
-                : 'Pengajuan budget project &mdash; modul terpisah, tidak membuat transaksi PO/Kas/Stok' ?>
-        </small>
+        <h4 class="mb-0">Request Budget</h4>
+        <small class="text-muted">Pengajuan budget project &mdash; modul terpisah, tidak membuat transaksi PO/Kas/Stok</small>
     </div>
     <?php if ($canCreate): ?>
         <a href="<?= BASE_URL ?>/request_budget/create" class="btn btn-primary">
@@ -90,7 +85,7 @@ $rowPost = function (int $id, string $action, string $label, string $icon, ?stri
                         <th class="text-end">Total Budget</th>
                         <th>Status</th>
                         <th>Disetujui Oleh</th>
-                        <th>Accounting</th>
+                        <th>Diteruskan Ke</th>
                         <th class="text-center no-print">Aksi</th>
                     </tr>
                 </thead>
@@ -102,7 +97,7 @@ $rowPost = function (int $id, string $action, string $label, string $icon, ?stri
                                 <?php if (array_filter($filters)): ?>
                                     <div class="empty-title">Tidak ada Request Budget yang sesuai dengan pencarian.</div>
                                 <?php else: ?>
-                                    <div class="empty-title"><?= $isAccountingView ? 'Belum ada Request Budget masuk.' : 'Belum ada Request Budget.' ?></div>
+                                    <div class="empty-title">Belum ada Request Budget.</div>
                                 <?php endif; ?>
                                 <?php if ($canCreate): ?>
                                     <a href="<?= BASE_URL ?>/request_budget/create" class="btn btn-sm btn-primary"><i class="bi bi-plus-circle"></i> Tambah Request Budget</a>
@@ -123,8 +118,8 @@ $rowPost = function (int $id, string $action, string $label, string $icon, ?stri
                             <td data-label="Pengaju"><?= e($r['requester_name']) ?></td>
                             <td data-label="Total Budget" class="text-end"><?= formatRupiah($r['total_amount']) ?></td>
                             <td data-label="Status"><span class="badge bg-<?= e(RequestBudget::statusBadge($r['status'])) ?>"><?= e(RequestBudget::statusLabel($r['status'])) ?></span></td>
-                            <td data-label="Disetujui Oleh"><?= e($r['approved_by_name'] ?? '-') ?></td>
-                            <td data-label="Accounting"><?= e($r['accounting_by_name'] ?? '-') ?></td>
+                            <td data-label="Disetujui Oleh"><?= e($r['approved_by_name'] ?? '-') ?><?= !empty($r['approved_by_role']) ? '<div class="small text-muted">' . e($r['approved_by_role']) . '</div>' : '' ?></td>
+                            <td data-label="Diteruskan Ke"><?= e($r['forwarded_to'] ?? '-') ?><?= !empty($r['forwarded_by_name']) ? '<div class="small text-muted">oleh ' . e($r['forwarded_by_name']) . '</div>' : '' ?></td>
                             <td class="text-center no-print" data-label="Aksi">
                                 <div class="dropdown row-actions">
                                     <button type="button" class="btn btn-row-actions" data-bs-toggle="dropdown" aria-expanded="false" title="Aksi">
@@ -150,14 +145,8 @@ $rowPost = function (int $id, string $action, string $label, string $icon, ?stri
                                         <?php if (!empty($acts['reject'])): ?>
                                             <li><a class="dropdown-item text-danger" href="<?= BASE_URL ?>/request_budget/detail/<?= $id ?>#aksi-tolak"><i class="bi bi-x-circle"></i> Tolak</a></li>
                                         <?php endif; ?>
-                                        <?php if (!empty($acts['submit_accounting'])): ?>
-                                            <li><?php $rowPost($id, 'submitAccounting', 'Ajukan ke Accounting', 'bi-box-arrow-in-right', 'Ajukan ' . $r['request_number'] . ' ke Accounting?'); ?></li>
-                                        <?php endif; ?>
-                                        <?php if (!empty($acts['accounting_process'])): ?>
-                                            <li><?php $rowPost($id, 'accountingProcess', 'Proses', 'bi-gear', 'Proses Request Budget ' . $r['request_number'] . '?'); ?></li>
-                                        <?php endif; ?>
-                                        <?php if (!empty($acts['mark_received'])): ?>
-                                            <li><?php $rowPost($id, 'markReceived', 'Dana Diterima', 'bi-cash-coin', 'Tandai dana ' . $r['request_number'] . ' sudah diterima?'); ?></li>
+                                        <?php if (!empty($acts['forward'])): ?>
+                                            <li><a class="dropdown-item" href="<?= BASE_URL ?>/request_budget/detail/<?= $id ?>#aksi-teruskan"><i class="bi bi-box-arrow-in-right"></i> Teruskan ke Purwati/Nissa</a></li>
                                         <?php endif; ?>
                                         <?php if (!empty($acts['complete'])): ?>
                                             <li><?php $rowPost($id, 'complete', 'Selesaikan', 'bi-check2-all', 'Selesaikan Request Budget ' . $r['request_number'] . '?'); ?></li>

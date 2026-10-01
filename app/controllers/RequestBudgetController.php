@@ -275,25 +275,30 @@ class RequestBudgetController extends Controller
         $this->redirect('request_budget', 'detail', ['id' => $rb['id']]);
     }
 
-    /** PM/Purchase: PENDING_APPROVAL -> APPROVED */
+    /**
+     * Andy (Purchase) ATAU Vicky (PM) -- siapa pun yang punya izin approve.
+     * PENDING_APPROVAL -> APPROVED. Pelaku + role + waktu dicatat.
+     */
     public function approve()
     {
         Middleware::requirePermission('request_budget', 'approve');
         $rb = $this->startAction(false);
         $this->assertNotSelfApproval($rb);
         $this->assertStatus($rb, [RequestBudget::PENDING_APPROVAL], "Hanya Request Budget 'Menunggu Approval' yang bisa disetujui.");
+        $role = $this->rbModel->roleNameOf(currentUserId());
         $this->doTransition($rb, [RequestBudget::PENDING_APPROVAL], RequestBudget::APPROVED, 'approve',
-            ['approved_by' => currentUserId(), 'approved_at' => date('Y-m-d H:i:s')],
-            'Disetujui oleh ' . currentUserName(), 'disetujui');
+            ['approved_by' => currentUserId(), 'approved_at' => date('Y-m-d H:i:s'), 'approved_by_role' => $role],
+            'Disetujui oleh ' . currentUserName() . ' (' . $role . ')', 'disetujui oleh ' . currentUserName() . ' (' . $role . ')');
         $this->notifyUsers([(int) $rb['requester_user_id']], "Request Budget {$rb['request_number']} telah disetujui",
-            'Disetujui oleh ' . currentUserName(), (int) $rb['id']);
-        $this->notify('submit_accounting', "Request Budget {$rb['request_number']} disetujui",
-            'Siap diajukan ke Accounting', (int) $rb['id'], [(int) currentUserId(), (int) $rb['requester_user_id']]);
+            'Disetujui oleh ' . currentUserName() . ' (' . $role . ')', (int) $rb['id']);
+        // Siapa pun yang approve, yang berhak meneruskan (izin 'forward') diberi tahu.
+        $this->notify('forward', "Request Budget {$rb['request_number']} disetujui -- menunggu pengajuan Purchase",
+            'Disetujui oleh ' . currentUserName() . ' (' . $role . ')', (int) $rb['id'], [(int) $rb['requester_user_id']]);
         setFlash('success', 'Request Budget disetujui.');
         $this->redirect('request_budget', 'detail', ['id' => $rb['id']]);
     }
 
-    /** PM/Purchase: PENDING_APPROVAL -> REJECTED (alasan wajib) */
+    /** Pemilik izin reject: PENDING_APPROVAL -> REJECTED (alasan wajib) */
     public function reject()
     {
         Middleware::requirePermission('request_budget', 'reject');
@@ -313,99 +318,58 @@ class RequestBudgetController extends Controller
         $this->redirect('request_budget', 'detail', ['id' => $rb['id']]);
     }
 
-    /** Pengaju: REJECTED / ACCOUNTING_REJECTED -> DRAFT (revisi) */
+    /** Pengaju: REJECTED -> DRAFT (revisi) */
     public function revise()
     {
         Middleware::requirePermission('request_budget', 'edit');
         $rb = $this->startAction(true);
-        $this->assertStatus($rb, [RequestBudget::REJECTED, RequestBudget::ACCOUNTING_REJECTED], 'Hanya Request Budget yang ditolak yang bisa direvisi.');
-        // Kembali ke Draft = harus melewati approval lagi -> kosongkan jejak approval/accounting aktif.
-        $this->doTransition($rb, [RequestBudget::REJECTED, RequestBudget::ACCOUNTING_REJECTED], RequestBudget::DRAFT, 'revise', [
-            'approved_by' => null, 'approved_at' => null, 'submitted_at' => null,
-            'submitted_accounting_by' => null, 'submitted_accounting_at' => null,
+        $this->assertStatus($rb, [RequestBudget::REJECTED], 'Hanya Request Budget yang ditolak yang bisa direvisi.');
+        $this->doTransition($rb, [RequestBudget::REJECTED], RequestBudget::DRAFT, 'revise', [
+            'approved_by' => null, 'approved_at' => null, 'approved_by_role' => null, 'submitted_at' => null,
         ], 'Dibuka kembali untuk revisi', 'dibuka untuk revisi');
         setFlash('success', 'Request Budget dikembalikan ke Draft. Silakan revisi lalu ajukan kembali.');
         $this->redirect('request_budget', 'edit', ['id' => $rb['id']]);
     }
 
-    /** PM/Purchase: APPROVED / ACCOUNTING_REJECTED -> SUBMITTED_ACCOUNTING */
-    public function submitAccounting()
+    /**
+     * Teruskan ke Purwati/Nissa: APPROVED -> FORWARDED.
+     * HANYA pemilik izin 'forward' (Andy / Super Admin). Vicky boleh approve tetapi
+     * TIDAK punya izin ini, jadi request yang di-approve Vicky tetap harus diteruskan Andy.
+     * Izin dicek di Middleware (backend) + lagi di sini lewat availableActions-equivalent.
+     */
+    public function forward()
     {
-        Middleware::requirePermission('request_budget', 'submit_accounting');
+        Middleware::requirePermission('request_budget', 'forward');
         $rb = $this->startAction(false);
-        $this->assertStatus($rb, [RequestBudget::APPROVED, RequestBudget::ACCOUNTING_REJECTED], 'Request Budget harus berstatus Disetujui untuk diajukan ke Accounting.');
-        $this->doTransition($rb, [RequestBudget::APPROVED, RequestBudget::ACCOUNTING_REJECTED], RequestBudget::SUBMITTED_ACCOUNTING, 'submit_accounting',
-            ['submitted_accounting_by' => currentUserId(), 'submitted_accounting_at' => date('Y-m-d H:i:s')],
-            'Diajukan ke Accounting oleh ' . currentUserName(), 'diajukan ke Accounting');
-        $this->notify('accounting_process', "Request Budget {$rb['request_number']} membutuhkan proses Accounting",
-            'Rp ' . number_format((float) $rb['total_amount'], 0, ',', '.') . ' -- ' . $rb['project_name'], (int) $rb['id']);
-        setFlash('success', 'Request Budget diajukan ke Accounting.');
-        $this->redirect('request_budget', 'detail', ['id' => $rb['id']]);
-    }
-
-    /** Accounting: SUBMITTED_ACCOUNTING -> ACCOUNTING_PROCESS */
-    public function accountingProcess()
-    {
-        Middleware::requirePermission('request_budget', 'accounting_process');
-        $rb = $this->startAction(false);
-        $this->assertStatus($rb, [RequestBudget::SUBMITTED_ACCOUNTING], "Hanya Request Budget 'Diajukan ke Accounting' yang bisa diproses.");
-        $this->doTransition($rb, [RequestBudget::SUBMITTED_ACCOUNTING], RequestBudget::ACCOUNTING_PROCESS, 'accounting_process',
-            ['accounting_processed_by' => currentUserId(), 'accounting_processed_at' => date('Y-m-d H:i:s')],
-            'Diproses Accounting oleh ' . currentUserName(), 'diproses Accounting');
-        $this->notifyUsers([(int) $rb['requester_user_id']], "Request Budget {$rb['request_number']} sedang diproses Accounting", '', (int) $rb['id']);
-        setFlash('success', 'Request Budget diproses Accounting.');
-        $this->redirect('request_budget', 'detail', ['id' => $rb['id']]);
-    }
-
-    /** Accounting: SUBMITTED_ACCOUNTING -> ACCOUNTING_REJECTED (alasan wajib) */
-    public function accountingReject()
-    {
-        Middleware::requirePermission('request_budget', 'accounting_process');
-        $rb = $this->startAction(false);
-        $this->assertStatus($rb, [RequestBudget::SUBMITTED_ACCOUNTING], "Hanya Request Budget 'Diajukan ke Accounting' yang bisa ditolak Accounting.");
-        $reason = trim($_POST['reason'] ?? '');
-        if ($reason === '') {
-            setFlash('error', 'Alasan penolakan Accounting wajib diisi.');
+        $this->assertStatus($rb, [RequestBudget::APPROVED], "Hanya Request Budget yang sudah disetujui yang bisa diteruskan ke Purwati/Nissa.");
+        $dest = trim($_POST['forward_to'] ?? '');
+        if (!in_array($dest, RequestBudget::FORWARD_DESTINATIONS, true)) {
+            setFlash('error', 'Pilih tujuan pengajuan: ' . implode(' / ', RequestBudget::FORWARD_DESTINATIONS) . '.');
             $this->redirect('request_budget', 'detail', ['id' => $rb['id']]);
         }
-        $this->doTransition($rb, [RequestBudget::SUBMITTED_ACCOUNTING], RequestBudget::ACCOUNTING_REJECTED, 'accounting_reject', [
-            'accounting_rejected_by' => currentUserId(), 'accounting_rejected_at' => date('Y-m-d H:i:s'),
-            'accounting_rejection_reason' => $reason,
-        ], 'Ditolak Accounting oleh ' . currentUserName() . ': ' . $reason, 'ditolak Accounting: ' . $reason);
-        $this->notifyUsers(array_filter([(int) $rb['requester_user_id'], (int) $rb['submitted_accounting_by']]),
-            "Request Budget {$rb['request_number']} ditolak Accounting", $reason, (int) $rb['id']);
-        setFlash('success', 'Request Budget ditolak Accounting.');
+        $role = $this->rbModel->roleNameOf(currentUserId());
+        $this->doTransition($rb, [RequestBudget::APPROVED], RequestBudget::FORWARDED, 'forward',
+            ['forwarded_by' => currentUserId(), 'forwarded_at' => date('Y-m-d H:i:s'), 'forwarded_to' => $dest, 'forwarded_by_role' => $role],
+            'Diteruskan ke ' . $dest . ' oleh ' . currentUserName() . ' (' . $role . ')', 'diteruskan ke ' . $dest);
+        $this->notifyUsers([(int) $rb['requester_user_id'], (int) $rb['approved_by']],
+            "Request Budget {$rb['request_number']} diajukan ke {$dest}", 'Diteruskan oleh ' . currentUserName(), (int) $rb['id']);
+        setFlash('success', "Request Budget diteruskan ke {$dest}.");
         $this->redirect('request_budget', 'detail', ['id' => $rb['id']]);
     }
 
-    /** Accounting: ACCOUNTING_PROCESS -> FUNDS_RECEIVED */
-    public function markReceived()
-    {
-        Middleware::requirePermission('request_budget', 'mark_received');
-        $rb = $this->startAction(false);
-        $this->assertStatus($rb, [RequestBudget::ACCOUNTING_PROCESS], "Hanya Request Budget 'Diproses Accounting' yang bisa ditandai dana diterima.");
-        $this->doTransition($rb, [RequestBudget::ACCOUNTING_PROCESS], RequestBudget::FUNDS_RECEIVED, 'funds_received',
-            ['funds_received_by' => currentUserId(), 'funds_received_at' => date('Y-m-d H:i:s')],
-            'Dana diterima (dicatat ' . currentUserName() . ')', 'dana diterima');
-        $this->notifyUsers([(int) $rb['requester_user_id']], "Dana Request Budget {$rb['request_number']} diterima", '', (int) $rb['id']);
-        setFlash('success', 'Dana ditandai diterima.');
-        $this->redirect('request_budget', 'detail', ['id' => $rb['id']]);
-    }
-
-    /** Accounting: FUNDS_RECEIVED -> COMPLETED */
+    /** Pemilik izin 'complete' (Andy / Super Admin): FORWARDED -> COMPLETED */
     public function complete()
     {
         Middleware::requirePermission('request_budget', 'complete');
         $rb = $this->startAction(false);
-        $this->assertStatus($rb, [RequestBudget::FUNDS_RECEIVED], "Hanya Request Budget 'Dana Diterima' yang bisa diselesaikan.");
-        $this->doTransition($rb, [RequestBudget::FUNDS_RECEIVED], RequestBudget::COMPLETED, 'complete',
+        $this->assertStatus($rb, [RequestBudget::FORWARDED], "Hanya Request Budget 'Diajukan ke Purwati/Nissa' yang bisa diselesaikan.");
+        $this->doTransition($rb, [RequestBudget::FORWARDED], RequestBudget::COMPLETED, 'complete',
             ['completed_by' => currentUserId(), 'completed_at' => date('Y-m-d H:i:s')],
             'Request Budget diselesaikan oleh ' . currentUserName(), 'diselesaikan');
         $this->notifyUsers([(int) $rb['requester_user_id']], "Request Budget {$rb['request_number']} telah selesai", '', (int) $rb['id']);
         setFlash('success', 'Request Budget selesai.');
         $this->redirect('request_budget', 'detail', ['id' => $rb['id']]);
     }
-
     // =================== Hapus ===================
 
     public function delete()
@@ -472,7 +436,7 @@ class RequestBudgetController extends Controller
         if (can('request_budget', 'submit') && $isOwner && $s === RequestBudget::DRAFT) {
             $a['submit'] = true;
         }
-        if (can('request_budget', 'edit') && $isOwner && in_array($s, [RequestBudget::REJECTED, RequestBudget::ACCOUNTING_REJECTED], true)) {
+        if (can('request_budget', 'edit') && $isOwner && $s === RequestBudget::REJECTED) {
             $a['revise'] = true;
         }
         if ($s === RequestBudget::PENDING_APPROVAL && $notSelf) {
@@ -483,17 +447,11 @@ class RequestBudgetController extends Controller
                 $a['reject'] = true;
             }
         }
-        if (can('request_budget', 'submit_accounting') && in_array($s, [RequestBudget::APPROVED, RequestBudget::ACCOUNTING_REJECTED], true)) {
-            $a['submit_accounting'] = true;
+        // Teruskan ke Purwati/Nissa: hanya pemilik izin 'forward' (Andy/Super Admin), BUKAN Vicky.
+        if (can('request_budget', 'forward') && $s === RequestBudget::APPROVED) {
+            $a['forward'] = true;
         }
-        if (can('request_budget', 'accounting_process') && $s === RequestBudget::SUBMITTED_ACCOUNTING) {
-            $a['accounting_process'] = true;
-            $a['accounting_reject'] = true;
-        }
-        if (can('request_budget', 'mark_received') && $s === RequestBudget::ACCOUNTING_PROCESS) {
-            $a['mark_received'] = true;
-        }
-        if (can('request_budget', 'complete') && $s === RequestBudget::FUNDS_RECEIVED) {
+        if (can('request_budget', 'complete') && $s === RequestBudget::FORWARDED) {
             $a['complete'] = true;
         }
         if (can('request_budget', 'delete')) {

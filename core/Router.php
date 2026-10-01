@@ -104,6 +104,13 @@ class Router
             $this->notFound();
             return;
         }
+        // Method magic (__construct dst.) dan helper publik yang butuh argumen (mis.
+        // availableActions($rb), dipanggil dari view) BUKAN action: dipanggil lewat URL
+        // tanpa argumen akan jadi fatal error / memanggil ulang constructor.
+        if (strncmp($action, '__', 2) === 0 || $reflection->getNumberOfRequiredParameters() > 0) {
+            $this->notFound();
+            return;
+        }
 
         $controller->$action();
     }

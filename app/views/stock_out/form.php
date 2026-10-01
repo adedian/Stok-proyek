@@ -306,9 +306,17 @@ if (!$canClientDest) {
 
     // Daftar barang tersedia saat ini (di-refresh via AJAX tiap ganti Project/Invoice).
     let currentItems = [];
+    // Project tujuan saat daftar barang dimuat dari Project (null = mode Client/Invoice).
+    let itemsProjectCtx = null;
+
+    // Barang bukan milik project tujuan (milik project lain / Stok Kantor).
+    function isForeign(item) {
+        return itemsProjectCtx !== null && String(item.project_id || '') !== itemsProjectCtx;
+    }
 
     function optionLabel(item) {
-        const origin = ('project_name' in item) ? (', ' + (item.project_name || 'Stok Kantor')) : '';
+        const showOrigin = ('project_name' in item) || isForeign(item);
+        const origin = showOrigin ? (', ' + (item.project_name || 'Stok Kantor')) : '';
         return item.item_name + ' (stok: '
             + parseFloat(item.qty_available).toLocaleString('id-ID') + ' ' + item.unit + origin + ')';
     }
@@ -358,11 +366,55 @@ if (!$canClientDest) {
         if (!opt || !opt.value) {
             info.textContent = '';
             qtyInput.removeAttribute('max');
+            const staleWarn = row.querySelector('.so-foreign-warn');
+            if (staleWarn) { staleWarn.remove(); }
             return;
         }
         const avail = parseFloat(opt.dataset.qty || '0');
         info.innerHTML = 'Stok tersedia: <strong>' + avail.toLocaleString('id-ID') + ' ' + (opt.dataset.unit || '') + '</strong>';
         qtyInput.setAttribute('max', avail);
+        renderForeignWarning(row, sel);
+    }
+
+    // Peringatan bila barang yang dipilih bukan milik project tujuan: user harus
+    // memilih "Tetap lanjutkan" atau "Ganti barang" sebelum form bisa disimpan.
+    function renderForeignWarning(row, sel) {
+        let box = row.querySelector('.so-foreign-warn');
+        const item = currentItems.find(function (it) { return String(it.id) === String(sel.value); });
+        if (!item || !isForeign(item) || row.dataset.foreignOk === String(item.id)) {
+            if (box) { box.remove(); }
+            if (item && isForeign(item)) {
+                const info = row.querySelector('.so-stock-info');
+                info.insertAdjacentHTML('beforeend', '<span class="badge text-bg-warning ms-1">Bukan barang project ini</span>');
+            }
+            return;
+        }
+        if (!box) {
+            box = document.createElement('div');
+            box.className = 'so-foreign-warn alert alert-warning py-2 px-3 mt-2 mb-0 small';
+            row.querySelector('.so-stock-info').after(box);
+        }
+        const owner = item.project_name || 'Stok Kantor';
+        box.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i>'
+            + 'Barang <strong></strong> bukan milik project ini (milik: <strong></strong>). Tetap lanjutkan?'
+            + '<div class="d-flex gap-2 mt-2">'
+            + '<button type="button" class="btn btn-sm btn-warning so-foreign-continue">Tetap lanjutkan</button>'
+            + '<button type="button" class="btn btn-sm btn-outline-secondary so-foreign-change">Ganti barang</button></div>';
+        const strongs = box.querySelectorAll('strong');
+        strongs[0].textContent = item.item_name;
+        strongs[1].textContent = owner;
+        box.querySelector('.so-foreign-continue').addEventListener('click', function () {
+            row.dataset.foreignOk = String(item.id);
+            updateRowStock(row);
+        });
+        box.querySelector('.so-foreign-change').addEventListener('click', function () {
+            sel.value = '';
+            delete row.dataset.foreignOk;
+            updateRowStock(row);
+            renderAllRows();
+            if (window.resyncSearchableSelect) { window.resyncSearchableSelect(sel); }
+            sel.focus();
+        });
     }
 
     function newRow() {
@@ -398,6 +450,7 @@ if (!$canClientDest) {
 
     function resetItems(message) {
         currentItems = [];
+        itemsProjectCtx = null;
         // buang semua baris kecuali satu
         itemsBody.querySelectorAll('.so-item-row').forEach(function (r, i) {
             if (i === 0) {
@@ -411,7 +464,8 @@ if (!$canClientDest) {
         itemsHint.textContent = message || '';
     }
 
-    function loadItems(url, emptyMessage) {
+    function loadItems(url, emptyMessage, ctxProject) {
+        itemsProjectCtx = ctxProject ? String(ctxProject) : null;
         fetch(url)
             .then(function (res) { return res.json(); })
             .then(function (data) {
@@ -419,6 +473,7 @@ if (!$canClientDest) {
                     return {
                         id: it.id, item_name: it.item_name,
                         qty_available: it.qty_available, unit: it.unit,
+                        project_id: it.project_id,
                         project_name: ('project_name' in it) ? it.project_name : undefined
                     };
                 });
@@ -460,9 +515,11 @@ if (!$canClientDest) {
     });
 
     projectSelect.addEventListener('change', function () {
+        // Konfirmasi "Tetap lanjutkan" berlaku per project; ganti project = tanya ulang.
+        itemsBody.querySelectorAll('.so-item-row').forEach(function (r) { delete r.dataset.foreignOk; });
         if (!this.value) { resetItems('Pilih Project dulu untuk melihat barang yang tersedia.'); return; }
         loadItems('<?= BASE_URL ?>/index.php?module=stock_out&action=ajaxItemsByProject&project_id=' + this.value,
-            'Tidak ada barang dengan stok tersedia di project ini.');
+            'Tidak ada barang dengan stok tersedia.', this.value);
     });
 
     invoiceSelect.addEventListener('change', function () {
@@ -480,6 +537,12 @@ if (!$canClientDest) {
             const qtyInput = rows[i].querySelector('.so-qty-input');
             if (!sel.value) { continue; }
             filled++;
+            if (rows[i].querySelector('.so-foreign-warn')) {
+                e.preventDefault();
+                alert('Barang "' + sel.options[sel.selectedIndex].textContent + '" bukan milik project ini. Pilih "Tetap lanjutkan" atau "Ganti barang" dulu.');
+                rows[i].querySelector('.so-foreign-warn').scrollIntoView({ block: 'center' });
+                return;
+            }
             const max = parseFloat(qtyInput.getAttribute('max') || 'Infinity');
             const qty = parseFloat(qtyInput.value || '0');
             if (qty <= 0) {
@@ -505,7 +568,7 @@ if (!$canClientDest) {
     <?php if ($selectedProjectId): ?>
     if (projectSelect.value) {
         loadItems('<?= BASE_URL ?>/index.php?module=stock_out&action=ajaxItemsByProject&project_id=' + projectSelect.value,
-            'Tidak ada barang dengan stok tersedia di project ini.');
+            'Tidak ada barang dengan stok tersedia.', projectSelect.value);
     }
     <?php elseif ($selectedSalesInvoiceId): ?>
     if (invoiceSelect.value) { loadOfficeItems(); }

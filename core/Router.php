@@ -16,6 +16,7 @@ class Router
         'information'     => 'InformationController',
         'request_budget'  => 'RequestBudgetController',
         'request_budget_report' => 'RequestBudgetReportController',
+        'request_po'      => 'RequestPoController',
         'purchase_order'  => 'PurchaseOrderController',
         'payment'         => 'PaymentController',
         'goods_receipt'   => 'GoodsReceiptController',

@@ -408,6 +408,21 @@ return [
         'admin_delete' => [ROLE_SUPER_ADMIN],
     ],
 
+    // Request PO -- permintaan pembuatan PO (modul MANDIRI, tidak terhubung ke Request Budget/PO/Invoice/Kas).
+    // Dibuat Purchase -> Menunggu Approval -> Disetujui/Ditolak oleh Andy -> selesai (STOP).
+    // approve/reject SENGAJA hanya Super Admin lewat role: akun Andy mendapat izin approve/reject
+    // PER AKUN (user_permissions, lihat migrasi 2026_10_06_b_request_po_permissions.php),
+    // supaya Purchase lain tidak ikut bisa menyetujui. Role selain Purchase: tidak ada akses.
+    'request_po' => [
+        'view'    => [ROLE_SUPER_ADMIN, ROLE_PURCHASE],
+        'create'  => [ROLE_SUPER_ADMIN, ROLE_PURCHASE],
+        'edit'    => [ROLE_SUPER_ADMIN, ROLE_PURCHASE],
+        'delete'  => [ROLE_SUPER_ADMIN, ROLE_PURCHASE],
+        'submit'  => [ROLE_SUPER_ADMIN, ROLE_PURCHASE],
+        'approve' => [ROLE_SUPER_ADMIN],
+        'reject'  => [ROLE_SUPER_ADMIN],
+    ],
+
     // Laporan Request Budget (menu Laporan) -- BUKAN bagian akses Request Budget biasa.
     // Hanya Accounting & Super Admin; hanya MELIHAT/cetak/export, tanpa hak mengubah workflow.
     'request_budget_report' => [

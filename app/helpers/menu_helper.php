@@ -30,6 +30,7 @@ function appMenus(): array
         ['label' => 'Invoice Keluar', 'module' => 'sales_invoice', 'icon' => 'bi-cash-stack', 'roles' => permissionRoles('sales_invoice', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Tanda Terima', 'module' => 'collection_receipt', 'icon' => 'bi-journal-check', 'roles' => permissionRoles('collection_receipt', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Request Budget', 'module' => 'request_budget', 'icon' => 'bi-wallet2', 'roles' => permissionRoles('request_budget', 'view'), 'active' => true, 'group' => 'Transaksi'],
+        ['label' => 'Request PO', 'module' => 'request_po', 'icon' => 'bi-file-earmark-text', 'roles' => permissionRoles('request_po', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Pembelian Offline', 'module' => 'offline_purchase', 'icon' => 'bi-shop', 'roles' => permissionRoles('offline_purchase', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Laporan', 'module' => 'report', 'icon' => 'bi-bar-chart-line', 'roles' => permissionRoles('report', 'view'), 'active' => true, 'group' => 'Laporan & Administrasi'],
         ['label' => 'User Management', 'module' => 'user', 'icon' => 'bi-people', 'roles' => permissionRoles('user', 'view'), 'active' => true, 'group' => 'Laporan & Administrasi'],

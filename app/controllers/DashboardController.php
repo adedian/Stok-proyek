@@ -33,6 +33,7 @@ class DashboardController extends Controller
         'settings'         => 'bi-gear',
         'information'      => 'bi-info-circle',
         'request_budget'   => 'bi-wallet2',
+        'request_po'       => 'bi-file-earmark-text',
     ];
 
     public function __construct()

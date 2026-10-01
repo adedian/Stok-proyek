@@ -296,6 +296,13 @@ class RequestBudgetController extends Controller
         $this->assertNotSelfApproval($rb);
         $this->assertStatus($rb, [RequestBudget::PENDING_APPROVAL], "Hanya Request Budget 'Menunggu Approval' yang bisa disetujui.");
         $slots = $this->mySlots((int) $rb['id'], $rb);
+        // Urutan wajib: Purchase (Andy) baru boleh menyetujui SETELAH Project Manager (Vicky) menyetujui.
+        // (Super Admin yang mengisi dua slot sekaligus tetap diproses berurutan: PM dulu, lalu Purchase.)
+        $pmDone = ($this->rbModel->approvals((int) $rb['id'])['pm']['status'] ?? '') === 'APPROVED';
+        if (in_array('purchase', $slots, true) && !$pmDone && !in_array('pm', $slots, true)) {
+            setFlash('error', 'Approval Purchase baru bisa dilakukan setelah Project Manager menyetujui Request Budget ini.');
+            $this->redirect('request_budget', 'detail', ['id' => $rb['id']]);
+        }
         $note = trim($_POST['note'] ?? '') ?: null;
         $role = $this->rbModel->roleNameOf(currentUserId());
         $id = (int) $rb['id'];
@@ -349,6 +356,8 @@ class RequestBudgetController extends Controller
             $this->deny($rb, 'memberi approval tanpa slot approval');
         }
         $slots = $mine === 'all' ? $pending : array_values(array_intersect([$mine], $pending));
+        // urut sesuai alur approval: pm -> purchase
+        $slots = array_values(array_intersect(array_keys(RequestBudget::APPROVAL_SLOTS), $slots));
         if (!$slots) {
             setFlash('error', 'Tidak ada approval yang menunggu Anda pada Request Budget ini.');
             $this->redirect('request_budget', 'detail', ['id' => $id]);
@@ -701,7 +710,9 @@ class RequestBudgetController extends Controller
             $myPending = $mine === 'all'
                 ? (bool) array_filter($apps, fn($x) => $x['status'] === 'PENDING')
                 : ($mine !== null && ($apps[$mine]['status'] ?? '') === 'PENDING');
-            if ($myPending && can('request_budget', 'approve')) {
+            // Slot Purchase baru aktif setelah slot PM approved (Super Admin dikecualikan: mengisi berurutan).
+            $purchaseWaitsPm = $mine === 'purchase' && ($apps['pm']['status'] ?? '') !== 'APPROVED';
+            if ($myPending && !$purchaseWaitsPm && can('request_budget', 'approve')) {
                 $a['approve'] = true;
             }
             if ($myPending && can('request_budget', 'reject')) {

@@ -170,7 +170,7 @@ $delDoc = function (string $type, int $docId) use ($actions, $postUrl, $id) {
                     <?php endforeach; ?>
                 </div>
                 <?php if ($status === RequestBudget::PENDING_APPROVAL && !$allApproved): ?>
-                    <div class="form-text mt-2">Request baru masuk proses Purchase setelah KEDUA approval selesai.</div>
+                    <div class="form-text mt-2">Urutan approval: Project Manager dahulu, baru Purchase. Request baru masuk proses Purchase setelah KEDUA approval selesai.</div>
                 <?php endif; ?>
             </div>
         </div>

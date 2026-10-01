@@ -571,6 +571,10 @@ class RequestBudget extends Model
         }
         [$ssql, $sparams] = $this->scopeSql($scope);
         $slotSql = $slot === 'all' ? '' : ' AND a.slot = :myslot';
+        // Slot Purchase baru "menunggu" Purchase setelah slot PM approved.
+        $seqSql = $slot === 'purchase'
+            ? " AND EXISTS (SELECT 1 FROM request_budget_approvals pm WHERE pm.request_budget_id = rb.id AND pm.slot = 'pm' AND pm.status = 'APPROVED')"
+            : '';
         $params = $sparams;
         if ($slot !== 'all') {
             $params['myslot'] = $slot;
@@ -579,7 +583,7 @@ class RequestBudget extends Model
             "SELECT COUNT(DISTINCT rb.id) AS n
                FROM request_budgets rb
                JOIN request_budget_approvals a ON a.request_budget_id = rb.id AND a.status = 'PENDING'{$slotSql}
-              WHERE rb.deleted_at IS NULL AND rb.status = 'PENDING_APPROVAL'" . $ssql,
+              WHERE rb.deleted_at IS NULL AND rb.status = 'PENDING_APPROVAL'" . $seqSql . $ssql,
             $params
         );
         return (int) ($row['n'] ?? 0);

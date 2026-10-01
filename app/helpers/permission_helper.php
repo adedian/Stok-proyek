@@ -80,7 +80,7 @@ function permissionLabelMaps(): array
             'item_category' => 'Kategori Barang', 'unit' => 'Satuan', 'warehouse' => 'Gudang',
             'payment_method' => 'Metode Pembayaran', 'signature' => 'Tanda Tangan', 'dp_percentage' => 'Persentase DP',
             'settings' => 'Pengaturan Sistem', 'trash' => 'Tempat Sampah', 'period_lock' => 'Tutup Bulan',
-            'information' => 'Pusat Informasi',
+            'information' => 'Pusat Informasi', 'request_budget' => 'Request Budget',
         ],
         'actions' => [
             'view' => 'Lihat', 'create' => 'Tambah', 'edit' => 'Ubah', 'delete' => 'Hapus',
@@ -89,6 +89,9 @@ function permissionLabelMaps(): array
             'view_balance' => 'Lihat Saldo', 'close' => 'Tutup Periode', 'reopen' => 'Buka Kembali',
             'stock_price' => 'Lihat Harga (Laporan Stok)', 'stock_report' => 'Buka Laporan Stok Barang',
             'print_voucher' => 'Cetak Voucher Terpilih', 'manage_access' => 'Atur Akses Project',
+            'submit' => 'Ajukan (Submit)', 'reject' => 'Tolak', 'submit_accounting' => 'Ajukan ke Accounting',
+            'accounting_process' => 'Proses Accounting', 'mark_received' => 'Tandai Dana Diterima',
+            'view_all' => 'Lihat Semua Project', 'print' => 'Cetak', 'admin_delete' => 'Hapus Administratif',
         ],
     ];
 }
@@ -119,6 +122,9 @@ function activityLogActionLabel(string $slug): string
         'view' => 'Lihat', 'create' => 'Tambah', 'update' => 'Ubah', 'delete' => 'Hapus',
         'restore' => 'Pulihkan', 'force_delete' => 'Hapus Permanen', 'quick_add' => 'Tambah Cepat',
         'complete' => 'Selesaikan', 'approve' => 'Setujui', 'reject' => 'Tolak',
+        'submit' => 'Ajukan', 'submit_accounting' => 'Ajukan ke Accounting', 'accounting_process' => 'Proses Accounting',
+        'accounting_reject' => 'Tolak Accounting', 'funds_received' => 'Dana Diterima', 'revise' => 'Revisi',
+        'print' => 'Cetak', 'admin_delete' => 'Hapus Administratif',
         'close' => 'Tutup Periode', 'reopen' => 'Buka Periode',
         'login' => 'Login', 'logout' => 'Logout', 'login_failed' => 'Login Gagal',
         'toggle_status' => 'Ubah Status', 'change_password' => 'Ganti Password',

@@ -205,6 +205,32 @@ class DashboardStat
             }
         }
 
+        // Request Budget -- tindakan yang menunggu user ini (dibatasi izin + cakupan lihat).
+        if (can('request_budget', 'view')) {
+            require_once ROOT_PATH . '/app/models/RequestBudget.php';
+            $rbModel = new RequestBudget();
+            $rbScope = $rbModel->scopeForCurrentUser();
+            $rbAlerts = [
+                ['approve', RequestBudget::PENDING_APPROVAL, 'Request Budget Menunggu Approval', 'menunggu approval Anda.', 'bi-wallet2', 'Tinjau'],
+                ['submit_accounting', RequestBudget::APPROVED, 'Request Budget Disetujui', 'disetujui dan siap diajukan ke Accounting.', 'bi-wallet2', 'Ajukan'],
+                ['accounting_process', RequestBudget::SUBMITTED_ACCOUNTING, 'Request Budget Masuk Accounting', 'menunggu proses Accounting.', 'bi-wallet2', 'Proses'],
+            ];
+            foreach ($rbAlerts as [$perm, $st, $title, $desc, $icon, $cta]) {
+                if (!can('request_budget', $perm)) {
+                    continue;
+                }
+                $count = $rbModel->countByStatus($st, $rbScope);
+                if ($count > 0) {
+                    $items[] = [
+                        'icon' => $icon, 'variant' => 'info', 'title' => $title,
+                        'desc' => "{$count} Request Budget " . $desc,
+                        'url' => route('request_budget', 'index', ['status' => $st]),
+                        'cta' => $cta,
+                    ];
+                }
+            }
+        }
+
         if ($settingModel->getBool('notify_selisih_barang', true) && can('validation', 'view')) {
             $count = $this->barangSelisihBelumValidasi();
             if ($count > 0) {

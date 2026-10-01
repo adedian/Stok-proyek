@@ -380,6 +380,32 @@ return [
         'delete' => [ROLE_SUPER_ADMIN],
     ],
 
+    // Request Budget -- pengajuan budget project (modul mandiri, tanpa efek ke PO/Kas/Stok).
+    // Alur: Tim Project buat+submit -> PM/Purchase approve -> PM/Purchase ajukan ke
+    // Accounting -> Accounting proses -> dana diterima -> selesai.
+    //   view_all : lihat semua project (tanpa ini hanya request sendiri / project yang
+    //              di-assign lewat Project > Akses). Accounting hanya melihat yang sudah
+    //              diajukan ke Accounting.
+    //   admin_delete : hapus administratif di status apa pun (khusus Super Admin, tercatat log).
+    // PM sengaja TIDAK create/edit/submit (aturan global PM = view only untuk transaksi),
+    // tapi boleh approve/reject/ajukan ke Accounting.
+    'request_budget' => [
+        'view'                => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT, ROLE_PROJECT_MANAGER],
+        'create'              => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT],
+        'edit'                => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT],
+        'delete'              => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT],
+        'submit'              => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT],
+        'approve'             => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_PROJECT_MANAGER],
+        'reject'              => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_PROJECT_MANAGER],
+        'submit_accounting'   => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_PROJECT_MANAGER],
+        'accounting_process'  => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'mark_received'       => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'complete'            => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'view_all'            => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PROJECT_MANAGER],
+        'print'               => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT, ROLE_PROJECT_MANAGER],
+        'admin_delete'        => [ROLE_SUPER_ADMIN],
+    ],
+
     // Tempat Sampah -- administratif lintas modul, khusus Super Admin.
     'trash' => [
         'view'         => [ROLE_SUPER_ADMIN],

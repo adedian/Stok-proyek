@@ -32,6 +32,7 @@ class DashboardController extends Controller
         'warehouse'        => 'bi-building',
         'settings'         => 'bi-gear',
         'information'      => 'bi-info-circle',
+        'request_budget'   => 'bi-wallet2',
     ];
 
     public function __construct()

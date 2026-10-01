@@ -76,6 +76,17 @@
         $kpis[] = ['icon' => 'bi-receipt', 'color' => 'purple', 'label' => 'Invoice Belum Tertagih', 'value' => (int) $stats['invoice_pending'],
             'url' => route('sales_invoice', 'index', ['billing_status' => 'belum_tertagih'])];
     }
+    if (can('request_budget', 'view')) {
+        require_once ROOT_PATH . '/app/models/RequestBudget.php';
+        $rbm = new RequestBudget();
+        $rbScope = $rbm->scopeForCurrentUser();
+        $kpis[] = ['icon' => 'bi-wallet2', 'color' => 'info', 'label' => 'Request Budget', 'value' => $rbm->countVisible($rbScope),
+            'url' => route('request_budget')];
+        if (can('request_budget', 'approve')) {
+            $kpis[] = ['icon' => 'bi-hourglass-split', 'color' => 'warning', 'label' => 'Budget Menunggu Approval', 'value' => $rbm->countByStatus(RequestBudget::PENDING_APPROVAL, $rbScope),
+                'url' => route('request_budget', 'index', ['status' => RequestBudget::PENDING_APPROVAL])];
+        }
+    }
     if (can('offline_purchase', 'view')) {
         $kpis[] = ['icon' => 'bi-shop', 'color' => 'brand', 'label' => 'Pembelian Offline', 'value' => (int) $stats['pembelian_offline'],
             'url' => route('offline_purchase')];

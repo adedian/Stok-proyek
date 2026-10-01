@@ -45,13 +45,31 @@ class FileController extends Controller
         }
         $folder = $m[1];
 
-        if (!isset(self::GATED[$folder])) {
+        // Dokumen Request Budget (PO/Invoice/pendukung): boleh dibuka oleh yang berhak melihat REQUEST-nya
+        // (scope project, lewat RequestBudget::canView) ATAU oleh pengakses Laporan Request Budget
+        // (Accounting/Super Admin). Pemilik file dicari dari DB -> tidak bisa ditebak lewat nama file.
+        if ($folder === 'request_budget') {
+            require_once ROOT_PATH . '/app/models/RequestBudget.php';
+            $rbm = new RequestBudget();
+            $rbId = $rbm->requestIdByFilePath($rel);
+            if (!$rbId) {
+                $this->deny(404);
+            }
+            $allowed = can('request_budget_report', 'view');
+            if (!$allowed && can('request_budget', 'view')) {
+                $rbRow = $rbm->find($rbId);
+                $allowed = $rbRow && $rbm->canView($rbRow);
+            }
+            if (!$allowed) {
+                $this->deny(403);
+            }
+        } elseif (!isset(self::GATED[$folder])) {
             // Folder publik tidak seharusnya lewat sini -- arahkan balik ke URL langsung.
             header('Location: ' . BASE_URL . '/' . $rel);
             exit;
         }
 
-        if (!can(self::GATED[$folder], 'view')) {
+        if ($folder !== 'request_budget' && !can(self::GATED[$folder], 'view')) {
             $this->deny(403);
         }
 

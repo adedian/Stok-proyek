@@ -136,6 +136,7 @@ class RequestBudgetController extends Controller
             $this->rbModel->replaceItems($id, $items);
             $this->rbModel->addHistory($id, currentUserId(), 'create', null, RequestBudget::DRAFT, "Request Budget {$number} dibuat");
             if ($submitNow) {
+                $this->rbModel->createApprovals($id);
                 $this->rbModel->addHistory($id, currentUserId(), 'submit', RequestBudget::DRAFT, $status, 'Diajukan untuk approval');
             }
             $pdo->commit();
@@ -169,6 +170,11 @@ class RequestBudgetController extends Controller
             'items'     => $this->rbModel->items((int) $rb['id']),
             'history'   => $this->rbModel->history((int) $rb['id']),
             'actions'   => $this->availableActions($rb),
+            'approvals' => $this->rbModel->approvals((int) $rb['id']),
+            'pos'       => $this->rbModel->pos((int) $rb['id']),
+            'invoices'  => $this->rbModel->invoices((int) $rb['id']),
+            'attachments' => $this->rbModel->attachments((int) $rb['id']),
+            'forwardProblems' => $this->rbModel->purchaseDataProblems((int) $rb['id']),
         ]);
     }
 
@@ -232,6 +238,7 @@ class RequestBudgetController extends Controller
             if ($submitNow) {
                 $ok = $this->rbModel->transition($id, [RequestBudget::DRAFT], RequestBudget::PENDING_APPROVAL, ['submitted_at' => date('Y-m-d H:i:s')]);
                 if ($ok) {
+                    $this->rbModel->createApprovals($id);
                     $this->rbModel->addHistory($id, currentUserId(), 'submit', RequestBudget::DRAFT, RequestBudget::PENDING_APPROVAL, 'Diajukan untuk approval');
                 }
             }
@@ -269,6 +276,7 @@ class RequestBudgetController extends Controller
         }
         $this->doTransition($rb, [RequestBudget::DRAFT], RequestBudget::PENDING_APPROVAL, 'submit',
             ['submitted_at' => date('Y-m-d H:i:s')], 'Diajukan untuk approval', 'diajukan untuk approval');
+        $this->rbModel->createApprovals((int) $rb['id']);
         $this->notify('approve', "Request Budget {$rb['request_number']} menunggu approval",
             'Diajukan oleh ' . currentUserName() . ' -- Rp ' . number_format((float) $rb['total_amount'], 0, ',', '.'), (int) $rb['id']);
         setFlash('success', 'Request Budget diajukan dan menunggu approval.');
@@ -276,8 +284,10 @@ class RequestBudgetController extends Controller
     }
 
     /**
-     * Andy (Purchase) ATAU Vicky (PM) -- siapa pun yang punya izin approve.
-     * PENDING_APPROVAL -> APPROVED. Pelaku + role + waktu dicatat.
+     * Approval per SLOT: 'pm' (Project Manager, mis. Vicky) dan 'purchase' (mis. Andy), disimpan
+     * terpisah di request_budget_approvals. User hanya bisa mengisi slot sesuai role-nya;
+     * Super Admin mengisi semua slot yang masih pending. Request baru berstatus APPROVED
+     * kalau KEDUANYA sudah APPROVED -- sebelum itu tetap "Menunggu Approval".
      */
     public function approve()
     {
@@ -285,20 +295,68 @@ class RequestBudgetController extends Controller
         $rb = $this->startAction(false);
         $this->assertNotSelfApproval($rb);
         $this->assertStatus($rb, [RequestBudget::PENDING_APPROVAL], "Hanya Request Budget 'Menunggu Approval' yang bisa disetujui.");
+        $slots = $this->mySlots((int) $rb['id'], $rb);
+        $note = trim($_POST['note'] ?? '') ?: null;
         $role = $this->rbModel->roleNameOf(currentUserId());
-        $this->doTransition($rb, [RequestBudget::PENDING_APPROVAL], RequestBudget::APPROVED, 'approve',
-            ['approved_by' => currentUserId(), 'approved_at' => date('Y-m-d H:i:s'), 'approved_by_role' => $role],
-            'Disetujui oleh ' . currentUserName() . ' (' . $role . ')', 'disetujui oleh ' . currentUserName() . ' (' . $role . ')');
-        $this->notifyUsers([(int) $rb['requester_user_id']], "Request Budget {$rb['request_number']} telah disetujui",
-            'Disetujui oleh ' . currentUserName() . ' (' . $role . ')', (int) $rb['id']);
-        // Siapa pun yang approve, yang berhak meneruskan (izin 'forward') diberi tahu.
-        $this->notify('forward', "Request Budget {$rb['request_number']} disetujui -- menunggu pengajuan Purchase",
-            'Disetujui oleh ' . currentUserName() . ' (' . $role . ')', (int) $rb['id'], [(int) $rb['requester_user_id']]);
-        setFlash('success', 'Request Budget disetujui.');
-        $this->redirect('request_budget', 'detail', ['id' => $rb['id']]);
+        $id = (int) $rb['id'];
+
+        $pdo = getPDO();
+        $allDone = false;
+        try {
+            $pdo->beginTransaction();
+            $n = $this->rbModel->actApprovals($id, $slots, 'APPROVED', currentUserId(), $role, $note);
+            if ($n === 0) {
+                $pdo->rollBack();
+                setFlash('error', 'Approval Anda sudah tercatat atau status sudah berubah. Muat ulang halaman.');
+                $this->redirect('request_budget', 'detail', ['id' => $id]);
+            }
+            $this->rbModel->addHistory($id, currentUserId(), 'approve', $rb['status'], RequestBudget::PENDING_APPROVAL,
+                'Approval ' . implode(' & ', array_map(fn($k) => RequestBudget::APPROVAL_SLOTS[$k]['label'], $slots)) . ' oleh ' . currentUserName() . ' (' . $role . ')' . ($note ? ': ' . $note : ''));
+            if (!$this->rbModel->pendingApprovalSlots($id)) {
+                $allDone = $this->rbModel->transition($id, [RequestBudget::PENDING_APPROVAL], RequestBudget::APPROVED,
+                    ['approved_by' => currentUserId(), 'approved_at' => date('Y-m-d H:i:s'), 'approved_by_role' => $role]);
+                if ($allDone) {
+                    $this->rbModel->addHistory($id, currentUserId(), 'approved_all', RequestBudget::PENDING_APPROVAL, RequestBudget::APPROVED, 'Seluruh approval selesai -- menunggu proses Purchase');
+                }
+            }
+            $pdo->commit();
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            error_log('RequestBudget approve error: ' . $e->getMessage());
+            setFlash('error', 'Gagal memproses approval.');
+            $this->redirect('request_budget', 'detail', ['id' => $id]);
+        }
+        $this->logAct('approve', $id, $rb['request_number'], 'disetujui oleh ' . currentUserName() . ' (' . $role . ')' . ($allDone ? ' -- seluruh approval selesai' : ' -- menunggu approval lain'));
+        if ($allDone) {
+            $this->notifyUsers([(int) $rb['requester_user_id']], "Request Budget {$rb['request_number']} telah disetujui", 'Seluruh approval selesai', $id);
+            $this->notify('purchase_process', "Request Budget {$rb['request_number']} menunggu proses Purchase",
+                'Approval selesai -- lengkapi PO/Invoice lalu ajukan', $id, [(int) $rb['requester_user_id']]);
+            setFlash('success', 'Approval Anda tercatat. Seluruh approval selesai -- Request Budget menunggu proses Purchase.');
+        } else {
+            setFlash('success', 'Approval Anda tercatat. Request Budget masih menunggu approval pihak lain.');
+        }
+        $this->redirect('request_budget', 'detail', ['id' => $id]);
     }
 
-    /** Pemilik izin reject: PENDING_APPROVAL -> REJECTED (alasan wajib) */
+    /** Slot approval yang akan diisi user ini (anti-IDOR/anti-tebakan: dihitung server dari role + status slot). */
+    private function mySlots(int $id, array $rb): array
+    {
+        $mine = $this->rbModel->approvalSlotForCurrentUser();
+        $pending = $this->rbModel->pendingApprovalSlots($id);
+        if ($mine === null) {
+            $this->deny($rb, 'memberi approval tanpa slot approval');
+        }
+        $slots = $mine === 'all' ? $pending : array_values(array_intersect([$mine], $pending));
+        if (!$slots) {
+            setFlash('error', 'Tidak ada approval yang menunggu Anda pada Request Budget ini.');
+            $this->redirect('request_budget', 'detail', ['id' => $id]);
+        }
+        return $slots;
+    }
+
+    /** Pemilik izin reject (pada slot yang masih menunggunya): PENDING_APPROVAL -> REJECTED (alasan wajib) */
     public function reject()
     {
         Middleware::requirePermission('request_budget', 'reject');
@@ -310,15 +368,37 @@ class RequestBudgetController extends Controller
             setFlash('error', 'Alasan penolakan wajib diisi.');
             $this->redirect('request_budget', 'detail', ['id' => $rb['id']]);
         }
-        $this->doTransition($rb, [RequestBudget::PENDING_APPROVAL], RequestBudget::REJECTED, 'reject',
-            ['rejected_by' => currentUserId(), 'rejected_at' => date('Y-m-d H:i:s'), 'rejection_reason' => $reason],
-            'Ditolak oleh ' . currentUserName() . ': ' . $reason, 'ditolak: ' . $reason);
-        $this->notifyUsers([(int) $rb['requester_user_id']], "Request Budget {$rb['request_number']} ditolak", $reason, (int) $rb['id']);
+        $id = (int) $rb['id'];
+        $slots = $this->mySlots($id, $rb);
+        $role = $this->rbModel->roleNameOf(currentUserId());
+        $pdo = getPDO();
+        try {
+            $pdo->beginTransaction();
+            if ($this->rbModel->actApprovals($id, $slots, 'REJECTED', currentUserId(), $role, $reason) === 0
+                || !$this->rbModel->transition($id, [RequestBudget::PENDING_APPROVAL], RequestBudget::REJECTED,
+                    ['rejected_by' => currentUserId(), 'rejected_at' => date('Y-m-d H:i:s'), 'rejection_reason' => $reason])) {
+                $pdo->rollBack();
+                setFlash('error', 'Status Request Budget sudah berubah. Muat ulang halaman.');
+                $this->redirect('request_budget', 'detail', ['id' => $id]);
+            }
+            $this->rbModel->addHistory($id, currentUserId(), 'reject', $rb['status'], RequestBudget::REJECTED,
+                'Ditolak oleh ' . currentUserName() . ' (' . $role . '): ' . $reason);
+            $pdo->commit();
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            error_log('RequestBudget reject error: ' . $e->getMessage());
+            setFlash('error', 'Gagal menolak Request Budget.');
+            $this->redirect('request_budget', 'detail', ['id' => $id]);
+        }
+        $this->logAct('reject', $id, $rb['request_number'], 'ditolak: ' . $reason);
+        $this->notifyUsers([(int) $rb['requester_user_id']], "Request Budget {$rb['request_number']} ditolak", $reason, $id);
         setFlash('success', 'Request Budget ditolak.');
-        $this->redirect('request_budget', 'detail', ['id' => $rb['id']]);
+        $this->redirect('request_budget', 'detail', ['id' => $id]);
     }
 
-    /** Pengaju: REJECTED -> DRAFT (revisi) */
+    /** Pengaju: REJECTED -> DRAFT (revisi). Approval lama dihapus; submit ulang membuat slot baru. */
     public function revise()
     {
         Middleware::requirePermission('request_budget', 'edit');
@@ -327,36 +407,211 @@ class RequestBudgetController extends Controller
         $this->doTransition($rb, [RequestBudget::REJECTED], RequestBudget::DRAFT, 'revise', [
             'approved_by' => null, 'approved_at' => null, 'approved_by_role' => null, 'submitted_at' => null,
         ], 'Dibuka kembali untuk revisi', 'dibuka untuk revisi');
+        $this->rbModel->clearApprovals((int) $rb['id']);
         setFlash('success', 'Request Budget dikembalikan ke Draft. Silakan revisi lalu ajukan kembali.');
         $this->redirect('request_budget', 'edit', ['id' => $rb['id']]);
     }
 
+    // =================== Proses Purchase (Andy / Super Admin) ===================
+
+    /** Tambah PO (nomor, tanggal, vendor, nominal, file). Hanya saat APPROVED (menunggu proses Purchase). */
+    public function addPo()
+    {
+        $rb = $this->purchaseStart();
+        $number = trim($_POST['po_number'] ?? '');
+        $date = trim($_POST['po_date'] ?? '');
+        $this->requireDocFields($rb, [[$number !== '', 'Nomor PO wajib diisi.'], [$this->validDate($date), 'Tanggal PO wajib diisi dengan benar.']]);
+        $file = $this->uploadDoc($rb, false);
+        $docId = $this->rbModel->addDoc('po', (int) $rb['id'], [
+            'po_number' => mb_substr($number, 0, 80), 'po_date' => $date,
+            'vendor_name' => mb_substr(trim($_POST['vendor_name'] ?? ''), 0, 200) ?: null,
+            'amount' => parseCurrencyInput($_POST['amount'] ?? 0), 'file_path' => $file, 'created_by' => currentUserId(),
+        ]);
+        $this->rbModel->addHistory((int) $rb['id'], currentUserId(), 'add_po', $rb['status'], $rb['status'], "PO {$number} ditambahkan");
+        $this->logAct('add_po', (int) $rb['id'], $rb['request_number'], "PO {$number} ditambahkan");
+        setFlash('success', 'PO ditambahkan.');
+        $this->redirect('request_budget', 'detail', ['id' => $rb['id']]);
+    }
+
+    public function addInvoice()
+    {
+        $rb = $this->purchaseStart();
+        $number = trim($_POST['invoice_number'] ?? '');
+        $date = trim($_POST['invoice_date'] ?? '');
+        $this->requireDocFields($rb, [[$number !== '', 'Nomor Invoice wajib diisi.'], [$this->validDate($date), 'Tanggal Invoice wajib diisi dengan benar.']]);
+        $file = $this->uploadDoc($rb, false);
+        $this->rbModel->addDoc('invoice', (int) $rb['id'], [
+            'invoice_number' => mb_substr($number, 0, 80), 'invoice_date' => $date,
+            'vendor_name' => mb_substr(trim($_POST['vendor_name'] ?? ''), 0, 200) ?: null,
+            'amount' => parseCurrencyInput($_POST['amount'] ?? 0), 'file_path' => $file, 'created_by' => currentUserId(),
+        ]);
+        $this->rbModel->addHistory((int) $rb['id'], currentUserId(), 'add_invoice', $rb['status'], $rb['status'], "Invoice {$number} ditambahkan");
+        $this->logAct('add_invoice', (int) $rb['id'], $rb['request_number'], "Invoice {$number} ditambahkan");
+        setFlash('success', 'Invoice ditambahkan.');
+        $this->redirect('request_budget', 'detail', ['id' => $rb['id']]);
+    }
+
+    /** Dokumen pendukung lain: nama, keterangan, file WAJIB. Boleh lebih dari satu. */
+    public function addAttachment()
+    {
+        $rb = $this->purchaseStart();
+        $name = trim($_POST['doc_name'] ?? '');
+        $this->requireDocFields($rb, [[$name !== '', 'Nama dokumen wajib diisi.']]);
+        $file = $this->uploadDoc($rb, true);
+        $this->rbModel->addDoc('attachment', (int) $rb['id'], [
+            'doc_name' => mb_substr($name, 0, 200), 'description' => mb_substr(trim($_POST['description'] ?? ''), 0, 500) ?: null,
+            'file_path' => $file, 'created_by' => currentUserId(),
+        ]);
+        $this->rbModel->addHistory((int) $rb['id'], currentUserId(), 'add_attachment', $rb['status'], $rb['status'], "Dokumen pendukung '{$name}' ditambahkan");
+        $this->logAct('add_attachment', (int) $rb['id'], $rb['request_number'], "dokumen pendukung '{$name}' ditambahkan");
+        setFlash('success', 'Dokumen pendukung ditambahkan.');
+        $this->redirect('request_budget', 'detail', ['id' => $rb['id']]);
+    }
+
+    public function deleteDoc()
+    {
+        $rb = $this->purchaseStart();
+        $type = (string) ($_POST['type'] ?? '');
+        $docId = (int) ($_POST['doc_id'] ?? 0);
+        // findDoc membatasi ke request ini -> tidak bisa menghapus dokumen request lain lewat doc_id.
+        $doc = $this->rbModel->findDoc($type, $docId, (int) $rb['id']);
+        if (!$doc) {
+            setFlash('error', 'Dokumen tidak ditemukan.');
+            $this->redirect('request_budget', 'detail', ['id' => $rb['id']]);
+        }
+        $this->rbModel->deleteDoc($type, $docId, (int) $rb['id']);
+        $this->removeUpload($doc['file_path'] ?? null);
+        $this->rbModel->addHistory((int) $rb['id'], currentUserId(), 'delete_doc', $rb['status'], $rb['status'], 'Dokumen (' . $type . ') dihapus');
+        $this->logAct('delete_doc', (int) $rb['id'], $rb['request_number'], "dokumen {$type} #{$docId} dihapus");
+        setFlash('success', 'Dokumen dihapus.');
+        $this->redirect('request_budget', 'detail', ['id' => $rb['id']]);
+    }
+
+    /** APPROVED -> PURCHASE_COMPLETED ("Dilengkapi Andy"): data wajib harus lengkap. */
+    public function purchaseComplete()
+    {
+        Middleware::requirePermission('request_budget', 'purchase_process');
+        $rb = $this->startAction(false);
+        $this->assertStatus($rb, [RequestBudget::APPROVED], 'Request Budget harus berstatus Disetujui (menunggu proses Purchase).');
+        $problems = $this->rbModel->purchaseDataProblems((int) $rb['id']);
+        if ($problems) {
+            setFlash('error', 'Data Purchase belum lengkap: ' . implode(' ', $problems));
+            $this->redirect('request_budget', 'detail', ['id' => $rb['id']]);
+        }
+        $this->doTransition($rb, [RequestBudget::APPROVED], RequestBudget::PURCHASE_COMPLETED, 'purchase_complete', [
+            'purchase_completed_by' => currentUserId(), 'purchase_completed_at' => date('Y-m-d H:i:s'),
+            'purchase_notes' => trim($_POST['purchase_notes'] ?? '') ?: null,
+        ], 'Data Purchase dilengkapi oleh ' . currentUserName(), 'data Purchase dilengkapi');
+        setFlash('success', 'Data Purchase ditandai lengkap. Request Budget siap diajukan ke Purwati/Nissa.');
+        $this->redirect('request_budget', 'detail', ['id' => $rb['id']]);
+    }
+
+    /** PURCHASE_COMPLETED -> APPROVED: buka kembali untuk menambah/mengubah dokumen. */
+    public function purchaseReopen()
+    {
+        Middleware::requirePermission('request_budget', 'purchase_process');
+        $rb = $this->startAction(false);
+        $this->assertStatus($rb, [RequestBudget::PURCHASE_COMPLETED], "Hanya Request Budget 'Dilengkapi' yang bisa dibuka kembali.");
+        $this->doTransition($rb, [RequestBudget::PURCHASE_COMPLETED], RequestBudget::APPROVED, 'purchase_reopen',
+            ['purchase_completed_by' => null, 'purchase_completed_at' => null],
+            'Dibuka kembali untuk melengkapi data Purchase', 'dibuka kembali untuk proses Purchase');
+        setFlash('success', 'Request Budget dibuka kembali untuk proses Purchase.');
+        $this->redirect('request_budget', 'detail', ['id' => $rb['id']]);
+    }
+
     /**
-     * Teruskan ke Purwati/Nissa: APPROVED -> FORWARDED.
-     * HANYA pemilik izin 'forward' (Andy / Super Admin). Vicky boleh approve tetapi
-     * TIDAK punya izin ini, jadi request yang di-approve Vicky tetap harus diteruskan Andy.
-     * Izin dicek di Middleware (backend) + lagi di sini lewat availableActions-equivalent.
+     * Teruskan ke Purwati/Nissa: PURCHASE_COMPLETED -> FORWARDED.
+     * Syarat (semua dicek di SERVER): izin 'forward' (Andy / Super Admin -- Vicky TIDAK punya),
+     * KEDUA approval = APPROVED, data Purchase lengkap, tujuan valid.
      */
     public function forward()
     {
         Middleware::requirePermission('request_budget', 'forward');
         $rb = $this->startAction(false);
-        $this->assertStatus($rb, [RequestBudget::APPROVED], "Hanya Request Budget yang sudah disetujui yang bisa diteruskan ke Purwati/Nissa.");
+        $this->assertStatus($rb, [RequestBudget::PURCHASE_COMPLETED], "Request Budget harus berstatus 'Dilengkapi' sebelum diajukan ke Purwati/Nissa.");
+        $id = (int) $rb['id'];
+        $approvals = $this->rbModel->approvals($id);
+        foreach (array_keys(RequestBudget::APPROVAL_SLOTS) as $slot) {
+            if (($approvals[$slot]['status'] ?? '') !== 'APPROVED') {
+                setFlash('error', 'Tidak bisa diajukan: ' . RequestBudget::APPROVAL_SLOTS[$slot]['label'] . ' belum selesai.');
+                $this->redirect('request_budget', 'detail', ['id' => $id]);
+            }
+        }
+        $problems = $this->rbModel->purchaseDataProblems($id);
+        if ($problems) {
+            setFlash('error', 'Data Purchase belum lengkap: ' . implode(' ', $problems));
+            $this->redirect('request_budget', 'detail', ['id' => $id]);
+        }
         $dest = trim($_POST['forward_to'] ?? '');
         if (!in_array($dest, RequestBudget::FORWARD_DESTINATIONS, true)) {
             setFlash('error', 'Pilih tujuan pengajuan: ' . implode(' / ', RequestBudget::FORWARD_DESTINATIONS) . '.');
-            $this->redirect('request_budget', 'detail', ['id' => $rb['id']]);
+            $this->redirect('request_budget', 'detail', ['id' => $id]);
         }
         $role = $this->rbModel->roleNameOf(currentUserId());
-        $this->doTransition($rb, [RequestBudget::APPROVED], RequestBudget::FORWARDED, 'forward',
+        $this->doTransition($rb, [RequestBudget::PURCHASE_COMPLETED], RequestBudget::FORWARDED, 'forward',
             ['forwarded_by' => currentUserId(), 'forwarded_at' => date('Y-m-d H:i:s'), 'forwarded_to' => $dest, 'forwarded_by_role' => $role],
-            'Diteruskan ke ' . $dest . ' oleh ' . currentUserName() . ' (' . $role . ')', 'diteruskan ke ' . $dest);
+            'Diajukan ke ' . $dest . ' oleh ' . currentUserName() . ' (' . $role . ')', 'diajukan ke ' . $dest);
         $this->notifyUsers([(int) $rb['requester_user_id'], (int) $rb['approved_by']],
-            "Request Budget {$rb['request_number']} diajukan ke {$dest}", 'Diteruskan oleh ' . currentUserName(), (int) $rb['id']);
-        setFlash('success', "Request Budget diteruskan ke {$dest}.");
-        $this->redirect('request_budget', 'detail', ['id' => $rb['id']]);
+            "Request Budget {$rb['request_number']} diajukan ke {$dest}", 'Diajukan oleh ' . currentUserName(), $id);
+        setFlash('success', "Request Budget diajukan ke {$dest}.");
+        $this->redirect('request_budget', 'detail', ['id' => $id]);
     }
 
+    /** Awal aksi proses Purchase: izin + CSRF + scope + status APPROVED (satu-satunya tahap yang boleh mengubah dokumen). */
+    private function purchaseStart(): array
+    {
+        Middleware::requirePermission('request_budget', 'purchase_process');
+        $rb = $this->startAction(false);
+        $this->assertStatus($rb, [RequestBudget::APPROVED], 'Dokumen hanya bisa diubah saat Request Budget berstatus Disetujui (menunggu proses Purchase).');
+        return $rb;
+    }
+
+    private function validDate(string $d): bool
+    {
+        return (bool) preg_match('/^\d{4}-\d{2}-\d{2}$/', $d) && strtotime($d) !== false;
+    }
+
+    /** @param array $rules  daftar [kondisi-valid, pesan] -- ada yang gagal -> flash + kembali */
+    private function requireDocFields(array $rb, array $rules): void
+    {
+        $errors = [];
+        foreach ($rules as [$ok, $msg]) {
+            if (!$ok) {
+                $errors[] = $msg;
+            }
+        }
+        if ($errors) {
+            setFlash('error', implode(' ', $errors));
+            $this->redirect('request_budget', 'detail', ['id' => $rb['id']]);
+        }
+    }
+
+    private function uploadDoc(array $rb, bool $required): ?string
+    {
+        try {
+            $path = handleFileUpload('file', 'request_budget', ['pdf', 'jpg', 'jpeg', 'png', 'webp'], 10);
+        } catch (RuntimeException $e) {
+            setFlash('error', $e->getMessage());
+            $this->redirect('request_budget', 'detail', ['id' => $rb['id']]);
+        }
+        if ($required && !$path) {
+            setFlash('error', 'File dokumen wajib diunggah.');
+            $this->redirect('request_budget', 'detail', ['id' => $rb['id']]);
+        }
+        return $path ?: null;
+    }
+
+    private function removeUpload(?string $rel): void
+    {
+        if (!$rel || !preg_match('#^uploads/request_budget/[a-f0-9]{32}\.(jpg|jpeg|png|webp|pdf)$#', $rel)) {
+            return;
+        }
+        $full = realpath(UPLOAD_PATH . '/' . substr($rel, strlen('uploads/')));
+        $base = realpath(UPLOAD_PATH);
+        if ($full && $base && strncmp($full, $base . DIRECTORY_SEPARATOR, strlen($base) + 1) === 0 && is_file($full)) {
+            @unlink($full);
+        }
+    }
     /** Pemilik izin 'complete' (Andy / Super Admin): FORWARDED -> COMPLETED */
     public function complete()
     {
@@ -440,15 +695,31 @@ class RequestBudgetController extends Controller
             $a['revise'] = true;
         }
         if ($s === RequestBudget::PENDING_APPROVAL && $notSelf) {
-            if (can('request_budget', 'approve')) {
+            // Tombol approve/tolak hanya muncul kalau SLOT milik user ini masih menunggu.
+            $mine = $this->rbModel->approvalSlotForCurrentUser();
+            $apps = $this->rbModel->approvals((int) $rb['id']);
+            $myPending = $mine === 'all'
+                ? (bool) array_filter($apps, fn($x) => $x['status'] === 'PENDING')
+                : ($mine !== null && ($apps[$mine]['status'] ?? '') === 'PENDING');
+            if ($myPending && can('request_budget', 'approve')) {
                 $a['approve'] = true;
             }
-            if (can('request_budget', 'reject')) {
+            if ($myPending && can('request_budget', 'reject')) {
                 $a['reject'] = true;
             }
         }
-        // Teruskan ke Purwati/Nissa: hanya pemilik izin 'forward' (Andy/Super Admin), BUKAN Vicky.
-        if (can('request_budget', 'forward') && $s === RequestBudget::APPROVED) {
+        // Proses Purchase (PO/Invoice/Dokumen): hanya 'purchase_process' (Andy/Super Admin), BUKAN Vicky.
+        if (can('request_budget', 'purchase_process')) {
+            if ($s === RequestBudget::APPROVED) {
+                $a['purchase_edit'] = true;
+                $a['purchase_complete'] = true;
+            }
+            if ($s === RequestBudget::PURCHASE_COMPLETED) {
+                $a['purchase_reopen'] = true;
+            }
+        }
+        // Teruskan ke Purwati/Nissa: hanya pemilik izin 'forward' (Andy/Super Admin), setelah data dilengkapi.
+        if (can('request_budget', 'forward') && $s === RequestBudget::PURCHASE_COMPLETED) {
             $a['forward'] = true;
         }
         if (can('request_budget', 'complete') && $s === RequestBudget::FORWARDED) {

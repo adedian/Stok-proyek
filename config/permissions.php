@@ -399,11 +399,21 @@ return [
         'submit'       => [ROLE_SUPER_ADMIN, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT],
         'approve'      => [ROLE_SUPER_ADMIN],
         'reject'       => [ROLE_SUPER_ADMIN],
+        // purchase_process = tambah PO/Invoice/dokumen pendukung + tandai 'dilengkapi' (Andy/Super Admin).
+        'purchase_process' => [ROLE_SUPER_ADMIN],
         'forward'      => [ROLE_SUPER_ADMIN],
         'complete'     => [ROLE_SUPER_ADMIN],
         'view_all'     => [ROLE_SUPER_ADMIN],
         'print'        => [ROLE_SUPER_ADMIN, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT],
         'admin_delete' => [ROLE_SUPER_ADMIN],
+    ],
+
+    // Laporan Request Budget (menu Laporan) -- BUKAN bagian akses Request Budget biasa.
+    // Hanya Accounting & Super Admin; hanya MELIHAT/cetak/export, tanpa hak mengubah workflow.
+    'request_budget_report' => [
+        'view'   => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'print'  => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'export' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
     ],
 
     // Tempat Sampah -- administratif lintas modul, khusus Super Admin.

@@ -210,26 +210,31 @@ class DashboardStat
             require_once ROOT_PATH . '/app/models/RequestBudget.php';
             $rbModel = new RequestBudget();
             $rbScope = $rbModel->scopeForCurrentUser();
-            $rbAlerts = [
-                ['approve', RequestBudget::PENDING_APPROVAL, 'Request Budget Menunggu Approval', 'menunggu approval Anda.', 'bi-wallet2', 'Tinjau'],
-                ['forward', RequestBudget::APPROVED, 'Request Budget Menunggu Pengajuan', 'disetujui dan menunggu Anda meneruskannya ke Purwati/Nissa.', 'bi-wallet2', 'Teruskan'],
-            ];
-            foreach ($rbAlerts as [$perm, $st, $title, $desc, $icon, $cta]) {
-                if (!can('request_budget', $perm)) {
-                    continue;
-                }
-                $count = $rbModel->countByStatus($st, $rbScope);
+            // Approval: hanya request yang SLOT approval milik user ini masih menunggu.
+            if (can('request_budget', 'approve')) {
+                $count = $rbModel->countAwaitingMyApproval($rbScope);
                 if ($count > 0) {
                     $items[] = [
-                        'icon' => $icon, 'variant' => 'info', 'title' => $title,
-                        'desc' => "{$count} Request Budget " . $desc,
-                        'url' => route('request_budget', 'index', ['status' => $st]),
-                        'cta' => $cta,
+                        'icon' => 'bi-wallet2', 'variant' => 'info', 'title' => 'Request Budget Menunggu Approval',
+                        'desc' => "{$count} Request Budget menunggu approval Anda.",
+                        'url' => route('request_budget', 'index', ['status' => RequestBudget::PENDING_APPROVAL]),
+                        'cta' => 'Tinjau',
+                    ];
+                }
+            }
+            // Proses Purchase (Andy/Super Admin): seluruh approval selesai, menunggu dilengkapi / diajukan.
+            if (can('request_budget', 'purchase_process')) {
+                $count = $rbModel->countByStatus(RequestBudget::APPROVED, $rbScope) + $rbModel->countByStatus(RequestBudget::PURCHASE_COMPLETED, $rbScope);
+                if ($count > 0) {
+                    $items[] = [
+                        'icon' => 'bi-wallet2', 'variant' => 'info', 'title' => 'Request Budget Menunggu Proses Purchase',
+                        'desc' => "{$count} Request Budget siap dilengkapi PO/Invoice dan diajukan ke Purwati/Nissa.",
+                        'url' => route('request_budget', 'index', ['status' => RequestBudget::APPROVED]),
+                        'cta' => 'Proses',
                     ];
                 }
             }
         }
-
         if ($settingModel->getBool('notify_selisih_barang', true) && can('validation', 'view')) {
             $count = $this->barangSelisihBelumValidasi();
             if ($count > 0) {

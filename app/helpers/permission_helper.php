@@ -80,7 +80,7 @@ function permissionLabelMaps(): array
             'item_category' => 'Kategori Barang', 'unit' => 'Satuan', 'warehouse' => 'Gudang',
             'payment_method' => 'Metode Pembayaran', 'signature' => 'Tanda Tangan', 'dp_percentage' => 'Persentase DP',
             'settings' => 'Pengaturan Sistem', 'trash' => 'Tempat Sampah', 'period_lock' => 'Tutup Bulan',
-            'information' => 'Pusat Informasi', 'request_budget' => 'Request Budget',
+            'information' => 'Pusat Informasi', 'request_budget' => 'Request Budget', 'request_budget_report' => 'Laporan Request Budget',
         ],
         'actions' => [
             'view' => 'Lihat', 'create' => 'Tambah', 'edit' => 'Ubah', 'delete' => 'Hapus',
@@ -89,7 +89,7 @@ function permissionLabelMaps(): array
             'view_balance' => 'Lihat Saldo', 'close' => 'Tutup Periode', 'reopen' => 'Buka Kembali',
             'stock_price' => 'Lihat Harga (Laporan Stok)', 'stock_report' => 'Buka Laporan Stok Barang',
             'print_voucher' => 'Cetak Voucher Terpilih', 'manage_access' => 'Atur Akses Project',
-            'submit' => 'Ajukan (Submit)', 'reject' => 'Tolak', 'forward' => 'Teruskan ke Purwati/Nissa',
+            'submit' => 'Ajukan (Submit)', 'reject' => 'Tolak', 'forward' => 'Teruskan ke Purwati/Nissa', 'purchase_process' => 'Proses Purchase (PO/Invoice/Dokumen)', 'export' => 'Export',
             'view_all' => 'Lihat Semua Project', 'print' => 'Cetak', 'admin_delete' => 'Hapus Administratif',
         ],
     ];

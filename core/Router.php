@@ -15,6 +15,7 @@ class Router
         'dashboard'       => 'DashboardController',
         'information'     => 'InformationController',
         'request_budget'  => 'RequestBudgetController',
+        'request_budget_report' => 'RequestBudgetReportController',
         'purchase_order'  => 'PurchaseOrderController',
         'payment'         => 'PaymentController',
         'goods_receipt'   => 'GoodsReceiptController',

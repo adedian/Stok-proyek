@@ -189,6 +189,11 @@ class ReportController extends Controller
             }));
         }
 
+        // Laporan Request Budget: izin modul terpisah (Accounting & Super Admin saja).
+        if (can('request_budget_report', 'view')) {
+            $out[] = ['key' => 'requestBudget', 'label' => 'Request Budget', 'icon' => 'bi-wallet2', 'url' => route('request_budget_report')];
+        }
+
         if (can('period_lock', 'view')) {
             $out[] = ['key' => 'periodLock', 'label' => 'Tutup Bulan', 'icon' => 'bi-lock', 'url' => route('period_lock')];
         }

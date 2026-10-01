@@ -73,7 +73,7 @@ $canOfflineSource = can('offline_purchase', 'view');
                             <?= $isEdit ? 'disabled' : '' ?>>
                         <option value="">-- Pilih Purchase Order --</option>
                         <?php foreach ($poList as $po): ?>
-                            <option value="<?= (int) $po['id'] ?>" <?= (string) $selectedPoId === (string) $po['id'] ? 'selected' : '' ?>>
+                            <option value="<?= (int) $po['id'] ?>" data-receiver="<?= e($po['receiver_name'] ?? '') ?>" <?= (string) $selectedPoId === (string) $po['id'] ? 'selected' : '' ?>>
                                 <?= e($po['po_number']) ?> &mdash; <?= e($po['supplier_name']) ?>
                             </option>
                         <?php endforeach; ?>
@@ -128,9 +128,10 @@ $canOfflineSource = can('offline_purchase', 'view');
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Nama Penerima <span class="text-danger">*</span></label>
-                    <input type="text" name="receiver_name" class="form-control"
-                           value="<?= e($receipt['received_by_name'] ?? '') ?>" required>
-                    <div class="form-text">Nama orang yang secara langsung menerima barang (boleh bukan pengguna sistem).</div>
+                    <input type="text" name="receiver_name" id="receiverNameInput" class="form-control"
+                           value="<?= e($receipt['received_by_name'] ?? '') ?>" required
+                           <?= ($isEdit && ($receipt['receipt_type'] ?? '') === 'purchase_order') ? 'readonly' : '' ?>>
+                    <div class="form-text" id="receiverNameHelp">Nama orang yang secara langsung menerima barang (boleh bukan pengguna sistem).</div>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Foto Barang</label>
@@ -427,7 +428,29 @@ $canOfflineSource = can('offline_purchase', 'view');
         pemakaiItemsCard.style.display = isPemakai ? '' : 'none';
         if (poSelectEl) poSelectEl.required = isPo;
         if (offlinePurchaseSelectEl) offlinePurchaseSelectEl.required = isOffline;
+        syncReceiverName();
     }
+
+    // Alur PO: Nama Penerima otomatis dari Penerima Barang di PO & TIDAK bisa diubah
+    // (server juga menimpa nilainya dari PO). Alur lain tetap input bebas.
+    function syncReceiverName() {
+        const inp = document.getElementById('receiverNameInput');
+        const help = document.getElementById('receiverNameHelp');
+        if (!inp) { return; }
+        const isPo = typeSelect && typeSelect.value === 'purchase_order';
+        if (isPo) {
+            const opt = poSelectEl && poSelectEl.options[poSelectEl.selectedIndex];
+            inp.value = (opt && opt.dataset.receiver) ? opt.dataset.receiver : '';
+            inp.readOnly = true;
+            inp.required = false;
+            if (help) { help.textContent = 'Otomatis dari Penerima Barang yang ditentukan di Purchase Order.'; }
+        } else {
+            inp.readOnly = false;
+            inp.required = true;
+            if (help) { help.textContent = 'Nama orang yang secara langsung menerima barang (boleh bukan pengguna sistem).'; }
+        }
+    }
+    if (poSelectEl) { poSelectEl.addEventListener('change', syncReceiverName); }
 
     if (typeSelect) {
         typeSelect.addEventListener('change', applyReceiptType);

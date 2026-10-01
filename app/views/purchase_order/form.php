@@ -81,6 +81,20 @@ $actionUrl = $isEdit ? 'update' : 'store';
                     </div>
                 </div>
                 <div class="col-md-4">
+                    <label class="form-label">Penerima Barang <span class="text-danger">*</span></label>
+                    <select name="receiver_user_id" id="receiver_user_id" class="form-select">
+                        <option value="">-- Pilih Penerima Barang --</option>
+                        <?php foreach (($receivers ?? []) as $r): ?>
+                            <option value="<?= (int) $r['id'] ?>"
+                                <?= ($po && (int) ($po['receiver_user_id'] ?? 0) === (int) $r['id']) ? 'selected' : '' ?>>
+                                <?= e($r['full_name']) ?> (<?= e($r['role_name']) ?>)
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <div class="invalid-feedback d-block text-danger small" id="receiverError" style="display:none !important;">Penerima Barang wajib dipilih.</div>
+                    <div class="form-text">Hanya user ini yang melihat PO ini di Tambah Penerimaan Barang.</div>
+                </div>
+                <div class="col-md-4">
                     <label class="form-label">Tanggal PO <span class="text-danger">*</span></label>
                     <input type="date" name="po_date" class="form-control"
                            value="<?= e($po['po_date'] ?? date('Y-m-d')) ?>" required>
@@ -280,6 +294,24 @@ $actionUrl = $isEdit ? 'update' : 'store';
         <a href="<?= BASE_URL ?>/purchase_order" class="btn btn-light border">Batal</a>
     </div>
 </form>
+<script>
+(function () {
+    var form = document.getElementById('poForm');
+    var sel = document.getElementById('receiver_user_id');
+    var err = document.getElementById('receiverError');
+    if (!form || !sel || !err) { return; }
+    function showErr(show) { err.style.setProperty('display', show ? 'block' : 'none', 'important'); }
+    form.addEventListener('submit', function (e) {
+        if (!sel.value) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            showErr(true);
+            sel.scrollIntoView({ block: 'center' });
+        }
+    }, true);
+    sel.addEventListener('change', function () { if (sel.value) { showErr(false); } });
+})();
+</script>
 
 <?php if (canQuickAdd('supplier')): ?>
     <?php require ROOT_PATH . '/app/views/partials/quick_add_supplier_modal.php'; ?>

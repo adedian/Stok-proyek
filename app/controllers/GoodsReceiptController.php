@@ -103,7 +103,7 @@ class GoodsReceiptController extends Controller
         // Guard scope PIC juga di jalur BACA (bukan cuma store()): po_id di URL
         // tidak boleh membuka data PO project yang bukan scope user (IDOR baca).
         if ($poId && !$this->poModel->isReceivableByUser($poId, (int) currentUserId(), (string) currentUserRole())) {
-            denyAccess('PO ini bukan milik project yang Anda tangani (PIC Penerimaan berbeda).');
+            denyAccess('Anda bukan Penerima Barang untuk PO ini.');
         }
         $selectedPo = $poId ? $this->poModel->findWithRelations($poId) : null;
         $poItems = $poId ? $this->receiptItemModel->poItemsForReceipt($poId) : [];
@@ -139,6 +139,8 @@ class GoodsReceiptController extends Controller
         verifyCsrf();
 
         $data = $this->collectInput();
+        // Nama Penerima untuk penerimaan dari PO SELALU dari PO (bukan input user).
+        $this->applyPoReceiver($data);
         $errors = $this->validateInput($data);
 
         if (!empty($errors)) {
@@ -151,7 +153,7 @@ class GoodsReceiptController extends Controller
         // PurchaseOrder::isReceivableByUser().
         if ($data['receipt_type'] === 'purchase_order' && $data['purchase_order_id']
             && !$this->poModel->isReceivableByUser((int) $data['purchase_order_id'], (int) currentUserId(), (string) currentUserRole())) {
-            denyAccess('PO ini bukan milik project yang Anda tangani (PIC Penerimaan berbeda).');
+            denyAccess('Anda bukan Penerima Barang untuk PO ini.');
         }
 
         assertPeriodOpen('goods_receipt', $data['receipt_date'], 'goods_receipt', 'create', ['po_id' => $data['purchase_order_id']]);
@@ -282,6 +284,7 @@ class GoodsReceiptController extends Controller
             setFlash('error', 'Penerimaan dari Pemakai tidak bisa diedit. Hapus dan catat ulang jika ada kesalahan.');
             $this->redirect('goods_receipt', 'detail', ['id' => $id]);
         }
+        $this->assertPoReceiverMayAct($receipt);
 
         $isOffline = $receipt['receipt_type'] === 'offline_purchase';
         $poItems = [];
@@ -368,6 +371,8 @@ class GoodsReceiptController extends Controller
         $data['stock_type']    = $existing['stock_type'] ?? 'stok_proyek';
         $data['project_id']    = $existing['project_id'];
         $data['source_detail'] = $existing['source_detail'];
+        $this->assertPoReceiverMayAct($existing);
+        $this->applyPoReceiver($data);
         $errors = $this->validateInput($data, $id);
 
         if (!empty($errors)) {
@@ -694,7 +699,7 @@ class GoodsReceiptController extends Controller
         // Scope PIC Penerimaan: sama dengan dropdown & store() -- jangan bocorkan
         // item PO project lain lewat AJAX.
         if (!$this->poModel->isReceivableByUser($poId, (int) currentUserId(), (string) currentUserRole())) {
-            $this->json(['error' => 'PO ini bukan milik project yang Anda tangani'], 403);
+            $this->json(['error' => 'Anda bukan Penerima Barang untuk PO ini'], 403);
         }
 
         $items = $this->receiptItemModel->poItemsForReceipt($poId);
@@ -734,6 +739,38 @@ class GoodsReceiptController extends Controller
     }
 
     // ================= Helper privat =================
+
+    /**
+     * Penerimaan dari PO: Nama Penerima WAJIB = Penerima Barang yang ditentukan di PO
+     * (users.full_name), input form diabaikan. PO lama tanpa penerima (hanya bisa
+     * diproses Super Admin) memakai nama user yang sedang login.
+     */
+    private function applyPoReceiver(array &$data): void
+    {
+        if (($data['receipt_type'] ?? '') !== 'purchase_order' || empty($data['purchase_order_id'])) {
+            return;
+        }
+        $po = $this->poModel->findWithRelations((int) $data['purchase_order_id']);
+        if ($po) {
+            $data['receiver_name'] = !empty($po['receiver_name']) ? $po['receiver_name'] : (string) currentUserName();
+        }
+    }
+
+    /**
+     * Edit/ubah penerimaan dari PO: bila PO sudah punya Penerima Barang, hanya dia
+     * (dan Super Admin) yang boleh. PO tanpa penerima (data lama) tidak dibatasi
+     * di sini supaya penerimaan lama tetap bisa dikoreksi seperti sebelumnya.
+     */
+    private function assertPoReceiverMayAct(array $receipt): void
+    {
+        if (currentUserRole() === ROLE_SUPER_ADMIN || ($receipt['receipt_type'] ?? '') !== 'purchase_order' || empty($receipt['purchase_order_id'])) {
+            return;
+        }
+        $po = $this->poModel->findAny((int) $receipt['purchase_order_id']);
+        if ($po && !empty($po['receiver_user_id']) && (int) $po['receiver_user_id'] !== (int) currentUserId()) {
+            denyAccess('Penerimaan ini dari PO yang Penerima Barang-nya bukan Anda.');
+        }
+    }
 
     private function collectInput(): array
     {

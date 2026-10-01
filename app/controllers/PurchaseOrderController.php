@@ -134,6 +134,7 @@ class PurchaseOrderController extends Controller
             'poNumber'    => $this->poModel->previewPoNumber(),
             'suppliers'   => $this->supplierModel->activeList(),
             'projects'    => $this->projectModel->activeList(),
+            'receivers'   => $this->poModel->receiverCandidates(),
             'picUsers'    => $this->userModel->activeList(),
             'itemCatalog'    => $this->barangModel->activeList(),
             'itemCategories' => $this->itemCategoryModel->activeList(),
@@ -174,6 +175,7 @@ class PurchaseOrderController extends Controller
                 'po_number'   => $poNumber,
                 'supplier_id' => $data['supplier_id'],
                 'project_id'  => $data['project_id'],
+                'receiver_user_id' => $data['receiver_user_id'],
                 'delivery_location_id' => $data['delivery_location_id'] ?: null,
                 'po_date'     => $data['po_date'],
                 'status'      => $data['status'],
@@ -250,6 +252,7 @@ class PurchaseOrderController extends Controller
             'poNumber'  => $po['po_number'],
             'suppliers' => $this->supplierModel->activeList(),
             'projects'  => $this->projectModel->activeList(),
+            'receivers' => $this->poModel->receiverCandidates(),
             'picUsers'  => $this->userModel->activeList(),
             'itemCatalog'    => $this->barangModel->activeList(),
             'itemCategories' => $this->itemCategoryModel->activeList(),
@@ -316,6 +319,7 @@ class PurchaseOrderController extends Controller
             $this->poModel->updateById($id, [
                 'supplier_id' => $data['supplier_id'],
                 'project_id'  => $data['project_id'],
+                'receiver_user_id' => $data['receiver_user_id'],
                 'delivery_location_id' => $data['delivery_location_id'] ?: null,
                 'po_date'     => $data['po_date'],
                 'status'      => $data['status'],
@@ -623,6 +627,8 @@ class PurchaseOrderController extends Controller
         return [
             'supplier_id' => (int) ($_POST['supplier_id'] ?? 0),
             'project_id'  => (int) ($_POST['project_id'] ?? 0),
+            // Penerima Barang: HANYA id user (FK users.id); divalidasi di validatePoInput().
+            'receiver_user_id' => (int) ($_POST['receiver_user_id'] ?? 0),
             'delivery_location_id' => (int) ($_POST['delivery_location_id'] ?? 0),
             'po_date'     => $_POST['po_date'] ?? '',
             'status'      => $_POST['status'] ?? 'draft',
@@ -650,6 +656,12 @@ class PurchaseOrderController extends Controller
         }
         if ($data['project_id'] <= 0) {
             $errors[] = 'Project wajib dipilih.';
+        }
+        if ($data['receiver_user_id'] <= 0) {
+            $errors[] = 'Penerima Barang wajib dipilih.';
+        } elseif (!$this->poModel->isReceiverCandidate($data['receiver_user_id'])) {
+            // Backend tidak percaya dropdown: hanya user aktif ber-role Project/Purchase yang sah.
+            $errors[] = 'Penerima Barang tidak valid.';
         }
         if ($data['pembuat_po'] === '') {
             $errors[] = 'Pembuat PO wajib diisi.';

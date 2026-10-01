@@ -45,10 +45,11 @@ class PurchaseOrder extends Model
      */
     public function listWithRelations(array $filters = []): array
     {
-        $sql = "SELECT po.*, s.supplier_name, s.supplier_code, p.project_name
+        $sql = "SELECT po.*, s.supplier_name, s.supplier_code, p.project_name, rcv.full_name AS receiver_name
                 FROM purchase_orders po
                 JOIN suppliers s ON s.id = po.supplier_id
                 JOIN projects p ON p.id = po.project_id
+                LEFT JOIN users rcv ON rcv.id = po.receiver_user_id
                 WHERE po.deleted_at IS NULL";
         $params = [];
 
@@ -260,7 +261,8 @@ class PurchaseOrder extends Model
                        w.warehouse_name AS delivery_location_name, w.address AS delivery_location_address,
                        sig.name AS signature_name, sig.position AS signature_position,
                        sig.signature_image AS signature_image,
-                       ap.full_name AS approved_by_name
+                       ap.full_name AS approved_by_name,
+                       rcv.full_name AS receiver_name
                 FROM purchase_orders po
                 JOIN suppliers s ON s.id = po.supplier_id
                 JOIN projects p ON p.id = po.project_id
@@ -268,6 +270,7 @@ class PurchaseOrder extends Model
                 LEFT JOIN warehouses w ON w.id = po.delivery_location_id
                 LEFT JOIN signatures sig ON sig.id = po.signature_id AND sig.deleted_at IS NULL
                 LEFT JOIN users ap ON ap.id = po.approved_by
+                LEFT JOIN users rcv ON rcv.id = po.receiver_user_id
                 WHERE po.id = :id AND po.deleted_at IS NULL";
         return $this->db->fetchOne($sql, ['id' => $id]);
     }
@@ -322,27 +325,65 @@ class PurchaseOrder extends Model
     }
 
     /**
+     * Role yang boleh dipilih sebagai "Penerima Barang" di PO: seluruh user
+     * Project (PIC/Admin Project) dan Purchase. Ditentukan lewat ROLE di DB --
+     * user baru dengan role ini otomatis muncul, tanpa ubah kode.
+     */
+    public const RECEIVER_ROLE_SLUGS = [ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT, ROLE_PURCHASE];
+
+    /** User aktif yang boleh dipilih sebagai Penerima Barang (id, full_name, role_name). */
+    public function receiverCandidates(): array
+    {
+        $params = [];
+        $marks = [];
+        foreach (self::RECEIVER_ROLE_SLUGS as $i => $slug) {
+            $marks[] = ":r{$i}";
+            $params["r{$i}"] = $slug;
+        }
+        $in = implode(', ', $marks);
+        return $this->db->fetchAll(
+            "SELECT u.id, u.full_name, r.role_name
+               FROM users u
+               JOIN roles r ON r.id = u.role_id
+              WHERE u.status = 'active' AND u.deleted_at IS NULL AND r.role_slug IN ({$in})
+              ORDER BY u.full_name ASC",
+            $params
+        );
+    }
+
+    /** true kalau $userId termasuk kandidat Penerima Barang (aktif + role Project/Purchase). */
+    public function isReceiverCandidate(int $userId): bool
+    {
+        foreach ($this->receiverCandidates() as $u) {
+            if ((int) $u['id'] === $userId) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * PO yang boleh dibuatkan penerimaan barang: sudah disetujui, belum selesai/batal
      * (dipakai oleh modul Penerimaan Barang untuk mengisi dropdown).
      *
-     * Scoping PIC Penerimaan (Fase 4): Super Admin selalu lihat semua. Role
-     * lain hanya lihat PO milik project yang BELUM di-assign PIC Penerimaan
-     * (projects.receipt_pic_user_id IS NULL -- fallback terbuka supaya alur
-     * kerja tidak terkunci total sebelum semua project di-assign) ATAU project
-     * yang PIC Penerimaan-nya = dirinya sendiri.
+     * Scoping Penerima Barang: Super Admin selalu lihat semua. Role lain HANYA
+     * lihat PO yang purchase_orders.receiver_user_id = dirinya. PO lama yang
+     * belum punya penerima (NULL) tidak muncul sampai ditentukan lewat Edit PO.
+     * Project PIC TIDAK dipakai sebagai filter. PO completed/cancelled tidak
+     * muncul; partial_received tetap muncul sampai selesai.
      */
     public function receivablePoList(?int $userId = null, ?string $userRole = null): array
     {
-        $sql = "SELECT po.id, po.po_number, s.supplier_name
+        $sql = "SELECT po.id, po.po_number, s.supplier_name, po.receiver_user_id, rcv.full_name AS receiver_name
                 FROM purchase_orders po
                 JOIN suppliers s ON s.id = po.supplier_id
-                JOIN projects p ON p.id = po.project_id
+                LEFT JOIN users rcv ON rcv.id = po.receiver_user_id
                 WHERE po.deleted_at IS NULL
                   AND po.status IN ('approved', 'partial_received')";
         $params = [];
 
         if ($userRole !== null && $userRole !== ROLE_SUPER_ADMIN) {
-            $sql .= " AND (p.receipt_pic_user_id IS NULL OR p.receipt_pic_user_id = :uid)";
+            $sql .= " AND po.receiver_user_id = :uid";
             $params['uid'] = $userId;
         }
 
@@ -366,9 +407,8 @@ class PurchaseOrder extends Model
         }
         return (bool) $this->db->fetchOne(
             "SELECT 1 FROM purchase_orders po
-               JOIN projects p ON p.id = po.project_id
               WHERE po.id = :id AND po.deleted_at IS NULL
-                AND (p.receipt_pic_user_id IS NULL OR p.receipt_pic_user_id = :uid)",
+                AND po.receiver_user_id = :uid",
             ['id' => $poId, 'uid' => $userId]
         );
     }

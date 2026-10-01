@@ -86,6 +86,7 @@
                         <th>Kode Sup</th>
                         <th>Supplier</th>
                         <th>Pembuat PO</th>
+                        <th>Penerima Barang</th>
                         <th>Project</th>
                         <th>Tanggal</th>
                         <th class="text-end">Total</th>
@@ -97,7 +98,7 @@
                 <tbody>
                     <?php if (empty($purchaseOrders)): ?>
                         <tr>
-                            <td colspan="12" class="p-0">
+                            <td colspan="13" class="p-0">
                                 <div class="empty-state">
                                     <i class="bi bi-cart-x empty-icon"></i>
                                     <div class="empty-title">Belum ada Purchase Order</div>
@@ -121,6 +122,7 @@
                             <td><?= e($po['supplier_code']) ?></td>
                             <td><?= e($po['supplier_name']) ?></td>
                             <td><?= e($po['pembuat_po'] ?? '-') ?></td>
+                            <td><?php if (!empty($po['receiver_name'])): ?><?= e($po['receiver_name']) ?><?php else: ?><span class="text-muted fst-italic">Belum ditentukan</span><?php endif; ?></td>
                             <td><?= e($po['project_name']) ?></td>
                             <td><?= formatTanggal($po['po_date']) ?></td>
                             <td class="text-end"><?= formatRupiah($po['total_amount']) ?></td>

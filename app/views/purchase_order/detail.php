@@ -64,6 +64,10 @@
                         <div class="fw-semibold"><?= e($po['pembuat_po'] ?? '-') ?></div>
                     </div>
                     <div class="col-md-4">
+                        <div class="text-muted small">Penerima Barang</div>
+                        <div class="fw-semibold"><?php if (!empty($po['receiver_name'])): ?><?= e($po['receiver_name']) ?><?php else: ?><span class="text-muted fst-italic">Belum ditentukan</span><?php endif; ?></div>
+                    </div>
+                    <div class="col-md-4">
                         <div class="text-muted small">Tanda Tangan</div>
                         <div class="fw-semibold">
                             <?= e($po['signature_name'] ?? '-') ?>

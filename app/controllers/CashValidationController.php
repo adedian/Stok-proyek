@@ -47,6 +47,20 @@ class CashValidationController extends Controller
         if (kasIsExemptRole(currentUserRole())) {
             return;
         }
+        // Purchase / PIC Project / Admin Project memakai gerbang BARU (password akun
+        // sendiri, sesi `kas_project_auth`) -- sama persis dengan CashController. Dulu
+        // modul ini masih menuntut gerbang lama (PIC + Password Kas), sehingga Purchase
+        // (mis. Andy) yang sudah masuk Kas tidak bisa membuka Validasi Kas.
+        if (kasIsProjectGateRole(currentUserRole())) {
+            if (kasProjectCheckTimeout()) {
+                setFlash('error', 'Sesi Kas berakhir karena tidak aktif. Silakan verifikasi Kas kembali. (Login aplikasi Anda tetap aktif.)');
+            }
+            if (!kasProjectAuthenticated()) {
+                $this->redirect('cash', 'kasProjectLogin');
+            }
+            kasProjectTouch();
+            return;
+        }
         if (kasCheckTimeout()) {
             setFlash('error', 'Sesi Kas berakhir karena tidak aktif. Silakan verifikasi PIC Kas kembali.');
         }

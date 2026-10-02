@@ -696,8 +696,11 @@ class PurchaseOrderController extends Controller
         if ($data['signature_id'] !== null && !$this->signatureModel->find($data['signature_id'])) {
             $errors[] = 'Tanda tangan yang dipilih tidak valid.';
         }
-        if (empty($data['po_date'])) {
-            $errors[] = 'Tanggal PO wajib diisi.';
+        if (!isValidDateString($data['po_date'])) {
+            $errors[] = 'Tanggal PO wajib diisi dengan tanggal yang valid.';
+        }
+        if (!empty($data['quote_date']) && !isValidDateString($data['quote_date'])) {
+            $errors[] = 'Tanggal penawaran tidak valid.';
         }
         if (!array_key_exists($data['status'], $this->poModel->statusLabels)) {
             $errors[] = 'Status tidak valid.';
@@ -712,6 +715,12 @@ class PurchaseOrderController extends Controller
             if ($item['price'] < 0) {
                 $errors[] = "Harga untuk item '{$item['item_name']}' tidak boleh negatif.";
             }
+            if ($item['qty_order'] > INPUT_MAX_QTY) {
+                $errors[] = "Qty untuk item '{$item['item_name']}' melebihi batas wajar.";
+            }
+            if ($item['price'] > INPUT_MAX_PRICE || $item['subtotal'] > INPUT_MAX_LINE_TOTAL) {
+                $errors[] = "Harga/total untuk item '{$item['item_name']}' melebihi batas wajar.";
+            }
             if (!empty($item['ppn_invalid'])) {
                 $errors[] = "PPN untuk item '{$item['item_name']}' harus berupa angka (0-100).";
             } elseif ($item['ppn_enabled'] && $item['ppn_percent'] > 100) {
@@ -723,6 +732,8 @@ class PurchaseOrderController extends Controller
         foreach ($data['extra_costs'] as $cost) {
             if ($cost['amount'] < 0) {
                 $errors[] = "Jumlah biaya tambahan '{$cost['cost_name']}' tidak boleh negatif.";
+            } elseif ($cost['amount'] > INPUT_MAX_LINE_TOTAL) {
+                $errors[] = "Jumlah biaya tambahan '{$cost['cost_name']}' melebihi batas wajar.";
             }
         }
 

@@ -566,8 +566,8 @@ class StockOutController extends Controller
         if ($data['destination'] === '') {
             $errors[] = 'Tujuan wajib diisi.';
         }
-        if (empty($data['out_date'])) {
-            $errors[] = 'Tanggal keluar wajib diisi.';
+        if (!isValidDateString($data['out_date'])) {
+            $errors[] = 'Tanggal keluar wajib diisi dengan tanggal yang valid.';
         }
 
         if ($multiItem) {

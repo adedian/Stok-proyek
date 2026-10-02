@@ -437,8 +437,10 @@ class SalesInvoiceController extends Controller
         // SELALU dihitung ulang di sini dari invoice_date + tempo (lihat
         // computeDueDate()), sama seperti subtotal/total di calculateTotals().
         $tempoRaw = trim((string) ($_POST['tempo'] ?? ''));
-        $tempo = $tempoRaw !== '' && ctype_digit($tempoRaw) ? (int) $tempoRaw : null;
-        $invoiceDate = $_POST['invoice_date'] ?? '';
+        // Hanya angka, maks 4 digit & <= INPUT_MAX_TEMPO_DAYS (cegah overflow kolom INT / tanggal 0000-00-00).
+        $tempo = ($tempoRaw !== '' && ctype_digit($tempoRaw) && strlen($tempoRaw) <= 4 && (int) $tempoRaw <= INPUT_MAX_TEMPO_DAYS)
+            ? (int) $tempoRaw : null;
+        $invoiceDate = is_string($_POST['invoice_date'] ?? '') ? ($_POST['invoice_date'] ?? '') : '';
 
         $data = [
             'client_id'        => (int) ($_POST['client_id'] ?? 0),
@@ -544,15 +546,18 @@ class SalesInvoiceController extends Controller
         if ($data['client_id'] <= 0 || !$this->clientModel->find($data['client_id'])) {
             $errors[] = 'Client wajib dipilih.';
         }
-        if (empty($data['invoice_date'])) {
-            $errors[] = 'Tanggal invoice wajib diisi.';
+        if (!isValidDateString($data['invoice_date'])) {
+            $errors[] = 'Tanggal invoice wajib diisi dengan tanggal yang valid.';
         }
-        $tempoSubmitted = trim((string) ($_POST['tempo'] ?? ''));
+        if (!empty($data['contract_date']) && !isValidDateString($data['contract_date'])) {
+            $errors[] = 'Tanggal kontrak tidak valid.';
+        }
+        $tempoSubmitted = is_string($_POST['tempo'] ?? '') ? trim((string) ($_POST['tempo'] ?? '')) : 'x';
         if ($tempoSubmitted !== '' && $data['tempo'] === null) {
-            $errors[] = 'Tempo harus berupa angka hari (0 atau lebih), tanpa huruf/simbol.';
+            $errors[] = 'Tempo harus berupa angka hari (0 sampai ' . INPUT_MAX_TEMPO_DAYS . '), tanpa huruf/simbol.';
         }
-        if ($data['ppn_percent'] < 0) {
-            $errors[] = 'PPN tidak boleh negatif.';
+        if ($data['ppn_percent'] < 0 || $data['ppn_percent'] > 100) {
+            $errors[] = 'PPN harus antara 0 dan 100 persen.';
         }
         if (empty($items)) {
             $errors[] = 'Minimal 1 baris item invoice wajib diisi.';
@@ -564,6 +569,10 @@ class SalesInvoiceController extends Controller
             }
             if ($item['unit'] === '') {
                 $errors[] = 'Satuan setiap baris item wajib diisi.';
+                break;
+            }
+            if ($item['qty'] > INPUT_MAX_QTY || $item['unit_price'] > INPUT_MAX_PRICE || $item['subtotal'] > INPUT_MAX_LINE_TOTAL) {
+                $errors[] = 'Qty/harga/total pada salah satu baris item melebihi batas wajar.';
                 break;
             }
         }

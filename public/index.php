@@ -37,5 +37,8 @@ require_once ROOT_PATH . '/core/Router.php';
 // Header keamanan HTTP untuk semua response (CSP, nosniff, frame-options, dst)
 sendSecurityHeaders();
 
+// Parameter pencarian/filter berbentuk array (?keyword[]=x) dibuang -> halaman tetap normal.
+normalizeScalarQueryParams();
+
 $router = new Router();
 $router->dispatch();

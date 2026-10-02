@@ -347,6 +347,48 @@ function codeSearchClause(string $column, string $keyword, string $paramPrefix):
     ]];
 }
 
+// Batas wajar input angka transaksi (di bawah kapasitas kolom DECIMAL(15,2)/(18,2) -- MariaDB
+// non-strict di produksi akan memotong diam-diam nilai yang kebesaran, jadi ditolak di aplikasi).
+const INPUT_MAX_QTY        = 1000000000;       // 1 miliar satuan
+const INPUT_MAX_PRICE      = 1000000000000;    // Rp 1 triliun per satuan
+const INPUT_MAX_LINE_TOTAL = 10000000000000;   // Rp 10 triliun per baris
+const INPUT_MAX_TEMPO_DAYS = 3650;             // 10 tahun
+
+/**
+ * Tanggal "Y-m-d" yang benar-benar ada di kalender. Menolak 'abc', '', '0000-00-00',
+ * '2026-02-30', nilai non-string (array), dan tahun di luar 1900-2100. Produksi berjalan
+ * dengan sql_mode non-strict, jadi tanpa cek ini tanggal ngawur tersimpan sebagai 0000-00-00.
+ */
+function isValidDateString($value): bool
+{
+    if (!is_string($value) || !preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $value, $m)) {
+        return false;
+    }
+    $y = (int) $m[1];
+    return $y >= 1900 && $y <= 2100 && checkdate((int) $m[2], (int) $m[3], $y);
+}
+
+/**
+ * Parameter query yang SELALU berupa nilai tunggal (pencarian/filter/paging/id). Kalau
+ * dikirim berbentuk array (?keyword[]=x) dianggap tidak ada, supaya halaman tetap tampil
+ * normal dan bukan TypeError -> HTTP 500. Parameter yang sah berupa array (ids, bank_ids,
+ * project_ids, rekening_ids, dst) SENGAJA tidak termasuk daftar ini.
+ */
+function normalizeScalarQueryParams(): void
+{
+    static $scalar = [
+        'id', 'keyword', 'q', 'status', 'sort', 'dir', 'page', 'date_from', 'date_to', 'period', 'tab', 'type', 'from',
+        'project_id', 'po_id', 'sales_invoice_id', 'offline_purchase_id', 'client_id', 'category_id', 'requester_id',
+        'purchase_user_id', 'source', 'stock_type', 'stock_scope', 'stock_filter', 'mutasi', 'pic', 'invoice_type',
+        'vendor', 'validated', 'requester', 'po_number', 'number', 'module_filter', 'path',
+    ];
+    foreach ($scalar as $key) {
+        if (isset($_GET[$key]) && is_array($_GET[$key])) {
+            unset($_GET[$key], $_REQUEST[$key]);
+        }
+    }
+}
+
 /**
  * Bersihkan input harga/nominal format baru (mis. "15,000.73") jadi angka murni
  * (15000.73) sebelum disimpan ke database. Dipakai di setiap controller yang

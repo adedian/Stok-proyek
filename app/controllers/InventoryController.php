@@ -161,8 +161,8 @@ class InventoryController extends Controller
         }
 
         $errors = [];
-        if (empty($opnameDate)) {
-            $errors[] = 'Tanggal opname wajib diisi.';
+        if (!isValidDateString($opnameDate)) {
+            $errors[] = 'Tanggal opname wajib diisi dengan tanggal yang valid.';
         }
         if (empty($inventoryIds)) {
             $errors[] = 'Tidak ada item barang untuk bucket stok ini.';

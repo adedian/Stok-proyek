@@ -100,6 +100,10 @@ class CollectionReceiptController extends Controller
 
         $deliveryNoteIds = $_POST['delivery_note_id'] ?? [];
         $receiptDate = $_POST['receipt_date'] ?: date('Y-m-d');
+        if (!isValidDateString($receiptDate)) {
+            setFlash('error', 'Tanggal Tanda Terima tidak valid.');
+            $this->redirect('sales_invoice', 'index');
+        }
 
         $data = [
             'receipt_number' => $this->receiptModel->generateReceiptNumber($receiptDate),
@@ -227,6 +231,11 @@ class CollectionReceiptController extends Controller
         }
 
         $deliveryNoteIds = $_POST['delivery_note_id'] ?? [];
+
+        if (!isValidDateString($_POST['receipt_date'] ?: $existing['receipt_date'])) {
+            setFlash('error', 'Tanggal Tanda Terima tidak valid.');
+            $this->redirect('collection_receipt', 'edit', ['id' => $id]);
+        }
 
         $updateData = [
             'receipt_date'   => $_POST['receipt_date'] ?: $existing['receipt_date'],

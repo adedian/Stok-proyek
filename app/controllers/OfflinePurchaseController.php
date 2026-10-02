@@ -426,8 +426,8 @@ class OfflinePurchaseController extends Controller
         if ($data['supplier_name'] === '') {
             $errors[] = 'Nama supplier wajib diisi.';
         }
-        if (empty($data['purchase_date'])) {
-            $errors[] = 'Tanggal pembelian wajib diisi.';
+        if (!isValidDateString($data['purchase_date'])) {
+            $errors[] = 'Tanggal pembelian wajib diisi dengan tanggal yang valid.';
         }
         if (empty($data['items'])) {
             $errors[] = 'Minimal harus ada 1 item barang.';

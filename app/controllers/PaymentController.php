@@ -413,8 +413,8 @@ class PaymentController extends Controller
         if ($data['amount'] <= 0) {
             $errors[] = 'Nominal pembayaran harus lebih dari 0.';
         }
-        if (empty($data['payment_date'])) {
-            $errors[] = 'Tanggal pembayaran wajib diisi.';
+        if (!isValidDateString($data['payment_date'])) {
+            $errors[] = 'Tanggal pembayaran wajib diisi dengan tanggal yang valid.';
         }
         if ($data['funding_source'] === 'bank' && empty($data['payment_method_id'])) {
             $errors[] = 'Jenis Pembayaran (Cek/Giro/Transfer Bank/Tunai) wajib dipilih untuk sumber dana Bank.';

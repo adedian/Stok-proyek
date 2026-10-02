@@ -70,10 +70,26 @@ if (APP_ENV === 'development') {
     // pesan generik. Tanpa ini, PDOException dsb bisa muncul mentah ke layar.
     set_exception_handler(static function (\Throwable $e): void {
         error_log('Uncaught ' . get_class($e) . ': ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
-        if (!headers_sent()) {
-            http_response_code(500);
+        // TypeError akibat input berbentuk array yang dikirim manual (mis. judul[]=x pada field
+        // teks) = kesalahan KLIEN -> 400, bukan 500. Hanya bila request memang membawa array,
+        // supaya bug kode sungguhan pada request normal tetap tampil sebagai 500.
+        $badInput = false;
+        if ($e instanceof \TypeError) {
+            foreach ([$_GET, $_POST] as $src) {
+                foreach ($src as $v) {
+                    if (is_array($v)) {
+                        $badInput = true;
+                        break 2;
+                    }
+                }
+            }
         }
-        echo 'Terjadi kesalahan pada server. Silakan coba lagi atau hubungi administrator.';
+        if (!headers_sent()) {
+            http_response_code($badInput ? 400 : 500);
+        }
+        echo $badInput
+            ? 'Permintaan tidak valid. Periksa kembali data yang dikirim.'
+            : 'Terjadi kesalahan pada server. Silakan coba lagi atau hubungi administrator.';
     });
     register_shutdown_function(static function (): void {
         $err = error_get_last();

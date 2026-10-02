@@ -935,8 +935,8 @@ class GoodsReceiptController extends Controller
     {
         $errors = [];
 
-        if (empty($data['receipt_date'])) {
-            $errors[] = 'Tanggal penerimaan wajib diisi.';
+        if (!isValidDateString($data['receipt_date'])) {
+            $errors[] = 'Tanggal penerimaan wajib diisi dengan tanggal yang valid.';
         }
         if ($data['receiver_name'] === '') {
             $errors[] = 'Nama penerima wajib diisi.';

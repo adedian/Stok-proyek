@@ -112,6 +112,10 @@ class DeliveryNoteController extends Controller
         }
 
         $deliveryDate = $_POST['delivery_date'] ?: date('Y-m-d');
+        if (!isValidDateString($deliveryDate)) {
+            setFlash('error', 'Tanggal Surat Jalan tidak valid.');
+            $this->redirect('delivery_note', 'select', ['ids' => implode(',', $ids)]);
+        }
 
         $data = [
             'delivery_number'  => $this->deliveryNoteModel->generateDeliveryNumber($deliveryDate),

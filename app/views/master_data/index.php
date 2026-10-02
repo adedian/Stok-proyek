@@ -90,9 +90,9 @@ $subModules = array_values(array_filter($subModules, static fn(array $m) => can(
             <a href="<?= BASE_URL ?>/<?= e($m['module']) ?>" class="card border-0 shadow-sm text-decoration-none h-100">
                 <div class="card-body d-flex align-items-center gap-3">
                     <div class="fs-3 text-primary"><i class="bi <?= e($m['icon']) ?>"></i></div>
-                    <div>
+                    <div class="min-w-0">
                         <div class="fw-semibold text-dark"><?= e($m['label']) ?></div>
-                        <small class="text-muted"><?= e($m['desc']) ?></small>
+                        <small class="text-muted d-block" style="overflow-wrap:anywhere"><?= e($m['desc']) ?></small>
                     </div>
                 </div>
             </a>

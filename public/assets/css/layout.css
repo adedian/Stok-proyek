@@ -23,26 +23,52 @@ a {
 
 .main-content {
     padding: 28px 32px;
-    /* Cukup tinggi untuk mendorong footer ke dasar layar pada halaman
-       berkonten pendek. dvh (dynamic viewport) mengikuti tinggi layar
-       AKTUAL di Android (URL bar muncul/hilang) -> tidak ada ruang mati
-       ekstra di bawah. vh sebagai fallback browser lama. */
-    min-height: calc(100vh - var(--topbar-height));
-    min-height: calc(100dvh - var(--topbar-height));
     min-width: 0; /* biar flex child boleh menyusut & isi (tabel lebar) scroll sendiri, bukan mendorong layout */
+}
+
+/* Layout global "sticky footer" (hanya di layar; cetak dibiarkan normal):
+     body (flex column, min 1 layar)
+       ├─ .app-topbar
+       ├─ .app-shell   <- flex: 1, mengisi sisa tinggi (sidebar + .main-content di dalamnya)
+       └─ .app-footer  <- full-width, setelah semua konten
+   Halaman pendek: .app-shell memanjang sehingga footer menempel di dasar layar.
+   Halaman panjang: footer turun mengikuti akhir konten. BUKAN position:fixed.
+   dvh (dynamic viewport) mengikuti tinggi layar AKTUAL di Android (URL bar
+   muncul/hilang); vh sebagai fallback browser lama. */
+@media screen {
+    html {
+        min-height: 100%;
+    }
+
+    body {
+        min-height: 100vh;
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .app-topbar {
+        flex-shrink: 0;
+    }
+
+    .app-shell {
+        flex: 1 0 auto;
+        width: 100%;
+    }
 }
 
 /* Footer copyright global -- render sekali di app/views/layouts/footer.php, ikut
    di-include lewat main.php ke SEMUA halaman yang pakai layout utama (Controller::view()).
-   BUKAN position:fixed -- mengalir normal di akhir dokumen (sibling setelah .d-flex
-   sidebar+main-content), jadi tidak pernah menutupi tabel/form. .main-content
-   punya min-height 100dvh - topbar (lihat aturan di atas), jadi footer otomatis
-   jatuh di sekitar akhir viewport pada halaman berkonten pendek, dan mengikuti alur
-   halaman (turun lebih jauh) pada halaman berkonten panjang -- tanpa perlu restrukturisasi
-   body/flex global yang berisiko ke seluruh halaman lain. .no-print (aturan sudah ada
-   di utilities.css) otomatis menyembunyikannya saat dokumen dicetak (invoice/PO/dst).
-*/
+   Berada di luar .app-shell (sidebar+konten) sehingga selalu full-width.
+   .no-print (utilities.css) menyembunyikannya saat dokumen dicetak (invoice/PO/dst). */
 .app-footer {
+    flex-shrink: 0;
+    width: 100%;
+    margin-top: auto;
+    min-height: var(--footer-height);
+    display: flex;
+    align-items: center;
+    justify-content: center;
     padding: 14px 32px;
     text-align: center;
     font-size: 12.5px;

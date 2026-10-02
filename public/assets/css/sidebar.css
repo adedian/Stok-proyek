@@ -12,7 +12,10 @@
 
 @media (min-width: 992px) {
     .sidebar {
-        min-height: calc(100vh - var(--topbar-height));
+        /* dikurangi tinggi footer: topbar + sidebar + footer = tepat 1 layar,
+           jadi halaman pendek tidak ikut ter-scroll gara-gara footer */
+        min-height: calc(100vh - var(--topbar-height) - var(--footer-height));
+        min-height: calc(100dvh - var(--topbar-height) - var(--footer-height));
         position: sticky;
         top: var(--topbar-height);
         align-self: flex-start;

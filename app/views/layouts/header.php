@@ -196,4 +196,4 @@ if (!function_exists('renderTopbarAvatar')) {
         });
     });
 </script>
-<div class="d-flex">
+<div class="d-flex app-shell">

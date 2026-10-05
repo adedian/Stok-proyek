@@ -205,7 +205,7 @@ if (!$canClientDest) {
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-2 so-items-head">
                     <label class="form-label mb-0">Daftar Barang <span class="text-danger">*</span></label>
-                    <button type="button" class="btn btn-sm btn-outline-primary" id="soAddRowBtn" disabled>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="soAddRowBtn" data-inline-add="#soItemsBody" disabled>
                         <i class="bi bi-plus-lg"></i> Tambah Baris
                     </button>
                 </div>

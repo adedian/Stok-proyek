@@ -122,7 +122,7 @@ if (empty($terms)) {
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <label class="form-label mb-0 fw-semibold">Baris Item</label>
-                <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddRow">
+                <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddRow" data-inline-add="#itemTableBody">
                     <i class="bi bi-plus-lg"></i> Tambah Baris
                 </button>
             </div>
@@ -222,7 +222,7 @@ if (empty($terms)) {
                     <label class="form-label mb-0 fw-semibold">Termin Tagihan</label>
                     <div class="small text-muted">Pecah tagihan invoice ini jadi beberapa tahap (mis. Termin 1 30%, Progress 40%, Pelunasan 30%). Total persentase maks. 100%.</div>
                 </div>
-                <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddTerm">
+                <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddTerm" data-inline-add="#termTableBody">
                     <i class="bi bi-plus-lg"></i> Tambah Termin
                 </button>
             </div>

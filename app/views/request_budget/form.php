@@ -92,7 +92,7 @@ function rbUnitOptions(array $unitNames, ?string $selected): string
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <div class="card-section-title mb-0">Detail Budget</div>
-                <button type="button" class="btn btn-sm btn-outline-primary" id="rbAddRow"><i class="bi bi-plus-circle"></i> Tambah Item</button>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="rbAddRow" data-inline-add="#rbItemsBody"><i class="bi bi-plus-circle"></i> Tambah Item</button>
             </div>
             <div class="table-responsive">
                 <table class="table table-sm align-middle entry-cards mb-0" id="rbItemsTable">

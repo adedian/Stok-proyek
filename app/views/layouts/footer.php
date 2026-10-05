@@ -14,6 +14,7 @@
     <script src="<?= assetUrl('/assets/js/currency-input.js') ?>"></script>
     <script src="<?= assetUrl('/assets/js/checkbox-select-all.js') ?>"></script>
     <script src="<?= assetUrl('/assets/js/responsive-tables.js') ?>"></script>
+    <script src="<?= assetUrl('/assets/js/inline-row-add.js') ?>"></script>
     <script src="<?= assetUrl('/assets/js/pwa.js') ?>"></script>
 
     <?php if (isLoggedIn() && VAPID_PUBLIC_KEY !== ''): ?>

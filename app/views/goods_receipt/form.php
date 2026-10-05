@@ -255,7 +255,7 @@ $canOfflineSource = can('offline_purchase', 'view');
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <h6 class="mb-0">Barang Tidak Sesuai <span class="text-muted small fw-normal">(opsional)</span></h6>
-                <button type="button" id="btnAddMismatchItem" class="btn btn-sm btn-outline-dark">
+                <button type="button" id="btnAddMismatchItem" data-inline-add="#mismatchItemsBody" class="btn btn-sm btn-outline-dark">
                     <i class="bi bi-plus-circle"></i> Tambah Barang
                 </button>
             </div>
@@ -311,7 +311,7 @@ $canOfflineSource = can('offline_purchase', 'view');
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h6 class="mb-0">Item Barang &amp; Qty</h6>
-                <button type="button" id="btnAddPemakaiItem" class="btn btn-sm btn-outline-primary">
+                <button type="button" id="btnAddPemakaiItem" data-inline-add="#pemakaiItemsBody" class="btn btn-sm btn-outline-primary">
                     <i class="bi bi-plus-circle"></i> Tambah Baris
                 </button>
             </div>

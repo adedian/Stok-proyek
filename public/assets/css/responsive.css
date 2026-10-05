@@ -540,6 +540,43 @@
 }
 
 /* ============================================================
+   7b-2. TOMBOL HAPUS + TAMBAH DI TIAP BARIS INPUT
+   inline-row-add.js membungkus tombol hapus (sampah) bersama tombol "+" (tambah
+   item/barang/baris) dalam .row-action-group -- di desktop berdampingan (ringkas),
+   di HP kartu: hapus melebar, "+" persegi di sebelahnya.
+   ============================================================ */
+.row-action-group {
+    display: inline-flex;
+    align-items: stretch;
+    justify-content: center;
+    gap: .35rem;
+}
+
+.row-action-group > .btn {
+    white-space: nowrap;
+}
+
+@media (max-width: 767.98px) {
+    table.entry-cards > tbody > tr > td .row-action-group,
+    td.cell-remove .row-action-group {
+        display: flex;
+        width: 100%;
+        gap: .5rem;
+    }
+
+    table.entry-cards > tbody > tr > td .row-action-group > .btn:not(.btn-inline-add),
+    td .row-action-group > .btn:not(.btn-inline-add) {
+        flex: 1 1 0;
+        width: auto;
+    }
+
+    table.entry-cards > tbody > tr > td .row-action-group > .btn-inline-add,
+    td .row-action-group > .btn-inline-add {
+        flex: 0 0 auto;
+        width: 3.25rem;
+    }
+}
+/* ============================================================
    7c. MATRIX HAK AKSES  (Pengaturan Sistem -> Hak Akses)
    Matrix modul x role -- terlalu lebar & bergantung rowspan, jadi TIDAK
    diubah jadi karto. Di HP: scroll horizontal dengan kolom Modul & Aksi

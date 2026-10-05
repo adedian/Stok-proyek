@@ -62,7 +62,7 @@ $backUrl = BASE_URL . '/request_po' . ($isEdit ? '/detail/' . (int) $rp['id'] : 
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <div class="card-section-title mb-0">Daftar Barang</div>
-                <button type="button" class="btn btn-sm btn-outline-primary" id="rpoAddRow"><i class="bi bi-plus-circle"></i> Tambah Barang</button>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="rpoAddRow" data-inline-add="#rpoItemsBody"><i class="bi bi-plus-circle"></i> Tambah Barang</button>
             </div>
             <div class="table-responsive">
                 <table class="table table-sm align-middle entry-cards mb-0">

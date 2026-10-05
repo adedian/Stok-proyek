@@ -196,7 +196,7 @@ $actionUrl = $isEdit ? 'update' : 'store';
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <h6 class="mb-0">Daftar Item Barang</h6>
-                <button type="button" id="btnAddItem" class="btn btn-sm btn-outline-primary">
+                <button type="button" id="btnAddItem" data-inline-add="#itemTableBody" class="btn btn-sm btn-outline-primary">
                     <i class="bi bi-plus-circle"></i> Tambah Item
                 </button>
             </div>
@@ -258,7 +258,7 @@ $actionUrl = $isEdit ? 'update' : 'store';
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <h6 class="mb-0">Biaya Tambahan</h6>
-                <button type="button" id="btnAddExtraCost" class="btn btn-sm btn-outline-primary">
+                <button type="button" id="btnAddExtraCost" data-inline-add="#extraCostTableBody" class="btn btn-sm btn-outline-primary">
                     <i class="bi bi-plus-circle"></i> Tambah Biaya
                 </button>
             </div>

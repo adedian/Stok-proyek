@@ -190,7 +190,7 @@ $curRekeningId = $cash['rekening_id'] ?? '';
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2 rincian-head">
                 <h6 class="mb-0">Rincian</h6>
-                <button type="button" id="btnAddItem" class="btn btn-sm btn-outline-primary">
+                <button type="button" id="btnAddItem" data-inline-add="#itemTableBody" class="btn btn-sm btn-outline-primary">
                     <i class="bi bi-plus-circle"></i> Tambah Baris
                 </button>
             </div>

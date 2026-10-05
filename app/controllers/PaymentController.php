@@ -349,7 +349,8 @@ class PaymentController extends Controller
             'total_amount'        => $totalAmount,
             'total_paid'          => $totalPaid,
             'remaining'           => $remaining,
-            'remaining_formatted' => formatRupiah($remaining),
+            'remaining_formatted' => formatMoney($remaining, $po['currency'] ?? 'IDR'),
+            'currency'            => normalizeCurrency($po['currency'] ?? 'IDR'),
             'percentage'          => $percentage,
         ]);
     }

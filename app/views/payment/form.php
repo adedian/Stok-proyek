@@ -34,13 +34,13 @@ $selectedPoId = $selectedPo['id'] ?? ($payment['purchase_order_id'] ?? '');
                         <option value="">-- Pilih Purchase Order --</option>
                         <?php foreach ($poList as $po): ?>
                             <option value="<?= (int) $po['id'] ?>" <?= (string) $selectedPoId === (string) $po['id'] ? 'selected' : '' ?>>
-                                <?= e($po['po_number']) ?> &mdash; <?= e($po['supplier_name']) ?> (<?= formatRupiah($po['total_amount']) ?>)
+                                <?= e($po['po_number']) ?> &mdash; <?= e($po['supplier_name']) ?> (<?= formatMoney($po['total_amount'], $po['currency'] ?? 'IDR') ?>)
                             </option>
                         <?php endforeach; ?>
                     </select>
                     <div class="form-text" id="remainingInfo">
                         <?php if ($remaining !== null && $progress !== null): ?>
-                            Sisa tagihan PO ini: <strong><?= formatRupiah($remaining) ?></strong>
+                            Sisa tagihan PO ini: <strong><?= formatMoney($remaining, $selectedPo['currency'] ?? 'IDR') ?></strong>
                             &middot; Sudah dibayar: <strong><?= number_format($progress['percentage'], 1, ',', '.') ?>%</strong>
                         <?php endif; ?>
                     </div>
@@ -93,7 +93,7 @@ $selectedPoId = $selectedPo['id'] ?? ($payment['purchase_order_id'] ?? '');
                 <div class="col-md-6">
                     <label class="form-label">Nominal Pembayaran <span class="text-danger">*</span></label>
                     <div class="input-group">
-                        <span class="input-group-text">Rp</span>
+                        <span class="input-group-text" id="amountCurrency"><?= e(normalizeCurrency($selectedPo['currency'] ?? 'IDR')) ?></span>
                         <input type="text" name="amount" id="amountInput" class="form-control currency-input" inputmode="numeric"
                                value="<?= e(!empty($payment['amount']) ? number_format((float) $payment['amount'], 2, '.', ',') : '') ?>" required>
                     </div>
@@ -188,6 +188,8 @@ $selectedPoId = $selectedPo['id'] ?? ($payment['purchase_order_id'] ?? '');
                 remainingInfo.innerHTML = 'Sisa tagihan PO ini: <strong>' + data.remaining_formatted + '</strong>'
                     + ' &middot; Sudah dibayar: <strong>' + data.percentage.toString().replace('.', ',') + '%</strong>';
                 formatPercentage(progressBar, data.percentage);
+                var cur = document.getElementById('amountCurrency');
+                if (cur && data.currency) { cur.textContent = data.currency; }
             })
             .catch(function () {
                 remainingInfo.textContent = 'Gagal memuat sisa tagihan.';

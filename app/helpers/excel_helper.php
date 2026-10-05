@@ -94,7 +94,8 @@ function streamExcelReport(string $title, string $companyName, string $periodTex
                     break;
                 case 'rupiah':
                     $sheet->setCellValue($cell, $value !== null ? (float) $value : 0);
-                    $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('"Rp" #,##0');
+                    // Laporan berbasis PO: prefix = mata uang PO (label saja, nilai tidak dikonversi).
+                    $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('"' . (!empty($row['currency']) ? normalizeCurrency($row['currency']) : 'Rp') . '" #,##0');
                     break;
                 case 'percent':
                     $sheet->setCellValue($cell, $value !== null ? (float) $value : 0);
@@ -125,10 +126,17 @@ function streamExcelReport(string $title, string $companyName, string $periodTex
         foreach ($columns as $col) {
             $letter = Coordinate::stringFromColumnIndex($colIndex);
             if (!empty($col['sum'])) {
-                $sum = array_sum(array_map(fn($r) => (float) ($r[$col['field']] ?? 0), $rows));
+                $sums = reportSumByCurrency($rows, $col['field']);
                 $cell = $letter . $totalRow;
-                $sheet->setCellValue($cell, $sum);
-                $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('"Rp" #,##0');
+                if (count($sums) === 1) {
+                    // Satu mata uang -> angka asli + format berprefix kode.
+                    $cur = (string) array_key_first($sums);
+                    $sheet->setCellValue($cell, (float) reset($sums));
+                    $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('"' . ($cur === '' ? 'Rp' : $cur) . '" #,##0');
+                } else {
+                    // Campuran mata uang: tidak dijumlahkan jadi satu angka (tanpa kurs) -- teks per mata uang.
+                    $sheet->setCellValue($cell, formatReportTotal($rows, $col['field']));
+                }
                 $sheet->getStyle($cell)->getFont()->setBold(true);
                 $sheet->getStyle($cell)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
             }

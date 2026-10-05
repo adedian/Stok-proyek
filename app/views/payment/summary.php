@@ -42,9 +42,9 @@
                             <td class="fw-semibold"><?= e($row['po_number']) ?></td>
                             <td><?= e($row['pembuat_po'] ?? '-') ?></td>
                             <td><?= e($row['supplier_name']) ?></td>
-                            <td class="text-end"><?= formatRupiah($row['total_amount']) ?></td>
+                            <td class="text-end"><?= formatMoney($row['total_amount'], $row['currency'] ?? 'IDR') ?></td>
                             <td class="text-end">
-                                <?= formatRupiah($row['total_paid']) ?>
+                                <?= formatMoney($row['total_paid'], $row['currency'] ?? 'IDR') ?>
                                 <span class="text-muted small">/ <?= number_format($row['percentage'], 1, ',', '.') ?>%</span>
                             </td>
                             <td class="text-end fw-semibold" style="min-width: 110px;">
@@ -55,7 +55,7 @@
                                          aria-valuenow="<?= (float) $row['percentage'] ?>" aria-valuemin="0" aria-valuemax="100"></div>
                                 </div>
                             </td>
-                            <td class="text-end"><?= formatRupiah($row['remaining']) ?></td>
+                            <td class="text-end"><?= formatMoney($row['remaining'], $row['currency'] ?? 'IDR') ?></td>
                             <td class="text-center">
                                 <span class="badge bg-<?= e($statusBadgeClass[$row['payment_status']]) ?>">
                                     <?= e($statusLabels[$row['payment_status']]) ?>

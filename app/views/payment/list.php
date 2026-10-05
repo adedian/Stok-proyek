@@ -146,7 +146,7 @@
                                 </span>
                             </td>
                             <td><?= e($pay['method_name'] ?? '-') ?></td>
-                            <td class="text-end"><?= formatRupiah($pay['amount']) ?></td>
+                            <td class="text-end"><?= formatMoney($pay['amount'], $pay['currency'] ?? 'IDR') ?></td>
                             <td><?= formatTanggal($pay['payment_date']) ?></td>
                             <td class="text-center">
                                 <?php if (!empty($pay['proof_file'])): ?>
@@ -164,7 +164,7 @@
                             </td>
                             <td>
                                 <div class="d-flex justify-content-between small mb-1">
-                                    <span class="text-muted"><?= formatRupiah($pay['po_total_paid']) ?> / <?= formatRupiah($pay['total_amount']) ?></span>
+                                    <span class="text-muted"><?= formatMoney($pay['po_total_paid'], $pay['currency'] ?? 'IDR') ?> / <?= formatMoney($pay['total_amount'], $pay['currency'] ?? 'IDR') ?></span>
                                     <span class="fw-semibold"><?= number_format($pay['po_payment_percentage'], 1, ',', '.') ?>%</span>
                                 </div>
                                 <div class="progress" style="height: 6px;">

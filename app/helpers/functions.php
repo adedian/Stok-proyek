@@ -12,6 +12,43 @@ function formatRupiah($angka): string
 }
 
 /**
+ * Mata uang yang boleh dipilih di Purchase Order (kode ISO 3 huruf) -- SATU sumber
+ * (belum ada Master Mata Uang). Mata uang hanyalah LABEL: tidak ada kurs/konversi.
+ * Urutan = urutan dropdown; yang pertama = default.
+ */
+function poCurrencies(): array
+{
+    return ['IDR', 'USD', 'EUR', 'SGD', 'JPY', 'MYR'];
+}
+
+/** true kalau $code kode mata uang yang sah (case-insensitive, tanpa trim ajaib). */
+function isValidCurrency($code): bool
+{
+    return is_string($code) && in_array(strtoupper($code), poCurrencies(), true);
+}
+
+/**
+ * Normalisasi kode mata uang: kosong/null -> 'IDR' (default). Nilai TIDAK dikenal
+ * juga jatuh ke 'IDR' di sini (dipakai untuk TAMPILAN data lama); validasi input
+ * form yang menolak nilai asing ada di PurchaseOrderController::validatePoInput().
+ */
+function normalizeCurrency($code): string
+{
+    $code = strtoupper(trim((string) $code));
+    return isValidCurrency($code) ? $code : poCurrencies()[0];
+}
+
+/**
+ * Format nominal dengan KODE mata uang, mis. "USD 1,500,000.00". Formatter angka
+ * SAMA PERSIS dengan formatRupiah() (koma ribuan, titik desimal, 2 digit) --
+ * hanya prefix yang berganti; nilai TIDAK dikonversi.
+ */
+function formatMoney($angka, $currency = 'IDR'): string
+{
+    return normalizeCurrency($currency) . ' ' . number_format((float) $angka, 2, '.', ',');
+}
+
+/**
  * Format persentase tanpa nol desimal berlebihan: 50.00 -> "50", 11.50 -> "11.5".
  * Dipakai untuk label "Tagihan (DP 50%)"/"PPN (11%)" di Invoice Keluar supaya
  * tidak menampilkan "50.00%" -- selalu dibangun dari ANGKA (dp_percentage/
@@ -428,6 +465,33 @@ function parseCurrencyInput($raw): float
 }
 
 /**
+ * Jumlahkan kolom nominal laporan PER MATA UANG. Baris yang membawa 'currency' (laporan
+ * berbasis PO) dikelompokkan per kode; laporan tanpa kolom currency -> satu grup '' (Rupiah).
+ * Nominal berbeda mata uang TIDAK PERNAH dijumlahkan jadi satu angka (tanpa kurs).
+ *
+ * @return array<string,float> kode (atau '') => jumlah
+ */
+function reportSumByCurrency(array $rows, string $field): array
+{
+    $sums = [];
+    foreach ($rows as $r) {
+        $cur = !empty($r['currency']) ? normalizeCurrency($r['currency']) : '';
+        $sums[$cur] = ($sums[$cur] ?? 0.0) + (float) ($r[$field] ?? 0);
+    }
+    return $sums ?: ['' => 0.0];
+}
+
+/** Teks baris TOTAL laporan: satu mata uang -> "USD 1,000.00"; campuran -> "IDR 1,000.00 | USD 500.00". */
+function formatReportTotal(array $rows, string $field): string
+{
+    $parts = [];
+    foreach (reportSumByCurrency($rows, $field) as $cur => $sum) {
+        $parts[] = $cur === '' ? formatRupiah($sum) : formatMoney($sum, $cur);
+    }
+    return implode(' | ', $parts);
+}
+
+/**
  * Bersihkan input QTY (bukan uang) yang mungkin diketik pakai koma desimal
  * ala Indonesia (mis. "0,5") -- beda konvensi dari parseCurrencyInput() di
  * atas (koma = ribuan, dipakai field .currency-input). Semua kolom qty di
@@ -464,13 +528,19 @@ function parseQtyInput($raw): float
  * Format satu nilai kolom laporan sesuai tipenya -- dipakai bareng oleh
  * tampilan tabel, export CSV, dan export PDF di modul Laporan supaya konsisten.
  */
-function formatReportValue($value, string $format = 'text'): string
+function formatReportValue($value, string $format = 'text', ?array $row = null): string
 {
     if ($value === null || $value === '') {
         return '-';
     }
     switch ($format) {
         case 'rupiah':
+            // Laporan berbasis PO: baris membawa 'currency' (mata uang PO) -> prefix
+            // mengikuti mata uang PO, nilai TIDAK dikonversi. Laporan lain (tanpa
+            // kolom currency) tetap "Rp".
+            if ($row !== null && !empty($row['currency'])) {
+                return formatMoney($value, $row['currency']);
+            }
             return formatRupiah($value);
         case 'date':
             return formatTanggal($value);

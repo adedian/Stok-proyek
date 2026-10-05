@@ -68,9 +68,12 @@ $selectedCategory = $item['category'] ?? '';
         <input type="text" inputmode="decimal" name="qty_order[]" class="form-control form-control-sm qty-input"
                value="<?= e($item['qty_order']) ?>" placeholder="0" required>
     </td>
-    <td style="width: 150px;">
-        <input type="text" name="price[]" class="form-control form-control-sm price-input currency-input"
-               inputmode="numeric" value="<?= e($item['price'] !== '' ? number_format((float) $item['price'], 2, '.', ',') : '') ?>" placeholder="0" required>
+    <td style="width: 215px;">
+        <div class="input-group input-group-sm">
+            <span class="input-group-text po-currency-label"><?= e(normalizeCurrency($poCurrency ?? 'IDR')) ?></span>
+            <input type="text" name="price[]" class="form-control form-control-sm price-input currency-input"
+                   inputmode="numeric" value="<?= e($item['price'] !== '' ? number_format((float) $item['price'], 2, '.', ',') : '') ?>" placeholder="0" required>
+        </div>
     </td>
     <td style="width: 90px;">
         <input type="text" inputmode="decimal" name="discount_percent[]" class="form-control form-control-sm discount-input"
@@ -98,7 +101,7 @@ $selectedCategory = $item['category'] ?? '';
                    value="<?= e($ppnValRow) ?>" placeholder="%" <?= $ppnOnRow ? '' : 'disabled' ?>>
         </div>
     </td>
-    <td style="width: 150px;" class="text-end subtotal-cell">Rp 0.00</td>
+    <td style="width: 170px;" class="text-end subtotal-cell"><?= e(formatMoney(0, $poCurrency ?? 'IDR')) ?></td>
     <td style="width: 50px;" class="text-center">
         <button type="button" class="btn btn-sm btn-outline-danger btn-remove-row">
             <i class="bi bi-trash"></i>

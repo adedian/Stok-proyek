@@ -62,6 +62,16 @@ $actionUrl = $isEdit ? 'update' : 'store';
                     </div>
                 </div>
                 <div class="col-md-4">
+                    <label class="form-label">Mata Uang <span class="text-danger">*</span></label>
+                    <?php $poCurrency = normalizeCurrency($po['currency'] ?? 'IDR'); ?>
+                    <select name="currency" id="po_currency" class="form-select" required>
+                        <?php foreach (($currencies ?? poCurrencies()) as $cur): ?>
+                            <option value="<?= e($cur) ?>" <?= $poCurrency === $cur ? 'selected' : '' ?>><?= e($cur) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <div class="form-text">Hanya label mata uang &mdash; nominal tidak dikonversi.</div>
+                </div>
+                <div class="col-md-4">
                     <label class="form-label">Lokasi Pengiriman</label>
                     <div class="input-group">
                         <select name="delivery_location_id" id="delivery_location_id" class="form-select">
@@ -218,7 +228,7 @@ $actionUrl = $isEdit ? 'update' : 'store';
                     <tfoot>
                         <tr>
                             <td colspan="8" class="text-end fw-bold">Subtotal Barang</td>
-                            <td class="text-end fw-bold" id="itemsSubtotal">Rp 0.00</td>
+                            <td class="text-end fw-bold" id="itemsSubtotal"><?= e(formatMoney(0, $po['currency'] ?? 'IDR')) ?></td>
                             <td></td>
                         </tr>
                     </tfoot>
@@ -269,8 +279,11 @@ $actionUrl = $isEdit ? 'update' : 'store';
                                            value="<?= e($cost['cost_name']) ?>" placeholder="mis. Ongkir, Biaya Bongkar">
                                 </td>
                                 <td>
-                                    <input type="text" name="extra_cost_amount[]" class="form-control form-control-sm extra-cost-amount-input currency-input"
-                                           inputmode="numeric" value="<?= e(number_format((float) $cost['amount'], 2, '.', ',')) ?>" placeholder="0">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text po-currency-label"><?= e($poCurrency) ?></span>
+                                        <input type="text" name="extra_cost_amount[]" class="form-control form-control-sm extra-cost-amount-input currency-input"
+                                               inputmode="numeric" value="<?= e(number_format((float) $cost['amount'], 2, '.', ',')) ?>" placeholder="0">
+                                    </div>
                                 </td>
                                 <td class="text-center">
                                     <button type="button" class="btn btn-sm btn-outline-danger btn-remove-extra-cost">
@@ -291,7 +304,7 @@ $actionUrl = $isEdit ? 'update' : 'store';
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-body d-flex justify-content-between align-items-center">
             <h6 class="mb-0">Grand Total</h6>
-            <div class="fs-5 fw-bold" id="grandTotal">Rp 0.00</div>
+            <div class="fs-5 fw-bold" id="grandTotal"><?= e(formatMoney(0, $po['currency'] ?? 'IDR')) ?></div>
         </div>
     </div>
 
@@ -344,10 +357,19 @@ $actionUrl = $isEdit ? 'update' : 'store';
     const btnAddExtraCost = document.getElementById('btnAddExtraCost');
     let rowIndex = tableBody.querySelectorAll('.item-row').length;
 
-    function formatRupiah(num) {
-        // Format nominal baru: koma ribuan, titik desimal, selalu 2 digit desimal --
-        // HARUS sinkron dengan formatRupiah() PHP (app/helpers/functions.php).
-        return 'Rp ' + Number(num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    // Mata uang PO = LABEL saja: nilai input/total TIDAK pernah dikonversi, hanya
+    // prefix yang berganti saat dropdown Mata Uang diubah (realtime, tanpa reload).
+    const currencyEl = document.getElementById('po_currency');
+    function currentCurrency() {
+        return (currencyEl && currencyEl.value) ? currencyEl.value : 'IDR';
+    }
+    function formatMoney(num) {
+        // Format nominal: koma ribuan, titik desimal, selalu 2 digit desimal --
+        // HARUS sinkron dengan formatMoney() PHP (app/helpers/functions.php).
+        return currentCurrency() + ' ' + Number(num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    function syncCurrencyLabels() {
+        document.querySelectorAll('.po-currency-label').forEach(function (el) { el.textContent = currentCurrency(); });
     }
 
     // Qty/Diskon/PPN% qty-style: user boleh ketik koma desimal ("0,5") -- server
@@ -375,7 +397,7 @@ $actionUrl = $isEdit ? 'update' : 'store';
         const afterDiscount = qty * price * (1 - discountPercent / 100);
         const ppnAmount = ppnEnabled ? afterDiscount * (ppnPercent / 100) : 0;
         const subtotal = afterDiscount + ppnAmount;
-        row.querySelector('.subtotal-cell').textContent = formatRupiah(subtotal);
+        row.querySelector('.subtotal-cell').textContent = formatMoney(subtotal);
         return subtotal;
     }
 
@@ -394,8 +416,9 @@ $actionUrl = $isEdit ? 'update' : 'store';
         tableBody.querySelectorAll('.item-row').forEach(function (row) {
             itemsTotal += recalcRow(row);
         });
-        itemsSubtotalEl.textContent = formatRupiah(itemsTotal);
-        grandTotalEl.textContent = formatRupiah(itemsTotal + extraCostTotal());
+        itemsSubtotalEl.textContent = formatMoney(itemsTotal);
+        grandTotalEl.textContent = formatMoney(itemsTotal + extraCostTotal());
+        syncCurrencyLabels();
     }
 
     // Delegasi event untuk input qty/price/diskon/ppn yang bisa bertambah secara dinamis
@@ -481,9 +504,10 @@ $actionUrl = $isEdit ? 'update' : 'store';
             tr.className = 'extra-cost-row';
             tr.innerHTML =
                 '<td><input type="text" name="extra_cost_name[]" class="form-control form-control-sm" placeholder="mis. Ongkir, Biaya Bongkar"></td>'
-                + '<td><input type="text" name="extra_cost_amount[]" class="form-control form-control-sm extra-cost-amount-input currency-input" inputmode="numeric" placeholder="0"></td>'
+                + '<td><div class="input-group input-group-sm"><span class="input-group-text po-currency-label"></span><input type="text" name="extra_cost_amount[]" class="form-control form-control-sm extra-cost-amount-input currency-input" inputmode="numeric" placeholder="0"></div></td>'
                 + '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger btn-remove-extra-cost"><i class="bi bi-trash"></i></button></td>';
             extraCostBody.appendChild(tr);
+            syncCurrencyLabels();
         });
     }
     if (extraCostBody) {
@@ -551,6 +575,9 @@ $actionUrl = $isEdit ? 'update' : 'store';
             });
     });
 
+    if (currencyEl) {
+        currencyEl.addEventListener('change', recalcAll);
+    }
     recalcAll();
 })();
 </script>

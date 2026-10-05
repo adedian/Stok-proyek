@@ -48,6 +48,10 @@
                         <div class="fw-semibold"><?= formatTanggal($po['po_date']) ?></div>
                     </div>
                     <div class="col-md-4">
+                        <div class="text-muted small">Mata Uang</div>
+                        <div class="fw-semibold"><?= e(normalizeCurrency($po['currency'] ?? 'IDR')) ?></div>
+                    </div>
+                    <div class="col-md-4">
                         <div class="text-muted small">Status</div>
                         <span class="badge bg-<?= e($statusBadgeClass[$po['status']] ?? 'secondary') ?>">
                             <?= e($statusLabels[$po['status']] ?? $po['status']) ?>
@@ -105,15 +109,15 @@
                 <div class="row g-3 mb-2">
                     <div class="col-md-3 col-6">
                         <div class="text-muted small">Total PO</div>
-                        <div class="fw-semibold"><?= formatRupiah($paymentInfo['total_amount']) ?></div>
+                        <div class="fw-semibold"><?= formatMoney($paymentInfo['total_amount'], $po['currency'] ?? 'IDR') ?></div>
                     </div>
                     <div class="col-md-3 col-6">
                         <div class="text-muted small">Sudah Dibayar</div>
-                        <div class="fw-semibold text-success"><?= formatRupiah($paymentInfo['total_paid']) ?></div>
+                        <div class="fw-semibold text-success"><?= formatMoney($paymentInfo['total_paid'], $po['currency'] ?? 'IDR') ?></div>
                     </div>
                     <div class="col-md-3 col-6">
                         <div class="text-muted small">Sisa</div>
-                        <div class="fw-semibold text-danger"><?= formatRupiah($paymentInfo['remaining']) ?></div>
+                        <div class="fw-semibold text-danger"><?= formatMoney($paymentInfo['remaining'], $po['currency'] ?? 'IDR') ?></div>
                     </div>
                     <div class="col-md-3 col-6">
                         <div class="text-muted small">Persentase</div>
@@ -156,17 +160,17 @@
                                 <td><?= e($item['item_name']) ?></td>
                                 <td><?= e($item['unit']) ?></td>
                                 <td class="text-end"><?= number_format((float) $item['qty_order'], 2, ',', '.') ?></td>
-                                <td class="text-end"><?= formatRupiah($item['price']) ?></td>
+                                <td class="text-end"><?= formatMoney($item['price'], $po['currency'] ?? 'IDR') ?></td>
                                 <td class="text-end"><?= (float) ($item['discount_percent'] ?? 0) > 0 ? number_format((float) $item['discount_percent'], 1, ',', '.') . '%' : '-' ?></td>
                                 <td class="text-end"><?= !empty($item['ppn_enabled']) ? number_format((float) $item['ppn_percent'], 1, ',', '.') . '%' : '-' ?></td>
-                                <td class="text-end"><?= formatRupiah($item['subtotal']) ?></td>
+                                <td class="text-end"><?= formatMoney($item['subtotal'], $po['currency'] ?? 'IDR') ?></td>
                             </tr>
                         <?php endforeach; ?>
                         <?php if (!empty($extraCosts)): ?>
                             <?php foreach ($extraCosts as $cost): ?>
                                 <tr>
                                     <td colspan="6" class="text-muted"><i class="bi bi-plus-circle"></i> Biaya Tambahan: <?= e($cost['cost_name']) ?></td>
-                                    <td class="text-end"><?= formatRupiah($cost['amount']) ?></td>
+                                    <td class="text-end"><?= formatMoney($cost['amount'], $po['currency'] ?? 'IDR') ?></td>
                                 </tr>
                             <?php endforeach; ?>
                         <?php endif; ?>
@@ -174,7 +178,7 @@
                     <tfoot>
                         <tr>
                             <td colspan="6" class="text-end fw-bold">Grand Total</td>
-                            <td class="text-end fw-bold"><?= formatRupiah($po['total_amount']) ?></td>
+                            <td class="text-end fw-bold"><?= formatMoney($po['total_amount'], $po['currency'] ?? 'IDR') ?></td>
                         </tr>
                     </tfoot>
                 </table>

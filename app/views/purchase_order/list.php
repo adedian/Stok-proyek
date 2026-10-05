@@ -125,7 +125,7 @@
                             <td><?php if (!empty($po['receiver_name'])): ?><?= e($po['receiver_name']) ?><?php else: ?><span class="text-muted fst-italic">Belum ditentukan</span><?php endif; ?></td>
                             <td><?= e($po['project_name']) ?></td>
                             <td><?= formatTanggal($po['po_date']) ?></td>
-                            <td class="text-end"><?= formatRupiah($po['total_amount']) ?></td>
+                            <td class="text-end"><?= formatMoney($po['total_amount'], $po['currency'] ?? 'IDR') ?></td>
                             <td class="text-center">
                                 <span class="badge bg-<?= e($statusBadgeClass[$po['status']] ?? 'secondary') ?>">
                                     <?= e($statusLabels[$po['status']] ?? $po['status']) ?>

@@ -272,6 +272,7 @@
             <table>
                 <tr><td>No. PO</td><td>: <strong><?= e($po['po_number']) ?></strong></td></tr>
                 <tr><td>Tanggal</td><td>: <?= formatTanggal($po['po_date']) ?></td></tr>
+                <tr><td>Mata Uang</td><td>: <?= e(normalizeCurrency($po['currency'] ?? 'IDR')) ?></td></tr>
             </table>
         </div>
 
@@ -327,22 +328,22 @@
                         <td><?= e($item['item_name']) ?></td>
                         <td class="num"><?= number_format((float) $item['qty_order'], 2, ',', '.') ?></td>
                         <td><?= e($item['unit']) ?></td>
-                        <td class="num"><?= formatRupiah($item['price']) ?></td>
+                        <td class="num"><?= formatMoney($item['price'], $po['currency'] ?? 'IDR') ?></td>
                         <td class="num"><?= (float) ($item['discount_percent'] ?? 0) > 0 ? number_format((float) $item['discount_percent'], 0, ',', '.') . '%' : '-' ?></td>
-                        <td class="num"><?= formatRupiah($item['subtotal']) ?></td>
+                        <td class="num"><?= formatMoney($item['subtotal'], $po['currency'] ?? 'IDR') ?></td>
                         <td><?= e($item['category'] ?? '') ?></td>
                     </tr>
                 <?php endforeach; ?>
                 <?php foreach ($po['extraCosts'] ?? [] as $cost): ?>
                     <tr>
                         <td colspan="6" class="num">Biaya Tambahan: <?= e($cost['cost_name']) ?></td>
-                        <td class="num"><?= formatRupiah($cost['amount']) ?></td>
+                        <td class="num"><?= formatMoney($cost['amount'], $po['currency'] ?? 'IDR') ?></td>
                         <td></td>
                     </tr>
                 <?php endforeach; ?>
                 <tr class="po-print-total-row">
                     <td colspan="6" class="num">TOTAL</td>
-                    <td class="num"><?= formatRupiah($po['total_amount']) ?></td>
+                    <td class="num"><?= formatMoney($po['total_amount'], $po['currency'] ?? 'IDR') ?></td>
                     <td></td>
                 </tr>
             </tbody>

@@ -35,7 +35,7 @@
                     <td><?= $rowIndex + 1 ?></td>
                     <?php foreach ($columns as $col): ?>
                         <td class="<?= ($col['align'] ?? '') === 'end' ? 'end' : '' ?>">
-                            <?= e(formatReportValue($row[$col['field']] ?? null, $col['format'] ?? 'text')) ?>
+                            <?= e(formatReportValue($row[$col['field']] ?? null, $col['format'] ?? 'text', $row)) ?>
                         </td>
                     <?php endforeach; ?>
                 </tr>
@@ -53,7 +53,7 @@
                     <td class="end">TOTAL</td>
                     <?php foreach ($columns as $col): ?>
                         <?php if (!empty($col['sum'])): ?>
-                            <td class="end"><?= e(formatRupiah(array_sum(array_map(fn($r) => (float) ($r[$col['field']] ?? 0), $rows)))) ?></td>
+                            <td class="end"><?= e(formatReportTotal($rows, $col['field'])) ?></td>
                         <?php else: ?>
                             <td></td>
                         <?php endif; ?>

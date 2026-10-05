@@ -132,6 +132,7 @@ class PurchaseOrderController extends Controller
             'items'       => [],
             'extraCosts'  => [],
             'poNumber'    => $this->poModel->previewPoNumber(),
+            'currencies'  => poCurrencies(),
             'suppliers'   => $this->supplierModel->activeList(),
             'projects'    => $this->projectModel->activeList(),
             'receivers'   => $this->poModel->receiverCandidates(),
@@ -185,6 +186,7 @@ class PurchaseOrderController extends Controller
                 'receiver_user_id' => $data['receiver_user_id'],
                 'delivery_location_id' => $data['delivery_location_id'] ?: null,
                 'po_date'     => $data['po_date'],
+                'currency'    => $data['currency'],
                 'status'      => $data['status'],
                 'notes'       => $data['notes'],
                 'pembuat_po'  => $data['pembuat_po'],
@@ -255,6 +257,7 @@ class PurchaseOrderController extends Controller
             'items'     => $this->itemModel->itemsByPo($id),
             'extraCosts' => $this->extraCostModel->itemsByPo($id),
             'poNumber'  => $po['po_number'],
+            'currencies' => poCurrencies(),
             'suppliers' => $this->supplierModel->activeList(),
             'projects'  => $this->projectModel->activeList(),
             'receivers' => $this->poModel->receiverCandidates(),
@@ -336,6 +339,7 @@ class PurchaseOrderController extends Controller
                 'receiver_user_id' => $data['receiver_user_id'],
                 'delivery_location_id' => $data['delivery_location_id'] ?: null,
                 'po_date'     => $data['po_date'],
+                'currency'    => $data['currency'],
                 'status'      => $data['status'],
                 'notes'       => $data['notes'],
                 'pembuat_po'  => $data['pembuat_po'],
@@ -658,6 +662,14 @@ class PurchaseOrderController extends Controller
             'receiver_user_id' => (int) ($_POST['receiver_user_id'] ?? 0),
             'delivery_location_id' => (int) ($_POST['delivery_location_id'] ?? 0),
             'po_date'     => $_POST['po_date'] ?? '',
+            // Mata uang = LABEL saja (tanpa konversi). Kosong -> default IDR; nilai bukan
+            // string / di luar daftar ditolak di validatePoInput() (bukan diam-diam diganti).
+            'currency'    => (function () {
+                $c = $_POST['currency'] ?? '';
+                if (!is_string($c)) { return '?'; }
+                $c = strtoupper(trim($c));
+                return $c === '' ? poCurrencies()[0] : $c;
+            })(),
             'status'      => $_POST['status'] ?? 'draft',
             'notes'       => trim($_POST['notes'] ?? ''),
             'pembuat_po'  => trim($_POST['pembuat_po'] ?? ''),
@@ -704,6 +716,9 @@ class PurchaseOrderController extends Controller
         }
         if (!array_key_exists($data['status'], $this->poModel->statusLabels)) {
             $errors[] = 'Status tidak valid.';
+        }
+        if (!isValidCurrency($data['currency'])) {
+            $errors[] = 'Mata uang tidak valid.';
         }
         if (empty($data['items'])) {
             $errors[] = 'Minimal harus ada 1 item barang.';

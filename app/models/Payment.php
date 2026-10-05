@@ -118,7 +118,7 @@ class Payment extends Model
      */
     public function listWithRelations(array $filters = []): array
     {
-        $sql = "SELECT pay.*, po.po_number, po.total_amount, po.project_id, po.pembuat_po, s.supplier_name, p.project_name,
+        $sql = "SELECT pay.*, po.po_number, po.currency, po.total_amount, po.project_id, po.pembuat_po, s.supplier_name, p.project_name,
                        pm.method_name,
                        (SELECT COALESCE(SUM(p2.amount), 0) FROM payments p2
                         WHERE p2.purchase_order_id = po.id AND p2.deleted_at IS NULL) AS po_total_paid
@@ -180,7 +180,7 @@ class Payment extends Model
 
     public function findWithRelations(int $id)
     {
-        $sql = "SELECT pay.*, po.po_number, po.total_amount, po.pembuat_po, s.supplier_name, pm.method_name
+        $sql = "SELECT pay.*, po.po_number, po.currency, po.total_amount, po.pembuat_po, s.supplier_name, pm.method_name
                 FROM payments pay
                 JOIN purchase_orders po ON po.id = pay.purchase_order_id
                 JOIN suppliers s ON s.id = po.supplier_id
@@ -195,14 +195,14 @@ class Payment extends Model
      */
     public function poPaymentSummary(): array
     {
-        $sql = "SELECT po.id, po.po_number, po.total_amount, po.status AS po_status, po.pembuat_po,
+        $sql = "SELECT po.id, po.po_number, po.currency, po.total_amount, po.status AS po_status, po.pembuat_po,
                        s.supplier_name,
                        COALESCE(SUM(pay.amount), 0) AS total_paid
                 FROM purchase_orders po
                 JOIN suppliers s ON s.id = po.supplier_id
                 LEFT JOIN payments pay ON pay.purchase_order_id = po.id AND pay.deleted_at IS NULL
                 WHERE po.deleted_at IS NULL
-                GROUP BY po.id, po.po_number, po.total_amount, po.status, po.pembuat_po, s.supplier_name
+                GROUP BY po.id, po.po_number, po.currency, po.total_amount, po.status, po.pembuat_po, s.supplier_name
                 ORDER BY po.created_at DESC";
 
         $rows = $this->db->fetchAll($sql);

@@ -158,6 +158,9 @@ $selectedPoId = $selectedPo['id'] ?? ($payment['purchase_order_id'] ?? '');
     const poSelect = document.getElementById('poSelect');
     const remainingInfo = document.getElementById('remainingInfo');
     const excludePaymentId = <?= $isEdit ? (int) $payment['id'] : 0 ?>;
+    const isEditMode = <?= $isEdit ? 'true' : 'false' ?>;
+    // Sisa tagihan PO dalam mata uang PO (dari server) -- dasar isi otomatis Nominal Pembayaran.
+    let remainingForeign = <?= $remaining !== null ? (float) $remaining : 'null' ?>;
 
     // Jenis Pembayaran (Cek/Giro/Transfer Bank/Tunai) HANYA relevan kalau
     // "Melalui" = Bank -- backend (PaymentController::collectInput/validateInput)
@@ -211,8 +214,24 @@ $selectedPoId = $selectedPo['id'] ?? ($payment['purchase_order_id'] ?? '');
             out.textContent = '-';
         }
     }
-    document.getElementById('amountInput').addEventListener('input', updateForeign);
-    kursInput.addEventListener('input', updateForeign);
+    // Isi otomatis Nominal Pembayaran (IDR) = sisa tagihan PO x Kurs (PO baru tanpa pembayaran =
+    // nilai PO x Kurs). Hanya saat Tambah; berhenti kalau user sudah mengetik nominal sendiri
+    // (bisa diisi ulang dengan mengosongkan nominal). Server tetap menghitung ulang saat simpan.
+    const amountInput = document.getElementById('amountInput');
+    let amountTouched = isEditMode;
+    function autoFillAmount() {
+        if (amountTouched && amountInput.value.trim() !== '') { return; }
+        const kurs = parseFloat((kursInput.value || '').replace(/\./g, '').replace(',', '.'));
+        if (remainingForeign === null || isNaN(kurs) || kurs <= 0 || remainingForeign <= 0) { return; }
+        amountInput.value = (Math.round(remainingForeign * kurs * 100) / 100)
+            .toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        amountTouched = false;
+    }
+    amountInput.addEventListener('input', function (e) {
+        if (e.isTrusted) { amountTouched = amountInput.value.trim() !== ''; }
+        updateForeign();
+    });
+    kursInput.addEventListener('input', function () { autoFillAmount(); updateForeign(); });
     function selectedPoCurrency() {
         const opt = poSelect.options[poSelect.selectedIndex];
         return (opt && opt.dataset.currency) ? opt.dataset.currency : 'IDR';
@@ -250,6 +269,9 @@ $selectedPoId = $selectedPo['id'] ?? ($payment['purchase_order_id'] ?? '');
                 remainingInfo.innerHTML = 'Sisa tagihan PO ini: <strong>' + data.remaining_formatted + '</strong>'
                     + ' &middot; Sudah dibayar: <strong>' + data.percentage.toString().replace('.', ',') + '%</strong>';
                 formatPercentage(progressBar, data.percentage);
+                remainingForeign = data.remaining;
+                autoFillAmount();
+                updateForeign();
                 applyCurrencyState(data.currency);
             })
             .catch(function () {

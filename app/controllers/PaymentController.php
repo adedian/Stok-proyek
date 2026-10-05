@@ -469,21 +469,36 @@ class PaymentController extends Controller
             $errors[] = 'Jenis Pembayaran (Cek/Giro/Transfer Bank/Tunai) wajib dipilih untuk sumber dana Bank.';
         }
 
-        // Nominal IDR = nominal asli x kurs, DIHITUNG ULANG di sini (nilai 'amount_idr' dari browser,
-        // kalau ada, tidak pernah dibaca). IDR: kurs 1 -> sama dengan nominal asli.
-        if ($data['amount'] > 0 && isset($data['kurs'])) {
-            $data['amount_idr'] = convertToIdr($data['amount'], $data['kurs']);
-            if ($data['amount_idr'] > 9999999999999.99) {
-                $errors[] = 'Nilai pembayaran dalam IDR melebihi batas wajar.';
-            }
-        }
-
         $excludeAmount = $excludePaymentId ? (float) $this->paymentModel->find($excludePaymentId)['amount'] : 0;
         $remaining = $this->getRemaining($po, $excludeAmount);
 
+        // Field "Nominal Pembayaran" diisi dalam RUPIAH (nilai uang yang benar-benar dibayar).
+        // amount_idr = nilai itu; nominal dalam mata uang PO (amount, dasar sisa/termin/status)
+        // DIHITUNG di sini = rupiah / kurs (bukan dari browser). IDR: kurs 1 -> keduanya sama.
+        if ($data['amount'] > 0 && isset($data['kurs'])) {
+            $data['amount_idr'] = round($data['amount'], 2);
+            if ($data['amount_idr'] > 9999999999999.99) {
+                $errors[] = 'Nilai pembayaran dalam IDR melebihi batas wajar.';
+            }
+            if ($poCurrency !== 'IDR') {
+                $foreign = round($data['amount_idr'] / $data['kurs'], 2);
+                // Pembulatan 2 desimal bisa meleset 1 sen dari sisa (mis. pelunasan penuh) -> rapatkan
+                // ke sisa agar PO bisa lunas / tidak ditolak karena selisih pembulatan.
+                if ($remaining !== null && abs($foreign - $remaining) <= 0.01) {
+                    $foreign = round($remaining, 2);
+                }
+                $data['amount'] = $foreign;
+                if ($foreign <= 0) {
+                    $errors[] = 'Nominal pembayaran terlalu kecil untuk kurs yang dipakai.';
+                }
+            }
+        }
+
         if ($data['amount'] > 0 && $remaining !== null && $data['amount'] > $remaining) {
-            $errors[] = 'Nominal pembayaran (' . formatMoney($data['amount'], $poCurrency)
-                . ') melebihi sisa tagihan PO (' . formatMoney($remaining, $poCurrency) . ').';
+            $errors[] = 'Nominal pembayaran (' . formatRupiah($data['amount_idr'] ?? $data['amount'])
+                . ($poCurrency !== 'IDR' ? ' = ' . formatMoney($data['amount'], $poCurrency) : '')
+                . ') melebihi sisa tagihan PO (' . formatMoney($remaining, $poCurrency)
+                . ($poCurrency !== 'IDR' && !empty($data['kurs']) ? ' = ' . formatRupiah(convertToIdr($remaining, $data['kurs'])) : '') . ').';
         }
 
         return $errors;

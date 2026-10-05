@@ -109,20 +109,18 @@ $selectedPoId = $selectedPo['id'] ?? ($payment['purchase_order_id'] ?? '');
                     <input type="text" name="kurs" id="kursInput" class="form-control currency-input" data-decimals="6" data-format="id"
                            inputmode="decimal" autocomplete="off" placeholder="mis. 16.500"
                            value="<?= e($kursValue) ?>" <?= $kursNeeded ? 'required' : 'disabled' ?>>
-                    <div class="form-text" id="kursHint">Kurs saat bayar (Rp per 1 <span id="kursCurrencyLabel"><?= e($formCurrency) ?></span>), format Indonesia: titik = ribuan, koma = desimal (16.500 atau 12,75). Nominal dikalikan kurs ini menjadi Rupiah.</div>
+                    <div class="form-text" id="kursHint">Kurs saat bayar (Rp per 1 <span id="kursCurrencyLabel"><?= e($formCurrency) ?></span>), format Indonesia: titik = ribuan, koma = desimal (16.500 atau 12,75). Nominal Rupiah dibagi kurs ini menjadi nilai dalam mata uang PO.</div>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Nominal Pembayaran<span id="amountCurNote" class="text-muted small"><?= $kursNeeded ? ' (dalam ' . e($formCurrency) . ')' : '' ?></span> <span class="text-danger">*</span></label>
+                    <label class="form-label">Nominal Pembayaran (IDR) <span class="text-danger">*</span></label>
                     <div class="input-group">
-                        <span class="input-group-text" id="amountCurrency"><?= e(currencyPrefix($selectedPo['currency'] ?? 'IDR')) ?></span>
+                        <span class="input-group-text">IDR</span>
                         <input type="text" name="amount" id="amountInput" class="form-control currency-input" inputmode="numeric"
-                               value="<?= e(!empty($payment['amount']) ? number_format((float) $payment['amount'], 2, '.', ',') : '') ?>" required>
+                               value="<?= e(!empty($payment['amount_idr']) ? number_format((float) $payment['amount_idr'], 2, '.', ',') : (!empty($payment['amount']) ? number_format((float) $payment['amount'], 2, '.', ',') : '')) ?>" required>
                     </div>
-                </div>
-                <div class="col-md-6 <?= $kursNeeded ? '' : 'd-none' ?>" id="idrWrap">
-                    <label class="form-label">Nilai Pembayaran (Rupiah)</label>
-                    <input type="text" id="amountIdrDisplay" class="form-control fw-semibold" value="<?= e(formatRupiah($payment['amount_idr'] ?? 0)) ?>" readonly tabindex="-1">
-                    <div class="form-text">Nominal &times; Kurs, dihitung ulang oleh server saat disimpan.</div>
+                    <div class="form-text <?= $kursNeeded ? '' : 'd-none' ?>" id="amountForeignHint">
+                        Setara <strong id="amountForeignValue">-</strong> <span id="amountForeignCode"><?= e($formCurrency) ?></span> (Nominal &divide; Kurs, dihitung ulang oleh server saat disimpan).
+                    </div>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Bukti Transfer <?= $isEdit ? '(kosongkan jika tidak ganti)' : '' ?></label>
@@ -194,29 +192,27 @@ $selectedPoId = $selectedPo['id'] ?? ($payment['purchase_order_id'] ?? '');
         document.getElementById('paymentCurrency').value = code;
         document.getElementById('paymentCurrencyDisplay').value = code;
         document.getElementById('kursCurrencyLabel').textContent = code;
-        const prefix = document.getElementById('amountCurrency');
-        if (prefix) { prefix.textContent = isIdr ? 'Rp' : code; }
         kursWrap.classList.toggle('d-none', isIdr);
         kursInput.disabled = isIdr;
         kursInput.required = !isIdr;
-        document.getElementById('idrWrap').classList.toggle('d-none', isIdr);
-        document.getElementById('amountCurNote').textContent = isIdr ? '' : ' (dalam ' + code + ')';
-        updateIdr();
+        document.getElementById('amountForeignHint').classList.toggle('d-none', isIdr);
+        document.getElementById('amountForeignCode').textContent = code;
+        updateForeign();
     }
-    // Nilai Rupiah realtime = nominal x kurs (HANYA tampilan; server menghitung ulang). Nominal:
-    // koma ribuan/titik desimal. Kurs: format Indonesia (titik ribuan, koma desimal).
-    function updateIdr() {
-        const amount = parseFloat((document.getElementById('amountInput').value || '').replace(/,/g, ''));
+    // Setara mata uang PO realtime = nominal IDR / kurs (HANYA tampilan; server menghitung ulang).
+    // Nominal: koma ribuan/titik desimal. Kurs: format Indonesia (titik ribuan, koma desimal).
+    function updateForeign() {
+        const idr = parseFloat((document.getElementById('amountInput').value || '').replace(/,/g, ''));
         const kurs = parseFloat((kursInput.value || '').replace(/\./g, '').replace(',', '.'));
-        const out = document.getElementById('amountIdrDisplay');
-        if (!isNaN(amount) && !isNaN(kurs) && amount > 0 && kurs > 0) {
-            out.value = 'Rp ' + (Math.round(amount * kurs * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const out = document.getElementById('amountForeignValue');
+        if (!isNaN(idr) && !isNaN(kurs) && idr > 0 && kurs > 0) {
+            out.textContent = (Math.round(idr / kurs * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         } else {
-            out.value = 'Rp 0.00';
+            out.textContent = '-';
         }
     }
-    document.getElementById('amountInput').addEventListener('input', updateIdr);
-    kursInput.addEventListener('input', updateIdr);
+    document.getElementById('amountInput').addEventListener('input', updateForeign);
+    kursInput.addEventListener('input', updateForeign);
     function selectedPoCurrency() {
         const opt = poSelect.options[poSelect.selectedIndex];
         return (opt && opt.dataset.currency) ? opt.dataset.currency : 'IDR';

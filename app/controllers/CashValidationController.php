@@ -133,6 +133,19 @@ class CashValidationController extends Controller
             denyAccess('Anda tidak berwenang memvalidasi transaksi Kas divisi ' . kasDivisionLabel($row['division']));
         }
 
+        // Transfer ke Kas tidak punya tahap validasi -- tolak keras walau ID-nya
+        // dikirim langsung lewat request (bukan sekadar tombol disembunyikan).
+        if (CashTransaction::isValidationExempt($row)) {
+            $this->activityLog->log(
+                currentUserId(),
+                'cash_validation',
+                'access_denied',
+                "Percobaan memvalidasi Kas '{$row['no_bukti']}' (Transfer ke Kas / tanpa validasi) -- ditolak"
+            );
+            setFlash('error', 'Transaksi ini (Transfer ke Kas) tidak memerlukan validasi.');
+            $this->redirect('cash_validation', 'index');
+        }
+
         if ($row['validation_status'] !== 'menunggu') {
             setFlash('error', 'Transaksi ini sudah ' . $row['validation_status'] . ', tidak bisa divalidasi lagi.');
             $this->redirect('cash_validation', 'index');

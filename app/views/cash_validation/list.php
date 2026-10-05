@@ -5,6 +5,7 @@ $valBadge = [
     'menunggu'    => ['warning text-dark', 'Menunggu'],
     'tervalidasi' => ['success', 'Tervalidasi'],
     'ditolak'     => ['danger', 'Ditolak'],
+    'tidak_perlu' => ['secondary', 'Tanpa Validasi'],
 ];
 $userRole = currentUserRole();
 $modals = ''; // dikumpulkan lalu dirender DI LUAR <table> (form dalam <tbody> rusak oleh parser)

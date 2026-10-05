@@ -148,7 +148,11 @@ class CashTransaction extends Model
             $in[] = ":d{$i}";
             $params["d{$i}"] = $d;
         }
-        $where = "c.deleted_at IS NULL AND c.division IN (" . implode(',', $in) . ")";
+        // Hanya transaksi Kas yang memang BUTUH validasi: Kas Masuk hasil
+        // "Transfer ke Kas" (related_bank_transaction_id terisi / status
+        // 'tidak_perlu') TIDAK PERNAH masuk antrian, apa pun statusnya.
+        $where = "c.deleted_at IS NULL AND c.division IN (" . implode(',', $in) . ")"
+            . " AND " . self::NEEDS_VALIDATION_SQL;
 
         if (in_array($status, ['menunggu', 'tervalidasi', 'ditolak'], true)) {
             $where .= " AND c.validation_status = :st";
@@ -201,22 +205,38 @@ class CashTransaction extends Model
             $params["d{$i}"] = $d;
         }
         $row = $this->db->fetchOne(
-            "SELECT COUNT(*) AS n FROM cash_transactions
-              WHERE deleted_at IS NULL AND validation_status = 'menunggu'
-                AND division IN (" . implode(',', $in) . ")",
+            "SELECT COUNT(*) AS n FROM cash_transactions c
+              WHERE c.deleted_at IS NULL AND c.validation_status = 'menunggu'
+                AND " . self::NEEDS_VALIDATION_SQL . "
+                AND c.division IN (" . implode(',', $in) . ")",
             $params
         );
         return (int) ($row['n'] ?? 0);
     }
 
-    /** Set hasil validasi. $status = 'tervalidasi' | 'ditolak'. */
+    /**
+     * Baris Kas yang butuh validasi = BUKAN Kas Masuk hasil Transfer ke Kas.
+     * Penentu: related_bank_transaction_id (kolom yang sudah ada; hanya diisi
+     * oleh CashController::transferStore) DAN status 'tidak_perlu' -- dua lapis
+     * supaya baris lama yang belum sempat di-backfill pun tidak lolos.
+     */
+    public const NEEDS_VALIDATION_SQL = "c.related_bank_transaction_id IS NULL AND c.validation_status <> 'tidak_perlu'";
+
+    /** true kalau baris ini hasil Transfer ke Kas / tak butuh validasi (guard backend). */
+    public static function isValidationExempt(array $row): bool
+    {
+        return !empty($row['related_bank_transaction_id']) || ($row['validation_status'] ?? '') === 'tidak_perlu';
+    }
+
+    /** Set hasil validasi. $status = 'tervalidasi' | 'ditolak'. Hanya baris 'menunggu' yang butuh validasi. */
     public function setValidation(int $id, string $status, int $userId, ?string $note): void
     {
         $this->db->query(
             "UPDATE cash_transactions
                 SET validation_status = :st, validated_by = :uid, validated_at = NOW(),
                     validation_note = :note, updated_at = NOW()
-              WHERE id = :id",
+              WHERE id = :id AND related_bank_transaction_id IS NULL
+                AND validation_status = 'menunggu'",
             ['st' => $status, 'uid' => $userId, 'note' => ($note !== '' ? $note : null), 'id' => $id]
         );
     }

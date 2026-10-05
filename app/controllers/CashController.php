@@ -982,6 +982,11 @@ class CashController extends Controller
                 'no_bukti'      => $cashNoBukti,
                 'mutasi'        => 'masuk',
                 'total_amount'  => $amount,
+                // Transfer ke Kas = alur sendiri, LANGSUNG final: tanpa validasi
+                // PM (apa pun divisi/role pembuat & tujuannya). Hanya Kas biasa
+                // yang 'menunggu'. Lihat CashTransaction::NEEDS_VALIDATION_SQL.
+                'validation_status' => 'tidak_perlu',
+                'validation_note'   => 'Transfer ke Kas, tidak perlu validasi',
                 'created_by'    => currentUserId(),
             ]);
             $this->itemModel->create([
@@ -1007,19 +1012,7 @@ class CashController extends Controller
 
             $pdo->commit();
 
-            try {
-                if ((new SystemSetting())->getBool('notify_cash_validation', true)) {
-                    sendPushToKasValidators(
-                        $this->resolveDivision($toPic),
-                        'Validasi Kas Menunggu',
-                        "Kas masuk '{$cashNoBukti}' (transfer dari Bank, PIC {$toPic}) menunggu validasi Anda.",
-                        route('cash_validation')
-                    );
-                }
-            } catch (Throwable $e) {
-                error_log('Push cash_validation gagal (transfer): ' . $e->getMessage());
-            }
-
+            // Tidak ada push "Validasi Kas Menunggu" -- Transfer ke Kas tidak masuk antrian validasi.
             setFlash('success', "Transfer berhasil: Bank Keluar '{$bankNoBukti}' & Kas Masuk '{$cashNoBukti}' (PIC {$toPic}) sudah tercatat.");
             $this->redirect('cash', 'index');
         } catch (Throwable $e) {

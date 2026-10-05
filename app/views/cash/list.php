@@ -339,6 +339,8 @@ $canCetakBankVoucher = can('bank', 'view'); // Super Admin & Accounting saja (sa
                             'menunggu'    => ['warning text-dark', 'Menunggu'],
                             'tervalidasi' => ['success', 'Tervalidasi'],
                             'ditolak'     => ['danger', 'Ditolak'],
+                            // Transfer ke Kas: langsung final, tanpa validasi PM.
+                            'tidak_perlu' => ['secondary', 'Tanpa Validasi'],
                         ];
                     ?>
                     <?php if (empty($rows)): ?>

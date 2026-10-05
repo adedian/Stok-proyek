@@ -11,7 +11,7 @@
  * titik = desimal -- jangan ubah salah satu tanpa mengubah yang lain.
  */
 (function () {
-    function formatCurrencyValue(raw) {
+    function formatCurrencyValue(raw, maxDecimals) {
         if (raw === '') {
             return '';
         }
@@ -37,8 +37,25 @@
         if (dotIndex === -1) {
             return sign + intPart;
         }
-        decPart = decPart.replace(/[^\d]/g, '').slice(0, 2);
+        decPart = decPart.replace(/[^\d]/g, '').slice(0, maxDecimals);
         return sign + intPart + '.' + decPart;
+    }
+
+    // Format INDONESIA untuk field Kurs (data-format="id"): TITIK = ribuan, KOMA = desimal
+    // ("16500" -> "16.500", "12,75" tetap "12,75"). Titik yang diketik user dianggap pemisah
+    // ribuan (dibuang lalu dipasang ulang otomatis). HARUS sinkron dengan parseKursInput()
+    // di app/helpers/functions.php.
+    function formatIdValue(raw, maxDecimals) {
+        var commaIndex = raw.indexOf(',');
+        var intPart = commaIndex === -1 ? raw : raw.slice(0, commaIndex);
+        var decPart = commaIndex === -1 ? '' : raw.slice(commaIndex + 1);
+        intPart = intPart.replace(/[^\d]/g, '');
+        intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        if (commaIndex === -1) {
+            return intPart;
+        }
+        decPart = decPart.replace(/[^\d]/g, '').slice(0, maxDecimals);
+        return intPart + ',' + decPart;
     }
 
     document.addEventListener('input', function (e) {
@@ -46,6 +63,13 @@
             return;
         }
         var input = e.target;
-        input.value = formatCurrencyValue(input.value);
+        if (input.getAttribute('data-format') === 'id') {
+            var maxDecId = parseInt(input.getAttribute('data-decimals'), 10);
+            input.value = formatIdValue(input.value, isNaN(maxDecId) ? 6 : maxDecId);
+            return;
+        }
+        // Default 2 desimal (nominal). Field khusus (mis. Kurs) boleh menaikkan lewat data-decimals.
+        var maxDec = parseInt(input.getAttribute('data-decimals'), 10);
+        input.value = formatCurrencyValue(input.value, isNaN(maxDec) ? 2 : maxDec);
     });
 })();

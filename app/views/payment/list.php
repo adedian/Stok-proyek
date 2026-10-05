@@ -111,6 +111,7 @@
                         <th>Sumber Dana</th>
                         <th>Metode</th>
                         <th class="text-end">Nominal</th>
+                        <th class="text-end">Kurs</th>
                         <th>Tanggal</th>
                         <th class="text-center">Bukti</th>
                         <th class="text-center">Status</th>
@@ -121,7 +122,7 @@
                 <tbody>
                     <?php if (empty($payments)): ?>
                         <tr>
-                            <td colspan="12" class="p-0">
+                            <td colspan="13" class="p-0">
                                 <div class="empty-state">
                                     <i class="bi bi-credit-card empty-icon"></i>
                                     <div class="empty-title">Belum ada pembayaran</div>
@@ -147,6 +148,7 @@
                             </td>
                             <td><?= e($pay['method_name'] ?? '-') ?></td>
                             <td class="text-end"><?= formatMoney($pay['amount'], $pay['currency'] ?? 'IDR') ?></td>
+                            <td class="text-end"><?= normalizeCurrency($pay['currency'] ?? 'IDR') === 'IDR' ? '<span class="text-muted">-</span>' : e(formatKurs($pay['kurs'] ?? 1)) ?></td>
                             <td><?= formatTanggal($pay['payment_date']) ?></td>
                             <td class="text-center">
                                 <?php if (!empty($pay['proof_file'])): ?>
@@ -164,7 +166,7 @@
                             </td>
                             <td>
                                 <div class="d-flex justify-content-between small mb-1">
-                                    <span class="text-muted"><?= formatMoney($pay['po_total_paid'], $pay['currency'] ?? 'IDR') ?> / <?= formatMoney($pay['total_amount'], $pay['currency'] ?? 'IDR') ?></span>
+                                    <span class="text-muted"><?= formatMoney($pay['po_total_paid'], $pay['po_currency'] ?? 'IDR') ?> / <?= formatMoney($pay['total_amount'], $pay['po_currency'] ?? 'IDR') ?></span>
                                     <span class="fw-semibold"><?= number_format($pay['po_payment_percentage'], 1, ',', '.') ?>%</span>
                                 </div>
                                 <div class="progress" style="height: 6px;">

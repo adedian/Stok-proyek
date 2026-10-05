@@ -301,7 +301,7 @@ class PurchaseOrderController extends Controller
             }
             $data['status'] = $existing['status'];
         }
-        $errors = $this->validatePoInput($data);
+        $errors = $this->validatePoInput($data, $existing);
 
         if (!empty($errors)) {
             setFlash('error', implode(' ', $errors));
@@ -686,7 +686,7 @@ class PurchaseOrderController extends Controller
         ];
     }
 
-    private function validatePoInput(array $data): array
+    private function validatePoInput(array $data, ?array $existing = null): array
     {
         $errors = [];
 
@@ -719,6 +719,14 @@ class PurchaseOrderController extends Controller
         }
         if (!isValidCurrency($data['currency'])) {
             $errors[] = 'Mata uang tidak valid.';
+        }
+        // Mata uang PO TERKUNCI begitu sudah ada pembayaran: pembayaran menyimpan mata uang +
+        // kurs-nya sendiri, dan sisa tagihan dihitung dalam satuan yang sama -- mengubah label
+        // PO akan membuat data pembayaran menyimpang. Hapus/pindahkan pembayaran dulu.
+        if ($existing !== null && isValidCurrency($data['currency'])
+            && normalizeCurrency($existing['currency'] ?? 'IDR') !== normalizeCurrency($data['currency'])
+            && $this->paymentModel->countByPo((int) $existing['id']) > 0) {
+            $errors[] = 'Mata uang PO tidak bisa diubah karena sudah ada pembayaran. Hapus pembayarannya dulu bila memang perlu mengganti mata uang.';
         }
         if (empty($data['items'])) {
             $errors[] = 'Minimal harus ada 1 item barang.';

@@ -101,6 +101,17 @@ function streamExcelReport(string $title, string $companyName, string $periodTex
                     $sheet->setCellValue($cell, $value !== null ? (float) $value : 0);
                     $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('0.00"%"');
                     break;
+                case 'kurs':
+                    // Kurs: ANGKA asli (mis. 16500), bukan teks -- teks "16.000" otomatis dibaca
+                    // Excel sebagai 16. Pemisah ribuan/desimal mengikuti pengaturan regional Excel.
+                    // Tanpa kurs (IDR) -> "-".
+                    if ($value === null || $value === '') {
+                        $sheet->setCellValue($cell, '-');
+                    } else {
+                        $sheet->setCellValue($cell, (float) $value);
+                        $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('#,##0.######');
+                    }
+                    break;
                 default:
                     $sheet->setCellValue($cell, $value !== null && $value !== '' ? $value : '-');
             }

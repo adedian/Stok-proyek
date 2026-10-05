@@ -128,6 +128,8 @@ class PaymentController extends Controller
             'payment_method_id' => $data['payment_method_id'],
             'funding_source'    => $data['funding_source'],
             'amount'            => $data['amount'],
+            'currency'          => $data['currency'],
+            'kurs'              => $data['kurs'],
             'payment_date'      => $data['payment_date'],
             'proof_file'        => $proofFile,
             'status'            => $status,
@@ -138,7 +140,8 @@ class PaymentController extends Controller
         $this->historyModel->log(
             $data['purchase_order_id'],
             'payment_added',
-            "Pembayaran termin {$data['termin']} sebesar " . formatRupiah($data['amount']) . " ditambahkan",
+            "Pembayaran termin {$data['termin']} sebesar " . formatMoney($data['amount'], $data['currency'])
+                . ($data['currency'] !== 'IDR' ? ' (kurs ' . formatKurs($data['kurs']) . ')' : '') . " ditambahkan",
             currentUserId()
         );
 
@@ -219,6 +222,8 @@ class PaymentController extends Controller
             'payment_method_id' => $data['payment_method_id'],
             'funding_source'    => $data['funding_source'],
             'amount'            => $data['amount'],
+            'currency'          => $data['currency'],
+            'kurs'              => $data['kurs'],
             'payment_date'      => $data['payment_date'],
             'status'            => $status,
             'notes'             => $data['notes'],
@@ -232,7 +237,8 @@ class PaymentController extends Controller
         $this->historyModel->log(
             $data['purchase_order_id'],
             'payment_updated',
-            "Pembayaran {$existing['payment_number']} diperbarui menjadi " . formatRupiah($data['amount']),
+            "Pembayaran {$existing['payment_number']} diperbarui menjadi " . formatMoney($data['amount'], $data['currency'])
+                . ($data['currency'] !== 'IDR' ? ' (kurs ' . formatKurs($data['kurs']) . ')' : ''),
             currentUserId()
         );
 
@@ -352,6 +358,7 @@ class PaymentController extends Controller
             'remaining_formatted' => formatMoney($remaining, $po['currency'] ?? 'IDR'),
             'currency'            => normalizeCurrency($po['currency'] ?? 'IDR'),
             'currency_prefix'     => currencyPrefix($po['currency'] ?? 'IDR'),
+            'kurs_required'       => normalizeCurrency($po['currency'] ?? 'IDR') !== 'IDR',
             'percentage'          => $percentage,
         ]);
     }
@@ -392,12 +399,21 @@ class PaymentController extends Controller
             // menyesatkan (misal Jenis "Tunai" nempel di pembayaran Kas Project).
             'payment_method_id' => $fundingSource === 'bank' ? ((int) ($_POST['payment_method_id'] ?? 0) ?: null) : null,
             'amount'            => parseCurrencyInput($_POST['amount'] ?? 0),
+            // Mata uang & kurs yang DIKIRIM client -- TIDAK dipercaya: mata uang pembayaran
+            // SELALU ikut PO (lihat validateInput()), IDR dipaksa kurs 1. Nilai mentah dibawa
+            // apa adanya (bisa array/teks) supaya validasi bisa menolak dengan pesan jelas.
+            'currency_posted'   => $_POST['currency'] ?? '',
+            'kurs_raw'          => $_POST['kurs'] ?? '',
             'payment_date'      => $_POST['payment_date'] ?? '',
             'notes'             => trim($_POST['notes'] ?? ''),
         ];
     }
 
-    private function validateInput(array $data, ?int $excludePaymentId = null): array
+    /**
+     * $data DIISI ULANG oleh method ini: 'currency' (selalu = mata uang PO) dan 'kurs'
+     * (IDR -> 1 apa pun yang dikirim; selain IDR -> wajib > 0). Dipanggil by-reference.
+     */
+    private function validateInput(array &$data, ?int $excludePaymentId = null): array
     {
         $errors = [];
 
@@ -410,6 +426,35 @@ class PaymentController extends Controller
         if (!$po) {
             $errors[] = 'Purchase Order tidak ditemukan.';
             return $errors;
+        }
+
+        // --- Mata uang & Kurs (backend = otoritas; JS hanya UX) ---
+        // Mata uang pembayaran = mata uang PO (sisa/pelunasan dihitung dalam satuan yang sama,
+        // tanpa konversi). Request yang mengirim mata uang lain ditolak.
+        $poCurrency = normalizeCurrency($po['currency'] ?? 'IDR');
+        $postedCur = $data['currency_posted'] ?? '';
+        if (!is_string($postedCur) || (trim($postedCur) !== '' && !isValidCurrency(trim($postedCur)))) {
+            $errors[] = 'Mata uang tidak valid.';
+        } elseif (trim($postedCur) !== '' && strtoupper(trim($postedCur)) !== $poCurrency) {
+            $errors[] = "Mata uang pembayaran harus sama dengan mata uang PO ({$poCurrency}).";
+        }
+        $data['currency'] = $poCurrency;
+        if ($poCurrency === 'IDR') {
+            $data['kurs'] = 1.0; // IDR selalu 1, abaikan kiriman client
+        } else {
+            $kursRaw = $data['kurs_raw'] ?? '';
+            if (is_string($kursRaw) && trim($kursRaw) === '') {
+                $errors[] = 'Kurs wajib diisi untuk mata uang selain IDR.';
+            } else {
+                $kurs = parseKursInput($kursRaw);
+                if ($kurs === null || $kurs <= 0) {
+                    $errors[] = 'Kurs harus berupa angka lebih besar dari 0.';
+                } elseif ($kurs > 1000000000) {
+                    $errors[] = 'Kurs melebihi batas wajar.';
+                } else {
+                    $data['kurs'] = $kurs;
+                }
+            }
         }
 
         if ($data['amount'] <= 0) {
@@ -426,8 +471,8 @@ class PaymentController extends Controller
         $remaining = $this->getRemaining($po, $excludeAmount);
 
         if ($data['amount'] > 0 && $remaining !== null && $data['amount'] > $remaining) {
-            $errors[] = 'Nominal pembayaran (' . formatRupiah($data['amount'])
-                . ') melebihi sisa tagihan PO (' . formatRupiah($remaining) . ').';
+            $errors[] = 'Nominal pembayaran (' . formatMoney($data['amount'], $poCurrency)
+                . ') melebihi sisa tagihan PO (' . formatMoney($remaining, $poCurrency) . ').';
         }
 
         return $errors;

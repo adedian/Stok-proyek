@@ -576,7 +576,10 @@ class ReportController extends Controller
                 foreach ($rows as &$r) {
                     $r['status_label'] = $model->statusLabels[$r['status']] ?? $r['status'];
                     $r['funding_source_label'] = $model->fundingSourceLabels[$r['funding_source']] ?? $r['funding_source'];
+                    // Kurs hanya relevan untuk mata uang selain IDR (IDR = 1 -> null, tampil "-").
+                    $r['kurs_value'] = normalizeCurrency($r['currency'] ?? 'IDR') === 'IDR' ? null : (float) ($r['kurs'] ?? 1);
                 }
+                unset($r);
                 return [
                     'title' => 'Laporan Pembayaran',
                     'columns' => [
@@ -591,6 +594,7 @@ class ReportController extends Controller
                         ['field' => 'method_name', 'label' => 'Metode'],
                         ['field' => 'status_label', 'label' => 'Status'],
                         ['field' => 'amount', 'label' => 'Nominal', 'format' => 'rupiah', 'align' => 'end', 'sum' => true],
+                        ['field' => 'kurs_value', 'label' => 'Kurs', 'format' => 'kurs', 'align' => 'end'],
                     ],
                     'rows' => $rows,
                     'filterForm' => ['date' => true, 'project' => true, 'status' => $model->statusLabels, 'keyword' => true],

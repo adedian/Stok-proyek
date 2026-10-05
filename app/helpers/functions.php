@@ -476,6 +476,39 @@ function parseCurrencyInput($raw): float
 }
 
 /**
+ * Parse input KURS (nilai tukar) -> float, atau null kalau BUKAN angka yang sah.
+ * Kurs memakai FORMAT INDONESIA (beda dari nominal, yang koma-ribuan/titik-desimal):
+ * TITIK = pemisah ribuan, KOMA = pemisah desimal -- "16.500" = 16500, "12,75" = 12.75,
+ * "16.500,75" = 16500.75. Titik hanya sah sebagai pengelompokan TEPAT 3 digit; bentuk
+ * seperti "16.5" / "1.2.3" DITOLAK (null) -- bukan diam-diam ditafsir jadi 16,5 --
+ * supaya salah ketik tidak menyimpan kurs yang keliru. Tidak dibulatkan ke 2 desimal
+ * (sampai 6 desimal). Teks/array/kosong -> null. Versi JS: data-format="id" di
+ * public/assets/js/currency-input.js (HARUS sinkron).
+ */
+function parseKursInput($raw): ?float
+{
+    if (is_int($raw) || is_float($raw)) {
+        return round((float) $raw, 6); // angka asli dari kode (bukan teks form)
+    }
+    if (!is_string($raw)) {
+        return null;
+    }
+    $s = trim($raw);
+    if ($s === '' || !preg_match('/^-?(\d{1,3}(\.\d{3})+|\d+)(,\d+)?$/', $s)) {
+        return null;
+    }
+    $s = str_replace(',', '.', str_replace('.', '', $s));
+    return round((float) $s, 6);
+}
+
+/** Tampilan kurs format Indonesia, tanpa nol di belakang (16500 -> "16.500", 12.75 -> "12,75"). */
+function formatKurs($kurs): string
+{
+    $s = number_format((float) $kurs, 6, ',', '.');
+    return rtrim(rtrim($s, '0'), ',');
+}
+
+/**
  * Jumlahkan kolom nominal laporan PER MATA UANG. Baris yang membawa 'currency' (laporan
  * berbasis PO) dikelompokkan per kode; laporan tanpa kolom currency -> satu grup '' (Rupiah).
  * Nominal berbeda mata uang TIDAK PERNAH dijumlahkan jadi satu angka (tanpa kurs).
@@ -561,6 +594,8 @@ function formatReportValue($value, string $format = 'text', ?array $row = null):
             return formatTanggal(substr((string) $value, 0, 10)) . ' ' . substr((string) $value, 11, 5);
         case 'percent':
             return formatPercent($value) . '%';
+        case 'kurs':
+            return formatKurs($value); // format Indonesia (16.500 / 12,75)
         default:
             return (string) $value;
     }

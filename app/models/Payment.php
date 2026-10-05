@@ -77,6 +77,16 @@ class Payment extends Model
         return (float) $result['total'];
     }
 
+    /** Jumlah pembayaran aktif (belum dihapus) pada PO -- dipakai mengunci perubahan mata uang PO. */
+    public function countByPo(int $poId): int
+    {
+        $row = $this->db->fetchOne(
+            "SELECT COUNT(*) AS n FROM payments WHERE purchase_order_id = :po_id AND deleted_at IS NULL",
+            ['po_id' => $poId]
+        );
+        return (int) ($row['n'] ?? 0);
+    }
+
     /**
      * Total dibayar per PO untuk sekumpulan PO sekaligus (1 query, bukan N+1) --
      * dipakai untuk badge "Status Bayar" di halaman List PO. Key = purchase_order_id.
@@ -118,7 +128,9 @@ class Payment extends Model
      */
     public function listWithRelations(array $filters = []): array
     {
-        $sql = "SELECT pay.*, po.po_number, po.currency, po.total_amount, po.project_id, po.pembuat_po, s.supplier_name, p.project_name,
+        // pay.currency/pay.kurs = mata uang & kurs PEMBAYARAN (snapshot); po.currency dipisah
+        // sebagai po_currency supaya tidak menimpa kolom 'currency' milik pembayaran.
+        $sql = "SELECT pay.*, po.po_number, po.currency AS po_currency, po.total_amount, po.project_id, po.pembuat_po, s.supplier_name, p.project_name,
                        pm.method_name,
                        (SELECT COALESCE(SUM(p2.amount), 0) FROM payments p2
                         WHERE p2.purchase_order_id = po.id AND p2.deleted_at IS NULL) AS po_total_paid
@@ -180,7 +192,7 @@ class Payment extends Model
 
     public function findWithRelations(int $id)
     {
-        $sql = "SELECT pay.*, po.po_number, po.currency, po.total_amount, po.pembuat_po, s.supplier_name, pm.method_name
+        $sql = "SELECT pay.*, po.po_number, po.currency AS po_currency, po.total_amount, po.pembuat_po, s.supplier_name, pm.method_name
                 FROM payments pay
                 JOIN purchase_orders po ON po.id = pay.purchase_order_id
                 JOIN suppliers s ON s.id = po.supplier_id

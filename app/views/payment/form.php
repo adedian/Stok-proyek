@@ -33,7 +33,7 @@ $selectedPoId = $selectedPo['id'] ?? ($payment['purchase_order_id'] ?? '');
                     <select name="purchase_order_id" id="poSelect" class="form-select" required>
                         <option value="">-- Pilih Purchase Order --</option>
                         <?php foreach ($poList as $po): ?>
-                            <option value="<?= (int) $po['id'] ?>" <?= (string) $selectedPoId === (string) $po['id'] ? 'selected' : '' ?>>
+                            <option value="<?= (int) $po['id'] ?>" data-currency="<?= e(normalizeCurrency($po['currency'] ?? 'IDR')) ?>" <?= (string) $selectedPoId === (string) $po['id'] ? 'selected' : '' ?>>
                                 <?= e($po['po_number']) ?> &mdash; <?= e($po['supplier_name']) ?> (<?= formatMoney($po['total_amount'], $po['currency'] ?? 'IDR') ?>)
                             </option>
                         <?php endforeach; ?>
@@ -89,6 +89,27 @@ $selectedPoId = $selectedPo['id'] ?? ($payment['purchase_order_id'] ?? '');
                             </button>
                         <?php endif; ?>
                     </div>
+                </div>
+                <?php
+                // Mata uang pembayaran = mata uang PO yang dipilih (read-only; ikut berganti saat PO
+                // diganti). Kurs HANYA tampil & wajib untuk mata uang selain IDR; IDR = kurs 1 otomatis
+                // (field disembunyikan + tidak dikirim; backend tetap menetapkan 1).
+                $formCurrency = normalizeCurrency($selectedPo['currency'] ?? 'IDR');
+                $kursNeeded = $formCurrency !== 'IDR';
+                $kursValue = ($isEdit && $kursNeeded && isset($payment['kurs'])) ? formatKurs($payment['kurs']) : '';
+                ?>
+                <div class="col-md-3">
+                    <label class="form-label">Mata Uang</label>
+                    <input type="text" id="paymentCurrencyDisplay" class="form-control" value="<?= e($formCurrency) ?>" readonly tabindex="-1">
+                    <input type="hidden" name="currency" id="paymentCurrency" value="<?= e($formCurrency) ?>">
+                    <div class="form-text">Mengikuti mata uang PO.</div>
+                </div>
+                <div class="col-md-3 <?= $kursNeeded ? '' : 'd-none' ?>" id="kursWrap">
+                    <label class="form-label">Kurs <span class="text-danger">*</span></label>
+                    <input type="text" name="kurs" id="kursInput" class="form-control currency-input" data-decimals="6" data-format="id"
+                           inputmode="decimal" autocomplete="off" placeholder="mis. 16.500"
+                           value="<?= e($kursValue) ?>" <?= $kursNeeded ? 'required' : 'disabled' ?>>
+                    <div class="form-text" id="kursHint">Nilai tukar saat bayar (Rp per 1 <span id="kursCurrencyLabel"><?= e($formCurrency) ?></span>), format Indonesia: titik = ribuan, koma = desimal (16.500 atau 12,75). Hanya informasi &mdash; nominal tidak dikonversi.</div>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Nominal Pembayaran <span class="text-danger">*</span></label>
@@ -158,6 +179,29 @@ $selectedPoId = $selectedPo['id'] ?? ($payment['purchase_order_id'] ?? '');
     fundingSourceSelect.addEventListener('change', applyFundingSourceState);
     applyFundingSourceState();
 
+    // Mata uang & Kurs: ikut PO terpilih (data-currency). IDR -> sembunyikan Kurs, tidak wajib,
+    // tidak dikirim (backend menetapkan 1). Selain IDR -> tampilkan Kurs & wajib diisi.
+    const kursWrap = document.getElementById('kursWrap');
+    const kursInput = document.getElementById('kursInput');
+    function applyCurrencyState(code) {
+        code = code || 'IDR';
+        const isIdr = code === 'IDR';
+        document.getElementById('paymentCurrency').value = code;
+        document.getElementById('paymentCurrencyDisplay').value = code;
+        document.getElementById('kursCurrencyLabel').textContent = code;
+        const prefix = document.getElementById('amountCurrency');
+        if (prefix) { prefix.textContent = isIdr ? 'Rp' : code; }
+        kursWrap.classList.toggle('d-none', isIdr);
+        kursInput.disabled = isIdr;
+        kursInput.required = !isIdr;
+    }
+    function selectedPoCurrency() {
+        const opt = poSelect.options[poSelect.selectedIndex];
+        return (opt && opt.dataset.currency) ? opt.dataset.currency : 'IDR';
+    }
+    applyCurrencyState(selectedPoCurrency());
+    poSelect.addEventListener('change', function () { applyCurrencyState(selectedPoCurrency()); });
+
     function formatPercentage(bar, percentage) {
         if (!bar) { return; }
         bar.style.width = percentage + '%';
@@ -188,8 +232,7 @@ $selectedPoId = $selectedPo['id'] ?? ($payment['purchase_order_id'] ?? '');
                 remainingInfo.innerHTML = 'Sisa tagihan PO ini: <strong>' + data.remaining_formatted + '</strong>'
                     + ' &middot; Sudah dibayar: <strong>' + data.percentage.toString().replace('.', ',') + '%</strong>';
                 formatPercentage(progressBar, data.percentage);
-                var cur = document.getElementById('amountCurrency');
-                if (cur && data.currency_prefix) { cur.textContent = data.currency_prefix; }
+                applyCurrencyState(data.currency);
             })
             .catch(function () {
                 remainingInfo.textContent = 'Gagal memuat sisa tagihan.';

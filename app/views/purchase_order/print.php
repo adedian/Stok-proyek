@@ -281,7 +281,7 @@
                 <div class="po-print-party-label">Supplier</div>
                 <div class="line"><?= e($po['supplier_name']) ?></div>
                 <?php if (!empty($po['supplier_address'])): ?><div class="line"><?= nl2br(e($po['supplier_address'])) ?></div><?php endif; ?>
-                <?php if (!empty($po['supplier_contact_person'])): ?><div class="line">Bpk/Ibu <?= e($po['supplier_contact_person']) ?></div><?php endif; ?>
+                <?php if (!empty($po['supplier_contact_person'])): ?><div class="line"><?= e($po['supplier_contact_person']) ?></div><?php endif; ?>
                 <?php if (!empty($po['supplier_phone'])): ?><div class="line"><?= e($po['supplier_phone']) ?></div><?php endif; ?>
             </div>
             <div class="po-print-party">

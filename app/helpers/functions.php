@@ -39,13 +39,24 @@ function normalizeCurrency($code): string
 }
 
 /**
- * Format nominal dengan KODE mata uang, mis. "USD 1,500,000.00". Formatter angka
- * SAMA PERSIS dengan formatRupiah() (koma ribuan, titik desimal, 2 digit) --
- * hanya prefix yang berganti; nilai TIDAK dikonversi.
+ * Prefix TAMPILAN nominal untuk sebuah mata uang: IDR -> "Rp" (konvensi Rupiah),
+ * mata uang lain -> kodenya ("USD", "EUR", ...). Nilai yang DISIMPAN tetap kode ISO
+ * ('IDR'); ini hanya label tampilan. Versi JS: currencyPrefix() di purchase_order/form.php.
+ */
+function currencyPrefix($currency = 'IDR'): string
+{
+    $code = normalizeCurrency($currency);
+    return $code === 'IDR' ? 'Rp' : $code;
+}
+
+/**
+ * Format nominal dengan prefix mata uang, mis. "Rp 1,500,000.00" / "USD 1,500,000.00".
+ * Formatter angka SAMA PERSIS dengan formatRupiah() (koma ribuan, titik desimal,
+ * 2 digit) -- hanya prefix yang berganti; nilai TIDAK dikonversi.
  */
 function formatMoney($angka, $currency = 'IDR'): string
 {
-    return normalizeCurrency($currency) . ' ' . number_format((float) $angka, 2, '.', ',');
+    return currencyPrefix($currency) . ' ' . number_format((float) $angka, 2, '.', ',');
 }
 
 /**

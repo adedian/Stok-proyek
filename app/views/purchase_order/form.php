@@ -280,7 +280,7 @@ $actionUrl = $isEdit ? 'update' : 'store';
                                 </td>
                                 <td>
                                     <div class="input-group input-group-sm">
-                                        <span class="input-group-text po-currency-label"><?= e($poCurrency) ?></span>
+                                        <span class="input-group-text po-currency-label"><?= e(currencyPrefix($poCurrency)) ?></span>
                                         <input type="text" name="extra_cost_amount[]" class="form-control form-control-sm extra-cost-amount-input currency-input"
                                                inputmode="numeric" value="<?= e(number_format((float) $cost['amount'], 2, '.', ',')) ?>" placeholder="0">
                                     </div>
@@ -363,13 +363,17 @@ $actionUrl = $isEdit ? 'update' : 'store';
     function currentCurrency() {
         return (currencyEl && currencyEl.value) ? currencyEl.value : 'IDR';
     }
+    // Prefix tampilan: IDR -> "Rp", lainnya kodenya (sinkron dengan currencyPrefix() PHP).
+    function currencyPrefix(code) {
+        return code === 'IDR' ? 'Rp' : code;
+    }
     function formatMoney(num) {
         // Format nominal: koma ribuan, titik desimal, selalu 2 digit desimal --
         // HARUS sinkron dengan formatMoney() PHP (app/helpers/functions.php).
-        return currentCurrency() + ' ' + Number(num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return currencyPrefix(currentCurrency()) + ' ' + Number(num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
     function syncCurrencyLabels() {
-        document.querySelectorAll('.po-currency-label').forEach(function (el) { el.textContent = currentCurrency(); });
+        document.querySelectorAll('.po-currency-label').forEach(function (el) { el.textContent = currencyPrefix(currentCurrency()); });
     }
 
     // Qty/Diskon/PPN% qty-style: user boleh ketik koma desimal ("0,5") -- server

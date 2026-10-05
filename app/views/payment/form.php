@@ -93,7 +93,7 @@ $selectedPoId = $selectedPo['id'] ?? ($payment['purchase_order_id'] ?? '');
                 <div class="col-md-6">
                     <label class="form-label">Nominal Pembayaran <span class="text-danger">*</span></label>
                     <div class="input-group">
-                        <span class="input-group-text" id="amountCurrency"><?= e(normalizeCurrency($selectedPo['currency'] ?? 'IDR')) ?></span>
+                        <span class="input-group-text" id="amountCurrency"><?= e(currencyPrefix($selectedPo['currency'] ?? 'IDR')) ?></span>
                         <input type="text" name="amount" id="amountInput" class="form-control currency-input" inputmode="numeric"
                                value="<?= e(!empty($payment['amount']) ? number_format((float) $payment['amount'], 2, '.', ',') : '') ?>" required>
                     </div>
@@ -189,7 +189,7 @@ $selectedPoId = $selectedPo['id'] ?? ($payment['purchase_order_id'] ?? '');
                     + ' &middot; Sudah dibayar: <strong>' + data.percentage.toString().replace('.', ',') + '%</strong>';
                 formatPercentage(progressBar, data.percentage);
                 var cur = document.getElementById('amountCurrency');
-                if (cur && data.currency) { cur.textContent = data.currency; }
+                if (cur && data.currency_prefix) { cur.textContent = data.currency_prefix; }
             })
             .catch(function () {
                 remainingInfo.textContent = 'Gagal memuat sisa tagihan.';

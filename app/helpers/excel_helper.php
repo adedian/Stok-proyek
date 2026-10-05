@@ -95,7 +95,7 @@ function streamExcelReport(string $title, string $companyName, string $periodTex
                 case 'rupiah':
                     $sheet->setCellValue($cell, $value !== null ? (float) $value : 0);
                     // Laporan berbasis PO: prefix = mata uang PO (label saja, nilai tidak dikonversi).
-                    $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('"' . (!empty($row['currency']) ? normalizeCurrency($row['currency']) : 'Rp') . '" #,##0');
+                    $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('"' . (!empty($row['currency']) ? currencyPrefix($row['currency']) : 'Rp') . '" #,##0');
                     break;
                 case 'percent':
                     $sheet->setCellValue($cell, $value !== null ? (float) $value : 0);
@@ -132,7 +132,7 @@ function streamExcelReport(string $title, string $companyName, string $periodTex
                     // Satu mata uang -> angka asli + format berprefix kode.
                     $cur = (string) array_key_first($sums);
                     $sheet->setCellValue($cell, (float) reset($sums));
-                    $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('"' . ($cur === '' ? 'Rp' : $cur) . '" #,##0');
+                    $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('"' . ($cur === '' ? 'Rp' : currencyPrefix($cur)) . '" #,##0');
                 } else {
                     // Campuran mata uang: tidak dijumlahkan jadi satu angka (tanpa kurs) -- teks per mata uang.
                     $sheet->setCellValue($cell, formatReportTotal($rows, $col['field']));

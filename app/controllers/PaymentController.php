@@ -351,6 +351,7 @@ class PaymentController extends Controller
             'remaining'           => $remaining,
             'remaining_formatted' => formatMoney($remaining, $po['currency'] ?? 'IDR'),
             'currency'            => normalizeCurrency($po['currency'] ?? 'IDR'),
+            'currency_prefix'     => currencyPrefix($po['currency'] ?? 'IDR'),
             'percentage'          => $percentage,
         ]);
     }

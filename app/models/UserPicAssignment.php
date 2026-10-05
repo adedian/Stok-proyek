@@ -34,9 +34,10 @@ class UserPicAssignment extends Model
      * + nama PIC (role pic_project) yang berbagi minimal 1 project yang sama
      * dengannya di `project_user_access` (Revisi audit RBAC Kas per-project,
      * 2026-09-25 -- Admin Project = pengawas Kas PIC pada project yang sama).
-     * TIDAK dipakai untuk dropdown "buat transaksi" (atribusi tetap nama
-     * sendiri saja, lihat CashController::picFieldOptions()) -- KHUSUS untuk
-     * membatasi apa yang boleh DIBACA (scopePics()).
+     * Dipakai untuk scope BACA (CashController::scopePics()) DAN dropdown PIC di
+     * form Kas (picFieldOptions()) -- Admin Project boleh mencatat Kas atas nama
+     * PIC yang terhubung. Relasinya diturunkan dari project bersama; tidak ada
+     * tabel relasi khusus Admin Project <-> PIC.
      */
     public function picNamesForAdminProject(int $adminUserId): array
     {
@@ -61,6 +62,35 @@ class UserPicAssignment extends Model
         );
 
         return array_values(array_unique(array_merge($own, array_column($rows, 'pic_name'))));
+    }
+
+    /**
+     * Nama PIC (unik) milik SEMUA akun aktif ber-role $roleSlugs. Dipakai scope
+     * Kas "lihat semua Purchase" (izin khusus cash.view_all_purchase) -- relasi
+     * lewat role akun pemilik PIC, bukan nama yang di-hardcode.
+     */
+    public function picNamesForRoles(array $roleSlugs): array
+    {
+        $roleSlugs = array_values(array_unique(array_filter(array_map('strval', $roleSlugs))));
+        if (!$roleSlugs) {
+            return [];
+        }
+        $in = [];
+        $params = [];
+        foreach ($roleSlugs as $i => $slug) {
+            $in[] = ":r{$i}";
+            $params["r{$i}"] = $slug;
+        }
+        $rows = $this->db->fetchAll(
+            "SELECT DISTINCT upa.pic_name
+               FROM user_pic_assignments upa
+               JOIN users u ON u.id = upa.user_id AND u.deleted_at IS NULL
+               JOIN roles r ON r.id = u.role_id
+              WHERE upa.pic_name <> '' AND r.role_slug IN (" . implode(',', $in) . ")
+           ORDER BY upa.pic_name ASC",
+            $params
+        );
+        return array_column($rows, 'pic_name');
     }
 
     /** Nama PIC milik user yang BELUM ber-password (hint "tautkan password"). */

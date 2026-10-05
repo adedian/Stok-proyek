@@ -442,8 +442,9 @@ class CashTransaction extends Model
     }
 
     /**
-     * $accessScope = batas akses gerbang Project (purchase/pic_project/
-     * admin_project, lihat CashController::scopeAccessScope()) -- BUKAN filter
+     * $accessScope = batas akses berbasis project_id. TIDAK dipakai lagi oleh
+     * CashController sejak revisi akses Kas 2026-10-05 (visibilitas kini lewat
+     * nama PIC, $scopePics; parameter dipertahankan, default null) -- BUKAN filter
      * pilihan bebas (itu $filters['project_ids'], di bawah), melainkan pagar
      * keamanan server-side. null = tidak dibatasi lewat gerbang ini (role di
      * luar 3 role tsb). Array bentuknya:
@@ -459,13 +460,13 @@ class CashTransaction extends Model
         $params = [];
 
         // Pagar mutlak (revisi audit RBAC Kas per-project, 2026-09-25): Kas
-        // Accounting adalah area terpisah -- HANYA super_admin/accounting yang
-        // boleh melihatnya, apa pun kombinasi $scopePics/$divisionScope/
-        // $accessScope di atas. Diterapkan di SATU tempat ini (dipakai semua
-        // pemanggil: list, laporan, cetak, export, saldo, single-row guard)
+        // Accounting adalah area terpisah -- HANYA super_admin/accounting (+ finance,
+        // di-alias ke accounting; kasViewAllRoles()) yang boleh melihatnya, apa pun kombinasi
+        // $scopePics/$divisionScope/$accessScope di atas. Diterapkan di SATU
+        // tempat ini (dipakai semua pemanggil: list, laporan, cetak, export,
+        // saldo; single-row guard ada di CashController::rowWithinAccessScope())
         // supaya tidak bisa lolos lewat celah kombinasi filter di masa depan.
-        $role = currentUserRole();
-        if (!in_array($role, [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING], true)) {
+        if (!kasIsViewAllRole(currentUserRole())) {
             $sql .= " AND c.division <> 'accounting'";
         }
 

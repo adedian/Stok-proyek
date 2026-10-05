@@ -8,8 +8,9 @@
  * (kredensial terpisah, tersimpan ter-hash di `user_pic_assignments`).
  *
  * Exempt (tanpa login Kas tambahan, tetap dicek role/permission backend):
- *   super_admin, accounting, project_manager.
- *   - super_admin / accounting : lihat SEMUA divisi Kas.
+ *   super_admin, accounting, project_manager. (Finance di-alias ke Accounting
+ *   oleh roleAlias() sebelum semua pengecekan ini, jadi otomatis ikut.)
+ *   - super_admin / accounting : lihat SEMUA divisi Kas (kasIsViewAllRole()).
  *   - project_manager          : VIEW ONLY, HANYA divisi 'project'.
  *
  * Session Kas (`$_SESSION['kas_auth']`) BEDA dari session login aplikasi:
@@ -23,6 +24,24 @@
 function kasExemptRoles(): array
 {
     return [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING, ROLE_PROJECT_MANAGER];
+}
+
+/**
+ * Role yang melihat SELURUH data Kas -- semua divisi, termasuk Kas Accounting
+ * (Revisi akses Kas berbasis role/scope user, 2026-10-05). Finance ikut lewat
+ * roleAlias() (Finance == Accounting). Satu sumber untuk
+ * pagar "Kas Accounting" di CashTransaction::buildWhere(), kartu saldo Total,
+ * dan guard single-row di CashController.
+ */
+function kasViewAllRoles(): array
+{
+    return [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING];
+}
+
+function kasIsViewAllRole(?string $roleSlug): bool
+{
+    $roleSlug = roleAlias($roleSlug);
+    return $roleSlug !== null && in_array($roleSlug, kasViewAllRoles(), true);
 }
 
 function kasIsExemptRole(?string $roleSlug): bool
@@ -119,9 +138,9 @@ function kasCanValidateDivision(?string $roleSlug, string $division): bool
 
 /**
  * Cakupan divisi yang boleh DILIHAT user saat ini.
- *   null  = semua divisi (super_admin, accounting, purchase -- Purchase
- *           dibatasi lewat scopeAccessScope()/kasOwnDivisionBucket() +
- *           gerbang "tidak pernah accounting" di CashTransaction::buildWhere()).
+ *   null  = semua divisi (super_admin, accounting, finance; Purchase dibatasi
+ *           lewat nama PIC -- CashController::scopePics() -- + gerbang "tidak
+ *           pernah accounting" di CashTransaction::buildWhere()).
  *   array = daftar divisi yang diizinkan.
  *
  * Revisi audit RBAC Kas per-project (2026-09-25): pic_project & admin_project
@@ -354,13 +373,12 @@ function kasAllowedProjectIds(int $userId): array
 }
 
 /**
- * Cakupan project_id transaksi Kas yang boleh DILIHAT user saat ini lewat
- * gerbang ini (batas akses, BUKAN filter pilihan bebas -- lihat CashController
- * untuk bagaimana ini digabung dengan filter Project opsional & bucket divisi
- * Purchase). null = tidak dibatasi lewat gerbang ini (role di luar
- * kasProjectGateRoles(), scoping-nya tetap lewat kasScopePicNames() seperti
- * sebelumnya). array = daftar project_id yang diberikan akses (bisa kosong
- * kalau belum di-assign Super Admin sama sekali).
+ * Project id yang boleh DIPILIH user gerbang Project (filter Project & field
+ * Project di form Kas). BUKAN lagi penentu transaksi mana yang terlihat --
+ * sejak revisi akses Kas 2026-10-05 visibilitas ditentukan oleh nama PIC
+ * (CashController::scopePics()), bukan project. null = bukan role gerbang
+ * Project. array = daftar project_id yang diberikan akses (bisa kosong kalau
+ * belum di-assign Super Admin).
  */
 function kasProjectScopeIds(): ?array
 {
@@ -368,16 +386,6 @@ function kasProjectScopeIds(): ?array
         return null;
     }
     return kasAllowedProjectIds((int) currentUserId());
-}
-
-/**
- * Bucket divisi yang SELALU ikut terlihat lepas dari akses Project (khusus
- * Purchase -- "Kas Purchase" company-wide). null untuk role gerbang Project
- * lain (pic_project/admin_project HANYA Kas Project, tanpa bucket ini).
- */
-function kasOwnDivisionBucket(): ?string
-{
-    return currentUserRole() === ROLE_PURCHASE ? kasDivisionForRole(ROLE_PURCHASE) : null;
 }
 
 // ---------------- Rate limiting login Kas-Project (per session, namespace terpisah) ----------------

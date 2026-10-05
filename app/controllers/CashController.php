@@ -165,7 +165,7 @@ class CashController extends Controller
 
         // Revisi 23 Sep 2026: gerbang HANYA password akun sendiri -- Project
         // TIDAK LAGI dipilih di sini (jadi filter setelah masuk, lihat
-        // scopeAccessScope()). Tidak ada lagi validasi ownership project di
+        // collectFilters()). Tidak ada lagi validasi ownership project di
         // titik ini karena tidak ada project yang dipilih.
         if (!$user || !password_verify($password, (string) $user['password'])) {
             kasProjectRegisterFailedLogin();
@@ -369,8 +369,7 @@ class CashController extends Controller
         $filters  = $this->collectFilters();
         $scope    = $this->scopePics();
         $divScope = kasDivisionScope();
-        $projScope = $this->scopeAccessScope();
-        $kasRows  = $this->cashModel->listFiltered($filters, $scope, $divScope, $projScope);
+        $kasRows  = $this->cashModel->listFiltered($filters, $scope, $divScope);
 
         // Ringkasan "Total Kas Masuk/Keluar (filter)" HARUS murni Kas -- Revisi
         // lanjutan poin 9-11: uang Kas & Bank tidak pernah digabung jadi satu
@@ -386,29 +385,20 @@ class CashController extends Controller
         $rows = $this->combinedListRows($kasRows, $filters);
 
         // Kartu saldo (cash.view_balance):
-        //   Super Admin / Accounting -> SEMUA divisi + Total Saldo.
+        //   Super Admin / Accounting (+ Finance) -> SEMUA divisi + Total Saldo.
         //   Purchase / PIC Project / Admin Project / Project Manager -> HANYA
         //   saldo divisi mereka sendiri (purchase -> Saldo Kas Purchase, role
         //   project -> Saldo Kas Project), tanpa Total & tanpa divisi lain.
-        //   Role gerbang Project (pic_project/admin_project) juga dibatasi ke
-        //   $projScope (project yang diberikan akses) supaya saldo konsisten
-        //   dengan daftar transaksi di bawahnya -- tidak akan ada saldo non-nol
-        //   tanpa transaksi yang terlihat. Purchase TIDAK ikut dibatasi ke
-        //   project_ids karena bucket divisinya sendiri ('purchase') sudah
-        //   membuat kondisi akses selalu terpenuhi (lihat kasOwnDivisionBucket()).
-        //
-        //   Revisi audit RBAC Kas per-project (2026-09-25): $scope (nama PIC,
-        //   lihat scopePics()) SEKARANG juga diikutkan. Untuk Purchase $scope
-        //   tetap null (saldo "Kas Purchase" company-wide, lintas-PIC, TIDAK
-        //   berubah). Untuk pic_project/admin_project $scope kini terisi
-        //   (nama sendiri / sendiri+PIC terkait) -- section 20 spek: saldo
-        //   Admin = "Kas dirinya + Kas PIC terkait", BUKAN seluruh divisi
-        //   'project' company-wide seperti sebelumnya.
+        //   Saldo dihitung dengan $scope (nama PIC, lihat scopePics()) yang SAMA
+        //   dengan daftar transaksi di bawahnya, jadi tidak ada saldo yang
+        //   berasal dari Kas yang tidak boleh dilihat user (PIC = dirinya,
+        //   Admin = dirinya + PIC terkait, Purchase = dirinya / seluruh Purchase
+        //   untuk Kepala Purchase, Project Manager = seluruh divisi Project).
         $balances = null;
         $balanceShowTotal = false;
         if (can('cash', 'view_balance')) {
             $role = currentUserRole();
-            $balanceShowTotal = in_array($role, [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING], true);
+            $balanceShowTotal = kasIsViewAllRole($role);
             // Saldo divisi dihitung PENUH (semua PIC divisi itu) HANYA untuk
             // role yang memang tidak dibatasi $scope (mis. Purchase).
             $balDivScope = $balanceShowTotal ? null : [kasDivisionForRole($role)];
@@ -426,10 +416,10 @@ class CashController extends Controller
             if (!empty($filters['project_ids']) || !empty($filters['rekening_ids'])) {
                 $balances = [
                     'filtered' => true,
-                    'total'    => $this->cashModel->balanceFiltered($filters, $balScopePics, $balDivScope, $projScope),
+                    'total'    => $this->cashModel->balanceFiltered($filters, $balScopePics, $balDivScope),
                 ];
             } else {
-                $balances = $this->cashModel->balanceByDivision($balScopePics, $balDivScope, $projScope);
+                $balances = $this->cashModel->balanceByDivision($balScopePics, $balDivScope);
             }
             $stamp = date('Y-m-d');
             if (($_SESSION['kas_balance_logged'] ?? '') !== $stamp) {
@@ -499,9 +489,8 @@ class CashController extends Controller
         $filters = $this->collectFilters();
         $scope   = $this->scopePics();
         $divScope = kasDivisionScope();
-        $projScope = $this->scopeAccessScope();
         // Gabung Bank (Revisi lanjutan) -- no-op tanpa akses 'bank.view'.
-        $ledger  = $this->combinedLedger($filters, $scope, $divScope, $projScope);
+        $ledger  = $this->combinedLedger($filters, $scope, $divScope);
 
         $this->view('cash/report', [
             'pageTitle'  => 'Laporan Kas',
@@ -645,20 +634,13 @@ class CashController extends Controller
         $ids = is_array($raw) ? $raw : explode(',', (string) $raw);
         $ids = array_values(array_unique(array_filter(array_map('intval', $ids), fn($v) => $v > 0)));
 
-        $scope    = $this->scopePics();
-        $divScope = kasDivisionScope();
-        $divOk    = $divScope === null ? null : array_flip($divScope);
-
         $vouchers = [];
         foreach ($ids as $id) {
             $header = $this->cashModel->findWithRelations($id);
             if (!$header) {
                 continue;
             }
-            if ($scope !== null && !in_array($header['pic'], $scope, true)) {
-                continue;
-            }
-            if ($divOk !== null && !isset($divOk[$header['division']])) {
+            if (!$this->rowWithinAccessScope($header)) {
                 continue;
             }
             $vouchers[] = [
@@ -762,7 +744,7 @@ class CashController extends Controller
     {
         Middleware::requirePermission('cash', 'create');
         $picName = trim($_GET['pic'] ?? '');
-        $scope = $this->scopePics();
+        $scope = $this->writablePicScope();
         if ($picName === '' || ($scope !== null && !in_array($picName, $scope, true))) {
             $this->json(['preview' => '', 'error' => 'PIC tidak valid.']);
         }
@@ -1275,8 +1257,8 @@ class CashController extends Controller
     {
         // Filter Project (checklist, revisi 23 Sep 2026): role gerbang Project
         // BOLEH memilih di antara project yang diberikan akses -- kosong =
-        // semua (batas akses tetap ditegakkan lewat scopeAccessScope(), lihat
-        // index()/report()/buildReportData()). ID di luar akses DITOLAK KERAS
+        // semua. Ini hanya membatasi PILIHAN Project; transaksi mana yang terlihat
+        // ditentukan scopePics() (nama PIC). ID di luar akses DITOLAK KERAS
         // (bukan cuma disaring diam-diam) supaya percobaan lewat URL/API kena
         // "Access Denied", bukan kebocoran senyap.
         $gated = kasIsProjectGateRole(currentUserRole());
@@ -1412,15 +1394,15 @@ class CashController extends Controller
      * bareng oleh tabel Laporan, PDF, Excel, dan Tarik Semua, jadi hasilnya
      * otomatis konsisten di semua tempat.
      */
-    private function combinedLedger(array $filters, ?array $scope, ?array $divScope, ?array $projScope): array
+    private function combinedLedger(array $filters, ?array $scope, ?array $divScope): array
     {
         $source = $filters['source'] ?? '';
         $includeKas = $source !== 'bank';
         $includeBank = $source !== 'kas' && can('bank', 'view');
 
-        $kasSaldoAwal = $includeKas ? $this->cashModel->saldoAwal($filters, $scope, $divScope, $projScope) : 0.0;
+        $kasSaldoAwal = $includeKas ? $this->cashModel->saldoAwal($filters, $scope, $divScope) : 0.0;
         $kasLedger = $includeKas
-            ? $this->cashModel->reportLedger($filters, $scope, $kasSaldoAwal, $divScope, $projScope)
+            ? $this->cashModel->reportLedger($filters, $scope, $kasSaldoAwal, $divScope)
             : ['saldo_awal' => 0.0, 'saldo_akhir' => 0.0, 'rows' => []];
 
         if (!$includeBank) {
@@ -1510,8 +1492,7 @@ class CashController extends Controller
         $filters = $this->collectFilters();
         $scope   = $this->scopePics();
         $divScope = kasDivisionScope();
-        $projScope = $this->scopeAccessScope();
-        $ledger  = $this->combinedLedger($filters, $scope, $divScope, $projScope);
+        $ledger  = $this->combinedLedger($filters, $scope, $divScope);
 
         $company = (new SystemSetting())->getGroup('company');
         $companyName = $company['company_name'] ?: 'Perusahaan';
@@ -1528,20 +1509,22 @@ class CashController extends Controller
     }
 
     /**
-     * null  = lihat semua PIC dalam cakupan divisi/project yang sudah
-     *         dibatasi di tempat lain (super_admin/accounting/project_manager,
-     *         DAN Purchase -- "Kas Purchase" company-wide tetap lintas-PIC).
-     * array = daftar nama PIC yang boleh dilihat.
-     *
-     * Revisi audit RBAC Kas per-project (2026-09-25): pic_project SEBELUMNYA
-     * ikut null di sini (tidak dibatasi PIC sama sekali, hanya project_id),
-     * artinya satu akun PIC Project bisa melihat Kas PIC LAIN pada project
-     * yang sama. Sekarang:
-     *   - pic_project    -> HANYA nama PIC miliknya sendiri.
-     *   - admin_project  -> nama miliknya sendiri + nama semua PIC Project
-     *                       yang berbagi project dengannya (dia = pengawas).
-     *   - purchase       -> TETAP null (bucket "Kas Purchase" company-wide,
-     *                       tidak berubah dari desain semula).
+     * Scope BACA Kas = daftar nama PIC yang boleh dilihat user login (basis
+     * "allowed user" -> nama PIC lewat user_pic_assignments). Satu sumber untuk
+     * list, laporan, cetak, ekspor, dropdown & guard single-row.
+     * Revisi akses Kas berbasis role/scope user (2026-10-05):
+     *   null  = tidak dibatasi nama PIC.
+     *           - super_admin / accounting (+ finance, di-alias ke accounting) : SEMUA Kas.
+     *           - project_manager : seluruh Kas divisi Project (PIC Project +
+     *             Admin Project) -- dibatasi lewat kasDivisionScope(), bukan nama.
+     *   array = daftar nama PIC yang boleh dilihat:
+     *           - pic_project   -> HANYA PIC miliknya sendiri (satu arah: tidak
+     *                              melihat Admin Project yang terhubung).
+     *           - admin_project -> miliknya + PIC Project yang terhubung
+     *                              (berbagi project di project_user_access).
+     *           - purchase      -> HANYA PIC miliknya; dengan izin khusus
+     *                              cash.view_all_purchase (mis. Kepala Purchase)
+     *                              + PIC semua akun ber-role Purchase.
      */
     private function scopePics(): ?array
     {
@@ -1552,32 +1535,32 @@ class CashController extends Controller
         if ($role === ROLE_ADMIN_PROJECT) {
             return $this->picModel->picNamesForAdminProject((int) currentUserId());
         }
-        if (kasIsProjectGateRole($role)) {
-            return null; // purchase
+        if ($role === ROLE_PURCHASE) {
+            $names = $this->picModel->picNamesForUser((int) currentUserId());
+            if (can('cash', 'view_all_purchase')) {
+                $names = array_merge($names, $this->picModel->picNamesForRoles([ROLE_PURCHASE]));
+            }
+            $names = array_values(array_unique($names));
+            sort($names);
+            return $names;
         }
         return kasScopePicNames();
     }
 
     /**
-     * Batas akses (bukan filter pilihan bebas) untuk role gerbang Project.
-     * null   = tidak dibatasi lewat gerbang ini (super_admin/accounting/
-     *          project_manager/gerbang PIC lama).
-     * array  = ['project_ids' => int[], 'division' => ?string] -- OR-kan:
-     *          project yang diberikan akses (Project > Akses) ATAU (khusus
-     *          Purchase) seluruh Kas Purchase company-wide. Dipakai
-     *          CashTransaction::buildWhere() sebagai pagar server-side;
-     *          filter Project opsional ($_GET['project_ids']) tetap AND di
-     *          atasnya lewat collectFilters().
+     * Scope TULIS (dropdown PIC form & validasi server). Sama dengan scopePics()
+     * kecuali Project Manager: baca-nya lewat divisi, tapi kalau suatu saat diberi
+     * izin tulis PIC yang boleh dipilih tetap dibatasi ke PIC divisi Project.
+     * null = bebas (super_admin/accounting, finance ikut accounting).
      */
-    private function scopeAccessScope(): ?array
+    private function writablePicScope(): ?array
     {
-        $ids = kasProjectScopeIds();
-        if ($ids === null) {
-            return null;
+        $scope = $this->scopePics();
+        if ($scope === null && currentUserRole() === ROLE_PROJECT_MANAGER) {
+            return $this->picModel->picNamesForDivisions(kasDivisionScope());
         }
-        return ['project_ids' => $ids, 'division' => kasOwnDivisionBucket()];
+        return $scope;
     }
-
     /**
      * Opsi dropdown filter PIC untuk role "lihat semua" -- gabungan PIC yang
      * sudah punya transaksi Kas (dalam cakupan divisi) + semua PIC master yang
@@ -1604,84 +1587,55 @@ class CashController extends Controller
         return kasDivisionForRole($slug ?? currentUserRole());
     }
 
-    /** Pilihan dropdown PIC di form. Role gerbang Project: semua nama PIC
-     *  terdaftar milik akun ini (dari user_pic_assignments -- dipakai untuk
-     *  atribusi & prefix No Bukti, independen dari gerbang Project di atas).
-     *  Role gerbang PIC lama: dikunci ke PIC sesi Kas. Role lihat-semua:
-     *  semua PIC di master mapping. $current dipertahankan supaya data lama
-     *  tetap terpilih walau tidak lagi di daftar. */
+    /**
+     * Pilihan dropdown PIC di form Tambah/Edit Kas -- MENGIKUTI scope user login
+     * (writablePicScope()), bukan semua user:
+     *   Super Admin / Accounting (+ Finance) : semua PIC terdaftar.
+     *   PIC Project   : dirinya.
+     *   Admin Project : dirinya + PIC Project yang terhubung.
+     *   Purchase      : dirinya; Kepala Purchase (cash.view_all_purchase) +
+     *                   seluruh PIC akun ber-role Purchase.
+     *   Project Manager : PIC divisi Project (PIC Project + Admin Project).
+     * $current dipertahankan supaya data lama tetap terpilih saat Edit
+     * (baris itu sudah lolos assertCanTouch()).
+     */
     private function picFieldOptions(?string $current = null): array
     {
-        if (kasIsProjectGateRole(currentUserRole())) {
-            $opts = $this->picModel->picNamesForUser((int) currentUserId());
-            if ($current !== null && $current !== '' && !in_array($current, $opts, true)) {
-                $opts[] = $current;
-            }
-            sort($opts);
-            return $opts;
-        }
-        if (!kasIsExemptRole(currentUserRole())) {
-            $name = kasPicName();
-            $opts = $name ? [$name] : [];
-            if ($current !== null && $current !== '' && !in_array($current, $opts, true)) {
-                $opts[] = $current;
-            }
-            return $opts;
-        }
-        $opts = $this->picModel->allPicNames();
+        $opts = $this->writablePicScope() ?? $this->picModel->allPicNames();
         if ($current !== null && $current !== '' && !in_array($current, $opts, true)) {
             $opts[] = $current;
         }
+        $opts = array_values(array_unique($opts));
         sort($opts);
         return $opts;
     }
 
     private function assertCanTouch(array $row): void
     {
-        if (kasIsProjectGateRole(currentUserRole())) {
-            if (!$this->rowWithinAccessScope($row)) {
-                denyAccess('Percobaan akses transaksi Kas di luar Project/Divisi yang diberikan akses');
-            }
-            return;
-        }
-        $scope = $this->scopePics();
-        if ($scope !== null && !in_array($row['pic'], $scope, true)) {
-            denyAccess('Percobaan akses transaksi Kas milik PIC lain');
+        if (!$this->rowWithinAccessScope($row)) {
+            denyAccess('Percobaan akses transaksi Kas di luar cakupan akses (PIC/divisi) akun ini');
         }
     }
 
     /**
-     * true kalau baris ini termasuk project yang diberikan akses ATAU
-     * (Purchase) bucket divisinya sendiri -- DAN (revisi audit RBAC Kas
-     * per-project, 2026-09-25) lolos juga cakupan divisi (kasDivisionScope())
-     * & cakupan nama PIC (scopePics()). SEBELUMNYA fungsi ini HANYA mengecek
-     * project_id, sehingga /cash/edit/{id} atau /cash/delete milik divisi lain
-     * (mis. Accounting) bisa dibuka langsung lewat URL selama project_id-nya
-     * kebetulan sama -- celah IDOR, sudah dikonfirmasi bisa dieksploitasi
-     * (akun PIC Project berhasil membuka form Edit transaksi Accounting).
-     * Guard ini menyamakan aturan single-row dengan aturan daftar/list supaya
-     * tidak ada jalan pintas lewat ID langsung.
+     * Guard SATU baris (detail/edit/update/hapus/cetak) -- aturannya identik
+     * dengan aturan daftar (CashTransaction::buildWhere()) supaya tidak ada
+     * jalan pintas lewat ID langsung (IDOR):
+     *   1. Kas divisi Accounting HANYA untuk super_admin/accounting (+ finance).
+     *   2. Cakupan divisi (kasDivisionScope(): role Project -> 'project').
+     *   3. Cakupan nama PIC (scopePics()).
      */
     private function rowWithinAccessScope(array $row): bool
     {
+        if (($row['division'] ?? null) === 'accounting' && !kasIsViewAllRole(currentUserRole())) {
+            return false;
+        }
         $divScope = kasDivisionScope();
         if ($divScope !== null && !in_array($row['division'] ?? null, $divScope, true)) {
             return false;
         }
         $picScope = $this->scopePics();
-        if ($picScope !== null && !in_array($row['pic'] ?? null, $picScope, true)) {
-            return false;
-        }
-
-        $scope = $this->scopeAccessScope();
-        if ($scope === null) {
-            return true;
-        }
-        $pid = $row['project_id'] !== null ? (int) $row['project_id'] : null;
-        if ($pid !== null && in_array($pid, $scope['project_ids'] ?? [], true)) {
-            return true;
-        }
-        return !empty($scope['division']) && ($row['division'] ?? null) === $scope['division'];
+        return $picScope === null || in_array($row['pic'] ?? null, $picScope, true);
     }
 
     /**
@@ -1822,18 +1776,15 @@ class CashController extends Controller
             $errors[] = 'Tanggal wajib diisi.';
         }
 
-        $scope = $this->scopePics();
+        // PIC yang dipilih WAJIB ada di scope user login (sama dengan isi dropdown
+        // -- lihat writablePicScope()): PIC Project = dirinya, Admin Project =
+        // dirinya + PIC terkait, Purchase = dirinya (Kepala Purchase: seluruh
+        // Purchase). Dicek server-side, bukan cuma dibatasi di dropdown.
+        $scope = $this->writablePicScope();
         $picOwnershipOk = true;
         if ($d['pic'] === '') {
             $errors[] = 'PIC wajib diisi.';
             $picOwnershipOk = false;
-        } elseif (kasIsProjectGateRole(currentUserRole())) {
-            // Gerbang Project: ownership PIC dicek lewat user_pic_assignments
-            // (bukan session PIC -- role ini tidak lagi login per-PIC).
-            if (!in_array($d['pic'], $this->picModel->picNamesForUser((int) currentUserId()), true)) {
-                $errors[] = 'PIC tidak valid untuk akun Anda.';
-                $picOwnershipOk = false;
-            }
         } elseif ($scope !== null && !in_array($d['pic'], $scope, true)) {
             $errors[] = 'PIC tidak valid untuk akun Anda.';
             $picOwnershipOk = false;

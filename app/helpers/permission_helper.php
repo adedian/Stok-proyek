@@ -90,7 +90,7 @@ function permissionLabelMaps(): array
             'stock_price' => 'Lihat Harga (Laporan Stok)', 'stock_report' => 'Buka Laporan Stok Barang',
             'print_voucher' => 'Cetak Voucher Terpilih', 'manage_access' => 'Atur Akses Project',
             'submit' => 'Ajukan (Submit)', 'reject' => 'Tolak', 'forward' => 'Teruskan ke Purwati/Nissa', 'purchase_process' => 'Proses Purchase (PO/Invoice/Dokumen)', 'export' => 'Export',
-            'view_all' => 'Lihat Semua Project', 'print' => 'Cetak', 'admin_delete' => 'Hapus Administratif',
+            'view_all' => 'Lihat Semua Project', 'view_all_purchase' => 'Lihat Semua Kas Purchase', 'print' => 'Cetak', 'admin_delete' => 'Hapus Administratif',
         ],
     ];
 }

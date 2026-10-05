@@ -240,6 +240,11 @@ return [
         // Project Manager melihat HANYA saldo divisi mereka sendiri (mis.
         // Purchase -> "Saldo Kas Purchase", role project -> "Saldo Kas Project").
         'view_balance' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING, ROLE_PURCHASE, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT, ROLE_PROJECT_MANAGER],
+        // Izin KHUSUS (scope ALL PURCHASE, bukan ALL KAS): Purchase biasa hanya Kas
+        // dirinya; akun yang diberi izin ini (mis. Kepala Purchase) melihat Kas
+        // SEMUA akun ber-role Purchase. Tidak diberikan ke role mana pun secara
+        // default -- dipasang PER AKUN lewat Hak Akses > override user.
+        'view_all_purchase' => [ROLE_SUPER_ADMIN],
         // "Cetak Terpilih" -> voucher BUKTI KAS KELUAR/MASUK (halaman Kas &
         // Laporan Kas). HANYA Super Admin & Accounting. Ditegakkan backend di
         // CashController::printVoucher() + disembunyikan di kedua view.

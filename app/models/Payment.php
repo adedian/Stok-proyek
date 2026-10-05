@@ -77,6 +77,17 @@ class Payment extends Model
         return (float) $result['total'];
     }
 
+    /** Total pembayaran PO dalam RUPIAH (SUM amount_idr; tiap pembayaran memakai kursnya sendiri). */
+    public function totalPaidIdrByPo(int $poId): float
+    {
+        $row = $this->db->fetchOne(
+            "SELECT COALESCE(SUM(amount_idr), 0) AS total FROM payments
+             WHERE purchase_order_id = :po_id AND deleted_at IS NULL",
+            ['po_id' => $poId]
+        );
+        return (float) ($row['total'] ?? 0);
+    }
+
     /** Jumlah pembayaran aktif (belum dihapus) pada PO -- dipakai mengunci perubahan mata uang PO. */
     public function countByPo(int $poId): int
     {
@@ -209,7 +220,8 @@ class Payment extends Model
     {
         $sql = "SELECT po.id, po.po_number, po.currency, po.total_amount, po.status AS po_status, po.pembuat_po,
                        s.supplier_name,
-                       COALESCE(SUM(pay.amount), 0) AS total_paid
+                       COALESCE(SUM(pay.amount), 0) AS total_paid,
+                       COALESCE(SUM(pay.amount_idr), 0) AS total_paid_idr
                 FROM purchase_orders po
                 JOIN suppliers s ON s.id = po.supplier_id
                 LEFT JOIN payments pay ON pay.purchase_order_id = po.id AND pay.deleted_at IS NULL
@@ -245,6 +257,9 @@ class Payment extends Model
         return [
             'total_amount' => $totalAmount,
             'total_paid'   => $totalPaid,
+            // Setara Rupiah dari seluruh pembayaran PO ini (tiap pembayaran dgn kursnya sendiri);
+            // HANYA informasi -- sisa/status tetap dihitung dalam mata uang PO.
+            'total_paid_idr' => $this->totalPaidIdrByPo($poId),
             'remaining'    => max(0, $totalAmount - $totalPaid),
             'percentage'   => $percentage,
             'status'       => $this->resolveStatus($totalAmount, $totalPaid),

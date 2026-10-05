@@ -46,6 +46,9 @@
                             <td class="text-end">
                                 <?= formatMoney($row['total_paid'], $row['currency'] ?? 'IDR') ?>
                                 <span class="text-muted small">/ <?= number_format($row['percentage'], 1, ',', '.') ?>%</span>
+                                <?php if (normalizeCurrency($row['currency'] ?? 'IDR') !== 'IDR' && (float) ($row['total_paid_idr'] ?? 0) > 0): ?>
+                                    <div class="text-muted small">&asymp; <?= formatRupiah($row['total_paid_idr']) ?></div>
+                                <?php endif; ?>
                             </td>
                             <td class="text-end fw-semibold" style="min-width: 110px;">
                                 <?= number_format($row['percentage'], 1, ',', '.') ?>%

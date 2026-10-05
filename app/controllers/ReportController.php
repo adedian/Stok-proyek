@@ -595,6 +595,7 @@ class ReportController extends Controller
                         ['field' => 'status_label', 'label' => 'Status'],
                         ['field' => 'amount', 'label' => 'Nominal', 'format' => 'rupiah', 'align' => 'end', 'sum' => true],
                         ['field' => 'kurs_value', 'label' => 'Kurs', 'format' => 'kurs', 'align' => 'end'],
+                        ['field' => 'amount_idr', 'label' => 'Nominal IDR', 'format' => 'idr', 'align' => 'end', 'sum' => true],
                     ],
                     'rows' => $rows,
                     'filterForm' => ['date' => true, 'project' => true, 'status' => $model->statusLabels, 'keyword' => true],

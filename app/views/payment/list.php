@@ -110,8 +110,9 @@
                         <th class="text-center">Termin</th>
                         <th>Sumber Dana</th>
                         <th>Metode</th>
-                        <th class="text-end">Nominal</th>
+                        <th class="text-end">Nominal Asli</th>
                         <th class="text-end">Kurs</th>
+                        <th class="text-end">Nominal IDR</th>
                         <th>Tanggal</th>
                         <th class="text-center">Bukti</th>
                         <th class="text-center">Status</th>
@@ -122,7 +123,7 @@
                 <tbody>
                     <?php if (empty($payments)): ?>
                         <tr>
-                            <td colspan="13" class="p-0">
+                            <td colspan="14" class="p-0">
                                 <div class="empty-state">
                                     <i class="bi bi-credit-card empty-icon"></i>
                                     <div class="empty-title">Belum ada pembayaran</div>
@@ -149,6 +150,7 @@
                             <td><?= e($pay['method_name'] ?? '-') ?></td>
                             <td class="text-end"><?= formatMoney($pay['amount'], $pay['currency'] ?? 'IDR') ?></td>
                             <td class="text-end"><?= normalizeCurrency($pay['currency'] ?? 'IDR') === 'IDR' ? '<span class="text-muted">-</span>' : e(formatKurs($pay['kurs'] ?? 1)) ?></td>
+                            <td class="text-end fw-semibold"><?= formatRupiah($pay['amount_idr'] ?? $pay['amount']) ?></td>
                             <td><?= formatTanggal($pay['payment_date']) ?></td>
                             <td class="text-center">
                                 <?php if (!empty($pay['proof_file'])): ?>

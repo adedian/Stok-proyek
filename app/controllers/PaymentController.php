@@ -130,6 +130,7 @@ class PaymentController extends Controller
             'amount'            => $data['amount'],
             'currency'          => $data['currency'],
             'kurs'              => $data['kurs'],
+            'amount_idr'        => $data['amount_idr'],
             'payment_date'      => $data['payment_date'],
             'proof_file'        => $proofFile,
             'status'            => $status,
@@ -141,7 +142,7 @@ class PaymentController extends Controller
             $data['purchase_order_id'],
             'payment_added',
             "Pembayaran termin {$data['termin']} sebesar " . formatMoney($data['amount'], $data['currency'])
-                . ($data['currency'] !== 'IDR' ? ' (kurs ' . formatKurs($data['kurs']) . ')' : '') . " ditambahkan",
+                . ($data['currency'] !== 'IDR' ? ' (kurs ' . formatKurs($data['kurs']) . ' = ' . formatRupiah($data['amount_idr']) . ')' : '') . " ditambahkan",
             currentUserId()
         );
 
@@ -224,6 +225,7 @@ class PaymentController extends Controller
             'amount'            => $data['amount'],
             'currency'          => $data['currency'],
             'kurs'              => $data['kurs'],
+            'amount_idr'        => $data['amount_idr'],
             'payment_date'      => $data['payment_date'],
             'status'            => $status,
             'notes'             => $data['notes'],
@@ -238,7 +240,7 @@ class PaymentController extends Controller
             $data['purchase_order_id'],
             'payment_updated',
             "Pembayaran {$existing['payment_number']} diperbarui menjadi " . formatMoney($data['amount'], $data['currency'])
-                . ($data['currency'] !== 'IDR' ? ' (kurs ' . formatKurs($data['kurs']) . ')' : ''),
+                . ($data['currency'] !== 'IDR' ? ' (kurs ' . formatKurs($data['kurs']) . ' = ' . formatRupiah($data['amount_idr']) . ')' : ''),
             currentUserId()
         );
 
@@ -444,7 +446,7 @@ class PaymentController extends Controller
         } else {
             $kursRaw = $data['kurs_raw'] ?? '';
             if (is_string($kursRaw) && trim($kursRaw) === '') {
-                $errors[] = 'Kurs wajib diisi untuk mata uang selain IDR.';
+                $errors[] = 'Kurs wajib diisi untuk PO dengan mata uang selain IDR.';
             } else {
                 $kurs = parseKursInput($kursRaw);
                 if ($kurs === null || $kurs <= 0) {
@@ -465,6 +467,15 @@ class PaymentController extends Controller
         }
         if ($data['funding_source'] === 'bank' && empty($data['payment_method_id'])) {
             $errors[] = 'Jenis Pembayaran (Cek/Giro/Transfer Bank/Tunai) wajib dipilih untuk sumber dana Bank.';
+        }
+
+        // Nominal IDR = nominal asli x kurs, DIHITUNG ULANG di sini (nilai 'amount_idr' dari browser,
+        // kalau ada, tidak pernah dibaca). IDR: kurs 1 -> sama dengan nominal asli.
+        if ($data['amount'] > 0 && isset($data['kurs'])) {
+            $data['amount_idr'] = convertToIdr($data['amount'], $data['kurs']);
+            if ($data['amount_idr'] > 9999999999999.99) {
+                $errors[] = 'Nilai pembayaran dalam IDR melebihi batas wajar.';
+            }
         }
 
         $excludeAmount = $excludePaymentId ? (float) $this->paymentModel->find($excludePaymentId)['amount'] : 0;

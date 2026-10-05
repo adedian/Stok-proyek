@@ -101,6 +101,11 @@ function streamExcelReport(string $title, string $companyName, string $periodTex
                     $sheet->setCellValue($cell, $value !== null ? (float) $value : 0);
                     $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('0.00"%"');
                     break;
+                case 'idr':
+                    // Selalu Rupiah (nilai hasil konversi kurs), bukan mata uang baris.
+                    $sheet->setCellValue($cell, $value !== null ? (float) $value : 0);
+                    $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('"Rp" #,##0');
+                    break;
                 case 'kurs':
                     // Kurs: ANGKA asli (mis. 16500), bukan teks -- teks "16.000" otomatis dibaca
                     // Excel sebagai 16. Pemisah ribuan/desimal mengikuti pengaturan regional Excel.
@@ -137,7 +142,9 @@ function streamExcelReport(string $title, string $companyName, string $periodTex
         foreach ($columns as $col) {
             $letter = Coordinate::stringFromColumnIndex($colIndex);
             if (!empty($col['sum'])) {
-                $sums = reportSumByCurrency($rows, $col['field']);
+                $sums = (($col['format'] ?? '') === 'idr')
+                    ? ['' => array_sum(array_map(fn($r) => (float) ($r[$col['field']] ?? 0), $rows))] // kolom Rupiah: satu angka
+                    : reportSumByCurrency($rows, $col['field']);
                 $cell = $letter . $totalRow;
                 if (count($sums) === 1) {
                     // Satu mata uang -> angka asli + format berprefix kode.

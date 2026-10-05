@@ -501,6 +501,24 @@ function parseKursInput($raw): ?float
     return round((float) $s, 6);
 }
 
+/**
+ * Konversi nominal mata uang PO ke Rupiah: nominal x kurs, dibulatkan 2 desimal (half-up).
+ * Dipakai backend sebagai SATU-SATUNYA sumber nilai amount_idr (nilai dari browser tidak
+ * dipercaya). Memakai bcmath bila ada (tanpa galat float pada nominal besar); fallback round().
+ */
+function convertToIdr($amount, $kurs): float
+{
+    if (function_exists('bcmul')) {
+        $a = number_format((float) $amount, 2, '.', '');
+        $k = number_format((float) $kurs, 6, '.', '');
+        $p = bcmul($a, $k, 8);
+        // half-up ke 2 desimal (bcmath memotong, bukan membulatkan)
+        $half = bcadd($p, ($p[0] === '-' ? '-0.005' : '0.005'), 8);
+        return (float) bcadd($half, '0', 2);
+    }
+    return round((float) $amount * (float) $kurs, 2);
+}
+
 /** Tampilan kurs format Indonesia, tanpa nol di belakang (16500 -> "16.500", 12.75 -> "12,75"). */
 function formatKurs($kurs): string
 {
@@ -526,8 +544,12 @@ function reportSumByCurrency(array $rows, string $field): array
 }
 
 /** Teks baris TOTAL laporan: satu mata uang -> "USD 1,000.00"; campuran -> "IDR 1,000.00 | USD 500.00". */
-function formatReportTotal(array $rows, string $field): string
+function formatReportTotal(array $rows, string $field, string $format = 'rupiah'): string
 {
+    if ($format === 'idr') {
+        // Kolom yang SELALU Rupiah (mis. Nominal IDR hasil konversi kurs): dijumlah satu angka.
+        return formatRupiah(array_sum(array_map(fn($r) => (float) ($r[$field] ?? 0), $rows)));
+    }
     $parts = [];
     foreach (reportSumByCurrency($rows, $field) as $cur => $sum) {
         $parts[] = $cur === '' ? formatRupiah($sum) : formatMoney($sum, $cur);
@@ -596,6 +618,8 @@ function formatReportValue($value, string $format = 'text', ?array $row = null):
             return formatPercent($value) . '%';
         case 'kurs':
             return formatKurs($value); // format Indonesia (16.500 / 12,75)
+        case 'idr':
+            return formatRupiah($value); // selalu Rupiah (nilai hasil konversi), bukan mata uang baris
         default:
             return (string) $value;
     }

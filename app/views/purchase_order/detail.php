@@ -124,6 +124,13 @@
                         <div class="fw-semibold"><?= number_format($paymentInfo['percentage'], 1, ',', '.') ?>%</div>
                     </div>
                 </div>
+                <?php if (normalizeCurrency($po['currency'] ?? 'IDR') !== 'IDR' && (float) ($paymentInfo['total_paid_idr'] ?? 0) > 0): ?>
+                    <div class="small text-muted mb-2">
+                        <i class="bi bi-currency-exchange"></i>
+                        Setara Rupiah (kurs tiap pembayaran): <strong><?= formatRupiah($paymentInfo['total_paid_idr']) ?></strong>
+                        &mdash; sisa tagihan tetap dihitung dalam <?= e(normalizeCurrency($po['currency'] ?? 'IDR')) ?>.
+                    </div>
+                <?php endif; ?>
                 <div class="progress" style="height: 8px;">
                     <div class="progress-bar bg-<?= $paymentInfo['percentage'] >= 100 ? 'success' : 'primary' ?>"
                          role="progressbar" style="width: <?= (float) $paymentInfo['percentage'] ?>%"

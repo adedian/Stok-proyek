@@ -48,7 +48,7 @@
                     <td class="end">TOTAL</td>
                     <?php foreach ($columns as $col): ?>
                         <?php if (!empty($col['sum'])): ?>
-                            <td class="end"><?= e(formatReportTotal($rows, $col['field'])) ?></td>
+                            <td class="end"><?= e(formatReportTotal($rows, $col['field'], $col['format'] ?? 'rupiah')) ?></td>
                         <?php else: ?>
                             <td></td>
                         <?php endif; ?>

@@ -15,6 +15,8 @@ $qs = http_build_query(array_filter([
     'rekening_ids' => $filters['rekening_ids'],
     'source'      => $filters['source'] ?? '',
 ]));
+$detailMode = $detailMode ?? false;
+$modeQs = $detailMode ? '&mode=rincian' : ''; // tombol utama PDF/Excel ikut mode layar
 $rp = static fn($v) => number_format((float) $v, 0, ',', '.');
 $qtyFmt = static fn($v) => rtrim(rtrim(number_format((float) $v, 2, ',', '.'), '0'), ',');
 $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saja
@@ -34,9 +36,36 @@ $selectedRekeningIds = array_map('strval', $filters['rekening_ids'] ?? []);
             <i class="bi bi-printer"></i> Cetak Terpilih <span class="badge text-bg-primary" id="pilihCount">0</span>
         </button>
         <?php endif; ?>
-        <button type="button" class="btn btn-outline-dark" onclick="window.print()"><i class="bi bi-printer"></i> Cetak</button>
-        <a href="<?= BASE_URL ?>/index.php?module=cash&action=printReport<?= $qs ? '&' . e($qs) : '' ?>" class="btn btn-outline-danger" target="_blank"><i class="bi bi-file-earmark-pdf"></i> PDF</a>
-        <a href="<?= BASE_URL ?>/index.php?module=cash&action=exportReport<?= $qs ? '&' . e($qs) : '' ?>" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i> Excel</a>
+        <div class="btn-group">
+            <button type="button" class="btn btn-outline-dark" onclick="window.print()" title="Cetak tampilan layar (<?= $detailMode ? 'Rincian' : 'Rekap' ?>)"><i class="bi bi-printer"></i> Cetak</button>
+            <button type="button" class="btn btn-outline-dark dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                <span class="visually-hidden">Pilih jenis cetak</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=cash&action=report<?= $qs ? '&' . e($qs) : '' ?>&autoprint=1" target="_blank"><i class="bi bi-printer"></i> Cetak Rekap</a></li>
+                <li><a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=cash&action=report<?= $qs ? '&' . e($qs) : '' ?>&mode=rincian&autoprint=1" target="_blank"><i class="bi bi-list-ul"></i> Cetak Rincian (per item)</a></li>
+            </ul>
+        </div>
+        <div class="btn-group">
+            <a href="<?= BASE_URL ?>/index.php?module=cash&action=printReport<?= $qs ? '&' . e($qs) : '' ?><?= $modeQs ?>" class="btn btn-outline-danger" target="_blank"><i class="bi bi-file-earmark-pdf"></i> PDF</a>
+            <button type="button" class="btn btn-outline-danger dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                <span class="visually-hidden">Pilih jenis PDF</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" target="_blank" href="<?= BASE_URL ?>/index.php?module=cash&action=printReport<?= $qs ? '&' . e($qs) : '' ?>"><i class="bi bi-file-earmark-pdf"></i> PDF Rekap</a></li>
+                <li><a class="dropdown-item" target="_blank" href="<?= BASE_URL ?>/index.php?module=cash&action=printReport<?= $qs ? '&' . e($qs) : '' ?>&mode=rincian"><i class="bi bi-file-earmark-pdf"></i> PDF Rincian (per item)</a></li>
+            </ul>
+        </div>
+        <div class="btn-group">
+            <a href="<?= BASE_URL ?>/index.php?module=cash&action=exportReport<?= $qs ? '&' . e($qs) : '' ?><?= $modeQs ?>" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i> Excel</a>
+            <button type="button" class="btn btn-outline-success dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                <span class="visually-hidden">Pilih jenis Excel</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=cash&action=exportReport<?= $qs ? '&' . e($qs) : '' ?>"><i class="bi bi-file-earmark-excel"></i> Excel Rekap</a></li>
+                <li><a class="dropdown-item" href="<?= BASE_URL ?>/index.php?module=cash&action=exportReport<?= $qs ? '&' . e($qs) : '' ?>&mode=rincian"><i class="bi bi-file-earmark-excel"></i> Excel Rincian (per item)</a></li>
+            </ul>
+        </div>
         <div class="btn-group">
             <a href="<?= BASE_URL ?>/index.php?module=cash&action=printReportGrouped<?= $qs ? '&' . e($qs) : '' ?>" class="btn btn-outline-dark" target="_blank" title="Cetak seluruh transaksi sesuai filter, dikelompokkan per PIC (PDF)"><i class="bi bi-people"></i> Tarik Semua</a>
             <button type="button" class="btn btn-outline-dark dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
@@ -54,6 +83,7 @@ $selectedRekeningIds = array_map('strval', $filters['rekening_ids'] ?? []);
     <div class="card-body">
         <form method="GET" action="<?= BASE_URL ?>/cash" class="row g-2 align-items-end">
             <input type="hidden" name="action" value="report">
+            <?php if ($detailMode): ?><input type="hidden" name="mode" value="rincian"><?php endif; ?>
             <div class="col-6 col-md-2">
                 <label class="form-label small text-muted mb-1">Dari Tanggal</label>
                 <input type="date" name="date_from" class="form-control form-control-sm" value="<?= e($filters['date_from']) ?>">
@@ -182,7 +212,7 @@ $selectedRekeningIds = array_map('strval', $filters['rekening_ids'] ?? []);
 
 <div class="card border-0 shadow-sm">
     <div class="card-body">
-        <h5 class="text-center mb-3">Laporan Kas<?= $canBank ? '/Bank' : '' ?></h5>
+        <h5 class="text-center mb-3">Laporan Kas<?= $canBank ? '/Bank' : '' ?><?= $detailMode ? ' &mdash; Rincian' : '' ?></h5>
         <div class="table-responsive">
             <table class="table table-sm table-bordered align-middle mb-0">
                 <thead class="table-light text-center">
@@ -251,6 +281,10 @@ $selectedRekeningIds = array_map('strval', $filters['rekening_ids'] ?? []);
 // DOMContentLoaded: helper wireSelectAllCheckbox dimuat di footer.php (SETELAH
 // view ini), jadi tunggu semua script siap dulu.
 document.addEventListener('DOMContentLoaded', function () {
+    <?php if (($_GET['autoprint'] ?? '') === '1'): ?>
+    // Dibuka dari menu Cetak > Rekap/Rincian: langsung buka dialog cetak.
+    setTimeout(function () { window.print(); }, 400);
+    <?php endif; ?>
     var btn     = document.getElementById('btnCetakTerpilih');
     var countEl = document.getElementById('pilihCount');
     if (!btn) { return; }

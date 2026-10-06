@@ -490,10 +490,12 @@ class CashController extends Controller
         $scope   = $this->scopePics();
         $divScope = kasDivisionScope();
         // Gabung Bank (Revisi lanjutan) -- no-op tanpa akses 'bank.view'.
-        $ledger  = $this->combinedLedger($filters, $scope, $divScope);
+        $detail  = $this->isDetailMode();
+        $ledger  = $this->combinedLedger($filters, $scope, $divScope, $detail);
 
         $this->view('cash/report', [
             'pageTitle'  => 'Laporan Kas',
+            'detailMode' => $detail,
             // Halaman ini sekarang diakses dari menu "Laporan" -- highlight sidebar
             // & breadcrumb ikut modul report, walau controller-nya tetap CashController
             // (biar scoping per-PIC + view/PDF/Excel Kas tidak perlu digandakan).
@@ -1387,7 +1389,7 @@ class CashController extends Controller
      * bareng oleh tabel Laporan, PDF, Excel, dan Tarik Semua, jadi hasilnya
      * otomatis konsisten di semua tempat.
      */
-    private function combinedLedger(array $filters, ?array $scope, ?array $divScope): array
+    private function combinedLedger(array $filters, ?array $scope, ?array $divScope, bool $detail = false): array
     {
         $source = $filters['source'] ?? '';
         $includeKas = $source !== 'bank';
@@ -1408,22 +1410,38 @@ class CashController extends Controller
 
         $bankRows = [];
         foreach ($bankLedger['rows'] as $b) {
-            $bankRows[] = [
-                'source'            => 'bank',
-                'parent_id'         => (int) $b['id'],
-                'is_first'          => true,
-                'trx_date_full'     => $b['trx_date'],
-                'no_bukti_full'     => $b['no_bukti'],
-                'pic_full'          => $b['pic'] ?? '',
-                'project_name_full' => $b['project_name'] ?? '',
-                'kategori'          => $b['bank_name'] . ' (' . mb_strtoupper($b['bank_jenis']) . ')',
-                'uraian'            => $b['uraian'],
-                'qty'               => 0.0,
-                'satuan'            => 0.0,
-                'masuk'             => $b['masuk'],
-                'keluar'            => $b['keluar'],
-                'saldo'             => 0.0, // dihitung ulang gabungan di bawah
-            ];
+            // Rekap: 1 baris per transaksi Bank (uraian digabung "; ").
+            // Rincian: 1 baris per item rincian (tabel bank_transaction_items),
+            // sama seperti Kas yang sudah per item. Transaksi lama tanpa item
+            // jatuh balik ke 1 baris header.
+            $lines = [['uraian' => $b['uraian'], 'amount' => (float) $b['amount']]];
+            if ($detail) {
+                $items = $this->bankItemModel->byTransaction((int) $b['id']);
+                if (!empty($items)) {
+                    $lines = $items;
+                }
+            }
+            $first = true;
+            foreach ($lines as $ln) {
+                $amt = (float) $ln['amount'];
+                $bankRows[] = [
+                    'source'            => 'bank',
+                    'parent_id'         => (int) $b['id'],
+                    'is_first'          => $first,
+                    'trx_date_full'     => $b['trx_date'],
+                    'no_bukti_full'     => $b['no_bukti'],
+                    'pic_full'          => $b['pic'] ?? '',
+                    'project_name_full' => $b['project_name'] ?? '',
+                    'kategori'          => $b['bank_name'] . ' (' . mb_strtoupper($b['bank_jenis']) . ')',
+                    'uraian'            => $ln['uraian'],
+                    'qty'               => 0.0,
+                    'satuan'            => 0.0,
+                    'masuk'             => $b['mutasi'] === 'masuk' ? $amt : 0.0,
+                    'keluar'            => $b['mutasi'] === 'keluar' ? $amt : 0.0,
+                    'saldo'             => 0.0, // dihitung ulang gabungan di bawah
+                ];
+                $first = false;
+            }
         }
 
         $merged = array_merge($kasLedger['rows'], $bankRows);
@@ -1485,7 +1503,8 @@ class CashController extends Controller
         $filters = $this->collectFilters();
         $scope   = $this->scopePics();
         $divScope = kasDivisionScope();
-        $ledger  = $this->combinedLedger($filters, $scope, $divScope);
+        $detail  = $this->isDetailMode();
+        $ledger  = $this->combinedLedger($filters, $scope, $divScope, $detail);
 
         $company = (new SystemSetting())->getGroup('company');
         $companyName = $company['company_name'] ?: 'Perusahaan';
@@ -1497,8 +1516,17 @@ class CashController extends Controller
         return [$ledger, [
             'company' => $companyName,
             'period'  => $period,
-            'title'   => $this->reportTitle($filters),
+            'title'   => $this->reportTitle($filters) . ($detail ? ' (RINCIAN)' : ''),
         ]];
+    }
+
+    /**
+     * Mode cetak Laporan Kas: ?mode=rincian = tiap item rincian (Kas & Bank)
+     * jadi 1 baris sendiri; selain itu (default) = Rekap seperti semula.
+     */
+    private function isDetailMode(): bool
+    {
+        return ($_GET['mode'] ?? '') === 'rincian';
     }
 
     /**

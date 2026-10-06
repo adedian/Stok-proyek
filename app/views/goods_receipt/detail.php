@@ -165,6 +165,12 @@
                                     <?php else: ?>
                                         <span class="badge bg-secondary" title="Menunggu validasi">Menunggu Validasi</span>
                                     <?php endif; ?>
+                                    <?php if (!empty($selfValidatable[(int) $item['id']])): ?>
+                                        <button type="button" class="btn btn-sm btn-outline-primary ms-1"
+                                                data-bs-toggle="modal" data-bs-target="#selfValidateModal<?= (int) $item['id'] ?>">
+                                            <i class="bi bi-clipboard-check"></i> Validasi
+                                        </button>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -213,3 +219,45 @@
         </div>
     </div>
 </div>
+
+<?php foreach ($items as $item): ?>
+    <?php if (empty($selfValidatable[(int) $item['id']])) { continue; } ?>
+    <!-- Validasi mandiri barang Lampu (izin per-akun) -- diposting ke ValidationController::validateItem -->
+    <div class="modal fade" id="selfValidateModal<?= (int) $item['id'] ?>" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST" action="<?= BASE_URL ?>/index.php?module=validation&action=validateItem">
+                    <?= csrfField() ?>
+                    <input type="hidden" name="id" value="<?= (int) $item['id'] ?>">
+                    <input type="hidden" name="return" value="receipt">
+                    <div class="modal-header">
+                        <h6 class="modal-title">Validasi: <?= e($item['item_name']) ?></h6>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="small text-muted mb-3">
+                            Penerimaan <?= e($receipt['receipt_number']) ?> &middot;
+                            Qty Diterima: <?= number_format((float) $item['qty_received'], 2, ',', '.') ?>
+                        </p>
+                        <div class="mb-3">
+                            <label class="form-label">Status Validasi</label>
+                            <select name="comparison_status" class="form-select" required>
+                                <?php foreach ($statusLabels as $key => $label): ?>
+                                    <option value="<?= e($key) ?>" <?= $item['comparison_status'] === $key ? 'selected' : '' ?>><?= e($label) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label">Catatan (wajib jika bukan "Sesuai")</label>
+                            <textarea name="validation_notes" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary">Simpan Validasi</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+<?php endforeach; ?>

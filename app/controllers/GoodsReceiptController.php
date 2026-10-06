@@ -78,7 +78,27 @@ class GoodsReceiptController extends Controller
         $items = $this->receiptItemModel->itemsByReceipt($id);
         $documents = $this->documentModel->byReceipt($id);
 
+        // Item yang boleh divalidasi MANDIRI oleh user ini (izin 'validation.validate_lamp':
+        // barang Lampu + penerimaan miliknya + belum divalidasi). Hanya penentu tombol --
+        // ValidationController::validateItem() mengecek ulang di backend.
+        $selfValidatable = [];
+        if (can('validation', 'validate_lamp') && !can('validation', 'validate')) {
+            $po = $receipt['purchase_order_id'] ? $this->poModel->findAny((int) $receipt['purchase_order_id']) : null;
+            foreach ($items as $it) {
+                $row = $it + [
+                    'stock_type'           => $receipt['stock_type'] ?? null,
+                    'stock_scope'          => $receipt['stock_scope'] ?? null,
+                    'receipt_created_by'   => $receipt['created_by'] ?? null,
+                    'po_receiver_user_id'  => $po['receiver_user_id'] ?? null,
+                ];
+                if ($this->receiptItemModel->canSelfValidateLamp($row)) {
+                    $selfValidatable[(int) $it['id']] = true;
+                }
+            }
+        }
+
         $this->view('goods_receipt/detail', [
+            'selfValidatable'  => $selfValidatable,
             'pageTitle' => 'Detail Penerimaan Barang',
             'receipt'   => $receipt,
             'items'     => $items,

@@ -73,6 +73,11 @@ return [
     'validation' => [
         'view'     => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_PROJECT_MANAGER],
         'validate' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT],
+        // Validasi MANDIRI khusus barang Jenis Stok "Stok Lampu" pada penerimaan yang
+        // diinput/diterima user itu sendiri (lihat GoodsReceiptItem::canSelfValidateLamp()).
+        // SENGAJA tidak diberikan ke role mana pun selain Super Admin: dipasang PER AKUN
+        // (akun Nissa) lewat user_permissions -- migrasi 2026_10_12_validation_lamp_nissa.php.
+        'validate_lamp' => [ROLE_SUPER_ADMIN],
     ],
 
     'stock_out' => [

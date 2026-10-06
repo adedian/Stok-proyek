@@ -138,7 +138,7 @@ $modals = '';
                                 <?php endif; ?>
                             </td>
                             <td class="text-center">
-                                <?php if (can('validation', 'validate')): ?>
+                                <?php if ($canValidateItem($item)): ?>
                                     <button type="button" class="btn btn-sm btn-outline-primary"
                                             data-bs-toggle="modal" data-bs-target="#validateModal<?= (int) $item['id'] ?>">
                                         <i class="bi bi-clipboard-check"></i> Validasi
@@ -148,7 +148,7 @@ $modals = '';
                                 <?php endif; ?>
                             </td>
                         </tr>
-                        <?php if (!can('validation', 'validate')) { continue; } ?>
+                        <?php if (!$canValidateItem($item)) { continue; } ?>
                         <?php ob_start(); ?>
                         <!-- Modal validasi per item -->
                         <div class="modal fade" id="validateModal<?= (int) $item['id'] ?>" tabindex="-1">

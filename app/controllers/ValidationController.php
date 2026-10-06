@@ -57,7 +57,18 @@ class ValidationController extends Controller
             'pendingCount'     => $pendingCount,
             'statusLabels'     => $this->itemModel->statusLabels,
             'statusBadgeClass' => $this->itemModel->statusBadgeClass,
+            'canValidateItem'  => $this->canValidateItemFn(),
         ]);
+    }
+
+    /**
+     * Penentu tombol "Validasi" per item untuk view: izin penuh, ATAU validasi mandiri
+     * Lampu (cuma tampilan -- validateItem() tetap mengecek ulang di backend).
+     */
+    private function canValidateItemFn(): callable
+    {
+        $full = can('validation', 'validate');
+        return fn(array $item): bool => $full || $this->itemModel->canSelfValidateLamp($item);
     }
 
     /**
@@ -65,7 +76,12 @@ class ValidationController extends Controller
      */
     public function validateItem()
     {
-        Middleware::requirePermission('validation', 'validate');
+        // Gerbang: izin Validasi penuh, ATAU izin Validasi Mandiri Lampu (per-akun) --
+        // yang terakhir dicek ulang per item di bawah (kategori Lampu + scope + belum divalidasi).
+        $fullValidate = can('validation', 'validate');
+        if (!$fullValidate && !can('validation', 'validate_lamp')) {
+            Middleware::requirePermission('validation', 'validate'); // -> 403 standar
+        }
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('validation', 'index');
@@ -82,22 +98,50 @@ class ValidationController extends Controller
             $this->redirect('validation', 'index');
         }
 
+        // Jalur mandiri: backend memutuskan sendiri (bukan tombol di frontend).
+        $lampSelf = !$fullValidate;
+        if ($lampSelf && !$this->itemModel->canSelfValidateLamp($item)) {
+            $msg = !empty($item['validated_at'])
+                ? 'Item ini sudah divalidasi dan tidak bisa divalidasi ulang.'
+                : 'Anda tidak berhak memvalidasi item ini (hanya barang Lampu pada penerimaan Anda sendiri).';
+            denyAccess($msg);
+        }
+        // Setelah validasi dari halaman Detail Penerimaan, kembali ke sana (bukan daftar Validasi).
+        $returnToReceipt = ($_POST['return'] ?? '') === 'receipt';
+        $afterRedirect = function () use ($returnToReceipt, $item) {
+            if ($returnToReceipt) {
+                $this->redirect('goods_receipt', 'detail', ['id' => (int) $item['goods_receipt_id']]);
+            }
+            $this->redirect('validation', 'index');
+        };
+
         if (!array_key_exists($status, $this->itemModel->statusLabels)) {
             setFlash('error', 'Status validasi tidak valid.');
-            $this->redirect('validation', 'index');
+            $afterRedirect();
         }
 
         if ($status !== 'sesuai' && $notes === '') {
             setFlash('error', 'Catatan wajib diisi jika status bukan "Sesuai".');
-            $this->redirect('validation', 'index');
+            $afterRedirect();
         }
 
         // Validasi mengubah stok -> ikut kunci periode 'validation' (tanggal = tgl penerimaan).
-        assertPeriodOpen('validation', (string) ($item['receipt_date'] ?? ''), 'validation', 'index');
+        assertPeriodOpen('validation', (string) ($item['receipt_date'] ?? ''), $returnToReceipt ? 'goods_receipt' : 'validation', $returnToReceipt ? 'detail' : 'index', $returnToReceipt ? ['id' => (int) $item['goods_receipt_id']] : []);
 
         $pdo = getPDO();
         try {
             $pdo->beginTransaction();
+
+            // Jalur mandiri: kunci baris & pastikan BELUM divalidasi (cegah klik ganda /
+            // validator lain yang sudah memproses duluan -> tak ada validasi/stok ganda).
+            if ($lampSelf) {
+                $state = $this->itemModel->lockValidationState($id);
+                if (!$state || !empty($state['validated_at'])) {
+                    $pdo->rollBack();
+                    setFlash('error', 'Item ini sudah divalidasi dan tidak bisa divalidasi ulang.');
+                    $afterRedirect();
+                }
+            }
 
             $this->itemModel->validateItem($id, $status, $notes, currentUserId());
 
@@ -164,11 +208,23 @@ class ValidationController extends Controller
             $pdo->rollBack();
             error_log('Validation error: ' . $e->getMessage());
             setFlash('error', 'Gagal menyimpan validasi. Silakan coba lagi.');
-            $this->redirect('validation', 'index');
+            $afterRedirect();
+        }
+
+        if ($lampSelf) {
+            require_once ROOT_PATH . '/app/models/ActivityLog.php';
+            (new ActivityLog())->log(
+                currentUserId(),
+                'goods_receipt',
+                'validate',
+                (currentUserName() ?: 'User') . " melakukan validasi mandiri penerimaan barang kategori Lampu: "
+                    . "{$item['item_name']} pada {$item['receipt_number']} ("
+                    . $this->itemModel->statusLabels[$status] . ')'
+            );
         }
 
         setFlash('success', 'Validasi berhasil disimpan.');
-        $this->redirect('validation', 'index');
+        $afterRedirect();
     }
 
     /**
@@ -193,6 +249,7 @@ class ValidationController extends Controller
             'pendingCount'     => $this->itemModel->countPendingSelisih(),
             'statusLabels'     => $this->itemModel->statusLabels,
             'statusBadgeClass' => $this->itemModel->statusBadgeClass,
+            'canValidateItem'  => $this->canValidateItemFn(),
             'isProblemView'    => true,
         ]);
     }

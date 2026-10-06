@@ -84,7 +84,7 @@ function permissionLabelMaps(): array
         ],
         'actions' => [
             'view' => 'Lihat', 'create' => 'Tambah', 'edit' => 'Ubah', 'delete' => 'Hapus',
-            'approve' => 'Approve', 'validate' => 'Validasi', 'quick_add' => 'Quick Add', 'complete' => 'Selesaikan',
+            'approve' => 'Approve', 'validate' => 'Validasi', 'validate_lamp' => 'Validasi Mandiri Barang Lampu', 'quick_add' => 'Quick Add', 'complete' => 'Selesaikan',
             'restore' => 'Restore', 'force_delete' => 'Hapus Permanen', 'delete_stock' => 'Hapus Kartu Stok',
             'view_balance' => 'Lihat Saldo', 'close' => 'Tutup Periode', 'reopen' => 'Buka Kembali',
             'stock_price' => 'Lihat Harga (Laporan Stok)', 'stock_report' => 'Buka Laporan Stok Barang',

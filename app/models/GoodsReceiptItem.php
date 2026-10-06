@@ -150,7 +150,8 @@ class GoodsReceiptItem extends Model
                        COALESCE(gri.actual_unit, poi.unit, opi.unit) AS unit,
                        COALESCE(poi.qty_order, opi.qty) AS qty_order,
                        gr.receipt_number, gr.receipt_date, gr.purchase_order_id, gr.offline_purchase_id,
-                       gr.receipt_type, gr.stock_scope,
+                       gr.receipt_type, gr.stock_scope, gr.stock_type,
+                       gr.created_by AS receipt_created_by, po.receiver_user_id AS po_receiver_user_id,
                        COALESCE(po.po_number, op.purchase_number, '-') AS po_number,
                        po.pembuat_po,
                        COALESCE(s.supplier_name, op.supplier_name, gr.source_detail, 'Pemakai/Internal') AS supplier_name,
@@ -344,6 +345,53 @@ class GoodsReceiptItem extends Model
      * Validator boleh mengoreksi status otomatis (misalnya jadi 'barang_lain')
      * dan wajib mengisi catatan kalau statusnya bukan 'sesuai'.
      */
+    /**
+     * Validasi MANDIRI barang Lampu (izin 'validation.validate_lamp', per-akun). Boleh
+     * HANYA bila SEMUA terpenuhi: izin dimiliki, item belum divalidasi, user adalah
+     * penginput penerimaan itu ATAU Penerima Barang di PO-nya, dan barangnya Lampu.
+     *
+     * "Lampu" = Jenis Stok "Stok Lampu" -- ditentukan dengan aturan YANG SAMA dengan
+     * kredit stok saat validasi (ValidationController): Jenis Stok master Barang
+     * (dicocokkan lewat nama) -> kalau barang tak ada di master, Jenis Stok header
+     * penerimaan. BUKAN sekadar mencocokkan teks nama barang.
+     *
+     * $row butuh kunci: item_name, validated_at, stock_type, stock_scope,
+     * receipt_created_by, po_receiver_user_id (ada di findFullById()/listForValidation()).
+     */
+    public function canSelfValidateLamp(array $row): bool
+    {
+        if (!can('validation', 'validate_lamp') || !empty($row['validated_at'])) {
+            return false;
+        }
+        $uid = (int) currentUserId();
+        if ($uid <= 0) {
+            return false;
+        }
+        $inScope = (int) ($row['receipt_created_by'] ?? 0) === $uid
+            || (int) ($row['po_receiver_user_id'] ?? 0) === $uid;
+        return $inScope && $this->effectiveStockType($row) === 'stok_lampu';
+    }
+
+    /** Jenis Stok efektif satu item penerimaan (master Barang -> header penerimaan -> scope). */
+    public function effectiveStockType(array $row): string
+    {
+        require_once ROOT_PATH . '/app/models/Item.php';
+        $master = (new Item())->stockTypeByName((string) ($row['item_name'] ?? ''));
+        return $master
+            ?? ($row['stock_type']
+                ?? (($row['stock_scope'] ?? 'proyek') === 'kantor' ? 'inventory_kantor' : 'stok_proyek'));
+    }
+
+    /** Baca status validasi dengan kunci baris (dalam transaksi) -- cegah validasi ganda serentak. */
+    public function lockValidationState(int $id): ?array
+    {
+        $row = $this->db->fetchOne(
+            "SELECT validated_at, stock_posted_at FROM goods_receipt_items WHERE id = :id FOR UPDATE",
+            ['id' => $id]
+        );
+        return $row ?: null;
+    }
+
     public function validateItem(int $id, string $status, string $notes, int $userId): void
     {
         $this->updateById($id, [
@@ -375,6 +423,7 @@ class GoodsReceiptItem extends Model
                        COALESCE(gri.actual_item_name, poi.item_name, opi.item_name) AS item_name,
                        COALESCE(gri.actual_unit, poi.unit, opi.unit) AS unit,
                        gr.receipt_number, gr.receipt_type, gr.stock_scope, gr.stock_type, gr.receipt_date,
+                       gr.created_by AS receipt_created_by, po.receiver_user_id AS po_receiver_user_id,
                        COALESCE(gr.project_id, po.project_id, op.project_id) AS project_id,
                        gr.purchase_order_id, po.po_number,
                        gr.offline_purchase_id, op.purchase_number

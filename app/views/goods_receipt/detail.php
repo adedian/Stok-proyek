@@ -35,9 +35,14 @@
                             <?php else: ?>
                                 <span class="badge bg-primary">Purchase Order</span>
                             <?php endif; ?>
+                            <?php if ($receipt['receipt_type'] === 'pemakai'): ?>
+                                <?php $stBadge = ['stok_proyek' => 'success', 'stok_lampu' => 'warning text-dark', 'inventory_kantor' => 'secondary'][$receipt['stock_type'] ?? ''] ?? 'success'; ?>
+                                <span class="badge bg-<?= $stBadge ?>"><?= e(stockTypeLabel($receipt['stock_type'] ?? 'stok_proyek')) ?></span>
+                            <?php else: ?>
                             <span class="badge bg-<?= $receipt['stock_scope'] === 'kantor' ? 'secondary' : 'success' ?>">
                                 <?= $receipt['stock_scope'] === 'kantor' ? 'Stok Kantor' : 'Stok Proyek' ?>
                             </span>
+                            <?php endif; ?>
                         </div>
                     </div>
                     <?php if ($receipt['receipt_type'] === 'pemakai'): ?>

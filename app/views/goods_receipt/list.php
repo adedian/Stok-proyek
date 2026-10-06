@@ -96,9 +96,14 @@
                                     [$sourceClass, $sourceLabel] = $sourceBadge[$r['receipt_type']] ?? ['secondary', $r['receipt_type']];
                                 ?>
                                 <span class="badge bg-<?= e($sourceClass) ?>"><?= e($sourceLabel) ?></span>
+                                <?php if ($r['receipt_type'] === 'pemakai'): ?>
+                                    <?php $stBadge = ['stok_proyek' => ['success', 'Proyek'], 'stok_lampu' => ['warning text-dark', 'Stok Lampu'], 'inventory_kantor' => ['secondary', 'Kantor']][$r['stock_type'] ?? ''] ?? ['success', 'Proyek']; ?>
+                                    <span class="badge bg-<?= $stBadge[0] ?>"><?= e($stBadge[1]) ?></span>
+                                <?php else: ?>
                                 <span class="badge bg-<?= $r['stock_scope'] === 'kantor' ? 'secondary' : 'success' ?>">
                                     <?= $r['stock_scope'] === 'kantor' ? 'Kantor' : 'Proyek' ?>
                                 </span>
+                                <?php endif; ?>
                             </td>
                             <td><?= e($r['po_number']) ?></td>
                             <td><?= e($r['pembuat_po'] ?? '-') ?></td>

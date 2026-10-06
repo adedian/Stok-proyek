@@ -9,6 +9,11 @@ $offlineItems = $offlineItems ?? [];
 // Opsi "Dari Pembelian Offline" hanya muncul kalau user boleh mengakses modul
 // Pembelian Offline (ditegakkan juga di GoodsReceiptController).
 $canOfflineSource = can('offline_purchase', 'view');
+$pemakaiItems = $pemakaiItems ?? [];
+// Mode edit tidak punya JS toggle sumber -- tampilan tiap bagian ditentukan dari tipe tersimpan.
+$hideUnlessType = function (string $type) use ($isEdit, $receiptType): string {
+    return ($isEdit && $receiptType !== $type) ? 'style="display:none;"' : '';
+};
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
@@ -64,9 +69,25 @@ $canOfflineSource = can('offline_purchase', 'view');
             </div>
             <?php else: ?>
                 <input type="hidden" name="receipt_type" value="<?= e($receiptType) ?>">
+                <?php if ($receiptType === 'pemakai'): ?>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Jenis Stok <span class="text-danger">*</span></label>
+                        <select name="stock_type" class="form-select">
+                            <?php foreach (stockTypeLabels() as $stKey => $stLabel): ?>
+                                <option value="<?= e($stKey) ?>" <?= ($receipt['stock_type'] ?? 'stok_proyek') === $stKey ? 'selected' : '' ?>><?= e($stLabel) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="form-text">
+                            Untuk barang yang cocok dengan Master Data &raquo; Barang, jenis stok otomatis ikut master.
+                            Pilihan ini jadi default untuk barang di luar master.
+                        </div>
+                    </div>
+                </div>
+                <?php endif; ?>
             <?php endif; ?>
 
-            <div class="row g-3" id="poFields" <?= (!$isEdit && $receiptType !== 'purchase_order') ? 'style="display:none;"' : '' ?>>
+            <div class="row g-3" id="poFields" <?= $isEdit ? $hideUnlessType('purchase_order') : ($receiptType !== 'purchase_order' ? 'style="display:none;"' : '') ?>>
                 <div class="col-md-5">
                     <label class="form-label">Purchase Order <span class="text-danger" id="poRequiredMark">*</span></label>
                     <select name="purchase_order_id" id="poSelect" class="form-select"
@@ -85,7 +106,7 @@ $canOfflineSource = can('offline_purchase', 'view');
                 </div>
             </div>
 
-            <div class="row g-3" id="offlinePurchaseFields" <?= (!$isEdit && $receiptType !== 'offline_purchase') ? 'style="display:none;"' : '' ?>>
+            <div class="row g-3" id="offlinePurchaseFields" <?= $isEdit ? $hideUnlessType('offline_purchase') : ($receiptType !== 'offline_purchase' ? 'style="display:none;"' : '') ?>>
                 <div class="col-md-5">
                     <label class="form-label">Pembelian Offline <span class="text-danger" id="offlinePurchaseRequiredMark">*</span></label>
                     <select name="offline_purchase_id" id="offlinePurchaseSelect" class="form-select"
@@ -104,17 +125,17 @@ $canOfflineSource = can('offline_purchase', 'view');
                 </div>
             </div>
 
-            <div class="row g-3" id="pemakaiFields" style="display:none;">
+            <div class="row g-3" id="pemakaiFields" <?= ($isEdit && $receiptType === 'pemakai') ? '' : 'style="display:none;"' ?>>
                 <div class="col-md-6">
                     <label class="form-label">Nama Pemakai / Departemen <span class="text-danger">*</span></label>
-                    <input type="text" name="source_detail" class="form-control">
+                    <input type="text" name="source_detail" class="form-control" value="<?= e($isEdit ? ($receipt['source_detail'] ?? '') : '') ?>">
                 </div>
                 <div class="col-md-6" id="pemakaiProjectWrapper">
                     <label class="form-label">Project</label>
                     <select name="project_id" class="form-select">
                         <option value="">-- Pilih Project --</option>
                         <?php foreach ($projects ?? [] as $p): ?>
-                            <option value="<?= (int) $p['id'] ?>"><?= e($p['project_name']) ?></option>
+                            <option value="<?= (int) $p['id'] ?>" <?= ($isEdit && (string) ($receipt['project_id'] ?? '') === (string) $p['id']) ? 'selected' : '' ?>><?= e($p['project_name']) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -191,7 +212,7 @@ $canOfflineSource = can('offline_purchase', 'view');
         </div>
     </div>
 
-    <div class="card border-0 shadow-sm mb-3" id="poItemsCard" <?= (!$isEdit && $receiptType !== 'purchase_order') ? 'style="display:none;"' : '' ?>>
+    <div class="card border-0 shadow-sm mb-3" id="poItemsCard" <?= $isEdit ? $hideUnlessType('purchase_order') : ($receiptType !== 'purchase_order' ? 'style="display:none;"' : '') ?>>
         <div class="card-body">
             <h6 class="mb-3">Item Barang &amp; Qty Diterima</h6>
             <div id="poItemsWrapper">
@@ -221,7 +242,7 @@ $canOfflineSource = can('offline_purchase', 'view');
         </div>
     </div>
 
-    <div class="card border-0 shadow-sm mb-3" id="offlineItemsCard" <?= (!$isEdit && $receiptType !== 'offline_purchase') ? 'style="display:none;"' : '' ?>>
+    <div class="card border-0 shadow-sm mb-3" id="offlineItemsCard" <?= $isEdit ? $hideUnlessType('offline_purchase') : ($receiptType !== 'offline_purchase' ? 'style="display:none;"' : '') ?>>
         <div class="card-body">
             <h6 class="mb-3">Item Barang &amp; Qty Diterima</h6>
             <div id="offlineItemsWrapper">
@@ -251,7 +272,7 @@ $canOfflineSource = can('offline_purchase', 'view');
         </div>
     </div>
 
-    <div class="card border-0 shadow-sm mb-3" id="mismatchItemsCard" <?= (!$isEdit && !in_array($receiptType, ['purchase_order', 'offline_purchase'], true)) ? 'style="display:none;"' : '' ?>>
+    <div class="card border-0 shadow-sm mb-3" id="mismatchItemsCard" <?= !in_array($receiptType, ['purchase_order', 'offline_purchase'], true) ? 'style="display:none;"' : '' ?>>
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <h6 class="mb-0">Barang Tidak Sesuai <span class="text-muted small fw-normal">(opsional)</span></h6>
@@ -307,7 +328,7 @@ $canOfflineSource = can('offline_purchase', 'view');
         </div>
     </div>
 
-    <div class="card border-0 shadow-sm mb-3" id="pemakaiItemsCard" style="display:none;">
+    <div class="card border-0 shadow-sm mb-3" id="pemakaiItemsCard" <?= ($isEdit && $receiptType === 'pemakai') ? '' : 'style="display:none;"' ?>>
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h6 class="mb-0">Item Barang &amp; Qty</h6>
@@ -326,23 +347,30 @@ $canOfflineSource = can('offline_purchase', 'view');
                         </tr>
                     </thead>
                     <tbody id="pemakaiItemsBody">
+                        <?php foreach ($pemakaiItems ?: [null] as $pi): ?>
                         <tr class="pemakai-item-row">
-                            <td><input type="text" name="pemakai_item_name[]" class="form-control form-control-sm" placeholder="Nama barang"></td>
+                            <td><input type="text" name="pemakai_item_name[]" class="form-control form-control-sm" placeholder="Nama barang" value="<?= e($pi['item_name'] ?? '') ?>"></td>
                             <td>
                                 <select name="pemakai_unit[]" class="form-select form-select-sm">
                                     <option value="">-- Satuan --</option>
+                                    <?php $pemakaiUnitMatched = false; ?>
                                     <?php foreach ($units as $u): ?>
-                                        <option value="<?= e($u['unit_name']) ?>"><?= e($u['unit_name']) ?></option>
+                                        <?php $isSel = $pi !== null && mb_strtolower($u['unit_name']) === mb_strtolower($pi['unit'] ?? ''); if ($isSel) $pemakaiUnitMatched = true; ?>
+                                        <option value="<?= e($u['unit_name']) ?>" <?= $isSel ? 'selected' : '' ?>><?= e($u['unit_name']) ?></option>
                                     <?php endforeach; ?>
+                                    <?php if ($pi !== null && !$pemakaiUnitMatched && !empty($pi['unit'])): ?>
+                                        <option value="<?= e($pi['unit']) ?>" selected><?= e($pi['unit']) ?> (lama)</option>
+                                    <?php endif; ?>
                                 </select>
                             </td>
-                            <td><input type="text" inputmode="decimal" name="pemakai_qty[]" class="form-control form-control-sm" placeholder="0"></td>
+                            <td><input type="text" inputmode="decimal" name="pemakai_qty[]" class="form-control form-control-sm" placeholder="0" value="<?= $pi !== null ? e(rtrim(rtrim(number_format((float) $pi['qty_received'], 4, '.', ''), '0'), '.')) : '' ?>"></td>
                             <td>
                                 <button type="button" class="btn btn-sm btn-outline-danger btn-remove-pemakai-row" title="Hapus baris">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </td>
                         </tr>
+                        <?php endforeach; ?>
                     </tbody>
                 </table>
             </div>
@@ -396,6 +424,33 @@ $canOfflineSource = can('offline_purchase', 'view');
 })();
 </script>
 
+<script>
+(function () {
+    // Tambah/hapus baris item Pemakai (client-side saja, tidak perlu AJAX) -- create & edit
+    const pemakaiBody = document.getElementById('pemakaiItemsBody');
+    const btnAddPemakaiItem = document.getElementById('btnAddPemakaiItem');
+    if (btnAddPemakaiItem) {
+        btnAddPemakaiItem.addEventListener('click', function () {
+            const row = pemakaiBody.querySelector('.pemakai-item-row').cloneNode(true);
+            row.querySelectorAll('input').forEach(function (input) { input.value = ''; });
+            row.querySelectorAll('select').forEach(function (select) { select.selectedIndex = 0; });
+            pemakaiBody.appendChild(row);
+        });
+    }
+    if (pemakaiBody) {
+        pemakaiBody.addEventListener('click', function (e) {
+            const btn = e.target.closest('.btn-remove-pemakai-row');
+            if (!btn) return;
+            const rows = pemakaiBody.querySelectorAll('.pemakai-item-row');
+            if (rows.length <= 1) {
+                alert('Minimal harus ada 1 baris item.');
+                return;
+            }
+            btn.closest('.pemakai-item-row').remove();
+        });
+    }
+})();
+</script>
 <?php if (!$isEdit): ?>
 <script>
 (function () {
@@ -457,29 +512,6 @@ $canOfflineSource = can('offline_purchase', 'view');
         applyReceiptType();
     }
 
-    // Tambah/hapus baris item Pemakai (client-side saja, tidak perlu AJAX)
-    const pemakaiBody = document.getElementById('pemakaiItemsBody');
-    const btnAddPemakaiItem = document.getElementById('btnAddPemakaiItem');
-    if (btnAddPemakaiItem) {
-        btnAddPemakaiItem.addEventListener('click', function () {
-            const row = pemakaiBody.querySelector('.pemakai-item-row').cloneNode(true);
-            row.querySelectorAll('input').forEach(function (input) { input.value = ''; });
-            row.querySelectorAll('select').forEach(function (select) { select.selectedIndex = 0; });
-            pemakaiBody.appendChild(row);
-        });
-    }
-    if (pemakaiBody) {
-        pemakaiBody.addEventListener('click', function (e) {
-            const btn = e.target.closest('.btn-remove-pemakai-row');
-            if (!btn) return;
-            const rows = pemakaiBody.querySelectorAll('.pemakai-item-row');
-            if (rows.length <= 1) {
-                alert('Minimal harus ada 1 baris item.');
-                return;
-            }
-            btn.closest('.pemakai-item-row').remove();
-        });
-    }
 })();
 </script>
 <script>

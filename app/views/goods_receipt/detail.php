@@ -8,7 +8,7 @@
            class="btn btn-outline-dark" target="_blank">
             <i class="bi bi-printer"></i> Cetak
         </a>
-        <?php if ($receipt['receipt_type'] !== 'pemakai' && can('goods_receipt', 'edit')): ?>
+        <?php if (can('goods_receipt', 'edit')): ?>
         <a href="<?= BASE_URL ?>/goods_receipt/edit/<?= (int) $receipt['id'] ?>"
            class="btn btn-outline-primary">
             <i class="bi bi-pencil"></i> Edit

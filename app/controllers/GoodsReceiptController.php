@@ -286,16 +286,16 @@ class GoodsReceiptController extends Controller
             setFlash('error', 'Data penerimaan barang tidak ditemukan.');
             $this->redirect('goods_receipt', 'index');
         }
-        if ($receipt['receipt_type'] === 'pemakai') {
-            setFlash('error', 'Penerimaan dari Pemakai tidak bisa diedit. Hapus dan catat ulang jika ada kesalahan.');
-            $this->redirect('goods_receipt', 'detail', ['id' => $id]);
-        }
         $this->assertPoReceiverMayAct($receipt);
+        assertPeriodOpen('goods_receipt', $receipt['receipt_date'], 'goods_receipt', 'index');
 
         $isOffline = $receipt['receipt_type'] === 'offline_purchase';
+        $isPemakai = $receipt['receipt_type'] === 'pemakai';
         $poItems = [];
         $offlineItems = [];
-        if ($isOffline) {
+        if ($isPemakai) {
+            // Tidak ada dokumen sumber -- item (nama/satuan/qty) diisi bebas, dimuat apa adanya.
+        } elseif ($isOffline) {
             $offlineItems = $this->receiptItemModel->offlineItemsForReceipt((int) $receipt['offline_purchase_id'], $id);
         } else {
             $poItems = $this->receiptItemModel->poItemsForReceipt((int) $receipt['purchase_order_id'], $id);
@@ -323,10 +323,13 @@ class GoodsReceiptController extends Controller
         // Baris "Barang Tidak Sesuai" (purchase_order_item_id & offline_purchase_item_id NULL)
         // perlu di-preload supaya tidak hilang saat form ini disubmit ulang
         // (update() hapus+insert ulang semua item).
-        $mismatchItems = array_values(array_filter(
+        // Penerimaan Pemakai: SEMUA item bebas (tanpa sumber) -> masuk tabel item Pemakai.
+        $freeItems = array_values(array_filter(
             $receiptItems,
             fn($ri) => $ri['purchase_order_item_id'] === null && $ri['offline_purchase_item_id'] === null
         ));
+        $mismatchItems = $isPemakai ? [] : $freeItems;
+        $pemakaiItems  = $isPemakai ? $freeItems : [];
 
         $this->view('goods_receipt/form', [
             'pageTitle'      => 'Edit Penerimaan Barang',
@@ -343,6 +346,7 @@ class GoodsReceiptController extends Controller
             'projects'       => $this->projectModel->activeList(),
             'units'          => $this->unitModel->activeList(),
             'mismatchItems'  => $mismatchItems,
+            'pemakaiItems'   => $pemakaiItems,
             'documents'      => $this->documentModel->byReceipt($id),
         ]);
     }
@@ -363,20 +367,23 @@ class GoodsReceiptController extends Controller
             $this->redirect('goods_receipt', 'index');
         }
 
-        if ($existing['receipt_type'] === 'pemakai') {
-            setFlash('error', 'Penerimaan dari Pemakai tidak bisa diedit.');
-            $this->redirect('goods_receipt', 'detail', ['id' => $id]);
-        }
+        $isPemakai = $existing['receipt_type'] === 'pemakai';
 
         $data = $this->collectInput();
         // Sumber/PO/Pembelian Offline & tipe/kategori tidak boleh diganti saat edit -- gunakan data asli
         $data['purchase_order_id']   = (int) $existing['purchase_order_id'];
         $data['offline_purchase_id'] = (int) $existing['offline_purchase_id'];
         $data['receipt_type']  = $existing['receipt_type'];
-        $data['stock_scope']   = $existing['stock_scope'];
-        $data['stock_type']    = $existing['stock_type'] ?? 'stok_proyek';
-        $data['project_id']    = $existing['project_id'];
-        $data['source_detail'] = $existing['source_detail'];
+        if ($isPemakai) {
+            // Penerimaan Pemakai tidak punya dokumen sumber: Pemakai/Departemen, Project &
+            // Jenis Stok boleh dikoreksi (collectInput() sudah menurunkan stock_scope/stock_type
+            // dari input form untuk receipt_type 'pemakai').
+        } else {
+            $data['stock_scope']   = $existing['stock_scope'];
+            $data['stock_type']    = $existing['stock_type'] ?? 'stok_proyek';
+            $data['project_id']    = $existing['project_id'];
+            $data['source_detail'] = $existing['source_detail'];
+        }
         $this->assertPoReceiverMayAct($existing);
         $this->applyPoReceiver($data);
         $errors = $this->validateInput($data, $id);
@@ -403,8 +410,10 @@ class GoodsReceiptController extends Controller
 
             $po = $data['purchase_order_id'] ? $this->poModel->find($data['purchase_order_id']) : null;
             $offlinePurchase = $data['offline_purchase_id'] ? $this->offlinePurchaseModel->find($data['offline_purchase_id']) : null;
+            // Project untuk koreksi stok lama = project TERSIMPAN (bukan input baru, yang
+            // untuk Pemakai boleh berubah).
             $effectiveProjectId = $po ? (int) $po['project_id']
-                : ($offlinePurchase ? (int) $offlinePurchase['project_id'] : (int) ($data['project_id'] ?? 0));
+                : ($offlinePurchase ? (int) $offlinePurchase['project_id'] : (int) ($existing['project_id'] ?? 0));
 
             // Batalkan kredit stok lama HANYA untuk item yang benar-benar sudah
             // pernah diposting (stock_posted_at terisi -- lihat ValidationController).
@@ -422,7 +431,7 @@ class GoodsReceiptController extends Controller
                     'goods_receipt',
                     $id,
                     currentUserId(),
-                    $data['stock_scope']
+                    $existing['stock_scope']
                 );
             }
 
@@ -431,6 +440,12 @@ class GoodsReceiptController extends Controller
                 'receiver_name' => $data['receiver_name'],
                 'notes'         => $data['notes'],
             ];
+            if ($isPemakai) {
+                $updateData['source_detail'] = $data['source_detail'];
+                $updateData['project_id']    = $data['project_id'] ?: null;
+                $updateData['stock_scope']   = $data['stock_scope'];
+                $updateData['stock_type']    = $data['stock_type'];
+            }
             if ($photoGoods !== null) {
                 $updateData['photo_goods'] = $photoGoods;
             }
@@ -460,6 +475,13 @@ class GoodsReceiptController extends Controller
                     'goods_receipt',
                     'update',
                     "Penerimaan barang dari Pembelian Offline {$existing['receipt_number']} diperbarui"
+                );
+            } else {
+                $this->activityLog->log(
+                    currentUserId(),
+                    'goods_receipt',
+                    'update',
+                    "Penerimaan barang dari Pemakai {$existing['receipt_number']} diperbarui"
                 );
             }
 

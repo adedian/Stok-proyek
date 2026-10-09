@@ -104,15 +104,22 @@ function mkPreview(array $c, string $mc): string
                     </div>
                     <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-save"></i> Simpan</button>
                 </form>
-                <?php if ((int) $c['next_number'] <= 1): ?>
-                    <form method="POST" action="<?= BASE_URL ?>/master_kode/deletePrefix"
-                          onsubmit="return confirm('Hapus prefix <?= e($c['prefix']) ?>?');">
-                        <?= csrfField() ?>
-                        <input type="hidden" name="entity_type" value="<?= e($entityType) ?>">
-                        <input type="hidden" name="id" value="<?= (int) $c['id'] ?>">
-                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Hapus prefix"><i class="bi bi-trash"></i></button>
-                    </form>
-                <?php endif; ?>
+                <?php
+                    $delMsg = 'Hapus prefix ' . $c['prefix'] . '?';
+                    if ((int) $c['next_number'] > 1) {
+                        $delMsg .= "\n\nPrefix ini sudah pernah dipakai. Kode barang/data yang sudah ada TIDAK berubah, tapi prefix ini tidak bisa dipilih lagi untuk data baru.";
+                    }
+                    if (count($configs) === 1) {
+                        $delMsg .= "\n\nIni prefix terakhir kelompok ini. Tambah data baru akan ditolak sampai ada prefix lagi.";
+                    }
+                ?>
+                <form method="POST" action="<?= BASE_URL ?>/master_kode/deletePrefix"
+                      onsubmit="return confirm(<?= e(json_encode($delMsg, JSON_UNESCAPED_UNICODE)) ?>);">
+                    <?= csrfField() ?>
+                    <input type="hidden" name="entity_type" value="<?= e($entityType) ?>">
+                    <input type="hidden" name="id" value="<?= (int) $c['id'] ?>">
+                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Hapus prefix"><i class="bi bi-trash"></i> Hapus</button>
+                </form>
             </div>
         <?php endforeach; ?>
     </div>

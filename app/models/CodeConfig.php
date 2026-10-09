@@ -189,15 +189,18 @@ class CodeConfig extends Model
         return ['ok' => true, 'error' => ''];
     }
 
-    /** Hapus baris prefix -- hanya kalau belum pernah dipakai (next_number = 1). */
+    /**
+     * Hapus baris prefix -- boleh juga untuk prefix yang SUDAH pernah dipakai.
+     * Aman: kode yang sudah terbit tersimpan sebagai teks di tabel entity
+     * (items.item_code dst), tidak ada FK ke code_configs, jadi data lama tidak
+     * berubah. Kalau prefix yang sama ditambah lagi kelak, nomor mulai dari 1
+     * dan nextCode() otomatis melewati kode yang sudah ada (collision check).
+     */
     public function deletePrefixConfig(int $id): array
     {
         $row = $this->find($id);
         if (!$row) {
             return ['ok' => false, 'error' => 'Baris tidak ditemukan.'];
-        }
-        if ((int) $row['next_number'] > 1) {
-            return ['ok' => false, 'error' => 'Prefix ini sudah pernah menghasilkan kode, tidak bisa dihapus.'];
         }
         $this->db->query("DELETE FROM code_configs WHERE id = :id", ['id' => $id]);
         return ['ok' => true, 'error' => ''];

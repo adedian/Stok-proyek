@@ -179,7 +179,7 @@ class PurchaseOrderController extends Controller
         try {
             $pdo->beginTransaction();
 
-            $poNumber = $this->poModel->generatePoNumber() . ($data['po_suffix'] !== '' ? '/' . $data['po_suffix'] : '');
+            $poNumber = PurchaseOrder::withSuffix($this->poModel->generatePoNumber(), $data['po_suffix']);
             $poId = $this->poModel->create([
                 'po_number'   => $poNumber,
                 'po_number_suffix' => $data['po_suffix'] !== '' ? $data['po_suffix'] : null,
@@ -333,12 +333,10 @@ class PurchaseOrderController extends Controller
         // Nomor baru (akhiran diubah) tidak boleh bentrok dengan PO lain -- po_number
         // UNIK dan ikut menghitung PO di Tempat Sampah. Dicek di sini supaya pesannya jelas.
         {
-            $oldSfx = (string) ($existing['po_number_suffix'] ?? '');
-            $base = $existing['po_number'];
-            if ($oldSfx !== '' && substr($base, -strlen('/' . $oldSfx)) === '/' . $oldSfx) {
-                $base = substr($base, 0, -strlen('/' . $oldSfx));
-            }
-            $candidate = $base . ($data['po_suffix'] !== '' ? '/' . $data['po_suffix'] : '');
+            $candidate = PurchaseOrder::withSuffix(
+                PurchaseOrder::baseNumber($existing['po_number'], $existing['po_number_suffix'] ?? null),
+                $data['po_suffix']
+            );
             if ($candidate !== $existing['po_number'] && $this->poModel->numberTaken($candidate, $id)) {
                 setFlash('error', "Nomor PO {$candidate} sudah dipakai PO lain (termasuk yang ada di Tempat Sampah). Gunakan akhiran lain.");
                 $this->redirect('purchase_order', 'edit', ['id' => $id]);
@@ -351,14 +349,12 @@ class PurchaseOrderController extends Controller
 
             $statusChanged = $existing['status'] !== $data['status'];
 
-            // Nomor PO = bagian otomatis (tetap) + akhiran dari form. Bagian otomatis
+            // Nomor PO = bagian otomatis (tetap) + spasi + akhiran dari form. Bagian otomatis
             // diambil dari nomor tersimpan dengan membuang akhiran lama.
-            $oldSuffix = (string) ($existing['po_number_suffix'] ?? '');
-            $baseNumber = $existing['po_number'];
-            if ($oldSuffix !== '' && substr($baseNumber, -strlen('/' . $oldSuffix)) === '/' . $oldSuffix) {
-                $baseNumber = substr($baseNumber, 0, -strlen('/' . $oldSuffix));
-            }
-            $newNumber = $baseNumber . ($data['po_suffix'] !== '' ? '/' . $data['po_suffix'] : '');
+            $newNumber = PurchaseOrder::withSuffix(
+                PurchaseOrder::baseNumber($existing['po_number'], $existing['po_number_suffix'] ?? null),
+                $data['po_suffix']
+            );
             $numberChanged = $newNumber !== $existing['po_number'];
 
             $this->poModel->updateById($id, [
@@ -705,8 +701,8 @@ class PurchaseOrderController extends Controller
             })(),
             'status'      => $_POST['status'] ?? 'draft',
             'notes'       => trim($_POST['notes'] ?? ''),
-            // Akhiran nomor PO: "/rev1" atau "rev1" sama saja -- garis miring di depan dibuang.
-            'po_suffix'   => is_string($_POST['po_suffix'] ?? '') ? trim(ltrim(trim($_POST['po_suffix'] ?? ''), '/')) : '?',
+            // Akhiran nomor PO: teks persis seperti yang diketik (hanya spasi di ujung dibuang).
+            'po_suffix'   => is_string($_POST['po_suffix'] ?? '') ? trim($_POST['po_suffix'] ?? '') : '?',
             'pembuat_po'  => trim($_POST['pembuat_po'] ?? ''),
             // Signature TIDAK LAGI dipilih manual (Revisi Kas/Bank) -- otomatis
             // dari tanda tangan pribadi user yang login (Profile > Tanda Tangan
@@ -725,8 +721,8 @@ class PurchaseOrderController extends Controller
     {
         $errors = [];
 
-        if ($data['po_suffix'] !== '' && !preg_match('/^[A-Za-z0-9._-]{1,30}$/', $data['po_suffix'])) {
-            $errors[] = 'Akhiran nomor PO hanya boleh huruf, angka, titik, strip, atau garis bawah (maks 30 karakter, tanpa garis miring/spasi).';
+        if ($data['po_suffix'] !== '' && !preg_match('#^[A-Za-z0-9 ._\-/()+&,\#]{1,30}$#', $data['po_suffix'])) {
+            $errors[] = 'Akhiran nomor PO maksimal 30 karakter dan hanya boleh huruf, angka, spasi, serta tanda . _ - / ( ) + & , #.';
         }
 
         if ($data['supplier_id'] <= 0) {

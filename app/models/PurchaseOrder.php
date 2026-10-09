@@ -284,6 +284,31 @@ class PurchaseOrder extends Model
         return (new DocumentNumber())->next('purchase_order', 'prefix_po', $poDate);
     }
 
+    /**
+     * Bagian nomor OTOMATIS dari nomor PO tersimpan (tanpa akhiran). Akhiran dipisah
+     * SPASI (format baru: "147/PO.HME/X/2026 rev1"); pemisah "/" format lama tetap dikenali.
+     */
+    public static function baseNumber(string $poNumber, ?string $suffix): string
+    {
+        $suffix = (string) $suffix;
+        if ($suffix === '') {
+            return $poNumber;
+        }
+        foreach ([' ', '/'] as $sep) {
+            $tail = $sep . $suffix;
+            if (strlen($poNumber) > strlen($tail) && substr($poNumber, -strlen($tail)) === $tail) {
+                return substr($poNumber, 0, -strlen($tail));
+            }
+        }
+        return $poNumber;
+    }
+
+    /** Nomor PO lengkap = bagian otomatis + SPASI + akhiran (kalau ada). */
+    public static function withSuffix(string $base, string $suffix): string
+    {
+        return $suffix !== '' ? $base . ' ' . $suffix : $base;
+    }
+
     /** Apakah nomor PO ini sudah dipakai PO lain (termasuk yang di Tempat Sampah -- kolom po_number UNIK). */
     public function numberTaken(string $number, ?int $excludeId = null): bool
     {

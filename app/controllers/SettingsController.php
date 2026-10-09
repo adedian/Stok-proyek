@@ -36,7 +36,7 @@ class SettingsController extends Controller
             'activeTab'        => $tab,
             'company'          => $this->settingModel->getGroup('company'),
             'numbering'        => $this->settingModel->getGroup('numbering'),
-            'counters'         => $this->docNumberModel->allCounters(),
+            'counters'         => $this->docNumberModel->overviewRows((int) date('Y')),
             'sessionSettings'  => $this->settingModel->getGroup('session'),
             'notification'     => $this->settingModel->getGroup('notification'),
             'backups'          => $this->backupModel->recent(20),
@@ -254,17 +254,40 @@ class SettingsController extends Controller
         $docTypes = $_POST['doc_type'] ?? [];
         $years = $_POST['year'] ?? [];
         $nextNumbers = $_POST['next_number'] ?? [];
+        $periodMonths = $_POST['period_month'] ?? [];
+        $periodYears = $_POST['period_year'] ?? [];
 
         $changed = [];
         foreach ($docTypes as $i => $docType) {
             $year = (int) ($years[$i] ?? 0);
             $newNumber = (int) ($nextNumbers[$i] ?? 0);
-            if ($docType === '' || $year <= 0 || $newNumber <= 0) {
+            if ($docType === '' || $year < 0 || $newNumber <= 0) {
                 continue;
             }
-            $this->docNumberModel->setNextNumber($docType, $year, $newNumber);
-            $label = DocumentNumber::DOC_TYPE_LABELS[$docType] ?? $docType;
-            $changed[] = "{$label} ({$year}) -> {$newNumber}";
+            // Counter bergaya lain (Request Budget/Request PO, year = 0) tidak punya
+            // bulan/tahun pada nomornya -- hanya No. Urut yang bisa diubah.
+            $isPeriodType = $year > 0;
+            $pm = $isPeriodType ? (int) ($periodMonths[$i] ?? 0) : 0;
+            $py = $isPeriodType ? (int) ($periodYears[$i] ?? 0) : 0;
+            $pm = ($pm >= 1 && $pm <= 12) ? $pm : null;
+            $py = ($py >= 2000 && $py <= 2100) ? $py : null;
+
+            $existing = $this->docNumberModel->findCounter($docType, $year);
+            if ($existing === null && $newNumber === 1 && $pm === null && $py === null) {
+                continue; // jenis dokumen yang belum pernah dipakai & tidak diubah -- jangan buat baris kosong
+            }
+            if ($existing !== null
+                && (int) $existing['next_number'] === $newNumber
+                && ($existing['period_month'] === null ? null : (int) $existing['period_month']) === $pm
+                && ($existing['period_year'] === null ? null : (int) $existing['period_year']) === $py) {
+                continue; // tidak ada perubahan
+            }
+
+            $this->docNumberModel->setNextNumber($docType, $year, $newNumber, $pm, $py);
+            $label = DocumentNumber::label($docType);
+            $changed[] = "{$label} ({$year}) -> no. {$newNumber}"
+                . ($pm !== null ? ", bulan " . DocumentNumber::romanMonth($pm) : ', bulan otomatis')
+                . ($py !== null ? ", tahun {$py}" : ', tahun otomatis');
         }
 
         if (!empty($changed)) {

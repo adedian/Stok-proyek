@@ -49,6 +49,46 @@ class DocumentNumber extends Model
         'payment_kkp'         => 'Pembayaran - Kas Project',
     ];
 
+    /** Doc type yang pakai counter bergaya lain (tanpa bulan/tahun pada nomor) -- hanya No. Urut yang bisa diubah. */
+    public const EXTRA_LABELS = [
+        'request_budget' => 'Request Budget',
+        'request_po'     => 'Request PO',
+    ];
+
+    /** Key system_settings (kode dokumen) + kode bawaan per doc_type -- untuk pratinjau nomor di UI. */
+    public const DOC_TYPE_CODE = [
+        'purchase_order'      => ['prefix_po',      'PO.HME'],
+        'goods_receipt'       => ['prefix_gr',      'LPB.HME'],
+        'stock_opname'        => ['prefix_opn',     'SO.HME'],
+        'stock_out'           => ['prefix_sto',     'STO.HME'],
+        'offline_purchase'    => ['prefix_off',     'OFF.HME'],
+        'sales_invoice'       => ['prefix_sls',     'INV.HME'],
+        'sales_invoice_lampu' => ['prefix_fkt',     'FKT.HME'],
+        'delivery_note'       => ['prefix_sj',      'SJ.HME'],
+        'collection_receipt'  => ['prefix_tt',      'TT.HME'],
+        'payment_bk'          => ['prefix_pay_bk',  'BK.HME'],
+        'payment_kk'          => ['prefix_pay_kk',  'KK.HME'],
+        'payment_kkp'         => ['prefix_pay_kkp', 'KKP.HME'],
+    ];
+
+    public static function label(string $docType): string
+    {
+        return self::DOC_TYPE_LABELS[$docType] ?? self::EXTRA_LABELS[$docType] ?? $docType;
+    }
+
+    /** Bulan/tahun override yang valid (atau null = otomatis dari tanggal dokumen). */
+    private static function validMonth($m): ?int
+    {
+        $m = (int) $m;
+        return ($m >= 1 && $m <= 12) ? $m : null;
+    }
+
+    private static function validYear($y): ?int
+    {
+        $y = (int) $y;
+        return ($y >= 2000 && $y <= 2100) ? $y : null;
+    }
+
     public static function romanMonth(int $month): string
     {
         return self::ROMAN_MONTHS[$month] ?? (string) $month;
@@ -69,10 +109,14 @@ class DocumentNumber extends Model
         $code = (new SystemSetting())->get($codeSettingKey, $defaultCode ?? strtoupper($docType));
 
         $row = $this->db->fetchOne(
-            "SELECT next_number FROM document_number_counters WHERE doc_type = :t AND year = :y",
+            "SELECT next_number, period_month, period_year FROM document_number_counters WHERE doc_type = :t AND year = :y",
             ['t' => $docType, 'y' => $year]
         );
         $number = $row ? (int) $row['next_number'] : 1;
+        if ($row) {
+            $month = self::validMonth($row['period_month']) ?? $month;
+            $year = self::validYear($row['period_year']) ?? $year;
+        }
 
         return str_pad((string) $number, 3, '0', STR_PAD_LEFT) . '/' . $code . '/' . self::romanMonth($month) . '/' . $year;
     }
@@ -108,11 +152,16 @@ class DocumentNumber extends Model
 
             if ($row) {
                 $number = (int) $row['next_number'];
+                // Bulan/Tahun pada nomor bisa di-reset manual (Pengaturan > Penomoran);
+                // kunci counter tetap tahun TANGGAL dokumen ($year di query di atas).
+                $month = self::validMonth($row['period_month'] ?? null) ?? $month;
+                $labelYear = self::validYear($row['period_year'] ?? null) ?? $year;
                 $this->db->query(
                     "UPDATE document_number_counters SET next_number = :next WHERE id = :id",
                     ['next' => $number + 1, 'id' => $row['id']]
                 );
             } else {
+                $labelYear = $year;
                 $number = 1;
                 $this->db->insert('document_number_counters', [
                     'doc_type'    => $docType,
@@ -131,7 +180,7 @@ class DocumentNumber extends Model
             throw $e;
         }
 
-        return str_pad((string) $number, 3, '0', STR_PAD_LEFT) . '/' . $code . '/' . self::romanMonth($month) . '/' . $year;
+        return str_pad((string) $number, 3, '0', STR_PAD_LEFT) . '/' . $code . '/' . self::romanMonth($month) . '/' . $labelYear;
     }
 
     /**
@@ -147,6 +196,51 @@ class DocumentNumber extends Model
         );
     }
 
+    public function findCounter(string $docType, int $year): ?array
+    {
+        $row = $this->db->fetchOne(
+            "SELECT * FROM document_number_counters WHERE doc_type = :t AND year = :y",
+            ['t' => $docType, 'y' => $year]
+        );
+        return $row ?: null;
+    }
+
+    /**
+     * Baris untuk tabel "Reset Nomor Urut": semua counter yang sudah ada + SEMUA jenis
+     * dokumen bernomor yang belum punya counter tahun ini (ditampilkan mulai dari 1, baris
+     * baru baru dibuat kalau memang diubah -- lihat SettingsController::saveCounters()).
+     */
+    public function overviewRows(int $currentYear): array
+    {
+        // Counter yatim (modul yang sudah dihapus, mis. sales_invoice_payment) tidak ditampilkan.
+        $rows = array_values(array_filter($this->allCounters(), function ($r) {
+            return isset(self::DOC_TYPE_LABELS[$r['doc_type']]) || isset(self::EXTRA_LABELS[$r['doc_type']]);
+        }));
+        $have = [];
+        foreach ($rows as $r) {
+            if ((int) $r['year'] === $currentYear) {
+                $have[$r['doc_type']] = true;
+            }
+        }
+        foreach (array_keys(self::DOC_TYPE_LABELS) as $docType) {
+            if (empty($have[$docType])) {
+                $rows[] = [
+                    'id' => null, 'doc_type' => $docType, 'year' => $currentYear,
+                    'next_number' => 1, 'period_month' => null, 'period_year' => null,
+                    'virtual' => true,
+                ];
+            }
+        }
+        // Urut: ikuti urutan DOC_TYPE_LABELS, lalu extra, tahun terbaru dulu.
+        $order = array_flip(array_merge(array_keys(self::DOC_TYPE_LABELS), array_keys(self::EXTRA_LABELS)));
+        usort($rows, function ($a, $b) use ($order) {
+            $oa = $order[$a['doc_type']] ?? 999;
+            $ob = $order[$b['doc_type']] ?? 999;
+            return $oa === $ob ? ((int) $b['year'] <=> (int) $a['year']) : ($oa <=> $ob);
+        });
+        return $rows;
+    }
+
     /**
      * Set ULANG next_number untuk (doc_type, year) tertentu -- dipakai Super Admin
      * lewat UI "Penomoran Dokumen". Kalau baris (doc_type, year) belum pernah ada
@@ -157,8 +251,10 @@ class DocumentNumber extends Model
      * bukan menimpa data lama. Pola SELECT...FOR UPDATE sama seperti next() supaya
      * tidak race dengan next() yang sedang berjalan bersamaan.
      */
-    public function setNextNumber(string $docType, int $year, int $newNextNumber): void
+    public function setNextNumber(string $docType, int $year, int $newNextNumber, ?int $periodMonth = null, ?int $periodYear = null): void
     {
+        $periodMonth = self::validMonth($periodMonth);
+        $periodYear = self::validYear($periodYear);
         $manageTx = !$this->db->inTransaction();
         if ($manageTx) {
             $this->db->beginTransaction();
@@ -170,14 +266,16 @@ class DocumentNumber extends Model
             );
             if ($row) {
                 $this->db->query(
-                    "UPDATE document_number_counters SET next_number = :n WHERE id = :id",
-                    ['n' => $newNextNumber, 'id' => $row['id']]
+                    "UPDATE document_number_counters SET next_number = :n, period_month = :pm, period_year = :py WHERE id = :id",
+                    ['n' => $newNextNumber, 'pm' => $periodMonth, 'py' => $periodYear, 'id' => $row['id']]
                 );
             } else {
                 $this->db->insert('document_number_counters', [
-                    'doc_type'    => $docType,
-                    'year'        => $year,
-                    'next_number' => $newNextNumber,
+                    'doc_type'     => $docType,
+                    'year'         => $year,
+                    'next_number'  => $newNextNumber,
+                    'period_month' => $periodMonth,
+                    'period_year'  => $periodYear,
                 ]);
             }
             if ($manageTx) {

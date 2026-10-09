@@ -81,48 +81,101 @@
     <div class="card-body">
         <h6 class="mb-1">Reset Nomor Urut</h6>
         <p class="text-muted small mb-3">
-            Nomor urut (angka di depan format, mis. <strong>001</strong>/PO.HME/IX/2026) berjalan otomatis
-            per jenis dokumen &amp; TAHUN. Ubah "No. Urut Berikutnya" kalau perlu mulai dari angka tertentu
-            (mis. menyamakan dengan nomor terakhir dari sistem lama). Menurunkan nomor ke angka yang SUDAH
-            pernah dipakai aman secara data -- dokumen baru dengan nomor bentrok otomatis gagal disimpan
-            (nomor dokumen unik), tidak menimpa dokumen lama.
+            Format nomor: <strong>No. Urut</strong>/<strong>Kode</strong>/<strong>Bulan</strong>/<strong>Tahun</strong>
+            (mis. 147/PO.HME/X/2026). Di sini No. Urut, Bulan, dan Tahun pada nomor berikutnya bisa di-reset.
+            <strong>Bulan/Tahun "Otomatis"</strong> mengikuti tanggal dokumen. Kalau diisi manual, SEMUA dokumen baru jenis itu
+            memakai bulan/tahun yang diisi sampai Anda mengembalikannya ke "Otomatis". Kolom "Tahun dokumen" hanya
+            penanda urutan (per tahun tanggal dokumen) dan tidak bisa diubah.
+            Menurunkan nomor ke angka yang SUDAH pernah dipakai aman secara data -- dokumen baru dengan nomor
+            bentrok otomatis gagal disimpan (nomor dokumen unik), tidak menimpa dokumen lama.
         </p>
-        <?php if (empty($counters)): ?>
-            <p class="text-muted small mb-0">Belum ada jenis dokumen yang pernah membuat nomor otomatis.</p>
-        <?php else: ?>
-            <form method="POST" action="<?= BASE_URL ?>/index.php?module=settings&action=saveCounters">
-                <?= csrfField() ?>
-                <div class="table-responsive">
-                    <table class="table table-sm align-middle entry-cards">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Jenis Dokumen</th>
-                                <th style="width: 100px;">Tahun</th>
-                                <th style="width: 160px;">No. Urut Berikutnya</th>
+        <?php
+        $romanLabels = [1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV', 5 => 'V', 6 => 'VI', 7 => 'VII', 8 => 'VIII', 9 => 'IX', 10 => 'X', 11 => 'XI', 12 => 'XII'];
+        $curRoman = $romanLabels[(int) date('n')];
+        ?>
+        <form method="POST" action="<?= BASE_URL ?>/index.php?module=settings&action=saveCounters">
+            <?= csrfField() ?>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle entry-cards">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Jenis Dokumen</th>
+                            <th style="width: 90px;">Tahun dokumen</th>
+                            <th style="width: 130px;">No. Urut Berikutnya</th>
+                            <th style="width: 130px;">Bulan</th>
+                            <th style="width: 110px;">Tahun</th>
+                            <th style="width: 230px;">Pratinjau nomor berikutnya</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($counters as $c):
+                            $docType = $c['doc_type'];
+                            $isPeriodType = (int) $c['year'] > 0 && isset(DocumentNumber::DOC_TYPE_CODE[$docType]);
+                            $codeInfo = DocumentNumber::DOC_TYPE_CODE[$docType] ?? null;
+                            $code = $codeInfo ? ($numbering[$codeInfo[0]] ?? $codeInfo[1]) : '';
+                            $pm = $c['period_month'] !== null ? (int) $c['period_month'] : 0;
+                            $py = $c['period_year'] !== null ? (int) $c['period_year'] : '';
+                        ?>
+                            <tr class="num-row" data-code="<?= e($code) ?>" data-year="<?= (int) $c['year'] ?>"
+                                data-period="<?= $isPeriodType ? '1' : '0' ?>">
+                                <td data-label="Jenis Dokumen">
+                                    <?= e(DocumentNumber::label($docType)) ?>
+                                    <?php if (!empty($c['virtual'])): ?><span class="badge text-bg-light border ms-1">belum pernah dipakai</span><?php endif; ?>
+                                    <input type="hidden" name="doc_type[]" value="<?= e($docType) ?>">
+                                </td>
+                                <td data-label="Tahun dokumen">
+                                    <?= (int) $c['year'] > 0 ? (int) $c['year'] : '-' ?>
+                                    <input type="hidden" name="year[]" value="<?= (int) $c['year'] ?>">
+                                </td>
+                                <td data-label="No. Urut">
+                                    <input type="number" min="1" name="next_number[]" class="form-control form-control-sm num-no"
+                                           value="<?= (int) $c['next_number'] ?>">
+                                </td>
+                                <?php if ($isPeriodType): ?>
+                                    <td data-label="Bulan">
+                                        <select name="period_month[]" class="form-select form-select-sm num-month">
+                                            <option value="0" <?= $pm === 0 ? 'selected' : '' ?>>Otomatis</option>
+                                            <?php foreach ($romanLabels as $mn => $rl): ?>
+                                                <option value="<?= $mn ?>" <?= $pm === $mn ? 'selected' : '' ?>><?= $rl ?> (<?= $mn ?>)</option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </td>
+                                    <td data-label="Tahun">
+                                        <input type="number" min="2000" max="2100" name="period_year[]" class="form-control form-control-sm num-year"
+                                               value="<?= e((string) $py) ?>" placeholder="Otomatis">
+                                    </td>
+                                    <td data-label="Pratinjau"><code class="num-preview"></code></td>
+                                <?php else: ?>
+                                    <td data-label="Bulan" class="text-muted small">-<input type="hidden" name="period_month[]" value="0"></td>
+                                    <td data-label="Tahun" class="text-muted small">-<input type="hidden" name="period_year[]" value=""></td>
+                                    <td data-label="Pratinjau" class="text-muted small">Nomor urut saja (tanpa bulan/tahun)</td>
+                                <?php endif; ?>
                             </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($counters as $c): ?>
-                                <tr>
-                                    <td>
-                                        <?= e(DocumentNumber::DOC_TYPE_LABELS[$c['doc_type']] ?? $c['doc_type']) ?>
-                                        <input type="hidden" name="doc_type[]" value="<?= e($c['doc_type']) ?>">
-                                    </td>
-                                    <td>
-                                        <?= (int) $c['year'] ?>
-                                        <input type="hidden" name="year[]" value="<?= (int) $c['year'] ?>">
-                                    </td>
-                                    <td>
-                                        <input type="number" min="1" name="next_number[]" class="form-control form-control-sm"
-                                               value="<?= (int) $c['next_number'] ?>">
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-                <button type="submit" class="btn btn-outline-primary mt-2"><i class="bi bi-arrow-repeat"></i> Simpan No. Urut</button>
-            </form>
-        <?php endif; ?>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <button type="submit" class="btn btn-outline-primary mt-2"><i class="bi bi-arrow-repeat"></i> Simpan No. Urut</button>
+        </form>
     </div>
 </div>
+
+<script>
+(function () {
+    const roman = <?= json_encode(array_values($romanLabels)) ?>;
+    const curMonth = <?= (int) date('n') ?>;
+    function pad(n) { n = String(n || 1); while (n.length < 3) n = '0' + n; return n; }
+    function refresh(tr) {
+        if (tr.dataset.period !== '1') return;
+        const no = tr.querySelector('.num-no').value;
+        const m = parseInt(tr.querySelector('.num-month').value, 10) || curMonth;
+        const y = parseInt(tr.querySelector('.num-year').value, 10) || tr.dataset.year;
+        tr.querySelector('.num-preview').textContent = pad(no) + '/' + tr.dataset.code + '/' + roman[m - 1] + '/' + y;
+    }
+    document.querySelectorAll('tr.num-row').forEach(function (tr) {
+        refresh(tr);
+        tr.addEventListener('input', function () { refresh(tr); });
+        tr.addEventListener('change', function () { refresh(tr); });
+    });
+})();
+</script>

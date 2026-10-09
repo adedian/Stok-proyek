@@ -1,11 +1,17 @@
 <?php
 $isEdit = $mode === 'edit';
 $actionUrl = $isEdit ? 'update' : 'store';
+// Bagian nomor otomatis (tanpa akhiran) -- dipakai pratinjau nomor di header.
+$poSuffix = (string) ($po['po_number_suffix'] ?? '');
+$poBaseNumber = (string) $poNumber;
+if ($poSuffix !== '' && substr($poBaseNumber, -strlen('/' . $poSuffix)) === '/' . $poSuffix) {
+    $poBaseNumber = substr($poBaseNumber, 0, -strlen('/' . $poSuffix));
+}
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h4 class="mb-0"><?= $isEdit ? 'Edit' : 'Tambah' ?> Purchase Order</h4>
-        <small class="text-muted">No. PO: <strong><?= e($poNumber) ?></strong> (otomatis)</small>
+        <small class="text-muted">No. PO: <strong id="poNumberPreview" data-base="<?= e($poBaseNumber) ?>"><?= e($poNumber) ?></strong> (otomatis)</small>
     </div>
     <a href="<?= BASE_URL ?>/purchase_order" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Kembali
@@ -187,6 +193,18 @@ $actionUrl = $isEdit ? 'update' : 'store';
                     <label class="form-label">Catatan</label>
                     <textarea name="notes" class="form-control" rows="3"
                               placeholder="Opsional -- tekan Enter untuk baris baru (mis. catatan bernomor 1, 2, 3)"><?= e($po['notes'] ?? '') ?></textarea>
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label">Akhiran Nomor PO</label>
+                    <input type="text" name="po_suffix" id="po_suffix" class="form-control" maxlength="31"
+                           list="poSuffixOptions" autocomplete="off" value="<?= e($poSuffix) ?>"
+                           placeholder="Opsional -- mis. rev1">
+                    <datalist id="poSuffixOptions">
+                        <?php foreach (($poSuffixOptions ?? []) as $opt): ?>
+                            <option value="<?= e($opt) ?>"></option>
+                        <?php endforeach; ?>
+                    </datalist>
+                    <div class="form-text">Pilih saran atau ketik sendiri. Ditambahkan di belakang nomor PO, mis. <code><?= e($poBaseNumber) ?>/rev1</code>.</div>
                 </div>
             </div>
         </div>
@@ -584,4 +602,17 @@ $actionUrl = $isEdit ? 'update' : 'store';
     }
     recalcAll();
 })();
+
+    // Pratinjau nomor PO di header ikut akhiran yang diketik ("/rev1" atau "rev1" sama saja).
+    (function () {
+        const input = document.getElementById('po_suffix');
+        const preview = document.getElementById('poNumberPreview');
+        if (!input || !preview) return;
+        function refresh() {
+            const sfx = input.value.trim().replace(/^\/+/, '');
+            preview.textContent = preview.dataset.base + (sfx ? '/' + sfx : '');
+        }
+        input.addEventListener('input', refresh);
+        refresh();
+    })();
 </script>

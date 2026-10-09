@@ -132,6 +132,7 @@ class PurchaseOrderController extends Controller
             'items'       => [],
             'extraCosts'  => [],
             'poNumber'    => $this->poModel->previewPoNumber(),
+            'poSuffixOptions' => $this->poModel->suffixOptions(),
             'currencies'  => poCurrencies(),
             'suppliers'   => $this->supplierModel->activeList(),
             'projects'    => $this->projectModel->activeList(),
@@ -178,9 +179,10 @@ class PurchaseOrderController extends Controller
         try {
             $pdo->beginTransaction();
 
-            $poNumber = $this->poModel->generatePoNumber();
+            $poNumber = $this->poModel->generatePoNumber() . ($data['po_suffix'] !== '' ? '/' . $data['po_suffix'] : '');
             $poId = $this->poModel->create([
                 'po_number'   => $poNumber,
+                'po_number_suffix' => $data['po_suffix'] !== '' ? $data['po_suffix'] : null,
                 'supplier_id' => $data['supplier_id'],
                 'project_id'  => $data['project_id'],
                 'receiver_user_id' => $data['receiver_user_id'],
@@ -257,6 +259,7 @@ class PurchaseOrderController extends Controller
             'items'     => $this->itemModel->itemsByPo($id),
             'extraCosts' => $this->extraCostModel->itemsByPo($id),
             'poNumber'  => $po['po_number'],
+            'poSuffixOptions' => $this->poModel->suffixOptions(),
             'currencies' => poCurrencies(),
             'suppliers' => $this->supplierModel->activeList(),
             'projects'  => $this->projectModel->activeList(),
@@ -327,13 +330,40 @@ class PurchaseOrderController extends Controller
         // hanya data umum PO (supplier/project/tanggal/status/catatan) yang diperbarui.
         $itemsLocked = $this->itemModel->hasReceipts($id);
 
+        // Nomor baru (akhiran diubah) tidak boleh bentrok dengan PO lain -- po_number
+        // UNIK dan ikut menghitung PO di Tempat Sampah. Dicek di sini supaya pesannya jelas.
+        {
+            $oldSfx = (string) ($existing['po_number_suffix'] ?? '');
+            $base = $existing['po_number'];
+            if ($oldSfx !== '' && substr($base, -strlen('/' . $oldSfx)) === '/' . $oldSfx) {
+                $base = substr($base, 0, -strlen('/' . $oldSfx));
+            }
+            $candidate = $base . ($data['po_suffix'] !== '' ? '/' . $data['po_suffix'] : '');
+            if ($candidate !== $existing['po_number'] && $this->poModel->numberTaken($candidate, $id)) {
+                setFlash('error', "Nomor PO {$candidate} sudah dipakai PO lain (termasuk yang ada di Tempat Sampah). Gunakan akhiran lain.");
+                $this->redirect('purchase_order', 'edit', ['id' => $id]);
+            }
+        }
+
         $pdo = getPDO();
         try {
             $pdo->beginTransaction();
 
             $statusChanged = $existing['status'] !== $data['status'];
 
+            // Nomor PO = bagian otomatis (tetap) + akhiran dari form. Bagian otomatis
+            // diambil dari nomor tersimpan dengan membuang akhiran lama.
+            $oldSuffix = (string) ($existing['po_number_suffix'] ?? '');
+            $baseNumber = $existing['po_number'];
+            if ($oldSuffix !== '' && substr($baseNumber, -strlen('/' . $oldSuffix)) === '/' . $oldSuffix) {
+                $baseNumber = substr($baseNumber, 0, -strlen('/' . $oldSuffix));
+            }
+            $newNumber = $baseNumber . ($data['po_suffix'] !== '' ? '/' . $data['po_suffix'] : '');
+            $numberChanged = $newNumber !== $existing['po_number'];
+
             $this->poModel->updateById($id, [
+                'po_number'   => $newNumber,
+                'po_number_suffix' => $data['po_suffix'] !== '' ? $data['po_suffix'] : null,
                 'supplier_id' => $data['supplier_id'],
                 'project_id'  => $data['project_id'],
                 'receiver_user_id' => $data['receiver_user_id'],
@@ -358,6 +388,9 @@ class PurchaseOrderController extends Controller
             $this->poModel->recalculateTotal($id);
 
             $this->historyModel->log($id, 'updated', 'Data Purchase Order & item diperbarui', currentUserId());
+            if ($numberChanged) {
+                $this->historyModel->log($id, 'updated', "Nomor PO diubah: {$existing['po_number']} -> {$newNumber}", currentUserId());
+            }
             if ($statusChanged) {
                 $this->historyModel->log(
                     $id,
@@ -672,6 +705,8 @@ class PurchaseOrderController extends Controller
             })(),
             'status'      => $_POST['status'] ?? 'draft',
             'notes'       => trim($_POST['notes'] ?? ''),
+            // Akhiran nomor PO: "/rev1" atau "rev1" sama saja -- garis miring di depan dibuang.
+            'po_suffix'   => is_string($_POST['po_suffix'] ?? '') ? trim(ltrim(trim($_POST['po_suffix'] ?? ''), '/')) : '?',
             'pembuat_po'  => trim($_POST['pembuat_po'] ?? ''),
             // Signature TIDAK LAGI dipilih manual (Revisi Kas/Bank) -- otomatis
             // dari tanda tangan pribadi user yang login (Profile > Tanda Tangan
@@ -689,6 +724,10 @@ class PurchaseOrderController extends Controller
     private function validatePoInput(array $data, ?array $existing = null): array
     {
         $errors = [];
+
+        if ($data['po_suffix'] !== '' && !preg_match('/^[A-Za-z0-9._-]{1,30}$/', $data['po_suffix'])) {
+            $errors[] = 'Akhiran nomor PO hanya boleh huruf, angka, titik, strip, atau garis bawah (maks 30 karakter, tanpa garis miring/spasi).';
+        }
 
         if ($data['supplier_id'] <= 0) {
             $errors[] = 'Supplier wajib dipilih.';

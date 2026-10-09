@@ -284,6 +284,33 @@ class PurchaseOrder extends Model
         return (new DocumentNumber())->next('purchase_order', 'prefix_po', $poDate);
     }
 
+    /** Apakah nomor PO ini sudah dipakai PO lain (termasuk yang di Tempat Sampah -- kolom po_number UNIK). */
+    public function numberTaken(string $number, ?int $excludeId = null): bool
+    {
+        $sql = "SELECT id FROM purchase_orders WHERE po_number = :n";
+        $params = ['n' => $number];
+        if ($excludeId) {
+            $sql .= " AND id != :id";
+            $params['id'] = $excludeId;
+        }
+        return (bool) $this->db->fetchOne($sql, $params);
+    }
+
+    /** Saran akhiran nomor untuk form: rev1..rev5 + akhiran yang pernah dipakai. */
+    public function suffixOptions(): array
+    {
+        $opts = ['rev1', 'rev2', 'rev3', 'rev4', 'rev5'];
+        $rows = $this->db->fetchAll(
+            "SELECT DISTINCT po_number_suffix FROM purchase_orders WHERE po_number_suffix IS NOT NULL AND po_number_suffix <> '' ORDER BY po_number_suffix"
+        );
+        foreach ($rows as $r) {
+            if (!in_array($r['po_number_suffix'], $opts, true)) {
+                $opts[] = $r['po_number_suffix'];
+            }
+        }
+        return $opts;
+    }
+
     /** Preview nomor untuk FORM tambah (tidak menaikkan counter) -- lihat DocumentNumber::preview(). */
     public function previewPoNumber(?string $poDate = null): string
     {

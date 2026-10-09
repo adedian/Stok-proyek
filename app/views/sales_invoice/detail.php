@@ -36,6 +36,9 @@
                             <span class="badge <?= $invoice['invoice_type'] === 'lampu' ? 'text-bg-warning' : 'text-bg-info' ?>">
                                 <?= $invoice['invoice_type'] === 'lampu' ? 'Lampu' : 'Project' ?>
                             </span>
+                            <?php if (($invoice['document_kind'] ?? 'invoice') === 'proforma'): ?>
+                                <span class="badge text-bg-secondary">Proforma Invoice</span>
+                            <?php endif; ?>
                         </div>
                     </div>
                     <div class="col-md-3">

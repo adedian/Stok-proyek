@@ -128,7 +128,11 @@
                             <td class="no-print">
                                 <input type="checkbox" class="form-check-input si-row-check" value="<?= (int) $inv['id'] ?>">
                             </td>
-                            <td class="fw-semibold"><?= e($inv['invoice_number']) ?></td>
+                            <td class="fw-semibold"><?= e($inv['invoice_number']) ?>
+                                <?php if (($inv['document_kind'] ?? 'invoice') === 'proforma'): ?>
+                                    <span class="badge text-bg-secondary ms-1">Proforma</span>
+                                <?php endif; ?>
+                            </td>
                             <td>
                                 <span class="badge <?= $inv['invoice_type'] === 'lampu' ? 'text-bg-warning' : 'text-bg-info' ?>">
                                     <?= $inv['invoice_type'] === 'lampu' ? 'Lampu' : 'Project' ?>

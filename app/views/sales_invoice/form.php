@@ -49,7 +49,16 @@ if (empty($terms)) {
                         <div class="form-text">Menentukan format nomor: Project = .../INV.HME/..., Lampu = .../FKT.HME/... (urutan terpisah).</div>
                     <?php endif; ?>
                 </div>
-                <div class="col-md-5">
+                <div class="col-md-2">
+                    <label class="form-label">Jenis Dokumen <span class="text-danger">*</span></label>
+                    <?php $documentKind = $invoice['document_kind'] ?? 'invoice'; ?>
+                    <select name="document_kind" id="documentKindSelect" class="form-select" required>
+                        <option value="invoice" <?= $documentKind === 'invoice' ? 'selected' : '' ?>>Invoice</option>
+                        <option value="proforma" <?= $documentKind === 'proforma' ? 'selected' : '' ?>>Proforma Invoice</option>
+                    </select>
+                    <div class="form-text">Menentukan judul cetak. Isi &amp; nomor sama.</div>
+                </div>
+                <div class="col-md-4">
                     <label class="form-label">Client <span class="text-danger">*</span></label>
                     <div class="input-group">
                         <select name="client_id" id="client_id" class="form-select" required>
@@ -67,7 +76,7 @@ if (empty($terms)) {
                         <?php endif; ?>
                     </div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label">Project <span class="text-muted small">(opsional)</span></label>
                     <div class="input-group">
                         <select name="project_id" id="si_project_id" class="form-select">

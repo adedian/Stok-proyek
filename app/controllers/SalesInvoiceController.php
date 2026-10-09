@@ -447,6 +447,8 @@ class SalesInvoiceController extends Controller
             'project_id'       => !empty($_POST['project_id']) ? (int) $_POST['project_id'] : null,
             // 'project' (INV.HME) vs 'lampu' (FKT.HME) -- lihat SalesInvoice::generateInvoiceNumber().
             'invoice_type'     => in_array($invoiceType, ['project', 'lampu'], true) ? $invoiceType : 'project',
+            // 'invoice' vs 'proforma' -- hanya mengubah judul cetak, nomor/isi sama.
+            'document_kind'    => (($_POST['document_kind'] ?? '') === 'proforma') ? 'proforma' : 'invoice',
             'invoice_date'     => $invoiceDate,
             'tempo'            => $tempo,
             'jatuh_tempo'      => $this->computeDueDate($invoiceDate, $tempo),

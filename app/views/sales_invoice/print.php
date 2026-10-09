@@ -219,7 +219,7 @@
             <?php endif; ?>
         </div>
 
-        <div class="inv-print-title">INVOICE</div>
+        <div class="inv-print-title"><?= ($inv['document_kind'] ?? 'invoice') === 'proforma' ? 'PROFORMA INVOICE' : 'INVOICE' ?></div>
 
         <div class="inv-print-toprow">
             <table>

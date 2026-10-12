@@ -67,15 +67,6 @@ $isScheduled = $info['publish_date'] > date('Y-m-d');
         <div class="text-muted small mb-1">Informasi</div>
         <div class="information-content" style="white-space: pre-line; line-height: 1.7;"><?= nl2br(e($info['content'])) ?></div>
 
-        <?php if (!empty($info['image_path'])): ?>
-            <div class="mt-3">
-                <a href="<?= e(fileUrl($info['image_path'])) ?>" target="_blank" rel="noopener">
-                    <img src="<?= e(fileUrl($info['image_path'])) ?>" alt="Gambar informasi: <?= e($info['title']) ?>"
-                         class="img-fluid rounded border" style="max-height: 480px; object-fit: contain;" loading="lazy">
-                </a>
-            </div>
-        <?php endif; ?>
-
         <hr>
 
         <div class="text-muted small">

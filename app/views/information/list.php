@@ -115,9 +115,6 @@ $statusBadge = ['aktif' => 'success', 'tidak_aktif' => 'secondary'];
                                 <a href="<?= BASE_URL ?>/information/detail/<?= (int) $r['id'] ?>" class="text-dark text-decoration-none fw-semibold">
                                     <?= e($r['title']) ?>
                                 </a>
-                                <?php if (!empty($r['image_path'])): ?>
-                                    <i class="bi bi-image text-muted ms-1" title="Memiliki gambar"></i>
-                                <?php endif; ?>
                             </td>
                             <td><span class="badge bg-<?= e($categoryBadge[$r['category']] ?? 'secondary') ?>"><?= e(Information::categoryLabel($r['category'])) ?></span></td>
                             <td><span class="badge bg-<?= e($statusBadge[$r['status']] ?? 'secondary') ?>"><?= e(Information::statusOptions()[$r['status']] ?? $r['status']) ?></span></td>

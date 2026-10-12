@@ -55,7 +55,7 @@ function handleFileUpload(
         return null; // upload bersifat opsional
     }
 
-    // --- 2. Error dari PHP saat menerima upload (diperiksa SEBELUM is_uploaded_file) ---
+    // --- 2. Error dari PHP saat menerima upload ---
     if ($file['error'] !== UPLOAD_ERR_OK) {
         throw new RuntimeException(uploadErrorMessage((int) $file['error']));
     }
@@ -63,135 +63,6 @@ function handleFileUpload(
     // --- 3. Pastikan benar-benar file hasil HTTP upload (cegah spoofing path) ---
     if (empty($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
         throw new RuntimeException('Sumber file tidak sah.');
-    }
-
-    // --- 4-8. Validasi isi/nama/ukuran (dipakai bersama modul lain) ---
-    $v = uploadInspectFile($file, $allowedExt, $maxSizeMB);
-    $mime = $v['mime'];
-    $canonExt = $v['ext'];
-    $isImage = $v['isImage'];
-
-    // --- 9. Siapkan folder tujuan & nama acak (ekstensi dari MIME, bukan input user) ---
-    $safeSub = preg_replace('/[^a-z0-9_]/', '', strtolower(trim($subFolder, '/')));
-    if ($safeSub === '') {
-        throw new RuntimeException('Folder tujuan tidak valid.');
-    }
-    $destDir = UPLOAD_PATH . '/' . $safeSub;
-    if (!is_dir($destDir) && !@mkdir($destDir, 0755, true) && !is_dir($destDir)) {
-        throw new RuntimeException('Gagal menyiapkan folder penyimpanan.');
-    }
-
-    $newFileName = bin2hex(random_bytes(16)) . '.' . $canonExt;
-    $destPath = $destDir . '/' . $newFileName;
-
-    // --- 10. Simpan: gambar -> kompres GD; PDF -> kompres Ghostscript (best-effort) ---
-    if ($isImage) {
-        // compressImageFile() menulis langsung ke $destPath dari tmp upload.
-        compressImageFile($file['tmp_name'], $mime, $destPath);
-        // tmp file dibersihkan otomatis oleh PHP di akhir request.
-    } else {
-        // compressPdfFile() men-downsample gambar di dalam PDF kalau Ghostscript
-        // tersedia; kalau tidak (atau hasilnya tidak lebih kecil) file asli
-        // disalin apa adanya. Dijamin $destPath berisi PDF valid saat kembali.
-        compressPdfFile($file['tmp_name'], $destPath);
-    }
-
-    return 'uploads/' . $safeSub . '/' . $newFileName;
-}
-
-/**
- * Upload GAMBAR dengan kompresi otomatis di server -- hasil yang disimpan DIJAMIN lebih kecil
- * dari $maxResultBytes (dibaca ulang dari ukuran file di disk) atau fungsi melempar
- * RuntimeException dan tidak ada file yang tertinggal. Dipakai Pusat Informasi.
- *
- * Validasi sama ketatnya dengan handleFileUpload() (kode error PHP, is_uploaded_file, ukuran awal
- * $maxUploadMB, pola nama berbahaya, ekstensi + MIME isi file harus cocok, struktur gambar,
- * anti-decompression-bomb). Hanya JPG/PNG/WebP. Nama file di disk = 32 hex acak (nama asli tidak
- * pernah dipakai), ekstensi ditentukan format hasil, bukan input pengguna. File sementara dihapus
- * baik sukses maupun gagal. Orientasi EXIF dinormalisasi & metadata dibuang.
- *
- * @return array{path:string,bytes:int,width:int,height:int,mime:string,original_bytes:int,converted:bool}|null
- *         null kalau tidak ada file yang diunggah. path = relatif ("uploads/<sub>/<hex>.<ext>").
- * @throws RuntimeException jika file tidak valid / tidak bisa dikompres di bawah batas
- */
-function handleImageUploadUnderLimit(string $inputName, string $subFolder, int $maxResultBytes, int $maxUploadMB = 10): ?array
-{
-    if (empty($_FILES[$inputName]) || !isset($_FILES[$inputName]['error'])) {
-        return null;
-    }
-    $file = $_FILES[$inputName];
-    if (is_array($file['error'])) {
-        throw new RuntimeException('Field upload tidak valid.');
-    }
-    if ($file['error'] === UPLOAD_ERR_NO_FILE) {
-        return null;
-    }
-    if ($file['error'] !== UPLOAD_ERR_OK) {
-        throw new RuntimeException(uploadErrorMessage((int) $file['error']));
-    }
-    if (empty($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
-        throw new RuntimeException('Sumber file tidak sah.');
-    }
-    return processImageUnderLimit($file, $subFolder, $maxResultBytes, $maxUploadMB);
-}
-
-/**
- * Inti handleImageUploadUnderLimit() setelah file dipastikan hasil HTTP upload: validasi isi,
- * kompres, simpan. Dipisah supaya bisa diuji dari CLI (is_uploaded_file() tidak bisa dipalsukan).
- */
-function processImageUnderLimit(array $file, string $subFolder, int $maxResultBytes, int $maxUploadMB = 10): array
-{
-    try {
-        $v = uploadInspectFile($file, ['jpg', 'jpeg', 'png', 'webp'], $maxUploadMB);
-    } catch (RuntimeException $e) {
-        // Pesan umum "gambar atau PDF" menyesatkan untuk field khusus gambar.
-        if (strpos($e->getMessage(), 'bukan gambar') !== false) {
-            throw new RuntimeException('File bukan gambar JPG, PNG, atau WebP yang sah.');
-        }
-        throw $e;
-    }
-    if (!$v['isImage']) {
-        throw new RuntimeException('Hanya gambar JPG, PNG, atau WebP yang diizinkan.');
-    }
-
-    $safeSub = preg_replace('/[^a-z0-9_]/', '', strtolower(trim($subFolder, '/')));
-    if ($safeSub === '') {
-        throw new RuntimeException('Folder tujuan tidak valid.');
-    }
-    $destDir = UPLOAD_PATH . '/' . $safeSub;
-    if (!is_dir($destDir) && !@mkdir($destDir, 0755, true) && !is_dir($destDir)) {
-        throw new RuntimeException('Gagal menyiapkan folder penyimpanan.');
-    }
-
-    $base = $destDir . '/' . bin2hex(random_bytes(16));
-    $res = compressImageToLimit($v['tmp'], $v['mime'], $base, $maxResultBytes);
-
-    return [
-        'path'           => 'uploads/' . $safeSub . '/' . basename($res['path']),
-        'bytes'          => $res['bytes'],
-        'width'          => $res['width'],
-        'height'         => $res['height'],
-        'mime'           => $res['mime'],
-        'original_bytes' => (int) ($file['size'] ?? 0),
-        'converted'      => $res['converted'],
-    ];
-}
-
-/**
- * Inti validasi file upload (lapisan 2 & 4-8 di docblock atas): kode error PHP, ukuran,
- * nama, ekstensi, MIME isi file, dan struktur gambar/PDF. TIDAK memeriksa is_uploaded_file()
- * -- pemanggil dari request HTTP wajib memastikannya sendiri (lihat handleFileUpload() &
- * handleImageUploadUnderLimit()); dipisah supaya inti validasi bisa diuji dari CLI.
- *
- * @param array $file  satu entri $_FILES (bukan multi-file)
- * @return array{tmp:string,mime:string,ext:string,isImage:bool}
- * @throws RuntimeException
- */
-function uploadInspectFile(array $file, array $allowedExt, int $maxSizeMB): array
-{
-    // --- 2. Error dari PHP saat menerima upload ---
-    if ($file['error'] !== UPLOAD_ERR_OK) {
-        throw new RuntimeException(uploadErrorMessage((int) $file['error']));
     }
 
     // --- 4. Ukuran maksimum (sebelum diproses) ---
@@ -298,7 +169,32 @@ function uploadInspectFile(array $file, array $allowedExt, int $maxSizeMB): arra
         }
     }
 
-    return ['tmp' => (string) $file['tmp_name'], 'mime' => $mime, 'ext' => $canonExt, 'isImage' => $isImage];
+    // --- 9. Siapkan folder tujuan & nama acak (ekstensi dari MIME, bukan input user) ---
+    $safeSub = preg_replace('/[^a-z0-9_]/', '', strtolower(trim($subFolder, '/')));
+    if ($safeSub === '') {
+        throw new RuntimeException('Folder tujuan tidak valid.');
+    }
+    $destDir = UPLOAD_PATH . '/' . $safeSub;
+    if (!is_dir($destDir) && !@mkdir($destDir, 0755, true) && !is_dir($destDir)) {
+        throw new RuntimeException('Gagal menyiapkan folder penyimpanan.');
+    }
+
+    $newFileName = bin2hex(random_bytes(16)) . '.' . $canonExt;
+    $destPath = $destDir . '/' . $newFileName;
+
+    // --- 10. Simpan: gambar -> kompres GD; PDF -> kompres Ghostscript (best-effort) ---
+    if ($isImage) {
+        // compressImageFile() menulis langsung ke $destPath dari tmp upload.
+        compressImageFile($file['tmp_name'], $mime, $destPath);
+        // tmp file dibersihkan otomatis oleh PHP di akhir request.
+    } else {
+        // compressPdfFile() men-downsample gambar di dalam PDF kalau Ghostscript
+        // tersedia; kalau tidak (atau hasilnya tidak lebih kecil) file asli
+        // disalin apa adanya. Dijamin $destPath berisi PDF valid saat kembali.
+        compressPdfFile($file['tmp_name'], $destPath);
+    }
+
+    return 'uploads/' . $safeSub . '/' . $newFileName;
 }
 
 /**

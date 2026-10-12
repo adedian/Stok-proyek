@@ -30,11 +30,6 @@
             <a href="<?= BASE_URL ?>/index.php?module=report&action=printStockRecap<?= $exportQuery ?>" id="btnCetakStockRecap" class="btn btn-outline-danger btn-sm">
                 <i class="bi bi-file-earmark-pdf"></i> Cetak Rekap
             </a>
-            <?php // Cetak Stok Tersedia mengikuti SEMUA filter layar, termasuk Kategori (stock_type) yang tidak ikut tombol lain. ?>
-            <a href="<?= BASE_URL ?>/index.php?module=report&action=printStockAvailable<?= $exportQuery ?><?= !empty($filters['stockType']) ? '&stock_type=' . urlencode($filters['stockType']) : '' ?>"
-               id="btnCetakStockAvailable" class="btn btn-outline-primary btn-sm" target="_blank" rel="noopener">
-                <i class="bi bi-printer"></i> Cetak Stok Tersedia
-            </a>
         <?php elseif ($isPo): ?>
             <a href="<?= BASE_URL ?>/index.php?module=report&action=printPoDetail<?= $exportQuery ?>" class="btn btn-outline-danger btn-sm">
                 <i class="bi bi-file-earmark-pdf"></i> PDF Detail Barang
@@ -53,7 +48,7 @@
 <?php if ($isInventory && !empty($rows)): ?>
     <div class="alert alert-light border small no-print mb-3">
         <i class="bi bi-info-circle"></i>
-        Centang barang tertentu untuk membatasi <strong>Cetak Detail</strong>/<strong>Cetak Rekap</strong>/<strong>Cetak Stok Tersedia</strong> hanya ke data
+        Centang barang tertentu untuk membatasi <strong>Cetak Detail</strong>/<strong>Cetak Rekap</strong> hanya ke data
         yang dipilih. Kalau tidak ada yang dicentang, cetak mengikuti filter di atas seperti biasa.
     </div>
 <?php endif; ?>
@@ -150,7 +145,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     wireSelectedIdsLink('btnCetakStockDetail');
     wireSelectedIdsLink('btnCetakStockRecap');
-    wireSelectedIdsLink('btnCetakStockAvailable');
     wireSelectedIdsLink('btnExportStockDetail');
     wireSelectedIdsLink('btnExportStockRecap');
 });

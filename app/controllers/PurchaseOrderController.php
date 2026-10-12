@@ -69,7 +69,7 @@ class PurchaseOrderController extends Controller
             $filters['po_category'] = '';
         }
 
-        $purchaseOrders = $this->poModel->listWithRelations($filters);
+        $purchaseOrders = $this->poModel->listWithRelations($filters + ['order' => 'unapproved_first']);
         $projects = $this->projectModel->activeList();
 
         $paidTotals = $this->paymentModel->paidTotalsByPoIds(array_column($purchaseOrders, 'id'));

@@ -116,6 +116,9 @@ kartu yang relevan dengan role Anda:
    memakai urutan nomor final, jadi menyimpan/menghapus Draft tidak membuat
    nomor final bolong). Nomor final yang sudah terbit tidak pernah berganti
    lagi — mengedit, mencetak, atau mengajukan ulang tidak menerbitkan nomor baru.
+   Di daftar PO, yang masih Draft/Menunggu Persetujuan tampil **di atas**
+   (urutan input), PO yang sudah disetujui **di bawahnya** berurutan menurut
+   nomor final.
 5. Tanda tangan pada cetakan PO **otomatis** memakai Tanda Tangan pribadi
    pembuatnya (diatur di Pengaturan Akun), tidak perlu pilih manual.
 6. Kalau status disimpan sebagai "Menunggu Persetujuan", notifikasi push

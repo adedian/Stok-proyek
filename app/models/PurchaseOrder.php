@@ -156,7 +156,20 @@ class PurchaseOrder extends Model
             $params['date_to'] = $filters['date_to'];
         }
 
-        $sql .= " ORDER BY po.created_at DESC";
+        if (($filters['order'] ?? '') === 'unapproved_first') {
+            // Daftar PO: yang BELUM bernomor final (Draf / Menunggu Approval, atau masih
+            // bernomor sementara DRAFT-) di ATAS dalam urutan input (id naik); PO yang sudah
+            // disetujui di BAWAHNYA berurutan menurut nomor final (tahun pada nomor, lalu
+            // nomor urut). Contoh: 140(draf), 143(draf), lalu 142, 144, 145 yang disetujui.
+            $sql .= " ORDER BY
+                        (CASE WHEN po.status IN ('draft', 'waiting_approval') OR po.po_number LIKE 'DRAFT-%' THEN 0 ELSE 1 END) ASC,
+                        (CASE WHEN po.status IN ('draft', 'waiting_approval') OR po.po_number LIKE 'DRAFT-%' THEN po.id ELSE 0 END) ASC,
+                        CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(po.po_number, '/', 4), '/', -1) AS UNSIGNED) ASC,
+                        CAST(SUBSTRING_INDEX(po.po_number, '/', 1) AS UNSIGNED) ASC,
+                        po.id ASC";
+        } else {
+            $sql .= " ORDER BY po.created_at DESC";
+        }
 
         return $this->db->fetchAll($sql, $params);
     }

@@ -362,85 +362,52 @@ class PurchaseOrder extends Model
     /**
      * "001/PO.HME/X/2026" -- lihat catatan lengkap di SalesInvoice::generateInvoiceNumber(),
      * pola & jaminan yang sama (atomic, reset per tahun).
-     *
-     * JANGAN dipanggil langsung saat PO dibuat/diedit: nomor urut final hanya boleh
-     * dikonsumsi saat PO DISETUJUI -- lihat applyNumbering().
+     * Dipanggil lewat applyNumbering() saat PO dibuat.
      */
     public function generatePoNumber(?string $poDate = null): string
     {
         return (new DocumentNumber())->next('purchase_order', 'prefix_po', $poDate);
     }
 
-    // ================= Penomoran PO berdasarkan status =================
+    // ================= Penomoran PO =================
     //
-    // - PO yang BELUM disetujui (draft / menunggu approval / dibatalkan) memakai nomor
-    //   SEMENTARA "DRAFT-00012" (dari id internal) -- TIDAK menyentuh counter urut final.
-    // - Nomor final "012/PO.HME/X/2026" diterbitkan SEKALI, saat PO pertama kali masuk status
-    //   Disetujui (atau Sebagian Diterima/Selesai), berurutan menurut waktu persetujuan.
-    // - PO yang nomornya sudah final tidak pernah diberi nomor baru lagi (edit, cetak,
-    //   dibuka ulang, ditolak lalu diajukan kembali, Super Admin membalik status, dst).
+    // - Nomor PO ("145/PO.HME/X/2026") diterbitkan SEKALI, saat PO dibuat (apa pun statusnya),
+    //   dari counter atomic -> tidak ada nomor ganda.
+    // - Nomor itu TIDAK PERNAH berubah lagi: disetujui, diedit, dicetak, ditolak lalu diajukan
+    //   kembali, status dibalik Super Admin -- nomor tetap sama (145 tetap 145).
+    // - Hanya akhiran (rev1, dst) yang bisa diubah user, ditempel/dilepas dari nomor yang sama.
+    // - Urutan tampil di daftar PO diatur terpisah (listWithRelations 'unapproved_first').
+    // - Nomor sementara "DRAFT-xxxxx" hanya dipakai sebagai placeholder INSERT (po_number
+    //   NOT NULL UNIQUE) dan untuk PO yang sempat tersimpan dengan nomor itu (versi sebelumnya):
+    //   keduanya diganti nomor urut sungguhan oleh applyNumbering().
     // id (purchase_orders.id) tidak berubah, jadi pembayaran/penerimaan/invoice tetap terhubung.
 
     public const DRAFT_PREFIX = 'DRAFT-';
 
-    /** Status yang menandakan PO sudah (pernah) disetujui -> wajib bernomor final. */
-    public static function statusNeedsFinalNumber(?string $status): bool
-    {
-        return in_array($status, ['approved', 'partial_received', 'completed'], true);
-    }
-
-    /** true kalau $number berbentuk nomor sementara Draf (bukan nomor final). */
+    /** true kalau $number berbentuk nomor sementara (belum memakai nomor urut). */
     public static function isDraftNumber(?string $number): bool
     {
         return $number !== null && strncmp($number, self::DRAFT_PREFIX, strlen(self::DRAFT_PREFIX)) === 0;
     }
 
-    /** Nomor sementara Draf untuk PO ber-id $id (tanpa akhiran). */
-    public static function draftBase(int $id): string
-    {
-        return self::DRAFT_PREFIX . str_pad((string) $id, 5, '0', STR_PAD_LEFT);
-    }
-
-    /** Placeholder unik sekali-pakai untuk INSERT awal (po_number NOT NULL UNIQUE) sebelum id diketahui. */
+    /** Placeholder unik sekali-pakai untuk INSERT awal (po_number NOT NULL UNIQUE) sebelum nomor terbit. */
     public static function placeholderNumber(): string
     {
         return self::DRAFT_PREFIX . 'T' . bin2hex(random_bytes(8));
     }
 
     /**
-     * Apakah PO ini masih butuh nomor final? Ya kalau nomornya masih sementara (DRAFT-...),
-     * atau PO LAMA (sebelum revisi ini) yang belum pernah disetujui tapi sudah memakai nomor
-     * urut saat masih Draf -- kecuali sudah punya pembayaran/penerimaan, nomornya dibiarkan.
-     */
-    public function needsFinalNumber(array $po): bool
-    {
-        if (self::isDraftNumber($po['po_number'] ?? '')) {
-            return true;
-        }
-        if (empty($po['approved_at'])
-            && !self::statusNeedsFinalNumber($po['status'] ?? '')
-            && empty($this->categoryLockReasons((int) $po['id']))) {
-            return true; // nomor urut lama milik Draf yang belum pernah disetujui
-        }
-        return false;
-    }
-
-    /**
-     * Susun nomor PO sesuai status saat ini. WAJIB dipanggil DI DALAM transaksi pemanggil,
-     * SETELAH baris PO (status, tanggal, akhiran) disimpan.
-     *   - kunci baris PO (SELECT ... FOR UPDATE) -> dua request persetujuan bersamaan atas PO
-     *     yang sama tidak bisa sama-sama menerbitkan nomor;
-     *   - status Disetujui/Sebagian/Selesai & belum bernomor final -> ambil nomor berikutnya dari
-     *     counter (baris counter ikut terkunci sampai commit, jadi urutan = urutan persetujuan
-     *     dan tidak ada nomor ganda; rollback ikut mengembalikan counter);
-     *   - status lain -> nomor sementara DRAFT-<id>, counter tidak disentuh;
-     *   - akhiran (rev1, dst) ditempel di belakang nomor.
-     * $before    = baris PO SEBELUM perubahan (null untuk PO baru) -- dipakai menilai apakah PO sudah
-     *              pernah bernomor final; harus data lama karena status/approved_at sudah diubah pemanggil.
+     * Pastikan PO punya nomor urut sungguhan dan akhirannya sesuai. WAJIB dipanggil DI DALAM
+     * transaksi pemanggil, SETELAH baris PO (tanggal, akhiran) disimpan.
+     *   - kunci baris PO (SELECT ... FOR UPDATE);
+     *   - nomor masih placeholder/sementara -> ambil nomor berikutnya dari counter (baris counter
+     *     terkunci sampai commit; rollback ikut mengembalikan counter; nomor yang bentrok dengan
+     *     PO lain -- mis. counter di-reset mundur -- dilewati);
+     *   - sudah bernomor urut -> nomor dasar TIDAK diubah, hanya akhiran yang disesuaikan.
      * $oldSuffix = akhiran SEBELUM perubahan (untuk melepas akhiran lama dari nomor tersimpan).
-     * Return: ['old' => nomor lama, 'new' => nomor baru, 'issued' => true bila nomor final baru terbit].
+     * Return: ['old' => nomor lama, 'new' => nomor baru, 'issued' => true bila nomor urut baru terbit].
      */
-    public function applyNumbering(int $id, ?array $before = null, ?string $oldSuffix = null): array
+    public function applyNumbering(int $id, ?string $oldSuffix = null): array
     {
         if (!$this->db->inTransaction()) {
             throw new LogicException('applyNumbering() harus dipanggil di dalam transaksi.');
@@ -454,12 +421,11 @@ class PurchaseOrder extends Model
         $base = self::baseNumber($oldNumber, $oldSuffix);
         $issued = false;
 
-        if (self::statusNeedsFinalNumber($po['status']) && $this->needsFinalNumber($before ?? $po)) {
+        if (self::isDraftNumber($base)) {
             $docNo = new DocumentNumber();
             $ok = false;
             for ($try = 0; $try < 100; $try++) {
                 $candidate = $docNo->next('purchase_order', 'prefix_po', $po['po_date']);
-                // Lewati nomor yang (karena counter pernah di-reset mundur) sudah dipakai PO lain.
                 if (!$this->baseNumberInUse($candidate, $id) && !$this->numberTaken(self::withSuffix($candidate, $suffix), $id)) {
                     $base = $candidate;
                     $ok = true;
@@ -467,11 +433,9 @@ class PurchaseOrder extends Model
                 }
             }
             if (!$ok) {
-                throw new RuntimeException('Gagal menerbitkan nomor PO final: counter bentrok dengan nomor yang sudah dipakai.');
+                throw new RuntimeException('Gagal menerbitkan nomor PO: counter bentrok dengan nomor yang sudah dipakai.');
             }
             $issued = true;
-        } elseif (self::isDraftNumber($base)) {
-            $base = self::draftBase($id);
         }
 
         $newNumber = self::withSuffix($base, $suffix);

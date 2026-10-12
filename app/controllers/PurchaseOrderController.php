@@ -137,7 +137,7 @@ class PurchaseOrderController extends Controller
             'po'          => null,
             'items'       => [],
             'extraCosts'  => [],
-            'poNumber'    => PurchaseOrder::DRAFT_PREFIX . '(baru)', // nomor final baru terbit saat PO disetujui
+            'poNumber'    => $this->poModel->previewPoNumber(),
             'poSuffixOptions' => $this->poModel->suffixOptions(),
             'currencies'  => poCurrencies(),
             'suppliers'   => $this->supplierModel->activeList(),
@@ -185,8 +185,8 @@ class PurchaseOrderController extends Controller
         try {
             $pdo->beginTransaction();
 
-            // Nomor dibuat di applyNumbering() di bawah: Draf/Menunggu Approval = nomor sementara
-            // (counter urut final TIDAK terpakai), langsung Disetujui = nomor final berikutnya.
+            // Nomor urut diterbitkan di applyNumbering() di bawah (dalam transaksi ini) dan
+            // TIDAK berubah lagi saat PO disetujui.
             $poId = $this->poModel->create([
                 'po_number'   => PurchaseOrder::placeholderNumber(),
                 'po_number_suffix' => $data['po_suffix'] !== '' ? $data['po_suffix'] : null,
@@ -215,7 +215,7 @@ class PurchaseOrderController extends Controller
 
             $this->historyModel->log($poId, 'created', 'Purchase Order ' . PurchaseOrder::categoryLabel($data['po_category']) . ' dibuat', currentUserId());
             if ($numbering['issued']) {
-                $this->historyModel->log($poId, 'updated', "Nomor PO final diterbitkan: {$poNumber}", currentUserId());
+                $this->historyModel->log($poId, 'updated', "Nomor PO diterbitkan: {$poNumber}", currentUserId());
             }
 
             $pdo->commit();
@@ -397,10 +397,8 @@ class PurchaseOrderController extends Controller
                 'quote_date'   => $data['quote_date'],
             ] + ($data['status'] === 'approved' && $existing['status'] !== 'approved' && empty($existing['approved_at']) ? $this->approvalStamp() : []));
 
-            // Nomor PO = bagian otomatis (tetap) + spasi + akhiran dari form. PO yang BARU masuk status
-            // Disetujui mendapat nomor final berikutnya di sini; PO yang nomornya sudah final tidak
-            // pernah diberi nomor baru; PO Draf tetap bernomor sementara.
-            $numbering = $this->poModel->applyNumbering($id, $existing, $existing['po_number_suffix'] ?? null);
+            // Nomor PO = bagian otomatis (TETAP, tidak berubah) + spasi + akhiran dari form.
+            $numbering = $this->poModel->applyNumbering($id, $existing['po_number_suffix'] ?? null);
             $newNumber = $numbering['new'];
             $numberChanged = $newNumber !== $existing['po_number'];
 
@@ -415,7 +413,7 @@ class PurchaseOrderController extends Controller
 
             $this->historyModel->log($id, 'updated', 'Data Purchase Order & item diperbarui', currentUserId());
             if ($numberChanged) {
-                $this->historyModel->log($id, 'updated', ($numbering['issued'] ? 'Nomor PO final diterbitkan' : 'Nomor PO diubah')
+                $this->historyModel->log($id, 'updated', ($numbering['issued'] ? 'Nomor PO diterbitkan' : 'Nomor PO diubah')
                     . ": {$existing['po_number']} -> {$newNumber}", currentUserId());
             }
             if ($categoryChanged) {
@@ -474,9 +472,9 @@ class PurchaseOrderController extends Controller
             $this->redirect('purchase_order', 'detail', ['id' => $id]);
         }
 
-        // Nomor final diterbitkan di backend, dalam transaksi + penguncian baris PO & counter:
-        // persetujuan bersamaan tidak bisa menghasilkan nomor ganda, dan urutan nomor = urutan
-        // persetujuan. Deadlock (hanya mungkin saat counter tahun itu belum ada) dicoba ulang.
+        // Persetujuan TIDAK mengubah nomor PO. Dalam transaksi + penguncian baris PO (anti double-approve).
+        // applyNumbering() hanya bertindak untuk PO yang masih bernomor sementara DRAFT- (data dari
+        // versi sebelumnya); deadlock (hanya mungkin saat counter tahun itu belum ada) dicoba ulang.
         $pdo = getPDO();
         $numbering = null;
         for ($attempt = 1; $attempt <= 3; $attempt++) {
@@ -496,10 +494,10 @@ class PurchaseOrderController extends Controller
                     'approved_by' => currentUserId(),
                     'approved_at' => date('Y-m-d H:i:s'),
                 ]);
-                $numbering = $this->poModel->applyNumbering($id, $locked, $locked['po_number_suffix'] ?? null);
+                $numbering = $this->poModel->applyNumbering($id, $locked['po_number_suffix'] ?? null);
                 $this->historyModel->log($id, 'status_changed', 'PO disetujui oleh ' . currentUserName(), currentUserId());
                 if ($numbering['issued']) {
-                    $this->historyModel->log($id, 'updated', "Nomor PO final diterbitkan: {$numbering['old']} -> {$numbering['new']}", currentUserId());
+                    $this->historyModel->log($id, 'updated', "Nomor PO diterbitkan: {$numbering['old']} -> {$numbering['new']}", currentUserId());
                 }
                 $pdo->commit();
                 break;
@@ -518,7 +516,7 @@ class PurchaseOrderController extends Controller
             }
         }
 
-        setFlash('success', 'Purchase Order berhasil disetujui dengan nomor ' . $numbering['new'] . '. Data PO ini sekarang terkunci (hanya Super Admin yang bisa mengubah).');
+        setFlash('success', 'Purchase Order ' . $numbering['new'] . ' berhasil disetujui. Data PO ini sekarang terkunci (hanya Super Admin yang bisa mengubah).');
         $this->redirect('purchase_order', 'detail', ['id' => $id]);
     }
 

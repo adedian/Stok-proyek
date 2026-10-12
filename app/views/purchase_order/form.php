@@ -16,7 +16,7 @@ $categoryLocked = $isEdit && !empty($categoryLockReasons);
         <?php $poIsDraftNo = PurchaseOrder::isDraftNumber($poBaseNumber); ?>
         <small class="text-muted">No. PO: <strong id="poNumberPreview" data-base="<?= e($poBaseNumber) ?>"><?= e($poNumber) ?></strong>
             <?php if ($poIsDraftNo): ?>
-                (nomor sementara &mdash; nomor PO final diberikan otomatis saat PO disetujui)
+                (nomor sementara &mdash; nomor urut diberikan otomatis saat disimpan; tidak berubah saat disetujui)
             <?php else: ?>
                 (otomatis)
             <?php endif; ?>

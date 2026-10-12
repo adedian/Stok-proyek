@@ -121,38 +121,51 @@ if (!$canClientDest) {
     </div>
 
     <?php if ($isEdit): ?>
-        <?php /* ============ EDIT: tetap 1 barang, field terkunci ============ */ ?>
+        <?php /* ============ EDIT: seluruh barang pada dokumen ini (nomor yang sama) ============ */ ?>
         <div class="card border-0 shadow-sm mb-3">
             <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="form-label">Barang <span class="text-danger">*</span></label>
-                        <select name="inventory_id" id="itemSelect" class="form-select" required disabled>
-                            <option value="">-- Pilih Barang --</option>
-                            <?php foreach ($inventoryItems as $item): ?>
-                                <option value="<?= (int) $item['id'] ?>"
-                                    data-qty="<?= e((string) $item['qty_available']) ?>"
-                                    data-unit="<?= e($item['unit']) ?>"
-                                    <?= ((int) $stockOut['inventory_id'] === (int) $item['id']) ? 'selected' : '' ?>>
-                                    <?= e($item['item_name']) ?> (stok: <?= number_format((float) $item['qty_available'], 2, ',', '.') ?> <?= e($item['unit']) ?><?php if (array_key_exists('project_name', $item)): ?>, <?= e($item['project_name'] ?: 'Stok Kantor') ?><?php endif; ?>)
-                                </option>
+                <label class="form-label">Barang pada dokumen ini <span class="text-danger">*</span></label>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0 so-entry-table" id="soLinesTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="min-width: 220px;">Barang</th>
+                                <th style="width: 170px;" class="text-end">Qty Keluar</th>
+                                <th style="width: 44px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="soLinesBody">
+                            <?php foreach (($docRows ?? []) as $line):
+                                // Batas qty = stok saat ini + qty yang sudah dikeluarkan baris ini (dikembalikan dulu saat simpan).
+                                $lineMax = (float) $line['qty_available'] + (float) $line['qty'];
+                            ?>
+                                <tr class="so-item-row so-line-row">
+                                    <td data-label="Barang">
+                                        <span class="fw-semibold"><?= e($line['item_name']) ?></span>
+                                        <span class="text-muted small">(<?= e($line['unit']) ?>)</span>
+                                        <?php if (($line['validation_status'] ?? '') === 'tervalidasi'): ?>
+                                            <span class="badge text-bg-success ms-1">Tervalidasi</span>
+                                        <?php endif; ?>
+                                        <input type="hidden" name="line_id[]" value="<?= (int) $line['id'] ?>">
+                                        <div class="form-text small">Stok tersedia: <strong><?= e(number_format($lineMax, 2, ',', '.')) ?> <?= e($line['unit']) ?></strong> (termasuk qty dokumen ini)</div>
+                                    </td>
+                                    <td data-label="Qty Keluar">
+                                        <input type="number" name="line_qty[]" class="form-control form-control-sm text-end so-qty-input so-line-qty"
+                                               value="<?= e((string) $line['qty']) ?>" min="0.01" max="<?= e((string) $lineMax) ?>" step="0.01" required>
+                                    </td>
+                                    <td class="text-center cell-remove">
+                                        <button type="button" class="btn btn-sm btn-outline-danger so-line-remove" title="Hapus barang dari dokumen ini" tabindex="-1">
+                                            <i class="bi bi-x-lg"></i><span class="d-md-none ms-1">Hapus baris</span>
+                                        </button>
+                                    </td>
+                                </tr>
                             <?php endforeach; ?>
-                            <?php if (!in_array($stockOut['inventory_id'], array_column($inventoryItems, 'id'))): ?>
-                                <option value="<?= (int) $stockOut['inventory_id'] ?>" selected
-                                    data-qty="<?= e((string) ($stockOut['qty_available'] + $stockOut['qty'])) ?>"
-                                    data-unit="<?= e($stockOut['unit']) ?>">
-                                    <?= e($stockOut['item_name']) ?> (stok saat ini: <?= number_format((float) $stockOut['qty_available'], 2, ',', '.') ?> <?= e($stockOut['unit']) ?>)
-                                </option>
-                            <?php endif; ?>
-                        </select>
-                        <input type="hidden" name="inventory_id" value="<?= (int) $stockOut['inventory_id'] ?>">
-                        <div class="form-text" id="stockInfo"></div>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">Qty Keluar <span class="text-danger">*</span></label>
-                        <input type="number" name="qty" id="qtyInput" class="form-control"
-                               value="<?= e($stockOut['qty'] ?? '') ?>" min="0.01" step="0.01" required>
-                    </div>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="form-text mt-2">
+                    Ubah Qty atau hapus barang; perubahan stok hanya sebesar selisihnya. Barang baru bisa ditambahkan di bawah &mdash; semuanya tetap
+                    di dokumen <strong><?= e($stockOut['stock_out_number'] ?? '') ?></strong>, tidak membuat nomor baru.
                 </div>
             </div>
         </div>
@@ -166,26 +179,26 @@ if (!$canClientDest) {
             .so-items-head { flex-wrap: wrap; }
             .so-items-head > #soAddRowBtn { flex: 1 1 100%; margin-top: .4rem; }
 
-            #soItemsTable { border: 0; }
-            #soItemsTable thead { display: none; }
-            #soItemsTable tbody,
-            #soItemsTable tr.so-item-row { display: block; width: 100%; }
+            table.so-entry-table { border: 0; }
+            table.so-entry-table thead { display: none; }
+            table.so-entry-table tbody,
+            table.so-entry-table tr.so-item-row { display: block; width: 100%; }
 
-            #soItemsTable tr.so-item-row {
+            table.so-entry-table tr.so-item-row {
                 border: 1px solid #dee2e6;
                 border-radius: .5rem;
                 padding: .6rem .75rem .75rem;
                 margin-bottom: .625rem;
                 background: #fff;
             }
-            #soItemsTable tr.so-item-row > td {
+            table.so-entry-table tr.so-item-row > td {
                 display: block;
                 width: 100% !important;
                 border: 0;
                 padding: .4rem 0 0;
                 text-align: left !important;
             }
-            #soItemsTable tr.so-item-row > td::before {
+            table.so-entry-table tr.so-item-row > td::before {
                 content: attr(data-label);
                 display: block;
                 font-size: .7rem;
@@ -195,10 +208,11 @@ if (!$canClientDest) {
                 color: #6c757d;
                 margin-bottom: .15rem;
             }
-            #soItemsTable tr.so-item-row > td .so-qty-input { text-align: left !important; }
-            #soItemsTable tr.so-item-row > td.cell-remove { padding-top: .6rem; }
-            #soItemsTable tr.so-item-row > td.cell-remove::before { content: none; }
-            #soItemsTable tr.so-item-row > td.cell-remove .so-remove-row { width: 100%; }
+            table.so-entry-table tr.so-item-row > td .so-qty-input { text-align: left !important; }
+            table.so-entry-table tr.so-item-row > td.cell-remove { padding-top: .6rem; }
+            table.so-entry-table tr.so-item-row > td.cell-remove::before { content: none; }
+            table.so-entry-table tr.so-item-row > td.cell-remove .so-remove-row,
+            table.so-entry-table tr.so-item-row > td.cell-remove .so-line-remove { width: 100%; }
         }
         </style>
         <div class="card border-0 shadow-sm mb-3">
@@ -213,7 +227,7 @@ if (!$canClientDest) {
                     </button>
                 </div>
                 <div class="table-responsive">
-                    <table class="table table-sm align-middle mb-0" id="soItemsTable">
+                    <table class="table table-sm align-middle mb-0 so-entry-table" id="soItemsTable">
                         <thead class="table-light">
                             <tr>
                                 <th style="min-width: 220px;">Barang</th>
@@ -252,8 +266,7 @@ if (!$canClientDest) {
                 <?php if ($isEdit): ?>
                     <div class="form-text">
                         <i class="bi bi-info-circle"></i>
-                        Barang yang ditambahkan di sini dibuat sebagai baris pengeluaran <strong>baru</strong> dengan tujuan, PIC, tanggal, dan keterangan yang sama
-                        (stok langsung berkurang). Barang yang sudah tersimpan tidak berubah selain Qty di atas.
+                        Barang yang ditambahkan di sini masuk ke dokumen yang sama (nomor tidak berubah) dan stok langsung berkurang saat disimpan.
                     </div>
                 <?php endif; ?>
             </div>
@@ -272,44 +285,11 @@ if (!$canClientDest) {
     <?php require ROOT_PATH . '/app/views/partials/quick_add_project_modal.php'; ?>
 <?php endif; ?>
 
-<?php if ($isEdit): ?>
-<script>
-(function () {
-    const itemSelect = document.getElementById('itemSelect');
-    const qtyInput = document.getElementById('qtyInput');
-    const stockInfo = document.getElementById('stockInfo');
-
-    function updateStockInfo() {
-        const selected = itemSelect.options[itemSelect.selectedIndex];
-        if (!selected || !selected.value) {
-            stockInfo.textContent = '';
-            qtyInput.removeAttribute('max');
-            return;
-        }
-        const qtyAvailable = parseFloat(selected.dataset.qty || '0');
-        const unit = selected.dataset.unit || '';
-        stockInfo.innerHTML = 'Stok tersedia: <strong>' + qtyAvailable.toLocaleString('id-ID') + ' ' + unit + '</strong>';
-        qtyInput.setAttribute('max', qtyAvailable);
-    }
-
-    document.getElementById('stockOutForm').addEventListener('submit', function (e) {
-        const max = parseFloat(qtyInput.getAttribute('max') || 'Infinity');
-        const qty = parseFloat(qtyInput.value || '0');
-        if (qty > max) {
-            e.preventDefault();
-            alert('Qty keluar (' + qty + ') melebihi stok tersedia (' + max + ').');
-        }
-    });
-
-    updateStockInfo();
-})();
-</script>
-<?php endif; ?>
 <script>
 (function () {
     const IS_EDIT = <?= $isEdit ? 'true' : 'false' ?>;
     // Edit: barang yang SUDAH ada di dokumen ini tidak ditawarkan lagi sebagai barang tambahan.
-    const EXCLUDE_INVENTORY_ID = '<?= $isEdit ? (int) $stockOut['inventory_id'] : 0 ?>';
+    const EXCLUDE_INVENTORY_IDS = <?= $isEdit ? json_encode(array_map(fn($r) => (string) $r['inventory_id'], $docRows ?? [])) : '[]' ?>;
     const projectSelect = document.getElementById('projectSelect');
     const invoiceSelect = document.getElementById('invoiceSelect');
     const projectFieldWrap = document.getElementById('projectFieldWrap');
@@ -489,7 +469,7 @@ if (!$canClientDest) {
             .then(function (res) { return res.json(); })
             .then(function (data) {
                 currentItems = (data.items || []).filter(function (it) {
-                    return !(IS_EDIT && String(it.id) === EXCLUDE_INVENTORY_ID);
+                    return !(IS_EDIT && EXCLUDE_INVENTORY_IDS.indexOf(String(it.id)) !== -1);
                 }).map(function (it) {
                     return {
                         id: it.id, item_name: it.item_name,
@@ -577,10 +557,22 @@ if (!$canClientDest) {
                 return;
             }
         }
-        if (filled === 0 && !IS_EDIT) {
+        const linesLeft = IS_EDIT ? document.querySelectorAll('#soLinesBody .so-line-row').length : 0;
+        if (filled === 0 && linesLeft === 0) {
             e.preventDefault();
-            alert('Pilih minimal 1 barang.');
+            alert(IS_EDIT ? 'Dokumen harus punya minimal 1 barang. Untuk membatalkan seluruh pengeluaran, gunakan Hapus.' : 'Pilih minimal 1 barang.');
         }
+    });
+
+    // Edit: hapus barang tersimpan dari dokumen (baris tidak terkirim -> server menghapus + mengembalikan stok)
+    document.querySelectorAll('#soLinesBody .so-line-remove').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const row = btn.closest('.so-line-row');
+            const name = row.querySelector('.fw-semibold').textContent.trim();
+            if (confirm('Hapus "' + name + '" dari dokumen ini? Stoknya dikembalikan saat Anda menekan Simpan.')) {
+                row.remove();
+            }
+        });
     });
 
     // init
@@ -600,7 +592,7 @@ if (!$canClientDest) {
 <?php if ($isEdit): ?>
     <p class="text-muted small mt-3">
         <i class="bi bi-info-circle"></i>
-        Tujuan Pengeluaran, Project/Client, & barang yang sudah tersimpan tidak bisa diganti saat edit untuk menjaga konsistensi histori kartu stok;
-        barang lain boleh ditambahkan lewat "Tambah Barang Lain". Hapus data ini dan buat pengeluaran baru jika tujuannya salah.
+        Tujuan Pengeluaran dan Project/Client tidak bisa diganti saat edit untuk menjaga konsistensi histori kartu stok.
+        Hapus data ini dan buat pengeluaran baru jika tujuannya salah.
     </p>
 <?php endif; ?>

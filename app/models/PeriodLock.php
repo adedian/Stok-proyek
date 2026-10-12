@@ -19,7 +19,7 @@ class PeriodLock extends Model
         'goods_receipt'    => 'Penerimaan Barang',
         'validation'       => 'Validasi Barang',
         'stock_out'        => 'Pengeluaran Barang',
-        'cash'             => 'Kas',
+        'cash'             => 'Kas / Bank',
         'offline_purchase' => 'Pembelian Offline',
         'sales_invoice'    => 'Invoice Keluar',
         'stock_opname'     => 'Stok Opname',

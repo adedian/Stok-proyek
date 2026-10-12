@@ -159,7 +159,7 @@ class ReportController extends Controller
             ['key' => 'po',              'label' => 'Purchase Order',                'icon' => 'bi-cart-check'],
             ['key' => 'payment',         'label' => 'Pembayaran',                    'icon' => 'bi-credit-card'],
             // Laporan Kas "milik" modul Kas (scoping per-PIC sendiri) -> tautkan ke sana.
-            ['key' => 'cash',            'label' => 'Kas',                           'icon' => 'bi-cash-coin', 'url' => route('cash', 'report')],
+            ['key' => 'cash',            'label' => 'Kas / Bank',                         'icon' => 'bi-cash-coin', 'url' => route('cash', 'report')],
             ['key' => 'goodsReceipt',    'label' => 'Penerimaan Barang',             'icon' => 'bi-box-seam'],
             ['key' => 'stockOut',        'label' => 'Pengeluaran Barang',            'icon' => 'bi-box-arrow-up'],
             ['key' => 'inventory',       'label' => 'Stok Barang',                   'icon' => 'bi-clipboard-data'],

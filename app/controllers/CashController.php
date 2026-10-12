@@ -440,7 +440,7 @@ class CashController extends Controller
         }
 
         $this->view('cash/list', [
-            'pageTitle'   => 'Kas',
+            'pageTitle'   => 'Kas / Bank',
             'rows'        => $rows,
             'filters'     => $filters,
             'categories'  => $this->categoryModel->activeList(),

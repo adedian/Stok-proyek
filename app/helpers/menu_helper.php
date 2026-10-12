@@ -18,7 +18,7 @@ function appMenus(): array
         // "Bank" TIDAK lagi menu sendiri (revisi lanjutan) -- transaksi Bank
         // digabung tampil di menu Kas (CashController::index(), khusus
         // can('bank','view')). module tetap 'cash' supaya sidebar highlight benar.
-        ['label' => 'Kas', 'module' => 'cash', 'icon' => 'bi-cash-coin', 'roles' => permissionRoles('cash', 'view'), 'active' => true, 'group' => 'Transaksi'],
+        ['label' => 'Kas / Bank', 'module' => 'cash', 'icon' => 'bi-cash-coin', 'roles' => permissionRoles('cash', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Validasi Kas', 'module' => 'cash_validation', 'icon' => 'bi-cash-stack', 'roles' => permissionRoles('cash_validation', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Penerimaan Barang', 'module' => 'goods_receipt', 'icon' => 'bi-box-seam', 'roles' => permissionRoles('goods_receipt', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Validasi Barang', 'module' => 'validation', 'icon' => 'bi-check2-square', 'roles' => permissionRoles('validation', 'view'), 'active' => true, 'group' => 'Transaksi'],

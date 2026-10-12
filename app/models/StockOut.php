@@ -62,6 +62,23 @@ class StockOut extends Model
         return $this->db->fetchAll($sql, $params);
     }
 
+    /**
+     * Semua baris (barang) milik SATU dokumen pengeluaran -- diidentifikasi lewat document_id
+     * (id baris kepala), BUKAN lewat nomor dokumen. Baris lama tanpa document_id dianggap
+     * dokumen sendiri (COALESCE). Hanya baris yang belum dihapus.
+     */
+    public function documentRows(int $documentId): array
+    {
+        return $this->db->fetchAll(
+            "SELECT so.*, inv.item_name, inv.unit, inv.qty_available
+               FROM stock_out so
+               JOIN inventory inv ON inv.id = so.inventory_id
+              WHERE COALESCE(so.document_id, so.id) = :d AND so.deleted_at IS NULL
+              ORDER BY so.id ASC",
+            ['d' => $documentId]
+        );
+    }
+
     public function findWithRelations(int $id)
     {
         $sql = "SELECT so.*, inv.item_name, inv.unit, inv.qty_available, p.project_name,

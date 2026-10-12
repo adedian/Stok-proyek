@@ -8,7 +8,7 @@ $rp = static fn($v) => number_format((float) $v, 0, ',', '.');
         <small class="text-muted">Transaksi Bank (Loan / HR) &mdash; khusus Accounting</small>
     </div>
     <div class="d-flex gap-2 align-items-center flex-wrap">
-        <a href="<?= BASE_URL ?>/cash" class="btn btn-outline-secondary btn-sm"><i class="bi bi-cash-coin"></i> Kas</a>
+        <a href="<?= BASE_URL ?>/cash" class="btn btn-outline-secondary btn-sm"><i class="bi bi-cash-coin"></i> Kas / Bank</a>
         <a href="<?= BASE_URL ?>/bank" class="btn btn-dark btn-sm"><i class="bi bi-bank"></i> Bank</a>
         <a href="<?= BASE_URL ?>/bank/report" class="btn btn-outline-dark"><i class="bi bi-file-text"></i> Laporan Bank</a>
         <?php if (can('bank', 'create')): ?>

@@ -21,7 +21,7 @@ $canCetakBankVoucher = can('bank', 'view'); // Super Admin & Accounting saja (sa
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
-        <h4 class="mb-0">Kas<?= $canBank ? '/Bank' : '' ?></h4>
+        <h4 class="mb-0">Kas / Bank</h4>
         <small class="text-muted">
             Catatan kas masuk &amp; kas keluar
             <?php if ($scoped): ?><span class="badge bg-light text-dark border ms-1">PIC terkait Anda</span><?php endif; ?>

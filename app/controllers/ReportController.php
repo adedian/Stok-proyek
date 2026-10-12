@@ -73,7 +73,7 @@ class ReportController extends Controller
         if (!in_array($role, [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING], true)) {
             $stockOnly = [
                 'inventory',
-                'printStockDetail', 'printStockRecap', 'printStockAvailable',
+                'printStockDetail', 'printStockRecap',
                 'exportStockDetail', 'exportStockRecap',
             ];
             if (in_array($action, $stockOnly, true)) {
@@ -119,7 +119,7 @@ class ReportController extends Controller
         if (in_array($action, ['exportPoDetail', 'exportPoRecap', 'printPoDetail', 'printPoRecap'], true)) {
             return 'po';
         }
-        if (in_array($action, ['printStockDetail', 'printStockRecap', 'printStockAvailable', 'exportStockDetail', 'exportStockRecap'], true)) {
+        if (in_array($action, ['printStockDetail', 'printStockRecap', 'exportStockDetail', 'exportStockRecap'], true)) {
             return 'inventory';
         }
         if (in_array($action, ['exportExcel', 'exportPdf'], true)) {
@@ -424,123 +424,6 @@ class ReportController extends Controller
         $html = ob_get_clean();
 
         streamPdf($html, 'laporan_stok_rekap_' . date('Ymd_His'));
-    }
-
-    /**
-     * Cetak Stok Tersedia -- daftar barang yang stok tersedianya > 0, mengikuti filter yang
-     * sedang dipakai di Laporan Stok Barang (project, cari, status stok, status barang,
-     * kategori, periode, barang yang dicentang). READ-ONLY: hanya membaca lewat
-     * Inventory::availableStockReport() -> stockMutationReport() (angka sama dengan layar
-     * laporan); tidak ada perubahan saldo/transaksi.
-     *
-     * Pemisahan lapisan supaya template final bisa dipasang tanpa menyentuh pengambilan data:
-     *   - data  : Inventory::availableStockReport() + $meta (perusahaan, filter, waktu, pencetak)
-     *   - tampilan : app/views/report/_stock_available_print.php  <-- HANYA file ini yang diganti
-     *     saat template final diberikan (menerima $rows, $meta, $emptyMessage).
-     */
-    public function printStockAvailable(): void
-    {
-        [$filters, $error] = $this->stockAvailableFilters($_GET);
-        if ($error !== null) {
-            setFlash('error', $error);
-            $this->redirect('report', 'inventory');
-        }
-
-        $rows = (new Inventory())->availableStockReport($filters);
-
-        $company = (new SystemSetting())->getGroup('company');
-        $projectName = '';
-        if ($filters['project_id'] !== '') {
-            $proj = (new Project())->find((int) $filters['project_id']);
-            $projectName = $proj['project_name'] ?? '';
-        }
-        $meta = [
-            'company_name' => $company['company_name'] ?: 'Perusahaan',
-            'printed_at'   => printedAtLabel(),
-            'printed_by'   => printedByLabel(),
-            'filters'      => $this->stockAvailableFilterSummary($filters, $projectName),
-            'total_rows'   => count($rows),
-        ];
-        $emptyMessage = 'Tidak ada barang dengan stok tersedia (lebih dari 0) untuk filter ini.';
-
-        require ROOT_PATH . '/app/views/report/_stock_available_print.php';
-    }
-
-    /**
-     * Filter Cetak Stok Tersedia, divalidasi KETAT di backend (nilai di luar whitelist / tanggal
-     * tidak valid ditolak, bukan dibiarkan lolos ke query). Return [$filters, $errorMessage|null].
-     */
-    private function stockAvailableFilters(array $get): array
-    {
-        $str = fn($k) => (isset($get[$k]) && is_string($get[$k])) ? trim($get[$k]) : '';
-
-        $projectId = $str('project_id');
-        if ($projectId !== '' && !ctype_digit($projectId)) {
-            return [[], 'Filter project tidak valid.'];
-        }
-        $stockFilter = $str('stock_filter');
-        if (!in_array($stockFilter, ['', 'low', 'zero', 'nonzero', 'empty'], true)) {
-            return [[], 'Filter status stok tidak valid.'];
-        }
-        $itemStatus = $str('item_status');
-        if (!in_array($itemStatus, ['', 'active', 'discontinue'], true)) {
-            return [[], 'Filter status barang tidak valid.'];
-        }
-        $stockType = $str('stock_type');
-        if ($stockType !== '' && !isset(stockTypeLabels()[$stockType])) {
-            return [[], 'Filter kategori tidak valid.'];
-        }
-        $dateFrom = $str('date_from');
-        $dateTo = $str('date_to');
-        foreach ([$dateFrom, $dateTo] as $d) {
-            if ($d !== '' && !isValidDateString($d)) {
-                return [[], 'Format tanggal filter tidak valid.'];
-            }
-        }
-        if ($dateFrom !== '' && $dateTo !== '' && $dateFrom > $dateTo) {
-            return [[], 'Tanggal awal tidak boleh setelah tanggal akhir.'];
-        }
-
-        return [[
-            'project_id'   => $projectId,
-            'keyword'      => $str('keyword'),
-            'stock_filter' => $stockFilter,
-            'item_status'  => $itemStatus,
-            'stock_type'   => $stockType,
-            'date_from'    => $dateFrom,
-            'date_to'      => $dateTo,
-            'ids'          => $this->sanitizeIds($get['ids'] ?? []),
-        ], null];
-    }
-
-    /** Ringkasan filter aktif untuk header cetak: daftar [label, nilai]. */
-    private function stockAvailableFilterSummary(array $f, string $projectName): array
-    {
-        $out = [];
-        if ($f['project_id'] !== '') {
-            $out[] = ['Project', $projectName !== '' ? $projectName : ('#' . $f['project_id'])];
-        }
-        if ($f['keyword'] !== '') {
-            $out[] = ['Pencarian', $f['keyword']];
-        }
-        if ($f['stock_type'] !== '') {
-            $out[] = ['Kategori', stockTypeLabel($f['stock_type'])];
-        }
-        $stockLabels = ['low' => 'Stok Minimum', 'zero' => 'Stok = 0', 'nonzero' => 'Stok ≠ 0', 'empty' => 'Stok Habis'];
-        if ($f['stock_filter'] !== '') {
-            $out[] = ['Status Stok', $stockLabels[$f['stock_filter']]];
-        }
-        if ($f['item_status'] !== '') {
-            $out[] = ['Status Barang', $f['item_status'] === 'active' ? 'Aktif' : 'Discontinue'];
-        }
-        if ($f['date_from'] !== '' || $f['date_to'] !== '') {
-            $out[] = ['Periode', ($f['date_from'] !== '' ? formatTanggal($f['date_from']) : '(awal)') . ' – '
-                . ($f['date_to'] !== '' ? formatTanggal($f['date_to']) : 'Sekarang')];
-        }
-        if (!empty($f['ids'])) {
-            $out[] = ['Barang dipilih', count($f['ids']) . ' baris'];
-        }
-        return $out;
     }
 
     /**

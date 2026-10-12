@@ -111,11 +111,8 @@ kartu yang relevan dengan role Anda:
    Kategori, Satuan, Qty, Harga.
 4. Nomor PO otomatis dibuat sistem saat disimpan (format
    `001/PO.HME/IX/2026` — lihat [Bagian 21](#21-istilah-istilah-penting)).
-   Saat form masih dibuka, yang tampil hanya **pratinjau nomor**. Nomor itu
-   **tidak pernah berubah** setelahnya — disetujui, diedit, atau dicetak, nomor
-   tetap sama. Di daftar PO, yang masih Draft/Menunggu Persetujuan tampil
-   **di atas** (urutan input), PO yang sudah disetujui **di bawahnya**
-   berurutan menurut nomor.
+   Saat form masih dibuka, yang tampil hanya **pratinjau nomor** — nomor
+   resmi baru "dibakar" setelah tombol Simpan ditekan.
 5. Tanda tangan pada cetakan PO **otomatis** memakai Tanda Tangan pribadi
    pembuatnya (diatur di Pengaturan Akun), tidak perlu pilih manual.
 6. Kalau status disimpan sebagai "Menunggu Persetujuan", notifikasi push
@@ -436,10 +433,7 @@ difilter, dicetak (PDF), dan diekspor (Excel):
 - **Pengeluaran Barang**
 - **Stok Barang** — Detail & Rekap (tersedia untuk lebih banyak role;
   Purchase melihat versi **tanpa kolom harga**, hanya Super Admin &
-  Accounting yang melihat harga). Tombol **Cetak Stok Tersedia** mencetak
-  daftar barang yang stoknya lebih dari 0, mengikuti filter yang sedang
-  dipakai (angkanya sama dengan layar laporan; hanya membaca, tidak mengubah
-  stok). *Tata letak cetaknya masih sementara, menunggu template final.*
+  Accounting yang melihat harga)
 - **Stok Opname**
 - **Invoice Keluar**
 - **Pembelian Offline**

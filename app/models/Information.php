@@ -11,16 +11,6 @@ class Information extends Model
     protected string $table = 'information';
     protected bool $softDelete = true;
 
-    /**
-     * Batas ukuran file gambar HASIL kompresi: harus < 300 KB. 299 KB desimal = 299.000 byte,
-     * sehingga lolos baik dihitung 1 KB = 1000 byte maupun 1 KiB = 1024 byte (306.176 < 307.200).
-     */
-    public const IMAGE_MAX_BYTES = 299000;
-    /** Batas ukuran file ASLI yang boleh diunggah sebelum dikompres (MB). */
-    public const IMAGE_MAX_UPLOAD_MB = 10;
-    /** Sub-folder di public/uploads/ tempat gambar disimpan. */
-    public const IMAGE_FOLDER = 'information';
-
     /** Pilihan kategori tetap (slug => label tampilan). */
     public static function categoryOptions(): array
     {
@@ -61,20 +51,6 @@ class Information extends Model
             return $flat;
         }
         return mb_substr($flat, 0, $length - 1) . '…';
-    }
-
-    /**
-     * Hapus permanen dari Tempat Sampah -- file gambarnya ikut dibersihkan dari disk
-     * (soft delete biasa TIDAK menghapus file, supaya Restore tetap utuh).
-     */
-    public function forceDeleteById(int $id): int
-    {
-        $row = $this->findTrashed($id);
-        $affected = parent::forceDeleteById($id);
-        if ($affected > 0 && $row && !empty($row['image_path'])) {
-            deleteUploadedFile($row['image_path']);
-        }
-        return $affected;
     }
 
     public function find(int $id)

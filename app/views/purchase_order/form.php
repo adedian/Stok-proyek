@@ -13,14 +13,7 @@ $categoryLocked = $isEdit && !empty($categoryLockReasons);
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h4 class="mb-0"><?= $isEdit ? 'Edit' : 'Tambah' ?> Purchase Order</h4>
-        <?php $poIsDraftNo = PurchaseOrder::isDraftNumber($poBaseNumber); ?>
-        <small class="text-muted">No. PO: <strong id="poNumberPreview" data-base="<?= e($poBaseNumber) ?>"><?= e($poNumber) ?></strong>
-            <?php if ($poIsDraftNo): ?>
-                (nomor sementara &mdash; nomor urut diberikan otomatis saat disimpan; tidak berubah saat disetujui)
-            <?php else: ?>
-                (otomatis)
-            <?php endif; ?>
-        </small>
+        <small class="text-muted">No. PO: <strong id="poNumberPreview" data-base="<?= e($poBaseNumber) ?>"><?= e($poNumber) ?></strong> (otomatis)</small>
     </div>
     <a href="<?= BASE_URL ?>/purchase_order" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Kembali

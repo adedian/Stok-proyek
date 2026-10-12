@@ -545,6 +545,16 @@ $categoryLocked = $isEdit && !empty($categoryLockReasons);
         const isGoods = c === 'BARANG', isService = c === 'JASA';
         document.getElementById('goodsCard').classList.toggle('d-none', !isGoods);
         document.getElementById('goodsFieldset').disabled = !isGoods;
+        // Dropdown Barang (Choices.js) dibangun saat kartu masih nonaktif -> tetap tampak
+        // abu-abu/tak bisa dipilih setelah diaktifkan. Bangun ulang dari kondisi native saat ini.
+        if (isGoods && window.resyncSearchableSelect) {
+            // Choices menandai <select> aslinya `disabled` saat dibangun dalam fieldset nonaktif --
+            // atribut itu harus dilepas dulu, kalau tidak ikut terbawa ke pembangunan ulang.
+            document.querySelectorAll('#goodsFieldset select').forEach(function (s) {
+                s.disabled = false;
+                window.resyncSearchableSelect(s);
+            });
+        }
         document.getElementById('serviceCard').classList.toggle('d-none', !isService);
         document.getElementById('serviceFieldset').disabled = !isService;
         document.getElementById('categoryHint').classList.toggle('d-none', c !== '');

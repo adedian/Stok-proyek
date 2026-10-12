@@ -157,16 +157,17 @@ class PurchaseOrder extends Model
         }
 
         if (($filters['order'] ?? '') === 'unapproved_first') {
-            // Daftar PO: yang BELUM bernomor final (Draf / Menunggu Approval, atau masih
-            // bernomor sementara DRAFT-) di ATAS dalam urutan input (id naik); PO yang sudah
-            // disetujui di BAWAHNYA berurutan menurut nomor final (tahun pada nomor, lalu
-            // nomor urut). Contoh: 140(draf), 143(draf), lalu 142, 144, 145 yang disetujui.
+            // Daftar PO: yang BELUM disetujui (Draft / Menunggu Approval, atau masih bernomor
+            // sementara DRAFT-) SELALU di paling ATAS. Sisanya (sudah disetujui dst) di bawahnya
+            // berurutan menurut NOMOR PO -- tahun pada nomor, lalu nomor urut, terbaru di atas
+            // (sama arahnya dengan tampilan sebelumnya: 143, 142, 141, ...). Begitu sebuah Draft
+            // disetujui, ia otomatis pindah ke posisi nomornya. Akhiran ("- Rev1", " rev1") diabaikan.
+            // Dalam grup Draft pun urutannya mengikuti nomor (terbaru di atas).
             $sql .= " ORDER BY
                         (CASE WHEN po.status IN ('draft', 'waiting_approval') OR po.po_number LIKE 'DRAFT-%' THEN 0 ELSE 1 END) ASC,
-                        (CASE WHEN po.status IN ('draft', 'waiting_approval') OR po.po_number LIKE 'DRAFT-%' THEN po.id ELSE 0 END) ASC,
-                        CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(po.po_number, '/', 4), '/', -1) AS UNSIGNED) ASC,
-                        CAST(SUBSTRING_INDEX(po.po_number, '/', 1) AS UNSIGNED) ASC,
-                        po.id ASC";
+                        CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(po.po_number, '/', 4), '/', -1) AS UNSIGNED) DESC,
+                        CAST(SUBSTRING_INDEX(po.po_number, '/', 1) AS UNSIGNED) DESC,
+                        po.id DESC";
         } else {
             $sql .= " ORDER BY po.created_at DESC";
         }

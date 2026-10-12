@@ -153,6 +153,25 @@
         }
     }
 
+    /**
+     * Untuk form yang menambah baris dengan cloneNode(): kloning DOM yang SUDAH di-enhance ikut
+     * menyalin pembungkus Choices (tampilan mati: label pilihan baris asal, tidak bisa dibuka).
+     * Panggil ini pada hasil kloning SEBELUM dimasukkan ke DOM -- tiap pembungkus diganti
+     * <select> native bersih (opsi tetap ikut), lalu ter-enhance sendiri saat masuk DOM.
+     */
+    window.stripChoicesFromClone = function (root) {
+        root.querySelectorAll('.choices').forEach(function (wrap) {
+            var sel = wrap.querySelector('select');
+            if (!sel) { wrap.remove(); return; }
+            var fresh = sel.cloneNode(true);
+            fresh.classList.remove('choices__input');
+            ['data-choice', 'hidden', 'tabindex', 'aria-hidden'].forEach(function (a) { fresh.removeAttribute(a); });
+            delete fresh.dataset.ssOverflowBound;
+            wrap.replaceWith(fresh);
+        });
+        return root;
+    };
+
     /** Dipanggil manual dari script lain setelah set `.value`/`<option>` lewat JS. */
     window.resyncSearchableSelect = function (select) {
         if (select) {

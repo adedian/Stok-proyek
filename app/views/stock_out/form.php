@@ -419,6 +419,11 @@ if (!$canClientDest) {
     function newRow() {
         const first = itemsBody.querySelector('.so-item-row');
         const row = first.cloneNode(true);
+        // Buang pembungkus dropdown pencarian yang ikut ter-kloning (kalau tidak, dropdown baris baru mati).
+        if (window.stripChoicesFromClone) { window.stripChoicesFromClone(row); }
+        delete row.dataset.foreignOk;
+        const staleWarn = row.querySelector('.so-foreign-warn');
+        if (staleWarn) { staleWarn.remove(); }
         row.querySelector('.so-item-select').value = '';
         row.querySelector('.so-qty-input').value = '';
         row.querySelector('.so-stock-info').textContent = '';

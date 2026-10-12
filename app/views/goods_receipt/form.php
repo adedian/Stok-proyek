@@ -432,6 +432,8 @@ $hideUnlessType = function (string $type) use ($isEdit, $receiptType): string {
     if (btnAddPemakaiItem) {
         btnAddPemakaiItem.addEventListener('click', function () {
             const row = pemakaiBody.querySelector('.pemakai-item-row').cloneNode(true);
+            // Buang pembungkus dropdown pencarian yang ikut ter-kloning (kalau tidak, dropdown Satuan baris baru mati).
+            if (window.stripChoicesFromClone) { window.stripChoicesFromClone(row); }
             row.querySelectorAll('input').forEach(function (input) { input.value = ''; });
             row.querySelectorAll('select').forEach(function (select) { select.selectedIndex = 0; });
             pemakaiBody.appendChild(row);

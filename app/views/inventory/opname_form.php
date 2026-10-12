@@ -109,12 +109,35 @@
     const projectSelect = document.getElementById('projectSelect');
     const itemsBody = document.getElementById('itemsBody');
     const itemsTable = document.getElementById('itemsTable');
-    const emptyNotice = document.getElementById('emptyNotice');
+    const itemsContainer = document.getElementById('itemsContainer');
+    // Pesan kosong/gagal selalu tersedia (sebelumnya hanya ada kalau halaman dibuka tanpa barang).
+    let emptyNotice = document.getElementById('emptyNotice');
+    if (!emptyNotice) {
+        emptyNotice = document.createElement('p');
+        emptyNotice.id = 'emptyNotice';
+        emptyNotice.className = 'text-muted small mb-0';
+        emptyNotice.style.display = 'none';
+        itemsContainer.insertBefore(emptyNotice, itemsContainer.firstChild);
+    }
+    let requestSeq = 0; // balasan AJAX lama diabaikan kalau user sudah mengganti pilihan lagi
+
+    function esc(v) {
+        return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    }
+
+    function showNotice(msg) {
+        itemsBody.innerHTML = '';
+        itemsTable.style.display = 'none';
+        emptyNotice.textContent = msg;
+        emptyNotice.style.display = '';
+    }
 
     function loadItems() {
+        const seq = ++requestSeq;
         const stockType = stockTypeSelect.value;
         const projectId = projectSelect.value;
-        itemsBody.innerHTML = '';
 
         const url = '<?= BASE_URL ?>/index.php?module=inventory&action=ajaxItemsByProject'
             + '&stock_type=' + encodeURIComponent(stockType)
@@ -123,32 +146,27 @@
         fetch(url)
             .then(function (res) { return res.json(); })
             .then(function (data) {
+                if (seq !== requestSeq) { return; }
                 if (!data.items || data.items.length === 0) {
-                    itemsTable.style.display = 'none';
-                    if (emptyNotice) {
-                        emptyNotice.textContent = 'Belum ada data stok barang untuk jenis stok ini.';
-                        emptyNotice.style.display = '';
-                    }
+                    showNotice('Belum ada data stok barang untuk jenis stok ini.');
                     return;
                 }
-                if (emptyNotice) emptyNotice.style.display = 'none';
+                emptyNotice.style.display = 'none';
+                itemsBody.innerHTML = '';
                 data.items.forEach(function (item) {
                     const tr = document.createElement('tr');
                     tr.innerHTML =
-                        '<td>' + item.item_name + ' <span class="text-muted small">(' + item.unit + ')</span>'
-                        + '<input type="hidden" name="inventory_id[]" value="' + item.id + '"></td>'
+                        '<td>' + esc(item.item_name) + ' <span class="text-muted small">(' + esc(item.unit) + ')</span>'
+                        + '<input type="hidden" name="inventory_id[]" value="' + parseInt(item.id, 10) + '"></td>'
                         + '<td class="text-end">' + parseFloat(item.qty_available).toLocaleString('id-ID') + '</td>'
                         + '<td><input type="text" inputmode="decimal" name="qty_actual[]" class="form-control form-control-sm text-end" '
-                        + 'value="' + item.qty_available + '" required></td>';
+                        + 'value="' + esc(item.qty_available) + '" required></td>';
                     itemsBody.appendChild(tr);
                 });
                 itemsTable.style.display = '';
             })
             .catch(function () {
-                if (emptyNotice) {
-                    emptyNotice.textContent = 'Gagal memuat daftar barang.';
-                    emptyNotice.style.display = '';
-                }
+                if (seq === requestSeq) { showNotice('Gagal memuat daftar barang.'); }
             });
     }
 

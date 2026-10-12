@@ -118,39 +118,7 @@ class StockOutController extends Controller
             // dashboard & Tempat Sampah tidak berubah.
             $qtyTotal = 0.0;
             foreach ($data['items'] as $item) {
-                // Debit stok DULU -- kalau stok tidak cukup, exception dilempar
-                // dan transaksi di-rollback, TIDAK ada record stock_out tersimpan.
-                $this->inventoryModel->debitStock(
-                    $item['inventory_id'],
-                    $item['qty'],
-                    'stock_out',
-                    0, // reference_id di-update setelah record stock_out dibuat (lihat bawah)
-                    $data['out_date'],
-                    currentUserId(),
-                    "Keluar ke {$data['destination']}"
-                );
-
-                $stockOutId = $this->stockOutModel->create([
-                    'stock_out_number' => $this->stockOutModel->generateStockOutNumber(),
-                    'inventory_id'     => $item['inventory_id'],
-                    'project_id'       => $data['destination_type'] === 'project' ? $data['project_id'] : null,
-                    'destination_type' => $data['destination_type'],
-                    'sales_invoice_id' => $data['destination_type'] === 'client' ? $data['sales_invoice_id'] : null,
-                    'pic_name'     => $data['pic_name'],
-                    'destination'  => $data['destination'],
-                    'qty'          => $item['qty'],
-                    'out_date'     => $data['out_date'],
-                    'notes'        => $data['notes'],
-                    // Ditentukan SERVER dari project_id (bukan dari input form):
-                    // project -> 'menunggu' validasi, tanpa project -> 'tidak_perlu'.
-                    'validation_status' => StockOut::initialValidationStatus(
-                        $data['destination_type'] === 'project' ? $data['project_id'] : null
-                    ),
-                    'created_by'   => currentUserId(),
-                ]);
-
-                // Update reference_id di stock_transactions yang barusan dibuat supaya menunjuk ke stock_out ini
-                $this->fixLastTransactionReference($item['inventory_id'], $stockOutId);
+                $this->createStockOutRecord($item, $data);
                 $qtyTotal += $item['qty'];
             }
 
@@ -230,8 +198,17 @@ class StockOutController extends Controller
         $data = $this->collectInput();
         $errors = $this->validateInput($data);
 
+        // Barang TAMBAHAN (form Edit: "Tambah Barang Lain") -- masing-masing jadi record
+        // stock_out baru, jadi butuh izin 'create' juga. Barang yang sudah ada di dokumen
+        // ini tidak boleh ditambahkan lagi (tidak ditawarkan di form, ditolak juga di sini).
+        $extraItems = $this->collectExtraItems();
+        if (!empty($extraItems) && !can('stock_out', 'create')) {
+            denyAccess('Anda tidak punya izin menambah barang pengeluaran.');
+        }
+        $errors = array_merge($errors, $this->validateExtraItems($extraItems, (int) $existing['inventory_id']));
+
         if (!empty($errors)) {
-            setFlash('error', implode(' ', $errors));
+            setFlash('error', implode(' ', array_values(array_unique($errors))));
             $this->redirect('stock_out', 'edit', ['id' => $id]);
         }
 
@@ -291,16 +268,24 @@ class StockOutController extends Controller
             }
             $this->stockOutModel->updateById($id, $updateFields);
 
+            // Barang tambahan: tujuan/PIC/tanggal/keterangan mengikuti dokumen ini (data terbaru).
+            foreach ($extraItems as $item) {
+                $this->createStockOutRecord($item, $data);
+            }
+            $jmlExtra = count($extraItems);
+
             $this->activityLog->log(
                 currentUserId(),
                 'stock_out',
                 'update',
-                "Pengeluaran barang #{$id} diperbarui"
+                "Pengeluaran barang #{$id} diperbarui" . ($jmlExtra ? " + {$jmlExtra} barang ditambahkan" : '')
             );
 
             $pdo->commit();
 
-            setFlash('success', 'Pengeluaran barang berhasil diperbarui.');
+            setFlash('success', $jmlExtra
+                ? "Pengeluaran barang berhasil diperbarui dan {$jmlExtra} barang ditambahkan."
+                : 'Pengeluaran barang berhasil diperbarui.');
             $this->redirect('stock_out', 'index');
         } catch (RuntimeException $e) {
             $pdo->rollBack();
@@ -502,6 +487,91 @@ class StockOutController extends Controller
     }
 
     // ================= Helper privat =================
+
+    /**
+     * Debit stok + buat SATU record stock_out untuk satu barang (dipakai Tambah & "Tambah Barang
+     * Lain" di Edit). Dipanggil di dalam transaksi pemanggil: stok tidak cukup -> exception ->
+     * seluruh transaksi di-rollback. Mengembalikan id stock_out baru.
+     */
+    private function createStockOutRecord(array $item, array $data): int
+    {
+        // Debit stok DULU -- kalau stok tidak cukup, exception dilempar
+        // dan transaksi di-rollback, TIDAK ada record stock_out tersimpan.
+        $this->inventoryModel->debitStock(
+            $item['inventory_id'],
+            $item['qty'],
+            'stock_out',
+            0, // reference_id di-update setelah record stock_out dibuat (lihat bawah)
+            $data['out_date'],
+            currentUserId(),
+            "Keluar ke {$data['destination']}"
+        );
+
+        $stockOutId = $this->stockOutModel->create([
+            'stock_out_number' => $this->stockOutModel->generateStockOutNumber(),
+            'inventory_id'     => $item['inventory_id'],
+            'project_id'       => $data['destination_type'] === 'project' ? $data['project_id'] : null,
+            'destination_type' => $data['destination_type'],
+            'sales_invoice_id' => $data['destination_type'] === 'client' ? $data['sales_invoice_id'] : null,
+            'pic_name'     => $data['pic_name'],
+            'destination'  => $data['destination'],
+            'qty'          => $item['qty'],
+            'out_date'     => $data['out_date'],
+            'notes'        => $data['notes'],
+            // Ditentukan SERVER dari project_id (bukan dari input form):
+            // project -> 'menunggu' validasi, tanpa project -> 'tidak_perlu'.
+            'validation_status' => StockOut::initialValidationStatus(
+                $data['destination_type'] === 'project' ? $data['project_id'] : null
+            ),
+            'created_by'   => currentUserId(),
+        ]);
+
+        // Update reference_id di stock_transactions yang barusan dibuat supaya menunjuk ke stock_out ini
+        $this->fixLastTransactionReference($item['inventory_id'], $stockOutId);
+        return $stockOutId;
+    }
+
+    /** Barang tambahan dari form Edit (add_inventory_id[] + add_qty[]); baris kosong diabaikan. */
+    private function collectExtraItems(): array
+    {
+        $rawInv = $_POST['add_inventory_id'] ?? [];
+        $rawQty = $_POST['add_qty'] ?? [];
+        $items = [];
+        if (!is_array($rawInv) || !is_array($rawQty)) {
+            return $items;
+        }
+        foreach ($rawInv as $i => $invId) {
+            $invId = (int) $invId;
+            $qty   = (float) ($rawQty[$i] ?? 0);
+            if ($invId > 0 || $qty > 0) {
+                $items[] = ['inventory_id' => $invId, 'qty' => $qty];
+            }
+        }
+        return $items;
+    }
+
+    private function validateExtraItems(array $items, int $existingInventoryId): array
+    {
+        $errors = [];
+        $seen = [];
+        foreach ($items as $item) {
+            if ($item['inventory_id'] <= 0) {
+                $errors[] = 'Masih ada baris barang tambahan yang belum dipilih.';
+                continue;
+            }
+            if ($item['qty'] <= 0) {
+                $errors[] = 'Qty harus lebih dari 0 untuk semua barang tambahan.';
+            }
+            if ($item['inventory_id'] === $existingInventoryId) {
+                $errors[] = 'Barang tambahan tidak boleh sama dengan barang yang sudah ada di dokumen ini -- ubah Qty-nya saja.';
+            }
+            if (isset($seen[$item['inventory_id']])) {
+                $errors[] = 'Ada barang tambahan yang dipilih lebih dari sekali -- gabungkan jadi satu baris.';
+            }
+            $seen[$item['inventory_id']] = true;
+        }
+        return array_values(array_unique($errors));
+    }
 
     private function collectInput(): array
     {

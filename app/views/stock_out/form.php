@@ -156,8 +156,8 @@ if (!$canClientDest) {
                 </div>
             </div>
         </div>
-    <?php else: ?>
-        <?php /* ============ TAMBAH: bisa >1 barang ============ */ ?>
+    <?php endif; ?>
+        <?php /* ============ Daftar Barang: Tambah (wajib >=1) / Edit (barang TAMBAHAN, opsional) ============ */ ?>
         <style>
         /* Daftar Barang (form Tambah Pengeluaran) -- di HP tabel entri diubah
            jadi kartu supaya kolom Qty & tombol hapus tidak terpotong. Hanya
@@ -204,7 +204,10 @@ if (!$canClientDest) {
         <div class="card border-0 shadow-sm mb-3">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-2 so-items-head">
-                    <label class="form-label mb-0">Daftar Barang <span class="text-danger">*</span></label>
+                    <label class="form-label mb-0">
+                        <?php if ($isEdit): ?>Tambah Barang Lain <span class="text-muted fw-normal small">(opsional)</span>
+                        <?php else: ?>Daftar Barang <span class="text-danger">*</span><?php endif; ?>
+                    </label>
                     <button type="button" class="btn btn-sm btn-outline-primary" id="soAddRowBtn" data-inline-add="#soItemsBody" disabled>
                         <i class="bi bi-plus-lg"></i> Tambah Baris
                     </button>
@@ -221,14 +224,14 @@ if (!$canClientDest) {
                         <tbody id="soItemsBody">
                             <tr class="so-item-row">
                                 <td data-label="Barang">
-                                    <select name="inventory_id[]" class="form-select form-select-sm so-item-select" required disabled>
+                                    <select name="<?= $isEdit ? 'add_inventory_id[]' : 'inventory_id[]' ?>" class="form-select form-select-sm so-item-select" <?= $isEdit ? '' : 'required' ?> disabled>
                                         <option value="">-- Pilih Project / Client dulu --</option>
                                     </select>
                                     <div class="form-text so-stock-info small"></div>
                                 </td>
                                 <td data-label="Qty Keluar">
-                                    <input type="number" name="qty[]" class="form-control form-control-sm text-end so-qty-input"
-                                           min="0.01" step="0.01" required disabled>
+                                    <input type="number" name="<?= $isEdit ? 'add_qty[]' : 'qty[]' ?>" class="form-control form-control-sm text-end so-qty-input"
+                                           min="0.01" step="0.01" <?= $isEdit ? '' : 'required' ?> disabled>
                                 </td>
                                 <td class="text-center cell-remove">
                                     <button type="button" class="btn btn-sm btn-outline-danger so-remove-row" title="Hapus baris" tabindex="-1">
@@ -240,11 +243,21 @@ if (!$canClientDest) {
                     </table>
                 </div>
                 <div class="form-text mt-2" id="soItemsHint">
-                    Pilih <?= $canClientDest ? 'Project atau Client (Invoice)' : 'Project' ?> dulu untuk melihat barang yang tersedia.
+                    <?php if ($isEdit): ?>
+                        Memuat daftar barang...
+                    <?php else: ?>
+                        Pilih <?= $canClientDest ? 'Project atau Client (Invoice)' : 'Project' ?> dulu untuk melihat barang yang tersedia.
+                    <?php endif; ?>
                 </div>
+                <?php if ($isEdit): ?>
+                    <div class="form-text">
+                        <i class="bi bi-info-circle"></i>
+                        Barang yang ditambahkan di sini dibuat sebagai baris pengeluaran <strong>baru</strong> dengan tujuan, PIC, tanggal, dan keterangan yang sama
+                        (stok langsung berkurang). Barang yang sudah tersimpan tidak berubah selain Qty di atas.
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
-    <?php endif; ?>
 
     <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary">
@@ -291,9 +304,12 @@ if (!$canClientDest) {
     updateStockInfo();
 })();
 </script>
-<?php else: ?>
+<?php endif; ?>
 <script>
 (function () {
+    const IS_EDIT = <?= $isEdit ? 'true' : 'false' ?>;
+    // Edit: barang yang SUDAH ada di dokumen ini tidak ditawarkan lagi sebagai barang tambahan.
+    const EXCLUDE_INVENTORY_ID = '<?= $isEdit ? (int) $stockOut['inventory_id'] : 0 ?>';
     const projectSelect = document.getElementById('projectSelect');
     const invoiceSelect = document.getElementById('invoiceSelect');
     const projectFieldWrap = document.getElementById('projectFieldWrap');
@@ -472,7 +488,9 @@ if (!$canClientDest) {
         fetch(url)
             .then(function (res) { return res.json(); })
             .then(function (data) {
-                currentItems = (data.items || []).map(function (it) {
+                currentItems = (data.items || []).filter(function (it) {
+                    return !(IS_EDIT && String(it.id) === EXCLUDE_INVENTORY_ID);
+                }).map(function (it) {
                     return {
                         id: it.id, item_name: it.item_name,
                         qty_available: it.qty_available, unit: it.unit,
@@ -559,7 +577,7 @@ if (!$canClientDest) {
                 return;
             }
         }
-        if (filled === 0) {
+        if (filled === 0 && !IS_EDIT) {
             e.preventDefault();
             alert('Pilih minimal 1 barang.');
         }
@@ -578,12 +596,11 @@ if (!$canClientDest) {
     <?php endif; ?>
 })();
 </script>
-<?php endif; ?>
 
 <?php if ($isEdit): ?>
     <p class="text-muted small mt-3">
         <i class="bi bi-info-circle"></i>
-        Tujuan Pengeluaran, Project/Client, & Barang tidak bisa diganti saat edit untuk menjaga konsistensi histori kartu stok.
-        Hapus data ini dan buat pengeluaran baru jika tujuannya salah.
+        Tujuan Pengeluaran, Project/Client, & barang yang sudah tersimpan tidak bisa diganti saat edit untuk menjaga konsistensi histori kartu stok;
+        barang lain boleh ditambahkan lewat "Tambah Barang Lain". Hapus data ini dan buat pengeluaran baru jika tujuannya salah.
     </p>
 <?php endif; ?>

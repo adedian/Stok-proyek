@@ -186,6 +186,11 @@ class MasterKodeController extends Controller
             $this->redirect('master_kode', 'group', ['type' => $type]);
         }
 
+        // Varian Bank LOAN (prefix + "L") ikut berganti nama supaya urutannya tidak reset.
+        if ($newPrefix !== $oldPrefix && !$picModel->prefixExists($newPrefix . 'L')) {
+            $cashNumber->renamePrefix($oldPrefix . 'L', $newPrefix . 'L');
+        }
+
         if ($cfg) {
             $this->codeConfig->updatePrefixConfig((int) $cfg['id'], $newPrefix, (int) $cfg['digit_length']);
         } else {

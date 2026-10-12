@@ -941,8 +941,8 @@ class CashController extends Controller
             $pdo->beginTransaction();
 
             // --- Sisi Bank Keluar ---
-            $bankPrefix = (new CodeConfig())->getConfig('bank_keluar');
-            $bankPrefix = ($bankPrefix && $bankPrefix['prefix'] !== '') ? $bankPrefix['prefix'] : 'BK';
+            // Bank LOAN -> BKL, selain itu BK (Master Kode) -- lihat MasterBank::noBuktiPrefix().
+            $bankPrefix = $this->masterBankModel->noBuktiPrefix('keluar', $bankId);
             $bankNoBukti = (new CashNumber())->next($bankPrefix, 'bank_transactions');
             $guard = 0;
             while ($this->bankModel->noBuktiExists($bankNoBukti) && $guard++ < 50) {

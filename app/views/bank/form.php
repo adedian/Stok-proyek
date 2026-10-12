@@ -103,7 +103,8 @@ $curPic = $row['pic'] ?? '';
                         <?php if ($isEdit): ?>
                             Nomor tidak berubah saat transaksi diedit.
                         <?php else: ?>
-                            Dibuat otomatis: <strong>BM</strong> untuk Masuk, <strong>BK</strong> untuk Keluar.
+                            Dibuat otomatis: <strong>BM</strong> untuk Masuk, <strong>BK</strong> untuk Keluar
+                            (Bank <strong>Loan</strong>: <strong>BML</strong> / <strong>BKL</strong>).
                         <?php endif; ?>
                     </div>
                 </div>
@@ -292,7 +293,9 @@ $curPic = $row['pic'] ?? '';
     function refresh() {
         var mutasi = mutasiSel.value;
         if (!mutasi) { out.value = ''; out.placeholder = 'pilih Mutasi dulu'; return; }
-        fetch('<?= BASE_URL ?>/index.php?module=bank&action=previewNoBukti&mutasi=' + encodeURIComponent(mutasi))
+        var bankSel = document.getElementById('bank_id');
+        var bankId = bankSel ? bankSel.value : '';
+        fetch('<?= BASE_URL ?>/index.php?module=bank&action=previewNoBukti&mutasi=' + encodeURIComponent(mutasi) + '&bank_id=' + encodeURIComponent(bankId))
             .then(function (r) { return r.json(); })
             .then(function (d) {
                 if (d && d.preview) {
@@ -306,6 +309,9 @@ $curPic = $row['pic'] ?? '';
     }
 
     mutasiSel.addEventListener('change', refresh);
+    // Bank berjenis Loan memakai prefix BML/BKL -> pratinjau ikut berubah saat Bank diganti.
+    var bankSelEl = document.getElementById('bank_id');
+    if (bankSelEl) { bankSelEl.addEventListener('change', refresh); }
     if (mutasiSel.value) { refresh(); }
 })();
 </script>

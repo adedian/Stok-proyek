@@ -49,12 +49,10 @@ class BankController extends Controller
      * (entity_type 'bank_masuk'/'bank_keluar'), fallback ke default
      * "BM"/"BK" kalau baris konfigurasinya belum ada.
      */
-    private function noBuktiPrefix(string $mutasi): string
+    private function noBuktiPrefix(string $mutasi, int $bankId = 0): string
     {
-        $entityType = $mutasi === 'masuk' ? 'bank_masuk' : 'bank_keluar';
-        $default = $mutasi === 'masuk' ? 'BM' : 'BK';
-        $cfg = (new CodeConfig())->getConfig($entityType);
-        return ($cfg && $cfg['prefix'] !== '') ? $cfg['prefix'] : $default;
+        // Bank LOAN -> BML/BKL (lihat MasterBank::noBuktiPrefix()).
+        return $this->bankModel->noBuktiPrefix($mutasi, $bankId);
     }
 
     private BankTransaction $model;
@@ -134,7 +132,7 @@ class BankController extends Controller
         if ($mutasi === '') {
             $this->json(['preview' => '']);
         }
-        $prefix = $this->noBuktiPrefix($mutasi);
+        $prefix = $this->noBuktiPrefix($mutasi, (int) ($_GET['bank_id'] ?? 0));
         $this->json(['preview' => (new CashNumber())->preview($prefix, 'bank_transactions'), 'prefix' => $prefix]);
     }
 
@@ -164,7 +162,7 @@ class BankController extends Controller
             // Masuk -> "BM", Keluar -> "BK" -- dua sequence terpisah (lihat
             // catatan class di atas). Mutasi sudah divalidasi non-kosong oleh
             // validate() sebelum sampai sini.
-            $prefix = $this->noBuktiPrefix($data['mutasi']);
+            $prefix = $this->noBuktiPrefix($data['mutasi'], (int) $data['bank_id']);
             $noBukti = (new CashNumber())->next($prefix, 'bank_transactions');
             $guard = 0;
             while ($this->model->noBuktiExists($noBukti) && $guard++ < 50) {

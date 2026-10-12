@@ -1,5 +1,6 @@
 <?php
 require_once ROOT_PATH . '/core/Model.php';
+require_once ROOT_PATH . '/app/models/CodeConfig.php';
 
 /**
  * Master Bank -- sumber dropdown Bank (Loan/HR) untuk modul Bank. Pola
@@ -14,6 +15,23 @@ class MasterBank extends Model
         'loan' => 'Loan',
         'hr'   => 'HR',
     ];
+
+    /**
+     * Prefix No Bukti transaksi Bank. Dasarnya per Mutasi (Master Kode 'bank_masuk' / 'bank_keluar',
+     * default BM / BK). Bank berjenis LOAN mendapat huruf "L" di belakangnya: Masuk -> BML, Keluar -> BKL
+     * (urutan nomor terpisah dari BM/BK). Bank HR tetap BM / BK. Jenis dibaca dari database.
+     */
+    public function noBuktiPrefix(string $mutasi, int $bankId): string
+    {
+        $entityType = $mutasi === 'masuk' ? 'bank_masuk' : 'bank_keluar';
+        $base = $mutasi === 'masuk' ? 'BM' : 'BK';
+        $cfg = (new CodeConfig())->getConfig($entityType);
+        if ($cfg && $cfg['prefix'] !== '') {
+            $base = $cfg['prefix'];
+        }
+        $bank = $bankId > 0 ? $this->find($bankId) : null;
+        return ($bank && ($bank['jenis'] ?? '') === 'loan') ? $base . 'L' : $base;
+    }
 
     public function activeList(): array
     {

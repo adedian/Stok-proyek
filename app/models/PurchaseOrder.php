@@ -156,7 +156,21 @@ class PurchaseOrder extends Model
             $params['date_to'] = $filters['date_to'];
         }
 
-        $sql .= " ORDER BY po.created_at DESC";
+        if (($filters['order'] ?? '') === 'unapproved_first') {
+            // Daftar PO: yang BELUM disetujui (Draft / Menunggu Approval, atau masih bernomor
+            // sementara DRAFT-) SELALU di paling ATAS. Sisanya (sudah disetujui dst) di bawahnya
+            // berurutan menurut NOMOR PO -- tahun pada nomor, lalu nomor urut, terbaru di atas
+            // (sama arahnya dengan tampilan sebelumnya: 143, 142, 141, ...). Begitu sebuah Draft
+            // disetujui, ia otomatis pindah ke posisi nomornya. Akhiran ("- Rev1", " rev1") diabaikan.
+            // Dalam grup Draft pun urutannya mengikuti nomor (terbaru di atas).
+            $sql .= " ORDER BY
+                        (CASE WHEN po.status IN ('draft', 'waiting_approval') OR po.po_number LIKE 'DRAFT-%' THEN 0 ELSE 1 END) ASC,
+                        CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(po.po_number, '/', 4), '/', -1) AS UNSIGNED) DESC,
+                        CAST(SUBSTRING_INDEX(po.po_number, '/', 1) AS UNSIGNED) DESC,
+                        po.id DESC";
+        } else {
+            $sql .= " ORDER BY po.created_at DESC";
+        }
 
         return $this->db->fetchAll($sql, $params);
     }
@@ -349,10 +363,90 @@ class PurchaseOrder extends Model
     /**
      * "001/PO.HME/X/2026" -- lihat catatan lengkap di SalesInvoice::generateInvoiceNumber(),
      * pola & jaminan yang sama (atomic, reset per tahun).
+     * Dipanggil lewat applyNumbering() saat PO dibuat.
      */
     public function generatePoNumber(?string $poDate = null): string
     {
         return (new DocumentNumber())->next('purchase_order', 'prefix_po', $poDate);
+    }
+
+    // ================= Penomoran PO =================
+    //
+    // - Nomor PO ("145/PO.HME/X/2026") diterbitkan SEKALI, saat PO dibuat (apa pun statusnya),
+    //   dari counter atomic -> tidak ada nomor ganda.
+    // - Nomor itu TIDAK PERNAH berubah lagi: disetujui, diedit, dicetak, ditolak lalu diajukan
+    //   kembali, status dibalik Super Admin -- nomor tetap sama (145 tetap 145).
+    // - Hanya akhiran (rev1, dst) yang bisa diubah user, ditempel/dilepas dari nomor yang sama.
+    // - Urutan tampil di daftar PO diatur terpisah (listWithRelations 'unapproved_first').
+    // - Nomor sementara "DRAFT-xxxxx" hanya dipakai sebagai placeholder INSERT (po_number
+    //   NOT NULL UNIQUE) dan untuk PO yang sempat tersimpan dengan nomor itu (versi sebelumnya):
+    //   keduanya diganti nomor urut sungguhan oleh applyNumbering().
+    // id (purchase_orders.id) tidak berubah, jadi pembayaran/penerimaan/invoice tetap terhubung.
+
+    public const DRAFT_PREFIX = 'DRAFT-';
+
+    /** true kalau $number berbentuk nomor sementara (belum memakai nomor urut). */
+    public static function isDraftNumber(?string $number): bool
+    {
+        return $number !== null && strncmp($number, self::DRAFT_PREFIX, strlen(self::DRAFT_PREFIX)) === 0;
+    }
+
+    /** Placeholder unik sekali-pakai untuk INSERT awal (po_number NOT NULL UNIQUE) sebelum nomor terbit. */
+    public static function placeholderNumber(): string
+    {
+        return self::DRAFT_PREFIX . 'T' . bin2hex(random_bytes(8));
+    }
+
+    /**
+     * Pastikan PO punya nomor urut sungguhan dan akhirannya sesuai. WAJIB dipanggil DI DALAM
+     * transaksi pemanggil, SETELAH baris PO (tanggal, akhiran) disimpan.
+     *   - kunci baris PO (SELECT ... FOR UPDATE);
+     *   - nomor masih placeholder/sementara -> ambil nomor berikutnya dari counter (baris counter
+     *     terkunci sampai commit; rollback ikut mengembalikan counter; nomor yang bentrok dengan
+     *     PO lain -- mis. counter di-reset mundur -- dilewati);
+     *   - sudah bernomor urut -> nomor dasar TIDAK diubah, hanya akhiran yang disesuaikan.
+     * $oldSuffix = akhiran SEBELUM perubahan (untuk melepas akhiran lama dari nomor tersimpan).
+     * Return: ['old' => nomor lama, 'new' => nomor baru, 'issued' => true bila nomor urut baru terbit].
+     */
+    public function applyNumbering(int $id, ?string $oldSuffix = null): array
+    {
+        if (!$this->db->inTransaction()) {
+            throw new LogicException('applyNumbering() harus dipanggil di dalam transaksi.');
+        }
+        $po = $this->db->fetchOne("SELECT * FROM purchase_orders WHERE id = :id FOR UPDATE", ['id' => $id]);
+        if (!$po) {
+            throw new RuntimeException("PO #{$id} tidak ditemukan.");
+        }
+        $suffix = (string) ($po['po_number_suffix'] ?? '');
+        $oldNumber = (string) $po['po_number'];
+        $base = self::baseNumber($oldNumber, $oldSuffix);
+        $issued = false;
+
+        if (self::isDraftNumber($base)) {
+            $docNo = new DocumentNumber();
+            $ok = false;
+            for ($try = 0; $try < 100; $try++) {
+                $candidate = $docNo->next('purchase_order', 'prefix_po', $po['po_date']);
+                if (!$this->baseNumberInUse($candidate, $id) && !$this->numberTaken(self::withSuffix($candidate, $suffix), $id)) {
+                    $base = $candidate;
+                    $ok = true;
+                    break;
+                }
+            }
+            if (!$ok) {
+                throw new RuntimeException('Gagal menerbitkan nomor PO: counter bentrok dengan nomor yang sudah dipakai.');
+            }
+            $issued = true;
+        }
+
+        $newNumber = self::withSuffix($base, $suffix);
+        if ($newNumber !== $oldNumber) {
+            if ($this->numberTaken($newNumber, $id)) {
+                throw new RuntimeException("Nomor PO {$newNumber} sudah dipakai PO lain.");
+            }
+            $this->db->query("UPDATE purchase_orders SET po_number = :n WHERE id = :id", ['n' => $newNumber, 'id' => $id]);
+        }
+        return ['old' => $oldNumber, 'new' => $newNumber, 'issued' => $issued];
     }
 
     /**
@@ -390,6 +484,22 @@ class PurchaseOrder extends Model
             $params['id'] = $excludeId;
         }
         return (bool) $this->db->fetchOne($sql, $params);
+    }
+
+    /**
+     * Nomor dasar (bagian otomatis) ini sudah dipakai PO lain -- baik polos maupun dengan
+     * akhiran apa pun ("002/PO.HME/X/2026", "... rev1", ".../rev1"), termasuk di Tempat Sampah.
+     */
+    public function baseNumberInUse(string $base, ?int $excludeId = null): bool
+    {
+        $esc = addcslashes($base, '\\%_');
+        $sql = "SELECT id FROM purchase_orders WHERE (po_number = :b OR po_number LIKE :sp OR po_number LIKE :sl)";
+        $params = ['b' => $base, 'sp' => $esc . ' %', 'sl' => $esc . '/%'];
+        if ($excludeId) {
+            $sql .= " AND id != :id";
+            $params['id'] = $excludeId;
+        }
+        return (bool) $this->db->fetchOne($sql . " LIMIT 1", $params);
     }
 
     /** Saran akhiran nomor untuk form: rev1..rev5 + akhiran yang pernah dipakai. */

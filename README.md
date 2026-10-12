@@ -109,10 +109,13 @@ kartu yang relevan dengan role Anda:
    penawaran (quote) kalau ada.
 3. Isi baris barang: pilih dari **Master Barang** atau ketik bebas, lalu
    Kategori, Satuan, Qty, Harga.
-4. Nomor PO otomatis dibuat sistem saat disimpan (format
-   `001/PO.HME/IX/2026` — lihat [Bagian 21](#21-istilah-istilah-penting)).
-   Saat form masih dibuka, yang tampil hanya **pratinjau nomor** — nomor
-   resmi baru "dibakar" setelah tombol Simpan ditekan.
+4. **Nomor PO final** (format `001/PO.HME/IX/2026` — lihat
+   [Bagian 21](#21-istilah-istilah-penting)) baru diterbitkan sistem **saat PO
+   DISETUJUI**, berurutan menurut waktu persetujuan. Selama masih **Draft /
+   Menunggu Persetujuan**, PO memakai nomor sementara `DRAFT-00012` (tidak
+   memakai urutan nomor final, jadi menyimpan/menghapus Draft tidak membuat
+   nomor final bolong). Nomor final yang sudah terbit tidak pernah berganti
+   lagi — mengedit, mencetak, atau mengajukan ulang tidak menerbitkan nomor baru.
 5. Tanda tangan pada cetakan PO **otomatis** memakai Tanda Tangan pribadi
    pembuatnya (diatur di Pengaturan Akun), tidak perlu pilih manual.
 6. Kalau status disimpan sebagai "Menunggu Persetujuan", notifikasi push
@@ -433,7 +436,10 @@ difilter, dicetak (PDF), dan diekspor (Excel):
 - **Pengeluaran Barang**
 - **Stok Barang** — Detail & Rekap (tersedia untuk lebih banyak role;
   Purchase melihat versi **tanpa kolom harga**, hanya Super Admin &
-  Accounting yang melihat harga)
+  Accounting yang melihat harga). Tombol **Cetak Stok Tersedia** mencetak
+  daftar barang yang stoknya lebih dari 0, mengikuti filter yang sedang
+  dipakai (angkanya sama dengan layar laporan; hanya membaca, tidak mengubah
+  stok). *Tata letak cetaknya masih sementara, menunggu template final.*
 - **Stok Opname**
 - **Invoice Keluar**
 - **Pembelian Offline**
@@ -598,7 +604,7 @@ master data.
 
 | Istilah | Artinya |
 |---|---|
-| **No. Bukti / No. Dokumen** | Nomor otomatis yang dibuat sistem saat data disimpan, format umum `001/KODE.HME/BULAN-ROMAWI/TAHUN` (mis. `005/PO.HME/IX/2026`). Tidak bisa diisi manual, dan nomor baru "dibakar" (terpakai permanen) hanya saat tombol **Simpan** ditekan — membuka form saja tidak memakai nomor. |
+| **No. Bukti / No. Dokumen** | Nomor otomatis yang dibuat sistem saat data disimpan, format umum `001/KODE.HME/BULAN-ROMAWI/TAHUN` (mis. `005/PO.HME/IX/2026`). Tidak bisa diisi manual, dan nomor baru "dibakar" (terpakai permanen) hanya saat tombol **Simpan** ditekan — membuka form saja tidak memakai nomor. **Pengecualian: Purchase Order** — nomor final baru terbit saat PO disetujui; sebelum itu memakai nomor sementara `DRAFT-xxxxx`. |
 | **Validasi** | Langkah persetujuan sebelum sebuah data dianggap final/mempengaruhi stok atau saldo. Ada di Validasi Barang (Penerimaan → stok) dan Validasi Kas (transaksi Kas → status final). |
 | **Divisi (Kas)** | Pengelompokan otomatis transaksi Kas berdasarkan role pembuatnya: Purchase, Accounting, Project, atau Umum — menentukan siapa yang berhak memvalidasi & melihat kartu saldonya. |
 | **Soft-delete** | "Hapus" di aplikasi ini sebenarnya memindahkan data ke Tempat Sampah, bukan menghapus permanen — aman dari salah klik. |

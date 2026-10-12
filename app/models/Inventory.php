@@ -931,6 +931,24 @@ class Inventory extends Model
     }
 
     /**
+     * Data "Cetak Stok Tersedia": baris Laporan Stok Barang yang stok tersedianya > 0.
+     * SATU-SATUNYA sumber angka = stockMutationReport() (sama persis dengan layar Laporan
+     * Stok Barang untuk filter yang sama -- kolom saldo_akhir), TANPA rumus stok baru. Stok nol
+     * dan negatif tidak ikut. Read-only: tidak mengubah saldo/transaksi stok.
+     * Urutan baris = urutan layar (project, nama barang).
+     */
+    public function availableStockReport(array $filters = []): array
+    {
+        $available = [];
+        foreach ($this->stockMutationReport($filters) as $row) {
+            if (round((float) $row['saldo_akhir'], 2) > 0) {
+                $available[] = $row;
+            }
+        }
+        return $available;
+    }
+
+    /**
      * Sesuaikan stok sistem supaya sama dengan hasil hitung fisik (stock opname).
      * Selisihnya (positif atau negatif) dicatat sebagai transaksi 'adjustment'.
      */

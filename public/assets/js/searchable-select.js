@@ -184,6 +184,32 @@
 
     observer.observe(document.body, { childList: true, subtree: true });
 
+    // Sinkronkan status nonaktif widget dengan <select> aslinya. Banyak form mengubah
+    // `select.disabled` lewat JS (mis. dropdown prefix di Tambah Barang Cepat, pilihan Barang
+    // yang baru aktif setelah Project dipilih) -- Choices menyimpan salinan state sendiri,
+    // jadi tanpa ini widget tetap tampak abu-abu & tidak bisa dipilih padahal select-nya
+    // sudah aktif. Dibandingkan dulu dengan state widget supaya tidak terjadi loop
+    // (enable()/disable() Choices sendiri juga mengubah atribut `disabled`).
+    function syncDisabledState(select) {
+        var instance = registry.get(select);
+        if (!instance) {
+            return;
+        }
+        var widgetDisabled = instance.containerOuter.element.classList.contains('is-disabled');
+        if (select.disabled && !widgetDisabled) {
+            instance.disable();
+        } else if (!select.disabled && widgetDisabled) {
+            instance.enable();
+        }
+    }
+    new MutationObserver(function (mutations) {
+        mutations.forEach(function (m) {
+            if (m.target instanceof HTMLSelectElement) {
+                syncDisabledState(m.target);
+            }
+        });
+    }).observe(document.body, { attributes: true, attributeFilter: ['disabled'], subtree: true });
+
     // Reset native (tombol reset ATAU form.reset() programatik, mis. quick-add.js
     // setelah submit) -- <select> di dalam form itu balik ke default, sync widgetnya.
     document.addEventListener('reset', function (e) {

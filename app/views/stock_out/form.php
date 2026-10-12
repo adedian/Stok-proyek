@@ -222,7 +222,7 @@ if (!$canClientDest) {
                             <tr class="so-item-row">
                                 <td data-label="Barang">
                                     <select name="inventory_id[]" class="form-select form-select-sm so-item-select" required disabled>
-                                        <option value="">-- Pilih Barang --</option>
+                                        <option value="">-- Pilih Project / Client dulu --</option>
                                     </select>
                                     <div class="form-text so-stock-info small"></div>
                                 </td>
@@ -334,7 +334,10 @@ if (!$canClientDest) {
     function renderRowOptions(sel) {
         const prev = sel.value;
         const taken = selectedElsewhere(sel);
-        sel.innerHTML = '<option value="">-- Pilih Barang --</option>';
+        // Dropdown mati sampai Project/Client dipilih -- label eksplisit supaya tidak tampak rusak.
+        sel.innerHTML = '<option value="">'
+            + (currentItems.length ? '-- Pilih Barang --' : (itemsProjectCtx !== null ? '-- Tidak ada barang tersedia --' : '-- Pilih Project / Client dulu --'))
+            + '</option>';
         currentItems.forEach(function (item) {
             const opt = document.createElement('option');
             opt.value = item.id;

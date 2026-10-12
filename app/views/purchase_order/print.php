@@ -273,8 +273,6 @@
             <table>
                 <tr><td>No. PO</td><td>: <strong><?= e($po['po_number']) ?></strong></td></tr>
                 <tr><td>Tanggal</td><td>: <?= formatTanggal($po['po_date']) ?></td></tr>
-                <tr><td>Kategori</td><td>: <?= e(PurchaseOrder::categoryLabel($po['po_category'] ?? null)) ?></td></tr>
-                <tr><td>Mata Uang</td><td>: <?= e(normalizeCurrency($po['currency'] ?? 'IDR')) ?></td></tr>
             </table>
         </div>
 

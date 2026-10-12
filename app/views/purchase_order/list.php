@@ -23,12 +23,21 @@
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
         <form method="GET" action="<?= BASE_URL ?>/purchase_order" class="row g-2 align-items-end">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label small text-muted mb-1">Cari (No. PO / Supplier)</label>
                 <input type="text" name="keyword" class="form-control form-control-sm"
                        value="<?= e($filters['keyword']) ?>" placeholder="potongan no PO / supplier (mis. 039 atau am 039)">
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
+                <label class="form-label small text-muted mb-1">Kategori</label>
+                <select name="po_category" class="form-select form-select-sm">
+                    <option value="">Semua Kategori</option>
+                    <?php foreach (($categoryLabels ?? []) as $catKey => $catLabel): ?>
+                        <option value="<?= e($catKey) ?>" <?= ($filters['po_category'] ?? '') === $catKey ? 'selected' : '' ?>><?= e($catLabel) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-2">
                 <label class="form-label small text-muted mb-1">Status</label>
                 <select name="status" class="form-select form-select-sm">
                     <option value="">Semua Status</option>
@@ -83,6 +92,7 @@
                         <th class="no-print" style="width: 36px;"></th>
                         <th>No</th>
                         <th>No. PO</th>
+                        <th class="text-center">Kategori</th>
                         <th>Kode Sup</th>
                         <th>Supplier</th>
                         <th>Pembuat PO</th>
@@ -98,7 +108,7 @@
                 <tbody>
                     <?php if (empty($purchaseOrders)): ?>
                         <tr>
-                            <td colspan="13" class="p-0">
+                            <td colspan="14" class="p-0">
                                 <div class="empty-state">
                                     <i class="bi bi-cart-x empty-icon"></i>
                                     <div class="empty-title">Belum ada Purchase Order</div>
@@ -119,6 +129,11 @@
                             </td>
                             <td><?= $i + 1 ?></td>
                             <td class="fw-semibold"><?= e($po['po_number']) ?></td>
+                            <td class="text-center">
+                                <span class="badge bg-<?= ($po['po_category'] ?? 'BARANG') === 'JASA' ? 'info text-dark' : 'secondary' ?>">
+                                    <?= e(PurchaseOrder::categoryLabel($po['po_category'] ?? null)) ?>
+                                </span>
+                            </td>
                             <td><?= e($po['supplier_code']) ?></td>
                             <td><?= e($po['supplier_name']) ?></td>
                             <td><?= e($po['pembuat_po'] ?? '-') ?></td>

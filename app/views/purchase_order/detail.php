@@ -30,6 +30,7 @@
     </div>
 </div>
 
+<?php $isService = ($po['po_category'] ?? 'BARANG') === 'JASA'; ?>
 <div class="row g-3">
     <div class="col-lg-8">
         <div class="card border-0 shadow-sm mb-3">
@@ -42,6 +43,13 @@
                     <div class="col-md-6">
                         <div class="text-muted small">Project</div>
                         <div class="fw-semibold"><?= e($po['project_name']) ?></div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-muted small">Kategori PO</div>
+                        <span class="badge bg-<?= $isService ? 'info text-dark' : 'secondary' ?>"><?= e(PurchaseOrder::categoryLabel($po['po_category'] ?? null)) ?></span>
+                        <?php if ($isService): ?>
+                            <div class="small text-muted mt-1">Alur: PO &rarr; Pembayaran (tanpa penerimaan barang &amp; stok)</div>
+                        <?php endif; ?>
                     </div>
                     <div class="col-md-4">
                         <div class="text-muted small">Tanggal PO</div>
@@ -68,7 +76,7 @@
                         <div class="fw-semibold"><?= e($po['pembuat_po'] ?? '-') ?></div>
                     </div>
                     <div class="col-md-4">
-                        <div class="text-muted small">Penerima Barang</div>
+                        <div class="text-muted small"><?= $isService ? 'Penerima Dokumen' : 'Penerima Barang' ?></div>
                         <div class="fw-semibold"><?php if (!empty($po['receiver_name'])): ?><?= e($po['receiver_name']) ?><?php else: ?><span class="text-muted fst-italic">Belum ditentukan</span><?php endif; ?></div>
                     </div>
                     <div class="col-md-4">
@@ -84,10 +92,12 @@
                         <div class="text-muted small">Dibuat oleh (akun sistem)</div>
                         <div class="fw-semibold"><?= e($po['created_by_name'] ?? '-') ?></div>
                     </div>
+                    <?php if (!$isService): ?>
                     <div class="col-md-4">
                         <div class="text-muted small">Lokasi Pengiriman</div>
                         <div class="fw-semibold"><?= e($po['delivery_location_name'] ?? '-') ?></div>
                     </div>
+                    <?php endif; ?>
                     <?php if (!empty($po['notes'])): ?>
                         <div class="col-12">
                             <div class="text-muted small">Catatan</div>
@@ -152,7 +162,7 @@
                 <table class="table mb-0 align-middle">
                     <thead class="table-light">
                         <tr>
-                            <th>Nama Barang</th>
+                            <th><?= $isService ? 'Deskripsi Jasa' : 'Nama Barang' ?></th>
                             <th>Satuan</th>
                             <th class="text-end">Qty</th>
                             <th class="text-end">Harga</th>

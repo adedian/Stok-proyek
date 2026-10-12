@@ -248,6 +248,7 @@
 </div>
 
 <?php foreach ($purchaseOrders as $po): ?>
+    <?php $isService = ($po['po_category'] ?? 'BARANG') === 'JASA'; ?>
     <div class="po-print-page">
         <div class="po-print-header">
             <?php if (!empty($company['company_logo'])): ?>
@@ -272,6 +273,7 @@
             <table>
                 <tr><td>No. PO</td><td>: <strong><?= e($po['po_number']) ?></strong></td></tr>
                 <tr><td>Tanggal</td><td>: <?= formatTanggal($po['po_date']) ?></td></tr>
+                <tr><td>Kategori</td><td>: <?= e(PurchaseOrder::categoryLabel($po['po_category'] ?? null)) ?></td></tr>
                 <tr><td>Mata Uang</td><td>: <?= e(normalizeCurrency($po['currency'] ?? 'IDR')) ?></td></tr>
             </table>
         </div>
@@ -285,7 +287,7 @@
                 <?php if (!empty($po['supplier_phone'])): ?><div class="line"><?= e($po['supplier_phone']) ?></div><?php endif; ?>
             </div>
             <div class="po-print-party">
-                <div class="po-print-party-label">Dikirim Ke</div>
+                <div class="po-print-party-label"><?= $isService ? 'Project' : 'Dikirim Ke' ?></div>
                 <?php if (!empty($po['delivery_location_name'])): ?>
                     <div class="line"><?= e($po['delivery_location_name']) ?></div>
                     <?php if (!empty($po['delivery_location_address'])): ?><div class="line"><?= nl2br(e($po['delivery_location_address'])) ?></div><?php endif; ?>
@@ -312,13 +314,13 @@
             <thead>
                 <tr>
                     <th style="width: 22px;">No</th>
-                    <th>Nama Barang / Spesifikasi</th>
+                    <th><?= $isService ? 'Deskripsi Jasa / Uraian Pekerjaan' : 'Nama Barang / Spesifikasi' ?></th>
                     <th class="num" style="width: 48px;">Qty</th>
                     <th style="width: 48px;">Satuan</th>
                     <th class="num" style="width: 85px;">Harga Satuan</th>
                     <th class="num" style="width: 40px;">Disc</th>
                     <th class="num" style="width: 95px;">Total</th>
-                    <th style="width: 80px;">Kategori</th>
+                    <?php if (!$isService): ?><th style="width: 80px;">Kategori</th><?php endif; ?>
                 </tr>
             </thead>
             <tbody>
@@ -331,20 +333,20 @@
                         <td class="num"><?= formatMoney($item['price'], $po['currency'] ?? 'IDR') ?></td>
                         <td class="num"><?= (float) ($item['discount_percent'] ?? 0) > 0 ? number_format((float) $item['discount_percent'], 0, ',', '.') . '%' : '-' ?></td>
                         <td class="num"><?= formatMoney($item['subtotal'], $po['currency'] ?? 'IDR') ?></td>
-                        <td><?= e($item['category'] ?? '') ?></td>
+                        <?php if (!$isService): ?><td><?= e($item['category'] ?? '') ?></td><?php endif; ?>
                     </tr>
                 <?php endforeach; ?>
                 <?php foreach ($po['extraCosts'] ?? [] as $cost): ?>
                     <tr>
                         <td colspan="6" class="num">Biaya Tambahan: <?= e($cost['cost_name']) ?></td>
                         <td class="num"><?= formatMoney($cost['amount'], $po['currency'] ?? 'IDR') ?></td>
-                        <td></td>
+                        <?php if (!$isService): ?><td></td><?php endif; ?>
                     </tr>
                 <?php endforeach; ?>
                 <tr class="po-print-total-row">
                     <td colspan="6" class="num">TOTAL</td>
                     <td class="num"><?= formatMoney($po['total_amount'], $po['currency'] ?? 'IDR') ?></td>
-                    <td></td>
+                    <?php if (!$isService): ?><td></td><?php endif; ?>
                 </tr>
             </tbody>
         </table>

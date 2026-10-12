@@ -33,7 +33,7 @@ class DashboardStat
     {
         return (int) ($this->db->fetchOne(
             "SELECT COUNT(*) AS total FROM purchase_orders
-             WHERE status IN ('approved','partial_received') AND deleted_at IS NULL"
+             WHERE status IN ('approved','partial_received') AND po_category = 'BARANG' AND deleted_at IS NULL"
         )['total'] ?? 0);
     }
 

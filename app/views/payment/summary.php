@@ -39,7 +39,7 @@
                     <?php endif; ?>
                     <?php foreach ($poSummary as $row): ?>
                         <tr>
-                            <td class="fw-semibold"><?= e($row['po_number']) ?></td>
+                            <td class="fw-semibold"><?= e($row['po_number']) ?> <span class="badge bg-<?= ($row['po_category'] ?? 'BARANG') === 'JASA' ? 'info text-dark' : 'secondary' ?>"><?= e(PurchaseOrder::categoryLabel($row['po_category'] ?? null)) ?></span></td>
                             <td><?= e($row['pembuat_po'] ?? '-') ?></td>
                             <td><?= e($row['supplier_name']) ?></td>
                             <td class="text-end"><?= formatMoney($row['total_amount'], $row['currency'] ?? 'IDR') ?></td>

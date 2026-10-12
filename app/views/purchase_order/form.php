@@ -4,6 +4,11 @@ $actionUrl = $isEdit ? 'update' : 'store';
 // Bagian nomor otomatis (tanpa akhiran) -- dipakai pratinjau nomor di header.
 $poSuffix = (string) ($po['po_number_suffix'] ?? '');
 $poBaseNumber = PurchaseOrder::baseNumber((string) $poNumber, $poSuffix);
+// Kategori PO: kosong di form Tambah (wajib dipilih); form Edit mengikuti data tersimpan.
+$poCategory = (string) ($po['po_category'] ?? '');
+// Kategori terkunci kalau PO sudah punya pembayaran/penerimaan (lihat PurchaseOrder::categoryLockReasons()).
+$categoryLockReasons = $categoryLockReasons ?? [];
+$categoryLocked = $isEdit && !empty($categoryLockReasons);
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
@@ -26,6 +31,24 @@ $poBaseNumber = PurchaseOrder::baseNumber((string) $poNumber, $poSuffix);
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-body">
             <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Kategori PO <span class="text-danger">*</span></label>
+                    <select name="po_category" id="po_category" class="form-select" required <?= $categoryLocked ? 'disabled' : '' ?>>
+                        <option value="">-- Pilih Kategori --</option>
+                        <?php foreach (PurchaseOrder::categoryLabels() as $catKey => $catLabel): ?>
+                            <option value="<?= e($catKey) ?>" <?= $poCategory === $catKey ? 'selected' : '' ?>><?= e($catLabel) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <?php if ($categoryLocked): ?>
+                        <input type="hidden" name="po_category" value="<?= e($poCategory) ?>">
+                        <div class="form-text text-warning">
+                            <i class="bi bi-lock-fill"></i> Kategori tidak bisa diubah karena PO ini sudah memiliki
+                            <?= e(implode(' dan ', $categoryLockReasons)) ?>.
+                        </div>
+                    <?php else: ?>
+                        <div class="form-text"><strong>Barang</strong>: masuk Penerimaan &amp; Stok. <strong>Jasa</strong>: hanya sampai Pembayaran.</div>
+                    <?php endif; ?>
+                </div>
                 <div class="col-md-4">
                     <label class="form-label">Supplier <span class="text-danger">*</span></label>
                     <div class="input-group">
@@ -74,7 +97,7 @@ $poBaseNumber = PurchaseOrder::baseNumber((string) $poNumber, $poSuffix);
                     </select>
                     <div class="form-text">Hanya label mata uang &mdash; nominal tidak dikonversi.</div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-4" id="deliveryLocationCol">
                     <label class="form-label">Lokasi Pengiriman</label>
                     <div class="input-group">
                         <select name="delivery_location_id" id="delivery_location_id" class="form-select">
@@ -94,7 +117,7 @@ $poBaseNumber = PurchaseOrder::baseNumber((string) $poNumber, $poSuffix);
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Penerima Barang <span class="text-danger">*</span></label>
+                    <label class="form-label"><span id="receiverLabelText">Penerima Barang</span> <span class="text-danger">*</span></label>
                     <select name="receiver_user_id" id="receiver_user_id" class="form-select">
                         <option value="">-- Pilih Penerima Barang --</option>
                         <?php foreach (($receivers ?? []) as $r): ?>
@@ -105,7 +128,7 @@ $poBaseNumber = PurchaseOrder::baseNumber((string) $poNumber, $poSuffix);
                         <?php endforeach; ?>
                     </select>
                     <div class="invalid-feedback d-block text-danger small" id="receiverError" style="display:none !important;">Penerima Barang wajib dipilih.</div>
-                    <div class="form-text">Hanya user ini yang melihat PO ini di Tambah Penerimaan Barang.</div>
+                    <div class="form-text" id="receiverHelp">Hanya user ini yang melihat PO ini di Tambah Penerimaan Barang.</div>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Tanggal PO <span class="text-danger">*</span></label>
@@ -207,7 +230,12 @@ $poBaseNumber = PurchaseOrder::baseNumber((string) $poNumber, $poSuffix);
         </div>
     </div>
 
-    <div class="card border-0 shadow-sm mb-3">
+    <div class="alert alert-info py-2 mb-3 <?= $poCategory !== '' ? 'd-none' : '' ?>" id="categoryHint">
+        <i class="bi bi-info-circle"></i> Pilih <strong>Kategori PO</strong> (Barang / Jasa) terlebih dahulu untuk menampilkan daftar item.
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3 <?= $poCategory === 'BARANG' ? '' : 'd-none' ?>" id="goodsCard">
+        <fieldset id="goodsFieldset" <?= $poCategory === 'BARANG' ? '' : 'disabled' ?>>
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <h6 class="mb-0">Daftar Item Barang</h6>
@@ -232,7 +260,7 @@ $poBaseNumber = PurchaseOrder::baseNumber((string) $poNumber, $poSuffix);
                         </tr>
                     </thead>
                     <tbody id="itemTableBody">
-                        <?php if (!empty($items)): ?>
+                        <?php if ($poCategory === 'BARANG' && !empty($items)): ?>
                             <?php foreach ($items as $item): ?>
                                 <?php include ROOT_PATH . '/app/views/purchase_order/_item_row.php'; ?>
                             <?php endforeach; ?>
@@ -267,6 +295,58 @@ $poBaseNumber = PurchaseOrder::baseNumber((string) $poNumber, $poSuffix);
                 <?php endforeach; ?>
             </datalist>
         </div>
+        </fieldset>
+    </div>
+
+    <?php // PO JASA: tanpa master Barang/Kode/Kategori -- hanya uraian jasa, satuan, qty, harga, diskon, PPN. ?>
+    <div class="card border-0 shadow-sm mb-3 <?= $poCategory === 'JASA' ? '' : 'd-none' ?>" id="serviceCard">
+        <fieldset id="serviceFieldset" <?= $poCategory === 'JASA' ? '' : 'disabled' ?>>
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="mb-0">Daftar Jasa / Pekerjaan</h6>
+                <button type="button" id="btnAddService" data-inline-add="#serviceTableBody" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-plus-circle"></i> Tambah Jasa
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle entry-cards" id="serviceTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Deskripsi Jasa / Uraian Pekerjaan</th>
+                            <th>Satuan</th>
+                            <th>Qty</th>
+                            <th>Harga Satuan</th>
+                            <th>Diskon (%)</th>
+                            <th>PPN</th>
+                            <th class="text-end">Subtotal</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="serviceTableBody">
+                        <?php if ($poCategory === 'JASA' && !empty($items)): ?>
+                            <?php foreach ($items as $item): ?>
+                                <?php include ROOT_PATH . '/app/views/purchase_order/_service_row.php'; ?>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <?php $item = null; include ROOT_PATH . '/app/views/purchase_order/_service_row.php'; ?>
+                        <?php endif; ?>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="6" class="text-end fw-bold">Subtotal Jasa</td>
+                            <td class="text-end fw-bold" id="servicesSubtotal"><?= e(formatMoney(0, $po['currency'] ?? 'IDR')) ?></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            <datalist id="poServiceUnitOptions">
+                <?php foreach (array_unique(array_merge(['Paket', 'Ls', 'Hari', 'Bulan', 'Orang', 'Unit', 'Jam', 'Titik'], array_column($units ?? [], 'unit_name'))) as $uName): ?>
+                    <option value="<?= e($uName) ?>"></option>
+                <?php endforeach; ?>
+            </datalist>
+        </div>
+        </fieldset>
     </div>
 
     <div class="card border-0 shadow-sm mb-3">
@@ -364,13 +444,29 @@ $poBaseNumber = PurchaseOrder::baseNumber((string) $poNumber, $poSuffix);
 
 <script>
 (function () {
-    const tableBody = document.getElementById('itemTableBody');
+    // Dua daftar item: Barang (#itemTableBody) dan Jasa (#serviceTableBody). Hanya salah satu
+    // yang aktif sesuai Kategori PO; fieldset yang non-aktif di-disable sehingga inputnya
+    // tidak ikut terkirim & tidak ikut validasi `required` browser.
+    const goodsBody = document.getElementById('itemTableBody');
+    const serviceBody = document.getElementById('serviceTableBody');
+    const bodies = [goodsBody, serviceBody];
+    const categoryEl = document.getElementById('po_category');
     const btnAddItem = document.getElementById('btnAddItem');
+    const btnAddService = document.getElementById('btnAddService');
     const itemsSubtotalEl = document.getElementById('itemsSubtotal');
+    const servicesSubtotalEl = document.getElementById('servicesSubtotal');
     const grandTotalEl = document.getElementById('grandTotal');
     const extraCostBody = document.getElementById('extraCostTableBody');
     const btnAddExtraCost = document.getElementById('btnAddExtraCost');
-    let rowIndex = tableBody.querySelectorAll('.item-row').length;
+    let rowIndex = goodsBody.querySelectorAll('.item-row').length + serviceBody.querySelectorAll('.item-row').length;
+
+    function currentCategory() {
+        return categoryEl ? categoryEl.value : '';
+    }
+    function activeBody() {
+        const c = currentCategory();
+        return c === 'JASA' ? serviceBody : (c === 'BARANG' ? goodsBody : null);
+    }
 
     // Mata uang PO = LABEL saja: nilai input/total TIDAK pernah dikonversi, hanya
     // prefix yang berganti saat dropdown Mata Uang diubah (realtime, tanpa reload).
@@ -431,13 +527,43 @@ $poBaseNumber = PurchaseOrder::baseNumber((string) $poNumber, $poSuffix);
     }
 
     function recalcAll() {
-        let itemsTotal = 0;
-        tableBody.querySelectorAll('.item-row').forEach(function (row) {
-            itemsTotal += recalcRow(row);
-        });
-        itemsSubtotalEl.textContent = formatMoney(itemsTotal);
+        // Subtotal tiap daftar dihitung sendiri; Grand Total hanya memakai daftar yang AKTIF.
+        let goodsTotal = 0, serviceTotal = 0;
+        goodsBody.querySelectorAll('.item-row').forEach(function (row) { goodsTotal += recalcRow(row); });
+        serviceBody.querySelectorAll('.item-row').forEach(function (row) { serviceTotal += recalcRow(row); });
+        itemsSubtotalEl.textContent = formatMoney(goodsTotal);
+        servicesSubtotalEl.textContent = formatMoney(serviceTotal);
+        const c = currentCategory();
+        const itemsTotal = c === 'JASA' ? serviceTotal : (c === 'BARANG' ? goodsTotal : 0);
         grandTotalEl.textContent = formatMoney(itemsTotal + extraCostTotal());
         syncCurrencyLabels();
+    }
+
+    // Tampilkan daftar item sesuai Kategori PO + sesuaikan field yang hanya relevan untuk Barang.
+    function applyCategory() {
+        const c = currentCategory();
+        const isGoods = c === 'BARANG', isService = c === 'JASA';
+        document.getElementById('goodsCard').classList.toggle('d-none', !isGoods);
+        document.getElementById('goodsFieldset').disabled = !isGoods;
+        document.getElementById('serviceCard').classList.toggle('d-none', !isService);
+        document.getElementById('serviceFieldset').disabled = !isService;
+        document.getElementById('categoryHint').classList.toggle('d-none', c !== '');
+        // Lokasi Pengiriman = konsep barang; disembunyikan & tidak dikirim untuk Jasa.
+        const locCol = document.getElementById('deliveryLocationCol');
+        const locSel = document.getElementById('delivery_location_id');
+        if (locCol && locSel) {
+            locCol.classList.toggle('d-none', isService);
+            locSel.disabled = isService;
+        }
+        const rcvText = document.getElementById('receiverLabelText');
+        if (rcvText) { rcvText.textContent = isService ? 'Penerima Dokumen' : 'Penerima Barang'; }
+        const rcvHelp = document.getElementById('receiverHelp');
+        if (rcvHelp) {
+            rcvHelp.textContent = isService
+                ? 'Penerima dokumen PO ini. PO Jasa tidak melalui Penerimaan Barang maupun Stok.'
+                : 'Hanya user ini yang melihat PO ini di Tambah Penerimaan Barang.';
+        }
+        recalcAll();
     }
 
     // Delegasi event untuk input qty/price/diskon/ppn yang bisa bertambah secara dinamis
@@ -468,8 +594,9 @@ $poBaseNumber = PurchaseOrder::baseNumber((string) $poNumber, $poSuffix);
         const idx = m.index;
         return str.slice(0, idx + 1) + str.slice(idx + 1).replace(/[.,]/g, '');
     }
-    tableBody.querySelectorAll('.item-row').forEach(syncPpnRow);
+    bodies.forEach(function (b) { b.querySelectorAll('.item-row').forEach(syncPpnRow); });
 
+    bodies.forEach(function (tableBody) {
     tableBody.addEventListener('input', function (e) {
         if (e.target.classList.contains('ppn-percent-input')) {
             const clean = sanitizePpn(e.target.value);
@@ -496,7 +623,7 @@ $poBaseNumber = PurchaseOrder::baseNumber((string) $poNumber, $poSuffix);
         if (removeBtn) {
             const rows = tableBody.querySelectorAll('.item-row');
             if (rows.length <= 1) {
-                alert('Minimal harus ada 1 item barang.');
+                alert(tableBody === serviceBody ? 'Minimal harus ada 1 baris jasa.' : 'Minimal harus ada 1 item barang.');
                 return;
             }
             removeBtn.closest('.item-row').remove();
@@ -512,6 +639,7 @@ $poBaseNumber = PurchaseOrder::baseNumber((string) $poNumber, $poSuffix);
                 bootstrap.Modal.getOrCreateInstance(modalEl).show();
             }
         }
+    });
     });
 
     // Biaya tambahan: tambah/hapus baris + ikut pengaruhi Grand Total
@@ -544,7 +672,7 @@ $poBaseNumber = PurchaseOrder::baseNumber((string) $poNumber, $poSuffix);
     }
 
     // Barang dipilih dari dropdown -> isi item_id[]/item_name[]/unit[] tersembunyi + tampilan satuan
-    tableBody.addEventListener('change', function (e) {
+    goodsBody.addEventListener('change', function (e) {
         if (!e.target.classList.contains('item-select')) {
             return;
         }
@@ -581,23 +709,30 @@ $poBaseNumber = PurchaseOrder::baseNumber((string) $poNumber, $poSuffix);
     });
 
     // AJAX: minta baris item baru ke server (partial render dari _item_row.php)
-    btnAddItem.addEventListener('click', function () {
+    function addRow(targetBody, type) {
         rowIndex++;
-        fetch('<?= BASE_URL ?>/index.php?module=purchase_order&action=ajaxItemRow&index=' + rowIndex)
+        fetch('<?= BASE_URL ?>/index.php?module=purchase_order&action=ajaxItemRow&index=' + rowIndex + (type ? '&type=' + type : ''))
             .then(function (res) { return res.json(); })
             .then(function (data) {
-                tableBody.insertAdjacentHTML('beforeend', data.html);
+                targetBody.insertAdjacentHTML('beforeend', data.html);
                 recalcAll();
             })
             .catch(function () {
-                alert('Gagal menambahkan baris item. Silakan coba lagi.');
+                alert('Gagal menambahkan baris. Silakan coba lagi.');
             });
-    });
+    }
+    btnAddItem.addEventListener('click', function () { addRow(goodsBody, ''); });
+    if (btnAddService) {
+        btnAddService.addEventListener('click', function () { addRow(serviceBody, 'jasa'); });
+    }
 
     if (currencyEl) {
         currencyEl.addEventListener('change', recalcAll);
     }
-    recalcAll();
+    if (categoryEl) {
+        categoryEl.addEventListener('change', applyCategory);
+    }
+    applyCategory();
 })();
 
     // Pratinjau nomor PO di header ikut akhiran yang diketik (dipisah spasi).

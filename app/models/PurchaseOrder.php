@@ -26,6 +26,69 @@ class PurchaseOrder extends Model
         'cancelled'        => 'danger',
     ];
 
+    public const CAT_BARANG = 'BARANG';
+    public const CAT_JASA   = 'JASA';
+
+    public static function categoryLabels(): array
+    {
+        return [self::CAT_BARANG => 'Barang', self::CAT_JASA => 'Jasa'];
+    }
+
+    /** Nilai kategori yang sah, atau null kalau bukan string/di luar daftar (tidak dikoreksi diam-diam). */
+    public static function normalizeCategory($raw): ?string
+    {
+        if (!is_string($raw)) {
+            return null;
+        }
+        $c = strtoupper(trim($raw));
+        return array_key_exists($c, self::categoryLabels()) ? $c : null;
+    }
+
+    public static function categoryLabel(?string $category): string
+    {
+        return self::categoryLabels()[$category ?? self::CAT_BARANG] ?? 'Barang';
+    }
+
+    /**
+     * true kalau PO ini PO Barang -- SATU-SATUNYA jenis PO yang boleh masuk alur
+     * Penerimaan/Validasi/Stok. Kategori SELALU dibaca dari database (bukan dari request).
+     * PO tidak ditemukan -> false.
+     */
+    public function isGoodsPo(int $poId): bool
+    {
+        $row = $this->findAny($poId);
+        return $row && ($row['po_category'] ?? self::CAT_BARANG) === self::CAT_BARANG;
+    }
+
+    /**
+     * true kalau PO sudah punya transaksi turunan yang bergantung pada kategorinya
+     * (pembayaran, penerimaan barang -- termasuk yang sudah di Tempat Sampah --, atau
+     * mutasi stok dari penerimaan itu). Dipakai untuk mengunci perubahan kategori.
+     * Return: daftar alasan (kosong = aman diubah).
+     */
+    public function categoryLockReasons(int $poId): array
+    {
+        $reasons = [];
+        $pay = (int) ($this->db->fetchOne(
+            "SELECT COUNT(*) AS c FROM payments WHERE purchase_order_id = :id", ['id' => $poId]
+        )['c'] ?? 0);
+        if ($pay > 0) {
+            $reasons[] = "{$pay} pembayaran";
+        }
+        $gr = (int) ($this->db->fetchOne(
+            "SELECT COUNT(*) AS c FROM goods_receipts WHERE purchase_order_id = :id", ['id' => $poId]
+        )['c'] ?? 0);
+        $gri = (int) ($this->db->fetchOne(
+            "SELECT COUNT(*) AS c FROM goods_receipt_items gri
+               JOIN purchase_order_items poi ON poi.id = gri.purchase_order_item_id
+              WHERE poi.purchase_order_id = :id", ['id' => $poId]
+        )['c'] ?? 0);
+        if ($gr > 0 || $gri > 0) {
+            $reasons[] = 'penerimaan barang (termasuk validasi & stok)';
+        }
+        return $reasons;
+    }
+
     /**
      * Ambil PO TERMASUK yang sudah soft-delete -- beda dari find() bawaan Model
      * yang otomatis menyembunyikan PO terhapus. Dipakai untuk kebutuhan historis
@@ -58,11 +121,15 @@ class PurchaseOrder extends Model
                 // Filter virtual (dipakai kartu Dashboard "Barang Menunggu
                 // Datang") -- PO sudah disetujui tapi barang belum lengkap
                 // datang. Sinkron dgn DashboardStat::barangMenungguDatang().
-                $sql .= " AND po.status IN ('approved', 'partial_received')";
+                $sql .= " AND po.status IN ('approved', 'partial_received') AND po.po_category = 'BARANG'";
             } else {
                 $sql .= " AND po.status = :status";
                 $params['status'] = $filters['status'];
             }
+        }
+        if (!empty($filters['po_category']) && self::normalizeCategory($filters['po_category']) !== null) {
+            $sql .= " AND po.po_category = :po_category";
+            $params['po_category'] = self::normalizeCategory($filters['po_category']);
         }
         if (!empty($filters['project_id'])) {
             $sql .= " AND po.project_id = :project_id";
@@ -185,6 +252,10 @@ class PurchaseOrder extends Model
         if (!empty($filters['status'])) {
             $sql .= " AND po.status = :status";
             $params['status'] = $filters['status'];
+        }
+        if (!empty($filters['po_category']) && self::normalizeCategory($filters['po_category']) !== null) {
+            $sql .= " AND po.po_category = :po_category";
+            $params['po_category'] = self::normalizeCategory($filters['po_category']);
         }
         if (!empty($filters['project_id'])) {
             $sql .= " AND po.project_id = :project_id";
@@ -367,7 +438,7 @@ class PurchaseOrder extends Model
      */
     public function payablePoList(): array
     {
-        $sql = "SELECT po.id, po.po_number, po.currency, po.total_amount, s.supplier_name
+        $sql = "SELECT po.id, po.po_number, po.po_category, po.currency, po.total_amount, s.supplier_name
                 FROM purchase_orders po
                 JOIN suppliers s ON s.id = po.supplier_id
                 WHERE po.deleted_at IS NULL
@@ -431,7 +502,8 @@ class PurchaseOrder extends Model
                 JOIN suppliers s ON s.id = po.supplier_id
                 LEFT JOIN users rcv ON rcv.id = po.receiver_user_id
                 WHERE po.deleted_at IS NULL
-                  AND po.status IN ('approved', 'partial_received')";
+                  AND po.status IN ('approved', 'partial_received')
+                  AND po.po_category = 'BARANG'";
         $params = [];
 
         if ($userRole !== null && $userRole !== ROLE_SUPER_ADMIN) {
@@ -453,13 +525,14 @@ class PurchaseOrder extends Model
     {
         if ($userRole === ROLE_SUPER_ADMIN) {
             return (bool) $this->db->fetchOne(
-                "SELECT 1 FROM purchase_orders WHERE id = :id AND deleted_at IS NULL",
+                "SELECT 1 FROM purchase_orders WHERE id = :id AND deleted_at IS NULL AND po_category = 'BARANG'",
                 ['id' => $poId]
             );
         }
         return (bool) $this->db->fetchOne(
             "SELECT 1 FROM purchase_orders po
               WHERE po.id = :id AND po.deleted_at IS NULL
+                AND po.po_category = 'BARANG'
                 AND po.receiver_user_id = :uid",
             ['id' => $poId, 'uid' => $userId]
         );
@@ -482,6 +555,9 @@ class PurchaseOrder extends Model
         $current = $this->find($poId);
         if (!$current || in_array($current['status'], ['draft', 'waiting_approval', 'cancelled'], true)) {
             return; // status di luar alur penerimaan barang, jangan diutak-atik
+        }
+        if (($current['po_category'] ?? self::CAT_BARANG) !== self::CAT_BARANG) {
+            return; // PO Jasa tidak punya penerimaan barang -- statusnya tidak diturunkan dari penerimaan
         }
 
         $sql = "SELECT poi.qty_order, COALESCE(SUM(CASE WHEN gri.stock_posted_at IS NOT NULL AND gr.id IS NOT NULL THEN gri.qty_received ELSE 0 END), 0) AS qty_received

@@ -34,7 +34,7 @@ $selectedPoId = $selectedPo['id'] ?? ($payment['purchase_order_id'] ?? '');
                         <option value="">-- Pilih Purchase Order --</option>
                         <?php foreach ($poList as $po): ?>
                             <option value="<?= (int) $po['id'] ?>" data-currency="<?= e(normalizeCurrency($po['currency'] ?? 'IDR')) ?>" <?= (string) $selectedPoId === (string) $po['id'] ? 'selected' : '' ?>>
-                                <?= e($po['po_number']) ?> &mdash; <?= e($po['supplier_name']) ?> (<?= formatMoney($po['total_amount'], $po['currency'] ?? 'IDR') ?>)
+                                <?= e($po['po_number']) ?> [<?= e(PurchaseOrder::categoryLabel($po['po_category'] ?? null)) ?>] &mdash; <?= e($po['supplier_name']) ?> (<?= formatMoney($po['total_amount'], $po['currency'] ?? 'IDR') ?>)
                             </option>
                         <?php endforeach; ?>
                     </select>

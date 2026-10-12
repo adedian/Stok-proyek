@@ -62,7 +62,12 @@ class PurchaseOrderController extends Controller
             'status'     => $_GET['status'] ?? '',
             'project_id' => $_GET['project_id'] ?? '',
             'keyword'    => $_GET['keyword'] ?? '',
+            'po_category' => $_GET['po_category'] ?? '',
         ];
+        // Parameter bukan string (?po_category[]=x) / di luar daftar -> diabaikan, bukan error.
+        if (!is_string($filters['po_category']) || PurchaseOrder::normalizeCategory($filters['po_category']) === null) {
+            $filters['po_category'] = '';
+        }
 
         $purchaseOrders = $this->poModel->listWithRelations($filters);
         $projects = $this->projectModel->activeList();
@@ -79,6 +84,7 @@ class PurchaseOrderController extends Controller
             'purchaseOrders' => $purchaseOrders,
             'projects'       => $projects,
             'filters'        => $filters,
+            'categoryLabels' => PurchaseOrder::categoryLabels(),
             'statusLabels'   => $this->poModel->statusLabels,
             'statusBadgeClass' => $this->poModel->statusBadgeClass,
             'paymentStatusLabels'     => $this->paymentModel->statusLabels,
@@ -183,6 +189,7 @@ class PurchaseOrderController extends Controller
             $poId = $this->poModel->create([
                 'po_number'   => $poNumber,
                 'po_number_suffix' => $data['po_suffix'] !== '' ? $data['po_suffix'] : null,
+                'po_category' => $data['po_category'],
                 'supplier_id' => $data['supplier_id'],
                 'project_id'  => $data['project_id'],
                 'receiver_user_id' => $data['receiver_user_id'],
@@ -202,7 +209,7 @@ class PurchaseOrderController extends Controller
             $this->saveExtraCosts($poId, $data['extra_costs']);
             $this->poModel->recalculateTotal($poId);
 
-            $this->historyModel->log($poId, 'created', 'Purchase Order dibuat', currentUserId());
+            $this->historyModel->log($poId, 'created', 'Purchase Order ' . PurchaseOrder::categoryLabel($data['po_category']) . ' dibuat', currentUserId());
 
             $pdo->commit();
 
@@ -258,6 +265,7 @@ class PurchaseOrderController extends Controller
             'po'        => $po,
             'items'     => $this->itemModel->itemsByPo($id),
             'extraCosts' => $this->extraCostModel->itemsByPo($id),
+            'categoryLockReasons' => $this->poModel->categoryLockReasons($id),
             'poNumber'  => $po['po_number'],
             'poSuffixOptions' => $this->poModel->suffixOptions(),
             'currencies' => poCurrencies(),
@@ -320,6 +328,21 @@ class PurchaseOrderController extends Controller
             $this->redirect('purchase_order', 'edit', ['id' => $id]);
         }
 
+        // Kategori (Barang/Jasa) menentukan alur PO -- tidak boleh diubah kalau PO sudah
+        // punya transaksi turunan (pembayaran / penerimaan / validasi / stok), supaya
+        // riwayat tidak rusak. Transaksi lama TIDAK diubah/dihapus otomatis.
+        $existingCategory = $existing['po_category'] ?? PurchaseOrder::CAT_BARANG;
+        $categoryChanged = $data['po_category'] !== $existingCategory;
+        if ($categoryChanged) {
+            $lock = $this->poModel->categoryLockReasons($id);
+            if (!empty($lock)) {
+                setFlash('error', 'Kategori PO tidak dapat diubah dari ' . PurchaseOrder::categoryLabel($existingCategory)
+                    . ' ke ' . PurchaseOrder::categoryLabel($data['po_category'])
+                    . ' karena PO ini sudah memiliki ' . implode(' dan ', $lock) . '. Hapus transaksi terkait terlebih dahulu bila memang perlu.');
+                $this->redirect('purchase_order', 'edit', ['id' => $id]);
+            }
+        }
+
         // Tolak kalau tanggal LAMA atau BARU berada di periode yang sudah ditutup.
         assertPeriodOpen('purchase_order', $existing['po_date'], 'purchase_order', 'edit', ['id' => $id]);
         assertPeriodOpen('purchase_order', $data['po_date'], 'purchase_order', 'edit', ['id' => $id]);
@@ -360,6 +383,7 @@ class PurchaseOrderController extends Controller
             $this->poModel->updateById($id, [
                 'po_number'   => $newNumber,
                 'po_number_suffix' => $data['po_suffix'] !== '' ? $data['po_suffix'] : null,
+                'po_category' => $data['po_category'],
                 'supplier_id' => $data['supplier_id'],
                 'project_id'  => $data['project_id'],
                 'receiver_user_id' => $data['receiver_user_id'],
@@ -386,6 +410,10 @@ class PurchaseOrderController extends Controller
             $this->historyModel->log($id, 'updated', 'Data Purchase Order & item diperbarui', currentUserId());
             if ($numberChanged) {
                 $this->historyModel->log($id, 'updated', "Nomor PO diubah: {$existing['po_number']} -> {$newNumber}", currentUserId());
+            }
+            if ($categoryChanged) {
+                $this->historyModel->log($id, 'updated', 'Kategori PO diubah: ' . PurchaseOrder::categoryLabel($existingCategory)
+                    . ' -> ' . PurchaseOrder::categoryLabel($data['po_category']), currentUserId());
             }
             if ($statusChanged) {
                 $this->historyModel->log(
@@ -544,8 +572,10 @@ class PurchaseOrderController extends Controller
 
         $index = (int) ($_GET['index'] ?? 0);
         $itemCatalog = $this->barangModel->activeList();
+        $units = $this->unitModel->activeList();
+        $isService = ($_GET['type'] ?? '') === 'jasa';
         ob_start();
-        include ROOT_PATH . '/app/views/purchase_order/_item_row.php';
+        include ROOT_PATH . '/app/views/purchase_order/' . ($isService ? '_service_row.php' : '_item_row.php');
         $html = ob_get_clean();
 
         $this->json(['html' => $html]);
@@ -622,6 +652,10 @@ class PurchaseOrderController extends Controller
 
     private function collectPoInput(): array
     {
+        // Kategori: nilai di luar daftar / bukan string -> null, ditolak di validatePoInput().
+        $poCategory = PurchaseOrder::normalizeCategory($_POST['po_category'] ?? null);
+        $isService = $poCategory === PurchaseOrder::CAT_JASA;
+
         $items = [];
         $names = $_POST['item_name'] ?? [];
         $units = $_POST['unit'] ?? [];
@@ -658,9 +692,10 @@ class PurchaseOrderController extends Controller
             $subtotal = $afterDiscount + $ppnAmount;
 
             $items[] = [
-                'item_id'   => !empty($itemIds[$i]) ? (int) $itemIds[$i] : null,
+                // PO Jasa: baris = deskripsi pekerjaan bebas -- tidak terhubung ke master Barang/kategori.
+                'item_id'   => (!$isService && !empty($itemIds[$i])) ? (int) $itemIds[$i] : null,
                 'item_name' => $name,
-                'category'  => trim($categories[$i] ?? '') ?: null,
+                'category'  => $isService ? null : (trim($categories[$i] ?? '') ?: null),
                 'unit'      => trim($units[$i] ?? ''),
                 'qty_order' => $qty,
                 'price'     => $price,
@@ -685,11 +720,13 @@ class PurchaseOrderController extends Controller
         }
 
         return [
+            'po_category' => $poCategory,
             'supplier_id' => (int) ($_POST['supplier_id'] ?? 0),
             'project_id'  => (int) ($_POST['project_id'] ?? 0),
             // Penerima Barang: HANYA id user (FK users.id); divalidasi di validatePoInput().
             'receiver_user_id' => (int) ($_POST['receiver_user_id'] ?? 0),
-            'delivery_location_id' => (int) ($_POST['delivery_location_id'] ?? 0),
+            // Lokasi pengiriman hanya relevan untuk PO Barang.
+            'delivery_location_id' => $isService ? 0 : (int) ($_POST['delivery_location_id'] ?? 0),
             'po_date'     => $_POST['po_date'] ?? '',
             // Mata uang = LABEL saja (tanpa konversi). Kosong -> default IDR; nilai bukan
             // string / di luar daftar ditolak di validatePoInput() (bukan diam-diam diganti).
@@ -720,6 +757,11 @@ class PurchaseOrderController extends Controller
     private function validatePoInput(array $data, ?array $existing = null): array
     {
         $errors = [];
+
+        if ($data['po_category'] === null) {
+            $errors[] = 'Kategori PO wajib dipilih (Barang atau Jasa).';
+        }
+        $isService = $data['po_category'] === PurchaseOrder::CAT_JASA;
 
         if ($data['po_suffix'] !== '' && !preg_match('#^[A-Za-z0-9 ._\-/()+&,\#]{1,30}$#', $data['po_suffix'])) {
             $errors[] = 'Akhiran nomor PO maksimal 30 karakter dan hanya boleh huruf, angka, spasi, serta tanda . _ - / ( ) + & , #.';
@@ -763,8 +805,11 @@ class PurchaseOrderController extends Controller
             && $this->paymentModel->countByPo((int) $existing['id']) > 0) {
             $errors[] = 'Mata uang PO tidak bisa diubah karena sudah ada pembayaran. Hapus pembayarannya dulu bila memang perlu mengganti mata uang.';
         }
+        if ($isService && $data['status'] === 'partial_received') {
+            $errors[] = "Status 'Sebagian Diterima' tidak berlaku untuk PO Jasa (tidak ada penerimaan barang).";
+        }
         if (empty($data['items'])) {
-            $errors[] = 'Minimal harus ada 1 item barang.';
+            $errors[] = $isService ? 'Minimal harus ada 1 baris jasa (deskripsi pekerjaan).' : 'Minimal harus ada 1 item barang.';
         }
         foreach ($data['items'] as $item) {
             if ($item['qty_order'] <= 0) {

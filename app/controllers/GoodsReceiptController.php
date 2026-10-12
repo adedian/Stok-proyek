@@ -124,6 +124,9 @@ class GoodsReceiptController extends Controller
         }
         // Guard scope PIC juga di jalur BACA (bukan cuma store()): po_id di URL
         // tidak boleh membuka data PO project yang bukan scope user (IDOR baca).
+        if ($poId) {
+            $this->denyIfServicePo($poId);
+        }
         if ($poId && !$this->poModel->isReceivableByUser($poId, (int) currentUserId(), (string) currentUserRole())) {
             denyAccess('Anda bukan Penerima Barang untuk PO ini.');
         }
@@ -161,6 +164,15 @@ class GoodsReceiptController extends Controller
         verifyCsrf();
 
         $data = $this->collectInput();
+        // purchase_order_id hanya bermakna untuk sumber "Dari PO" -- sumber lain dipaksa kosong
+        // supaya penerimaan Pemakai/Pembelian Offline tidak bisa "ditempelkan" ke PO (mis. PO Jasa).
+        if ($data['receipt_type'] !== 'purchase_order') {
+            $data['purchase_order_id'] = 0;
+        }
+        // PO Jasa TIDAK boleh diterima barangnya (kategori dibaca dari DB, bukan dari request).
+        if ($data['purchase_order_id']) {
+            $this->denyIfServicePo((int) $data['purchase_order_id']);
+        }
         // Nama Penerima untuk penerimaan dari PO SELALU dari PO (bukan input user).
         $this->applyPoReceiver($data);
         $errors = $this->validateInput($data);
@@ -405,6 +417,9 @@ class GoodsReceiptController extends Controller
             $data['source_detail'] = $existing['source_detail'];
         }
         $this->assertPoReceiverMayAct($existing);
+        if ($data['purchase_order_id']) {
+            $this->denyIfServicePo((int) $data['purchase_order_id']);
+        }
         $this->applyPoReceiver($data);
         $errors = $this->validateInput($data, $id);
 
@@ -746,6 +761,9 @@ class GoodsReceiptController extends Controller
         if (!$po) {
             $this->json(['error' => 'PO tidak ditemukan'], 404);
         }
+        if (($po['po_category'] ?? PurchaseOrder::CAT_BARANG) !== PurchaseOrder::CAT_BARANG) {
+            $this->json(['error' => 'PO Jasa tidak melalui Penerimaan Barang'], 403);
+        }
         // Scope PIC Penerimaan: sama dengan dropdown & store() -- jangan bocorkan
         // item PO project lain lewat AJAX.
         if (!$this->poModel->isReceivableByUser($poId, (int) currentUserId(), (string) currentUserRole())) {
@@ -789,6 +807,19 @@ class GoodsReceiptController extends Controller
     }
 
     // ================= Helper privat =================
+
+    /**
+     * PO berkategori JASA tidak punya penerimaan barang/validasi/stok -- tolak (403) di
+     * server walau request dikirim langsung. Kategori SELALU dibaca dari DB. PO yang tidak
+     * ditemukan dibiarkan lewat (ditolak oleh guard/validasi lain dengan pesannya sendiri).
+     */
+    private function denyIfServicePo(int $poId): void
+    {
+        $po = $this->poModel->findAny($poId);
+        if ($po && ($po['po_category'] ?? PurchaseOrder::CAT_BARANG) !== PurchaseOrder::CAT_BARANG) {
+            denyAccess("PO {$po['po_number']} berkategori Jasa -- tidak melalui Penerimaan Barang, Validasi, maupun Stok. Proses PO Jasa hanya sampai Pembayaran.");
+        }
+    }
 
     /**
      * Penerimaan dari PO: Nama Penerima WAJIB = Penerima Barang yang ditentukan di PO

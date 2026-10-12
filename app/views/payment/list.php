@@ -138,7 +138,7 @@
                     <?php foreach ($payments as $pay): ?>
                         <tr>
                             <td class="fw-semibold"><?= e($pay['payment_number']) ?></td>
-                            <td><?= e($pay['po_number']) ?></td>
+                            <td><?= e($pay['po_number']) ?> <span class="badge bg-<?= ($pay['po_category'] ?? 'BARANG') === 'JASA' ? 'info text-dark' : 'secondary' ?>"><?= e(PurchaseOrder::categoryLabel($pay['po_category'] ?? null)) ?></span></td>
                             <td><?= e($pay['pembuat_po'] ?? '-') ?></td>
                             <td><?= e($pay['supplier_name']) ?></td>
                             <td class="text-center">Ke-<?= (int) $pay['termin'] ?></td>

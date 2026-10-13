@@ -369,7 +369,10 @@ class CashController extends Controller
         $filters  = $this->collectFilters();
         $scope    = $this->scopePics();
         $divScope = kasDivisionScope();
-        $kasRows  = $this->cashModel->listFiltered($filters, $scope, $divScope);
+        // Filter Bank dipilih -> HANYA transaksi Bank yang tampil. Transaksi Kas (termasuk
+        // Kas Kecil / Transfer ke Kas yang terkait bank itu) tidak punya kolom bank_id, jadi
+        // dulu lolos tanpa tersaring dan ikut muncul di bawah baris Bank.
+        $kasRows  = !empty($filters['bank_ids']) ? [] : $this->cashModel->listFiltered($filters, $scope, $divScope);
 
         // Ringkasan "Total Kas Masuk/Keluar (filter)" HARUS murni Kas -- Revisi
         // lanjutan poin 9-11: uang Kas & Bank tidak pernah digabung jadi satu
@@ -1393,7 +1396,8 @@ class CashController extends Controller
     private function combinedLedger(array $filters, ?array $scope, ?array $divScope, bool $detail = false): array
     {
         $source = $filters['source'] ?? '';
-        $includeKas = $source !== 'bank';
+        // Filter Bank dipilih (tanpa memaksa source=kas) -> hanya transaksi Bank, sama dgn daftar Kas.
+        $includeKas = $source === 'kas' || ($source !== 'bank' && empty($filters['bank_ids']));
         $includeBank = $source !== 'kas' && can('bank', 'view');
 
         $kasSaldoAwal = $includeKas ? $this->cashModel->saldoAwal($filters, $scope, $divScope) : 0.0;

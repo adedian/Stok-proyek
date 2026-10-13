@@ -1,0 +1,12 @@
+# =========================================================================
+#  Cache browser untuk SEMUA aset statis (js, gambar, font, css).
+#  Aman karena URL aset dibuat lewat assetUrl() yang menambah ?v=<waktu ubah
+#  file> -- begitu file berubah, URL berubah dan cache otomatis batal.
+#  Tanpa ini browser harus "bertanya ulang" ke server untuk tiap file; di
+#  hosting dengan latensi tinggi tiap pertanyaan itu memakan detik.
+#  Hanya berlaku di folder assets/ (sw.js & manifest di root punya aturan
+#  no-cache sendiri di public/.htaccess).
+# =========================================================================
+<IfModule mod_headers.c>
+    Header set Cache-Control "public, max-age=604800"
+</IfModule>

@@ -38,11 +38,13 @@ class BankTransaction extends Model
     public function listFiltered(array $filters): array
     {
         [$where, $params] = $this->buildWhere($filters);
-        $sql = "SELECT b.*, mb.bank_name, mb.jenis AS bank_jenis, p.project_name, usr.full_name AS created_by_name
+        $sql = "SELECT b.*, mb.bank_name, mb.jenis AS bank_jenis, p.project_name, usr.full_name AS created_by_name,
+                       ed.full_name AS edited_by_name
                   FROM bank_transactions b
                   JOIN master_banks mb ON mb.id = b.bank_id
                   LEFT JOIN projects p ON p.id = b.project_id
                   LEFT JOIN users usr ON usr.id = b.created_by
+                  LEFT JOIN users ed ON ed.id = b.last_edited_by
                  {$where}
               ORDER BY b.trx_date DESC, b.id DESC";
         return $this->db->fetchAll($sql, $params);
@@ -93,6 +95,46 @@ class BankTransaction extends Model
             $params
         );
         return (float) ($row['masuk'] ?? 0) - (float) ($row['keluar'] ?? 0);
+    }
+
+    /**
+     * Saldo aktual PER REKENING (bank_id) = total masuk - total keluar SELURUH transaksi rekening itu
+     * (tidak dibatasi filter/tanggal; transaksi di Tempat Sampah tidak dihitung). Sumber sama dgn kartu
+     * "Saldo Bank" (balanceTotal) -- aplikasi tidak punya saldo awal per rekening. Transfer ke Kas
+     * tercatat sbg 1 transaksi Bank keluar (sisi Kas ada di buku Kas), jadi tidak dihitung ganda.
+     * @return array<int,float> bank_id => saldo
+     */
+    public function balancesByBank(): array
+    {
+        $out = [];
+        foreach ($this->db->fetchAll(
+            "SELECT bank_id,
+                    COALESCE(SUM(CASE WHEN mutasi='masuk' THEN amount ELSE -amount END), 0) AS saldo
+               FROM bank_transactions WHERE deleted_at IS NULL GROUP BY bank_id"
+        ) as $r) {
+            $out[(int) $r['bank_id']] = (float) $r['saldo'];
+        }
+        return $out;
+    }
+
+    /**
+     * Saldo rekening SETELAH tiap transaksi (urut tanggal lalu id, per rekening) -- BUKAN nominal
+     * transaksi. Dihitung dari seluruh riwayat rekening, tidak terpengaruh filter tampilan.
+     * @return array<int,float> bank_transaction_id => saldo rekening setelah transaksi itu
+     */
+    public function balanceAfterByTransaction(): array
+    {
+        $out = [];
+        $running = [];
+        foreach ($this->db->fetchAll(
+            "SELECT id, bank_id, mutasi, amount FROM bank_transactions
+              WHERE deleted_at IS NULL ORDER BY bank_id ASC, trx_date ASC, id ASC"
+        ) as $r) {
+            $bid = (int) $r['bank_id'];
+            $running[$bid] = ($running[$bid] ?? 0.0) + ($r['mutasi'] === 'masuk' ? (float) $r['amount'] : -(float) $r['amount']);
+            $out[(int) $r['id']] = $running[$bid];
+        }
+        return $out;
     }
 
     /** Baris terurut kronologis + saldo berjalan, untuk Laporan Bank (pola sama Laporan Kas). */

@@ -201,7 +201,7 @@ class BankController extends Controller
             'mode'      => 'edit',
             'row'       => $row,
             'items'     => $this->itemModel->byTransaction($id),
-            'banks'     => $this->bankModel->activeList(),
+            'banks'     => $this->bankModel->activeListWith((int) $row['bank_id']),
             'projects'  => $this->projectModel->activeList(),
             'picOptions'      => $this->picOptions(),
             'rekeningOptions' => $this->rekeningModel->activeList(),
@@ -226,7 +226,7 @@ class BankController extends Controller
 
         $data  = $this->collectInput();
         $items = $this->collectItems();
-        $errors = $this->validate($data, $items);
+        $errors = $this->validate($data, $items, (int) $existing['bank_id']);
         if (!empty($errors)) {
             setFlash('error', implode(' ', $errors));
             $this->redirect('bank', 'edit', ['id' => $id]);
@@ -241,6 +241,10 @@ class BankController extends Controller
             $this->model->updateById($id, array_merge($data, [
                 'uraian' => $uraianConcat,
                 'amount' => $total,
+                // Audit editor terakhir: dari akun login (server), bukan dari request. Ikut
+                // rollback bila penyimpanan gagal.
+                'last_edited_by' => currentUserId(),
+                'last_edited_at' => date('Y-m-d H:i:s'),
             ]));
             $this->itemModel->deleteByTransaction($id);
             $this->saveItems($id, $items);
@@ -425,14 +429,19 @@ class BankController extends Controller
         }
     }
 
-    private function validate(array $d, array $items = []): array
+    /** $existingBankId: bank yang sudah tersimpan di transaksi (saat edit) -- boleh tetap walau kini nonaktif. */
+    private function validate(array $d, array $items = [], ?int $existingBankId = null): array
     {
         $errors = [];
         if ($d['trx_date'] === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $d['trx_date'])) {
             $errors[] = 'Tanggal wajib diisi.';
         }
-        if ($d['bank_id'] <= 0 || !$this->bankModel->find($d['bank_id'])) {
+        $bankRow = $d['bank_id'] > 0 ? $this->bankModel->find($d['bank_id']) : null;
+        if (!$bankRow) {
             $errors[] = 'Bank wajib dipilih.';
+        } elseif (empty($bankRow['is_active']) && $d['bank_id'] !== $existingBankId) {
+            // Rekening nonaktif tidak boleh dipakai untuk transaksi baru (histori lama tetap utuh).
+            $errors[] = 'Bank "' . $bankRow['bank_name'] . '" tidak aktif dan tidak bisa dipakai untuk transaksi baru.';
         }
         if (!empty($d['rekening_id']) && !$this->rekeningModel->find((int) $d['rekening_id'])) {
             $errors[] = 'Rekening yang dipilih tidak valid.';

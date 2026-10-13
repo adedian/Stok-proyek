@@ -35,6 +35,7 @@ $quickAddBankTargetId = $quickAddBankTargetId ?? 'bank_id';
                                 <option value="">-- Pilih --</option>
                                 <option value="loan">Loan</option>
                                 <option value="hr">HR</option>
+                                <option value="kas">Kas</option>
                             </select>
                         </div>
                         <div class="col-12">

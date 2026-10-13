@@ -442,11 +442,32 @@ class CashController extends Controller
             $bankBalance = $this->bankModel->balanceTotal($bankFilterActive ? $this->bankFiltersFrom($filters) : []);
         }
 
+        // Saldo AKTUAL per rekening (bukan nominal transaksi). Gerbang backend: hanya role ber-izin
+        // bank.view (Super Admin & Accounting). Tidak ikut filter Project/tanggal -- itu saldo
+        // rekeningnya; bila Bank dicentang, hanya rekening terpilih yang ditampilkan.
+        $bankAccounts = [];
+        if (can('bank', 'view')) {
+            $saldoByBank = $this->bankModel->balancesByBank();
+            foreach ($this->masterBankModel->filterList() as $mb) {
+                if (!empty($filters['bank_ids']) && !in_array((int) $mb['id'], $filters['bank_ids'], true)) {
+                    continue;
+                }
+                $bankAccounts[] = [
+                    'id'       => (int) $mb['id'],
+                    'name'     => $mb['bank_name'],
+                    'jenis'    => $mb['jenis'],
+                    'inactive' => !empty($mb['inactive']),
+                    'saldo'    => $saldoByBank[(int) $mb['id']] ?? 0.0,
+                ];
+            }
+        }
+
         $this->view('cash/list', [
             'pageTitle'   => 'Kas / Bank',
             'rows'        => $rows,
             'filters'     => $filters,
-            'categories'  => $this->categoryModel->activeList(),
+            'bankAccounts' => $bankAccounts,
+            'categories'  => $this->categoryModel->filterList(),
             // Dropdown PIC: gabungan PIC yang sudah punya transaksi + SEMUA PIC
             // dari master mapping yang divisinya boleh dilihat user ini (jadi
             // PM lihat Tio/dian/Rizal walau belum ada transaksinya). Role
@@ -462,7 +483,7 @@ class CashController extends Controller
             'kasExempt'   => kasIsExemptRole(currentUserRole()),
             'kasPicName'  => kasIsExemptRole(currentUserRole()) ? null : kasPicName(),
             'kasProjectGated' => kasIsProjectGateRole(currentUserRole()),
-            'projectOptions'  => $this->filterProjectOptions(),
+            'projectOptions'  => $this->reportProjectOptions(),
             'bankOptions'     => $this->bankChecklistOptions(),
             'rekeningOptions' => $this->rekeningChecklistOptions(),
             'canBank'         => can('bank', 'view'),
@@ -487,20 +508,6 @@ class CashController extends Controller
         return $this->projectModel->activeList();
     }
 
-    /**
-     * Dropdown filter Project (daftar Kas/Bank & Laporan Kas): HANYA project sungguhan --
-     * entri Master Project berjenis 'non_project' (biaya/kantong stok seperti Operasional Kantor,
-     * Pajak) disaring. Berasal dari reportProjectOptions() sehingga pembatasan akses role gerbang
-     * Project tetap berlaku; form transaksi tetap memakai daftar penuh (formProjectOptions()).
-     */
-    private function filterProjectOptions(): array
-    {
-        return array_values(array_filter(
-            $this->reportProjectOptions(),
-            static fn($p) => ($p['project_type'] ?? 'project') === 'project'
-        ));
-    }
-
     public function report(): void
     {
         $filters = $this->collectFilters();
@@ -521,7 +528,7 @@ class CashController extends Controller
             'filters'    => $filters,
             'categories' => $this->categoryModel->activeList(),
             'picOptions' => $scope === null ? $this->cashModel->distinctPics(null, $divScope) : $scope,
-            'projectOptions' => $this->filterProjectOptions(),
+            'projectOptions' => $this->reportProjectOptions(),
             'projectGated'   => kasIsProjectGateRole(currentUserRole()),
             'bankOptions'    => $this->bankChecklistOptions(),
             'rekeningOptions' => $this->rekeningChecklistOptions(),
@@ -1128,6 +1135,10 @@ class CashController extends Controller
                 'no_bukti'      => $existing['no_bukti'],
                 'mutasi'        => $data['mutasi'],
                 'total_amount'  => $this->sumItems($items),
+                // Audit editor terakhir: dari akun login (server), bukan dari request. Ikut
+                // rollback bila penyimpanan gagal.
+                'last_edited_by' => currentUserId(),
+                'last_edited_at' => date('Y-m-d H:i:s'),
             ]);
             $this->itemModel->deleteByTransaction($id);
             $this->saveItems($id, $items, $resolvedProjectId);
@@ -1303,6 +1314,12 @@ class CashController extends Controller
         if (isset($_GET['rekening_ids']) && is_array($_GET['rekening_ids'])) {
             $rekeningIds = array_values(array_unique(array_filter(array_map('intval', $_GET['rekening_ids']), fn($v) => $v > 0)));
         }
+        // Filter Kategori Biaya (checklist) -- id kategori dari Master Kategori Kas; nilai bukan
+        // angka positif / bukan array diabaikan (bukan error).
+        $categoryIds = [];
+        if (isset($_GET['category_ids']) && is_array($_GET['category_ids'])) {
+            $categoryIds = array_values(array_unique(array_filter(array_map('intval', $_GET['category_ids']), fn($v) => $v > 0)));
+        }
         // Filter Jenis (Revisi lanjutan: Cetak Laporan per sumber) -- 'kas' =
         // hanya transaksi Kas (No Bukti Kas, mis. AD-0001), 'bank' = hanya
         // transaksi Bank (No Bukti BK-0001), '' = gabungan (default, tidak
@@ -1314,6 +1331,7 @@ class CashController extends Controller
             'date_to'     => $_GET['date_to'] ?? '',
             'pic'         => trim($_GET['pic'] ?? ''),
             'category_id' => $_GET['category_id'] ?? '',
+            'category_ids' => $categoryIds,
             'mutasi'      => $_GET['mutasi'] ?? '',
             'keyword'     => trim($_GET['keyword'] ?? ''),
             'project_id'  => $projectIdSingle, // lama, kompat link lama (divalidasi di atas utk role gerbang)
@@ -1327,7 +1345,7 @@ class CashController extends Controller
     /** Bank checklist di filter Kas/Laporan Kas -- hanya kalau user boleh lihat Bank. */
     private function bankChecklistOptions(): array
     {
-        return can('bank', 'view') ? $this->masterBankModel->activeList() : [];
+        return can('bank', 'view') ? $this->masterBankModel->filterList() : [];
     }
 
     /**
@@ -1376,11 +1394,21 @@ class CashController extends Controller
         if (!can('bank', 'view')) {
             return $kasRows;
         }
+        // Transaksi Bank tidak punya Kategori Biaya -> kalau filter Kategori Biaya aktif, hanya
+        // transaksi Kas yang cocok yang tampil (Bank tidak ikut, sama seperti filter Bank vs Kas).
+        if ($this->categoryFilterActive($filters)) {
+            return $kasRows;
+        }
         $bankRows = $this->bankModel->listFiltered($this->bankFiltersFrom($filters));
+        // Saldo rekening SETELAH tiap transaksi (dari seluruh riwayat rekening, bukan dari filter).
+        $balanceAfter = $this->bankModel->balanceAfterByTransaction();
         foreach ($bankRows as &$b) {
             $b['source']            = 'bank';
             $b['pic']                = $b['pic'] ?? '';
-            $b['category_name']      = $b['bank_name'] . ' (' . mb_strtoupper($b['bank_jenis']) . ')';
+            // Kategori Biaya dan Rekening Sumber dipisah: Bank = rekening sumber, bukan kategori biaya.
+            $b['category_name']      = '';
+            $b['rekening_sumber']    = $b['bank_name'] . ' (' . mb_strtoupper($b['bank_jenis']) . ')';
+            $b['saldo_rekening']     = $balanceAfter[(int) $b['id']] ?? null;
             $b['total_amount']       = $b['amount'];
             $b['validation_status']  = null;
         }
@@ -1394,6 +1422,12 @@ class CashController extends Controller
             return ($b['id'] ?? 0) <=> ($a['id'] ?? 0);
         });
         return $merged;
+    }
+
+    /** Filter Kategori Biaya sedang aktif (checklist baru atau pilihan tunggal lama)? */
+    private function categoryFilterActive(array $filters): bool
+    {
+        return !empty($filters['category_ids']) || !empty($filters['category_id']);
     }
 
     /**
@@ -1412,7 +1446,8 @@ class CashController extends Controller
         $source = $filters['source'] ?? '';
         // Filter Bank dipilih (tanpa memaksa source=kas) -> hanya transaksi Bank, sama dgn daftar Kas.
         $includeKas = $source === 'kas' || ($source !== 'bank' && empty($filters['bank_ids']));
-        $includeBank = $source !== 'kas' && can('bank', 'view');
+        // Bank tidak punya Kategori Biaya -> filter kategori aktif = hanya Kas (konsisten dgn daftar Kas/Bank).
+        $includeBank = $source !== 'kas' && can('bank', 'view') && !$this->categoryFilterActive($filters);
 
         $kasSaldoAwal = $includeKas ? $this->cashModel->saldoAwal($filters, $scope, $divScope) : 0.0;
         $kasLedger = $includeKas

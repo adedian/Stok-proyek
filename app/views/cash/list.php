@@ -16,6 +16,32 @@ $canBank = $canBank ?? false;
 $selectedProjectIds = array_map('strval', $filters['project_ids'] ?? []);
 $selectedBankIds = array_map('strval', $filters['bank_ids'] ?? []);
 $selectedRekeningIds = array_map('strval', $filters['rekening_ids'] ?? []);
+$bankAccounts = $bankAccounts ?? [];
+$selectedCategoryIds = array_map('strval', $filters['category_ids'] ?? []);
+// Checklist Kategori Biaya (sumber: Master Kategori Kas). Dipakai di baris Project/Bank/Rekening bila
+// baris itu tampil; role tanpa baris itu mendapat checklist yang sama di baris pertama.
+$renderCategoryFilter = function () use ($categories, $selectedCategoryIds) { ?>
+            <div class="col-6 col-md-3">
+                <label class="form-label small text-muted mb-1">Kategori Biaya (centang, kosong = semua)</label>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle w-100 text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                        <?= count($selectedCategoryIds) ? count($selectedCategoryIds) . ' Kategori dipilih' : 'Semua Kategori' ?>
+                    </button>
+                    <div class="dropdown-menu p-2" style="max-height:260px; overflow:auto; min-width:240px;">
+                        <?php if (empty($categories)): ?>
+                            <div class="text-muted small px-2">Belum ada Master Kategori Kas.</div>
+                        <?php endif; ?>
+                        <?php foreach ($categories as $c): ?>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="category_ids[]" value="<?= (int) $c['id'] ?>"
+                                       id="listCat<?= (int) $c['id'] ?>" <?= in_array((string) $c['id'], $selectedCategoryIds, true) ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="listCat<?= (int) $c['id'] ?>"><?= e($c['category_name']) ?><?= !empty($c['inactive']) ? ' <span class="text-muted small">dihapus</span>' : '' ?></label>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
+<?php };
 $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saja
 $canCetakBankVoucher = can('bank', 'view'); // Super Admin & Accounting saja (sama populasi dgn cash.print_voucher)
 ?>
@@ -173,6 +199,30 @@ $canCetakBankVoucher = can('bank', 'view'); // Super Admin & Accounting saja (sa
     <?php endif; /* $balanceShowTotal (ringkasan filter, hanya mode non-filtered) */ ?>
 <?php endif; /* $balances || $bankBalance */ ?>
 
+<?php if (!empty($bankAccounts)): ?>
+    <?php /* Saldo AKTUAL per rekening (total masuk - keluar seluruh transaksi rekening itu). BUKAN nominal
+             transaksi & tidak ikut filter Project/tanggal. Hanya untuk role ber-izin bank.view (dicek di backend). */ ?>
+    <div class="mb-3">
+        <div class="small text-muted mb-1">
+            Saldo Aktual Rekening <span class="fst-italic">&mdash; total masuk &minus; keluar seluruh transaksi rekening (bukan nominal satu transaksi)</span>
+        </div>
+        <div class="row g-2">
+            <?php foreach ($bankAccounts as $ba): ?>
+                <div class="col-6 col-md-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body py-2">
+                            <div class="text-muted small">
+                                <?= e($ba['name']) ?> (<?= e(strtoupper($ba['jenis'])) ?>)<?= $ba['inactive'] ? ' &middot; nonaktif' : '' ?>
+                            </div>
+                            <div class="fs-6 fw-bold <?= $ba['saldo'] < 0 ? 'text-danger' : '' ?>"><?= formatRupiah($ba['saldo']) ?></div>
+                        </div>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+<?php endif; ?>
+
 <?php if (hasRole([ROLE_SUPER_ADMIN])): ?>
     <div class="d-flex justify-content-end mb-2">
         <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#rangeDeleteModal">
@@ -212,17 +262,7 @@ $canCetakBankVoucher = can('bank', 'view'); // Super Admin & Accounting saja (sa
                     <input type="text" name="pic" class="form-control form-control-sm" value="<?= e($filters['pic']) ?>" placeholder="Nama PIC">
                 <?php endif; ?>
             </div>
-            <div class="col-6 col-md-2">
-                <label class="form-label small text-muted mb-1">Kategori</label>
-                <select name="category_id" class="form-select form-select-sm">
-                    <option value="">Semua</option>
-                    <?php foreach ($categories as $c): ?>
-                        <option value="<?= (int) $c['id'] ?>" <?= (string) $filters['category_id'] === (string) $c['id'] ? 'selected' : '' ?>>
-                            <?= e($c['category_name']) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
+            <?php if (!($kasProjectGated || $canBank)) { $renderCategoryFilter(); } ?>
             <div class="col-6 col-md-2">
                 <label class="form-label small text-muted mb-1">Mutasi</label>
                 <select name="mutasi" class="form-select form-select-sm">
@@ -279,7 +319,7 @@ $canCetakBankVoucher = can('bank', 'view'); // Super Admin & Accounting saja (sa
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="bank_ids[]" value="<?= (int) $b['id'] ?>"
                                        id="listBank<?= (int) $b['id'] ?>" <?= in_array((string) $b['id'], $selectedBankIds, true) ? 'checked' : '' ?>>
-                                <label class="form-check-label" for="listBank<?= (int) $b['id'] ?>"><?= e($b['bank_name']) ?> (<?= e(strtoupper($b['jenis'])) ?>)</label>
+                                <label class="form-check-label" for="listBank<?= (int) $b['id'] ?>"><?= e($b['bank_name']) ?> (<?= e(strtoupper($b['jenis'])) ?>)<?= !empty($b['inactive']) ? ' <span class="text-muted small">nonaktif</span>' : '' ?></label>
                             </div>
                         <?php endforeach; ?>
                     </div>
@@ -305,6 +345,7 @@ $canCetakBankVoucher = can('bank', 'view'); // Super Admin & Accounting saja (sa
                     </div>
                 </div>
             </div>
+            <?php $renderCategoryFilter(); ?>
             <?php endif; ?>
         </form>
     </div>
@@ -325,10 +366,13 @@ $canCetakBankVoucher = can('bank', 'view'); // Super Admin & Accounting saja (sa
                         <th>Tanggal</th>
                         <th>PIC</th>
                         <th>No Bukti</th>
-                        <th>Kategori</th>
+                        <th>Kategori Biaya</th>
+                        <?php if ($canBank): ?><th>Rekening Sumber</th><?php endif; ?>
                         <th>Mutasi</th>
-                        <th class="text-end">Nominal (Rp)</th>
+                        <th class="text-end">Nominal Transaksi (Rp)</th>
+                        <?php if ($canBank): ?><th class="text-end" title="Saldo rekening sumber SETELAH transaksi ini (seluruh riwayat rekening) -- bukan nominal transaksi. Hanya untuk transaksi Bank.">Saldo Rekening Setelah Transaksi (Rp)</th><?php endif; ?>
                         <th>Dibuat Oleh</th>
+                        <th>Terakhir Diedit Oleh</th>
                         <th>Validasi</th>
                         <th class="text-center no-print">Aksi</th>
                     </tr>
@@ -344,7 +388,7 @@ $canCetakBankVoucher = can('bank', 'view'); // Super Admin & Accounting saja (sa
                         ];
                     ?>
                     <?php if (empty($rows)): ?>
-                        <tr><td colspan="<?= ($canCetakVoucher || $canCetakBankVoucher) ? 11 : 10 ?>" class="p-0">
+                        <tr><td colspan="<?= 11 + (($canCetakVoucher || $canCetakBankVoucher) ? 1 : 0) + ($canBank ? 2 : 0) ?>" class="p-0">
                             <div class="empty-state">
                                 <i class="bi bi-cash-coin empty-icon"></i>
                                 <div class="empty-title">Belum ada transaksi Kas<?= $canBank ? '/Bank' : '' ?></div>
@@ -375,7 +419,10 @@ $canCetakBankVoucher = can('bank', 'view'); // Super Admin & Accounting saja (sa
                             <td><?= formatTanggal($r['trx_date']) ?></td>
                             <td><?= e($r['pic'] ?: '-') ?></td>
                             <td><?= e($r['no_bukti']) ?></td>
-                            <td><?= e($r['category_name']) ?></td>
+                            <td><?= ($r['category_name'] ?? '') !== '' ? e($r['category_name']) : '<span class="text-muted">-</span>' ?></td>
+                            <?php if ($canBank): ?>
+                                <td><?= $isBank ? e($r['rekening_sumber'] ?? '-') : '<span class="text-muted">-</span>' ?></td>
+                            <?php endif; ?>
                             <td>
                                 <?php if ($r['mutasi'] === 'masuk'): ?>
                                     <span class="badge text-bg-success">Masuk</span>
@@ -384,7 +431,20 @@ $canCetakBankVoucher = can('bank', 'view'); // Super Admin & Accounting saja (sa
                                 <?php endif; ?>
                             </td>
                             <td class="text-end fw-semibold"><?= formatRupiah($r['total_amount']) ?></td>
+                            <?php if ($canBank): ?>
+                                <td class="text-end"><?= ($isBank && isset($r['saldo_rekening'])) ? formatRupiah($r['saldo_rekening']) : '<span class="text-muted">-</span>' ?></td>
+                            <?php endif; ?>
                             <td><?= e($r['created_by_name'] ?? '-') ?></td>
+                            <td>
+                                <?php if (!empty($r['last_edited_by'])): ?>
+                                    <?= e($r['edited_by_name'] ?? '-') ?>
+                                    <?php if (!empty($r['last_edited_at'])): ?>
+                                        <div class="small text-muted"><?= e(formatTanggal(substr($r['last_edited_at'], 0, 10))) ?> <?= e(substr($r['last_edited_at'], 11, 5)) ?></div>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <span class="text-muted small fst-italic">Belum pernah diedit</span>
+                                <?php endif; ?>
+                            </td>
                             <td>
                                 <?php if ($isBank): ?>
                                     <span class="badge bg-light text-dark border">Bank</span>

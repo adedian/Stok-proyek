@@ -14,15 +14,6 @@ class Project extends Model
         'closed'   => 'Closed',
     ];
 
-    /** Jenis entri Master Project -- 'non_project' disembunyikan dari filter Project Kas/Bank. */
-    public const TYPE_PROJECT = 'project';
-    public const TYPE_NON_PROJECT = 'non_project';
-
-    public array $typeLabels = [
-        'project'     => 'Project',
-        'non_project' => 'Non-Project (Biaya/Stok)',
-    ];
-
     public array $statusBadgeClass = [
         'planning' => 'secondary',
         'ongoing'  => 'success',

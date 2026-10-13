@@ -9,7 +9,7 @@ function masterBankSortLink(string $col, string $label, string $sort, string $di
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h4 class="mb-0">Master Bank</h4>
-        <small class="text-muted">Sumber dropdown Bank (Loan / HR) untuk modul Bank</small>
+        <small class="text-muted">Rekening sumber (Loan / HR / Kas) untuk modul Bank & filter Kas/Bank</small>
     </div>
     <div class="d-flex gap-2">
         <a href="<?= BASE_URL ?>/master_data" class="btn btn-outline-secondary">
@@ -66,7 +66,7 @@ function masterBankSortLink(string $col, string $label, string $sort, string $di
                             <div class="empty-state">
                                 <i class="bi bi-bank2 empty-icon"></i>
                                 <div class="empty-title">Belum ada Bank</div>
-                                <div class="empty-desc">Tambahkan Bank (Loan/HR) untuk dipakai di modul Bank.</div>
+                                <div class="empty-desc">Tambahkan Bank (Loan/HR/Kas) untuk dipakai di modul Bank.</div>
                             </div>
                         </td></tr>
                     <?php endif; ?>

@@ -261,13 +261,14 @@ class CashTransaction extends Model
         [$where, $params] = $this->buildWhere($filters, $scopePics, $divisionScope, $accessScope);
         // Kategori sekarang per baris rincian -> tampilkan gabungan kategori
         // unik transaksi ini di kolom "Kategori" daftar Kas.
-        $sql = "SELECT c.*, usr.full_name AS created_by_name,
+        $sql = "SELECT c.*, usr.full_name AS created_by_name, ed.full_name AS edited_by_name,
                        (SELECT GROUP_CONCAT(DISTINCT cc.category_name ORDER BY cc.category_name SEPARATOR ', ')
                           FROM cash_transaction_items cti
                           JOIN cash_categories cc ON cc.id = cti.cash_category_id
                          WHERE cti.cash_transaction_id = c.id) AS category_name
                   FROM cash_transactions c
                   LEFT JOIN users usr ON usr.id = c.created_by
+                  LEFT JOIN users ed ON ed.id = c.last_edited_by
                  {$where}
               ORDER BY c.trx_date DESC, c.id DESC";
         return $this->db->fetchAll($sql, $params);
@@ -562,7 +563,18 @@ class CashTransaction extends Model
                 $params['ckkw_ur'] = '%' . strtolower(trim($filters['keyword'])) . '%';
             }
         }
-        if (!empty($filters['category_id'])) {
+        // Kategori Biaya: checklist category_ids[] (baru) menang atas category_id tunggal (lama /
+        // Laporan Kas). Cocok bila SALAH SATU baris rincian transaksi berkategori itu.
+        if (!empty($filters['category_ids']) && is_array($filters['category_ids'])) {
+            $in = [];
+            foreach (array_values($filters['category_ids']) as $i => $cid) {
+                $in[] = ":fc{$i}";
+                $params["fc{$i}"] = (int) $cid;
+            }
+            $sql .= " AND EXISTS (SELECT 1 FROM cash_transaction_items cti
+                                   WHERE cti.cash_transaction_id = c.id
+                                     AND cti.cash_category_id IN (" . implode(',', $in) . "))";
+        } elseif (!empty($filters['category_id'])) {
             $sql .= " AND EXISTS (SELECT 1 FROM cash_transaction_items cti
                                    WHERE cti.cash_transaction_id = c.id
                                      AND cti.cash_category_id = :category_id)";

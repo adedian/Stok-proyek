@@ -14,6 +14,7 @@ class MasterBank extends Model
     public array $jenisLabels = [
         'loan' => 'Loan',
         'hr'   => 'HR',
+        'kas'  => 'Kas',
     ];
 
     /**
@@ -38,6 +39,39 @@ class MasterBank extends Model
         return $this->db->fetchAll(
             "SELECT * FROM master_banks WHERE deleted_at IS NULL AND is_active = 1 ORDER BY bank_name ASC"
         );
+    }
+
+    /**
+     * Pilihan Bank di form: rekening AKTIF + (saat edit) bank yang sudah tersimpan di transaksi itu
+     * walau kini nonaktif, supaya membuka/menyimpan transaksi lama tidak mengganti bank diam-diam.
+     */
+    public function activeListWith(?int $includeId): array
+    {
+        if (!$includeId) {
+            return $this->activeList();
+        }
+        return $this->db->fetchAll(
+            "SELECT * FROM master_banks
+              WHERE (deleted_at IS NULL AND is_active = 1) OR id = :inc
+              ORDER BY bank_name ASC",
+            ['inc' => $includeId]
+        );
+    }
+
+    /**
+     * Pilihan Bank di FILTER daftar/laporan: rekening aktif + rekening nonaktif/terhapus yang masih
+     * punya transaksi (histori tetap bisa difilter). Baris nonaktif diberi 'inactive' = 1.
+     */
+    public function filterList(): array
+    {
+        $rows = $this->db->fetchAll(
+            "SELECT mb.*, (mb.is_active = 0 OR mb.deleted_at IS NOT NULL) AS inactive
+               FROM master_banks mb
+              WHERE (mb.deleted_at IS NULL AND mb.is_active = 1)
+                 OR EXISTS (SELECT 1 FROM bank_transactions bt WHERE bt.bank_id = mb.id AND bt.deleted_at IS NULL)
+              ORDER BY mb.bank_name ASC"
+        );
+        return $rows;
     }
 
     public function kodeExists(string $kode, ?int $excludeId = null): bool

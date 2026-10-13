@@ -185,7 +185,7 @@ class MasterBankController extends Controller
         return [
             'bank_code'  => trim($_POST['bank_code'] ?? ''),
             'bank_name'  => trim($_POST['bank_name'] ?? ''),
-            'jenis'      => in_array($jenis, ['loan', 'hr'], true) ? $jenis : '',
+            'jenis'      => in_array($jenis, array_keys($this->model->jenisLabels), true) ? $jenis : '',
             'is_active'  => !empty($_POST['is_active']) ? 1 : 0,
             'keterangan' => trim($_POST['keterangan'] ?? '') ?: null,
         ];
@@ -203,7 +203,7 @@ class MasterBankController extends Controller
             $errors[] = 'Nama Bank wajib diisi.';
         }
         if ($d['jenis'] === '') {
-            $errors[] = 'Jenis wajib dipilih (Loan / HR).';
+            $errors[] = 'Jenis wajib dipilih (Loan / HR / Kas).';
         }
         return $errors;
     }

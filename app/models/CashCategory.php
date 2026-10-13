@@ -18,6 +18,23 @@ class CashCategory extends Model
     }
 
     /**
+     * Pilihan Kategori Biaya di FILTER daftar Kas: kategori aktif + kategori yang sudah dihapus tapi
+     * masih dipakai transaksi (histori tetap bisa difilter). Yang terhapus ditandai 'inactive' = 1.
+     */
+    public function filterList(): array
+    {
+        return $this->db->fetchAll(
+            "SELECT cc.*, (cc.deleted_at IS NOT NULL) AS inactive
+               FROM cash_categories cc
+              WHERE cc.deleted_at IS NULL
+                 OR EXISTS (SELECT 1 FROM cash_transaction_items cti
+                             JOIN cash_transactions ct ON ct.id = cti.cash_transaction_id AND ct.deleted_at IS NULL
+                            WHERE cti.cash_category_id = cc.id)
+              ORDER BY cc.category_name ASC"
+        );
+    }
+
+    /**
      * Kategori aktif dipetakan per id -- dipakai CashController untuk memvalidasi
      * kategori tiap baris rincian & menentukan apakah baris itu masuk stok
      * (affects_stock) dan bucket mana (stock_scope: 'kantor' / 'proyek').

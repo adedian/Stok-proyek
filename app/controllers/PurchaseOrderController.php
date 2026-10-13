@@ -63,7 +63,15 @@ class PurchaseOrderController extends Controller
             'project_id' => $_GET['project_id'] ?? '',
             'keyword'    => $_GET['keyword'] ?? '',
             'po_category' => $_GET['po_category'] ?? '',
+            'date_from'  => $_GET['date_from'] ?? '',
+            'date_to'    => $_GET['date_to'] ?? '',
         ];
+        // Tanggal tak valid / bukan string (?date_from[]=x) -> diabaikan, bukan error.
+        foreach (['date_from', 'date_to'] as $__df) {
+            if (!is_string($filters[$__df]) || !isValidDateString($filters[$__df])) {
+                $filters[$__df] = '';
+            }
+        }
         // Parameter bukan string (?po_category[]=x) / di luar daftar -> diabaikan, bukan error.
         if (!is_string($filters['po_category']) || PurchaseOrder::normalizeCategory($filters['po_category']) === null) {
             $filters['po_category'] = '';

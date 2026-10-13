@@ -70,6 +70,14 @@
                     <i class="bi bi-x-circle"></i>
                 </a>
             </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label small text-muted mb-1">Dari Tanggal</label>
+                <input type="date" name="date_from" class="form-control form-control-sm" value="<?= e($filters['date_from'] ?? '') ?>">
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label small text-muted mb-1">Sampai Tanggal</label>
+                <input type="date" name="date_to" class="form-control form-control-sm" value="<?= e($filters['date_to'] ?? '') ?>">
+            </div>
         </form>
     </div>
 </div>

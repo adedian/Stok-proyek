@@ -108,7 +108,12 @@ $__cpMcOptions = !empty($codeEntityType) ? (new CodeConfig())->masterCodeOptions
             if (p) refresh(p);
         }
     });
-    document.querySelectorAll('.js-cp-prefix').forEach(refresh);
+    // Skrip ini dimuat sekali, tepat setelah partial PERTAMA -- di halaman dengan beberapa
+    // partial (form Barang: 1 kartu per Jenis Stok) kartu lainnya belum ada di DOM saat itu,
+    // jadi pratinjau awalnya kosong sampai prefix diganti manual. Tunggu DOM selesai dimuat.
+    function initAll() { document.querySelectorAll('.js-cp-prefix').forEach(refresh); }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initAll);
+    else initAll();
 })();
 </script>
 <?php endif; ?>

@@ -1411,3 +1411,26 @@ body {
         max-width: 280px;
     }
 }
+
+/* =========================================================================
+   Daftar lebar (PC) + filter rapi (HP) -- dipakai Daftar PO, Pembayaran, dst.
+   Pakai: <table class="table ... table-wide"> dan <div class="... filter-actions">.
+   ========================================================================= */
+@media (min-width: 768px) {
+    /* PC/tablet: kolom tidak di-wrap & tabel melebar mengikuti isi; geser ke samping bila layar
+       sempit (tidak berdesakan). Di bawah 768px tabel tetap berubah jadi kartu (responsive-tables.js). */
+    .table-responsive > table.table.table-wide th,
+    .table-responsive > table.table.table-wide td {
+        white-space: nowrap;
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+}
+
+@media (max-width: 767.98px) {
+    /* HP: tombol Filter + Reset sejajar 1 baris (aturan global membuat keduanya turun & penuh). */
+    .filter-actions { flex-wrap: nowrap !important; }
+    .filter-actions > .btn { min-width: 0 !important; }
+    .filter-actions > a.btn { flex: 0 0 auto !important; width: 3rem; }
+    .filter-actions > button.btn { flex: 1 1 auto !important; }
+}

@@ -73,7 +73,7 @@
                 <label class="form-label small text-muted mb-1">Sampai Tanggal</label>
                 <input type="date" name="date_to" class="form-control form-control-sm" value="<?= e($filters['date_to'] ?? '') ?>">
             </div>
-            <div class="col-md-2 d-flex gap-2 po-filter-actions order-md-1">
+            <div class="col-md-2 d-flex gap-2 filter-actions order-md-1">
                 <button type="submit" class="btn btn-sm btn-outline-primary w-100">
                     <i class="bi bi-search"></i> Filter
                 </button>
@@ -96,22 +96,8 @@
 </div>
 <div class="card border-0 shadow-sm">
     <div class="card-body p-0">
-        <?php /* Desktop/tablet: kolom tidak di-wrap & tabel melebar, geser ke samping bila layar sempit
-                 (tidak berdesakan). <768px tetap jadi kartu lewat responsive-tables.js. */ ?>
-        <style>
-            @media (min-width: 768px) {
-                .po-list-table th, .po-list-table td { white-space: nowrap; padding-left: 1rem; padding-right: 1rem; }
-            }
-            /* HP: tombol Filter + Reset sejajar 1 baris (aturan global membuat keduanya turun & penuh). */
-            @media (max-width: 767.98px) {
-                .po-filter-actions { flex-wrap: nowrap !important; }
-                .po-filter-actions > .btn { min-width: 0 !important; }
-                .po-filter-actions > a.btn { flex: 0 0 auto !important; width: 3rem; }
-                .po-filter-actions > button.btn { flex: 1 1 auto !important; }
-            }
-        </style>
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0 po-list-table">
+            <table class="table table-hover align-middle mb-0 table-wide">
                 <thead class="table-light">
                     <tr>
                         <th class="no-print" style="width: 36px;"></th>

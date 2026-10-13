@@ -85,11 +85,11 @@
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="col-md-3 d-flex gap-2">
+            <div class="col-md-3 d-flex gap-2 filter-actions">
                 <button type="submit" class="btn btn-sm btn-outline-primary w-100">
                     <i class="bi bi-search"></i> Filter
                 </button>
-                <a href="<?= BASE_URL ?>/payment" class="btn btn-sm btn-outline-secondary">
+                <a href="<?= BASE_URL ?>/payment" class="btn btn-sm btn-outline-secondary" title="Reset filter">
                     <i class="bi bi-x-circle"></i>
                 </a>
             </div>
@@ -100,11 +100,12 @@
 <div class="card border-0 shadow-sm">
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0 table-wide">
                 <thead class="table-light">
                     <tr>
                         <th>No. Pembayaran</th>
                         <th>No. PO</th>
+                        <th class="text-center">Kategori</th>
                         <th>Pembuat PO</th>
                         <th>Supplier</th>
                         <th class="text-center">Termin</th>
@@ -123,7 +124,7 @@
                 <tbody>
                     <?php if (empty($payments)): ?>
                         <tr>
-                            <td colspan="14" class="p-0">
+                            <td colspan="16" class="p-0">
                                 <div class="empty-state">
                                     <i class="bi bi-credit-card empty-icon"></i>
                                     <div class="empty-title">Belum ada pembayaran</div>
@@ -138,7 +139,12 @@
                     <?php foreach ($payments as $pay): ?>
                         <tr>
                             <td class="fw-semibold"><?= e($pay['payment_number']) ?></td>
-                            <td><?= e($pay['po_number']) ?> <span class="badge bg-<?= ($pay['po_category'] ?? 'BARANG') === 'JASA' ? 'info text-dark' : 'secondary' ?>"><?= e(PurchaseOrder::categoryLabel($pay['po_category'] ?? null)) ?></span></td>
+                            <td><?= e($pay['po_number']) ?></td>
+                            <td class="text-center">
+                                <span class="badge bg-<?= ($pay['po_category'] ?? 'BARANG') === 'JASA' ? 'info text-dark' : 'secondary' ?>">
+                                    <?= e(PurchaseOrder::categoryLabel($pay['po_category'] ?? null)) ?>
+                                </span>
+                            </td>
                             <td><?= e($pay['pembuat_po'] ?? '-') ?></td>
                             <td><?= e($pay['supplier_name']) ?></td>
                             <td class="text-center">Ke-<?= (int) $pay['termin'] ?></td>

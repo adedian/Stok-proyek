@@ -1131,7 +1131,7 @@ class CashController extends Controller
         } catch (Throwable $e) {
             $pdo->rollBack();
             error_log('Cash update error: ' . $e->getMessage());
-            setFlash('error', 'Gagal memperbarui transaksi Kas.');
+            setFlash('error', $e instanceof InsufficientStockException ? $e->getMessage() : 'Gagal memperbarui transaksi Kas.');
             $this->redirect('cash', 'edit', ['id' => $id]);
         }
     }
@@ -1158,7 +1158,8 @@ class CashController extends Controller
 
         $res = $this->deleteOneRecord($id);
         setFlash($res === true ? 'success' : 'error',
-            $res === true ? 'Transaksi Kas dipindahkan ke Tempat Sampah.' : 'Gagal menghapus transaksi Kas.');
+            $res === true ? 'Transaksi Kas dipindahkan ke Tempat Sampah.'
+                : ($res !== 'gagal' ? $res : 'Gagal menghapus transaksi Kas.'));
         $this->redirect('cash', 'index');
     }
 
@@ -1191,7 +1192,7 @@ class CashController extends Controller
         } catch (Throwable $e) {
             $pdo->rollBack();
             error_log('Cash deleteOneRecord error: ' . $e->getMessage());
-            return 'gagal';
+            return $e instanceof InsufficientStockException ? $e->getMessage() : 'gagal';
         }
     }
 

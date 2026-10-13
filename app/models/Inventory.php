@@ -8,6 +8,11 @@ require_once ROOT_PATH . '/app/models/StockTransaction.php';
  * (supaya Phase 8 - Pengeluaran Barang - punya stok riil untuk dikurangi).
  * CRUD lengkap + halaman kartu stok akan dibangun di Phase 9.
  */
+/** Stok tidak cukup untuk dikurangi -- DomainException agar pesannya aman ditampilkan ke user. */
+class InsufficientStockException extends DomainException
+{
+}
+
 class Inventory extends Model
 {
     protected string $table = 'inventory';
@@ -145,7 +150,21 @@ class Inventory extends Model
         }
 
         $qtyBefore = (float) $existing['qty_available'];
-        $qtyAfter = max(0, $qtyBefore - $qty);
+
+        // Stok TIDAK BOLEH dipaksa ke 0 (dulu max(0, ...)): kalau sebagian barang dari
+        // penerimaan/kas ini sudah dikeluarkan, membatalkannya akan membuat stok minus.
+        // Sebelumnya stok dipotong diam-diam ke 0 sementara kartu stok mencatat
+        // pengurangan penuh -> Mutasi Keluar > Mutasi Masuk di Laporan Stok. Sekarang
+        // ditolak (rollback oleh pemanggil) dengan pesan yang jelas.
+        if ($qty > $qtyBefore + 0.005) {
+            throw new InsufficientStockException(
+                "Stok melebihi batas: tidak bisa dibatalkan/diubah karena stok '{$existing['item_name']}' tinggal "
+                . number_format($qtyBefore, 2, ',', '.') . " {$existing['unit']}, sedangkan yang harus dikurangi "
+                . number_format($qty, 2, ',', '.') . " {$existing['unit']} (sebagian sudah dikeluarkan). "
+                . 'Batalkan/kurangi dulu Pengeluaran Barang terkait.'
+            );
+        }
+        $qtyAfter = $qtyBefore - $qty;
         $this->updateById((int) $existing['id'], ['qty_available' => $qtyAfter]);
 
         $stockTransaction = new StockTransaction();

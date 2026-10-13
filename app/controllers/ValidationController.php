@@ -207,7 +207,9 @@ class ValidationController extends Controller
         } catch (Throwable $e) {
             $pdo->rollBack();
             error_log('Validation error: ' . $e->getMessage());
-            setFlash('error', 'Gagal menyimpan validasi. Silakan coba lagi.');
+            setFlash('error', $e instanceof InsufficientStockException
+                ? $e->getMessage()
+                : 'Gagal menyimpan validasi. Silakan coba lagi.');
             $afterRedirect();
         }
 

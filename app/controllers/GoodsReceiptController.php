@@ -556,7 +556,8 @@ class GoodsReceiptController extends Controller
         assertPeriodOpen('goods_receipt', $receipt['receipt_date'], 'goods_receipt', 'index');
         $res = $this->deleteOneRecord($id);
         setFlash($res === true ? 'success' : 'error',
-            $res === true ? 'Penerimaan barang berhasil dihapus.' : 'Gagal menghapus penerimaan barang.');
+            $res === true ? 'Penerimaan barang berhasil dihapus.'
+                : ($res !== 'gagal' ? $res : 'Gagal menghapus penerimaan barang.'));
         $this->redirect('goods_receipt', 'index');
     }
 
@@ -678,7 +679,8 @@ class GoodsReceiptController extends Controller
         } catch (Throwable $e) {
             $pdo->rollBack();
             error_log('Goods receipt deleteOneRecord error: ' . $e->getMessage());
-            return 'gagal';
+            // Stok dari penerimaan ini sudah (sebagian) keluar -> tampilkan alasannya.
+            return $e instanceof InsufficientStockException ? $e->getMessage() : 'gagal';
         }
     }
 

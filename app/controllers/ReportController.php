@@ -73,7 +73,7 @@ class ReportController extends Controller
         if (!in_array($role, [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING], true)) {
             $stockOnly = [
                 'inventory',
-                'printStockDetail', 'printStockRecap',
+                'printStockDetail', 'printStockRecap', 'printStockAvailable', 'exportStockAvailable',
                 'exportStockDetail', 'exportStockRecap',
             ];
             if (in_array($action, $stockOnly, true)) {
@@ -119,7 +119,7 @@ class ReportController extends Controller
         if (in_array($action, ['exportPoDetail', 'exportPoRecap', 'printPoDetail', 'printPoRecap'], true)) {
             return 'po';
         }
-        if (in_array($action, ['printStockDetail', 'printStockRecap', 'exportStockDetail', 'exportStockRecap'], true)) {
+        if (in_array($action, ['printStockDetail', 'printStockRecap', 'printStockAvailable', 'exportStockAvailable', 'exportStockDetail', 'exportStockRecap'], true)) {
             return 'inventory';
         }
         if (in_array($action, ['exportExcel', 'exportPdf'], true)) {
@@ -451,6 +451,39 @@ class ReportController extends Controller
         $rows = (new Inventory())->stockRecapReport($filters);
         [$companyName, $periodText] = $this->stockReportHeaderMeta($filters);
         streamStockRecapExcel($rows, $companyName, $periodText, 'laporan_stok_rekap_' . date('Ymd_His'), $filters['show_price']);
+    }
+
+    /**
+     * Stok TERSEDIA = saldo akhir > 0, mengikuti filter/centang baris yang sama dengan
+     * Cetak Rekap (tanpa harga). Dipakai printStockAvailable() & exportStockAvailable().
+     */
+    private function availableStockRows(): array
+    {
+        $rows = (new Inventory())->stockMutationReport($this->stockFilters($_GET));
+        return array_values(array_filter($rows, fn($r) => (float) $r['saldo_akhir'] > 0));
+    }
+
+    /** Cetak PDF Stok Tersedia (template "Laporan Stok Barang - Rekap" ringkas). */
+    public function printStockAvailable(): void
+    {
+        $rows = $this->availableStockRows();
+        $companyName = (new SystemSetting())->getGroup('company')['company_name'] ?: 'Perusahaan';
+
+        ob_start();
+        require ROOT_PATH . '/app/views/report/_stock_available_print.php';
+        $html = ob_get_clean();
+
+        streamPdf($html, 'laporan_stok_tersedia_' . date('Ymd_His'));
+    }
+
+    /** Export Excel Stok Tersedia -- isi sama dengan printStockAvailable(). */
+    public function exportStockAvailable(): void
+    {
+        streamStockAvailableExcel(
+            $this->availableStockRows(),
+            (new SystemSetting())->getGroup('company')['company_name'] ?: 'Perusahaan',
+            'laporan_stok_tersedia_' . date('Ymd_His')
+        );
     }
 
     /**

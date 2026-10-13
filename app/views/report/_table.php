@@ -18,6 +18,9 @@
             <a href="<?= BASE_URL ?>/index.php?module=report&action=exportStockRecap<?= $exportQuery ?>" id="btnExportStockRecap" class="btn btn-outline-success btn-sm">
                 <i class="bi bi-file-earmark-spreadsheet"></i> Export Rekap Excel
             </a>
+            <a href="<?= BASE_URL ?>/index.php?module=report&action=exportStockAvailable<?= $exportQuery ?>" id="btnExportStockAvailable" class="btn btn-outline-success btn-sm">
+                <i class="bi bi-file-earmark-spreadsheet"></i> Export Stok Tersedia
+            </a>
         <?php else: ?>
             <a href="<?= BASE_URL ?>/report/exportExcel?type=<?= e($reportKey) ?><?= $exportQuery ?>" class="btn btn-outline-success btn-sm">
                 <i class="bi bi-file-earmark-spreadsheet"></i> Export Excel
@@ -29,6 +32,9 @@
             </a>
             <a href="<?= BASE_URL ?>/index.php?module=report&action=printStockRecap<?= $exportQuery ?>" id="btnCetakStockRecap" class="btn btn-outline-danger btn-sm">
                 <i class="bi bi-file-earmark-pdf"></i> Cetak Rekap
+            </a>
+            <a href="<?= BASE_URL ?>/index.php?module=report&action=printStockAvailable<?= $exportQuery ?>" id="btnCetakStockAvailable" class="btn btn-outline-danger btn-sm">
+                <i class="bi bi-file-earmark-pdf"></i> Cetak Stok Tersedia
             </a>
         <?php elseif ($isPo): ?>
             <a href="<?= BASE_URL ?>/index.php?module=report&action=printPoDetail<?= $exportQuery ?>" class="btn btn-outline-danger btn-sm">
@@ -147,6 +153,8 @@ document.addEventListener('DOMContentLoaded', function () {
     wireSelectedIdsLink('btnCetakStockRecap');
     wireSelectedIdsLink('btnExportStockDetail');
     wireSelectedIdsLink('btnExportStockRecap');
+    wireSelectedIdsLink('btnCetakStockAvailable');
+    wireSelectedIdsLink('btnExportStockAvailable');
 });
 </script>
 <?php endif; ?>

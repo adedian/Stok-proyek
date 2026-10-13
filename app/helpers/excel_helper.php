@@ -728,3 +728,59 @@ function streamStockRecapExcel(array $rows, string $companyName, string $periodT
 
     _stockExcelStream($spreadsheet, $filename);
 }
+
+/**
+ * Excel STOK TERSEDIA -- template "Laporan Stok Barang - Rekap" versi ringkas:
+ * No, Kode Barang, Nama Barang, Stock Tersedia (Qty + Satuan). Tanpa harga &
+ * tanpa baris periode. Cerminan app/views/report/_stock_available_print.php.
+ *
+ * @param array $rows Hasil Inventory::stockMutationReport() yang sudah disaring
+ *              saldo_akhir > 0 -- item_code, item_name, unit, saldo_akhir
+ */
+function streamStockAvailableExcel(array $rows, string $companyName, string $filename): void
+{
+    $spreadsheet = new Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+    $sheet->setTitle('Stok Tersedia');
+
+    $headerRow = _stockExcelTitleBlock($sheet, 'Laporan Stok Barang - Rekap', $companyName, '', 'E');
+    $sub = $headerRow + 1;
+
+    foreach (['A' => 'No', 'B' => 'Kode Barang', 'C' => 'Nama Barang'] as $col => $label) {
+        $sheet->setCellValue($col . $headerRow, $label);
+        $sheet->mergeCells("{$col}{$headerRow}:{$col}{$sub}");
+    }
+    $sheet->setCellValue('D' . $headerRow, 'Stock Tersedia');
+    $sheet->mergeCells("D{$headerRow}:E{$headerRow}");
+    $sheet->setCellValue('D' . $sub, 'Qty');
+    $sheet->setCellValue('E' . $sub, 'Satuan');
+    foreach (['A' => 6, 'B' => 18, 'C' => 38, 'D' => 10, 'E' => 10] as $c => $w) {
+        $sheet->getColumnDimension($c)->setWidth($w);
+    }
+    $sheet->getStyle("A{$headerRow}:E{$sub}")->getFont()->setBold(true);
+    $sheet->getStyle("A{$headerRow}:E{$sub}")->getAlignment()
+        ->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
+
+    $row = $sub + 1;
+    if (empty($rows)) {
+        $sheet->setCellValue('A' . $row, 'Tidak ada stok tersedia yang cocok dengan filter ini.');
+        $sheet->mergeCells("A{$row}:E{$row}");
+        $row++;
+    }
+    foreach ($rows as $i => $r) {
+        $sheet->setCellValue('A' . $row, $i + 1);
+        $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->setCellValue('B' . $row, $r['item_code'] ?: '-');
+        $sheet->setCellValue('C' . $row, $r['item_name']);
+        _stockExcelQty($sheet, 'D' . $row, $r['saldo_akhir']);
+        $sheet->setCellValue('E' . $row, $r['unit']);
+        $row++;
+    }
+
+    $lastDataRow = $row - 1;
+    $sheet->getStyle("A{$headerRow}:E{$lastDataRow}")
+        ->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+    _stockExcelNotes($sheet, $lastDataRow + 3, 'E');
+
+    _stockExcelStream($spreadsheet, $filename);
+}

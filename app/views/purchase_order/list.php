@@ -94,8 +94,15 @@
 </div>
 <div class="card border-0 shadow-sm">
     <div class="card-body p-0">
+        <?php /* Desktop/tablet: kolom tidak di-wrap & tabel melebar, geser ke samping bila layar sempit
+                 (tidak berdesakan). <768px tetap jadi kartu lewat responsive-tables.js. */ ?>
+        <style>
+            @media (min-width: 768px) {
+                .po-list-table th, .po-list-table td { white-space: nowrap; padding-left: 1rem; padding-right: 1rem; }
+            }
+        </style>
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0 po-list-table">
                 <thead class="table-light">
                     <tr>
                         <th class="no-print" style="width: 36px;"></th>

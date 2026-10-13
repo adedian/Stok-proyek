@@ -156,10 +156,36 @@ class PurchaseOrder extends Model
             $params['date_to'] = $filters['date_to'];
         }
 
-        $sql .= " ORDER BY po.created_at DESC";
+        $sql .= " ORDER BY " . self::LIST_ORDER_SQL;
 
         return $this->db->fetchAll($sql, $params);
     }
+
+    /**
+     * Urutan daftar PO (kolom po = alias tabel purchase_orders).
+     *
+     * 1) PO yang BELUM disetujui (Draft / Menunggu Approval / Dibatalkan sebelum disetujui)
+     *    tampil di blok atas, mengikuti urutan input (created_at terbaru di atas) -- nomornya
+     *    tidak dipakai untuk mengurutkan.
+     * 2) PO yang SUDAH disetujui (approved_at terisi, atau status Disetujui / Sebagian
+     *    Diterima / Selesai) tampil di bawahnya, diurutkan menurut komponen NOMOR-nya:
+     *    tahun DESC, bulan (angka romawi pada nomor) DESC, lalu nomor urut NUMERIK DESC
+     *    -> nomor terbesar di atas, terkecil di bawah, "9" < "10" < "100", dan bulan/tahun
+     *    berbeda tidak tercampur. Format nomor: "147/PO.HME/IX/2026[ rev1]"
+     *    (urut/kode/bulan romawi/tahun; akhiran revisi lama "/rev1" juga aman).
+     *    Nomor yang tidak sesuai format -> komponen 0 (jatuh ke bawah, tidak error).
+     * Nomor itu sendiri TIDAK diubah -- ini murni urutan tampilan.
+     */
+    private const LIST_ORDER_SQL = "
+        (CASE WHEN po.approved_at IS NOT NULL OR po.status IN ('approved','partial_received','completed') THEN 1 ELSE 0 END) ASC,
+        (CASE WHEN po.approved_at IS NOT NULL OR po.status IN ('approved','partial_received','completed')
+              THEN CAST(LEFT(SUBSTRING_INDEX(SUBSTRING_INDEX(po.po_number, '/', 4), '/', -1), 4) AS UNSIGNED) ELSE 0 END) DESC,
+        (CASE WHEN po.approved_at IS NOT NULL OR po.status IN ('approved','partial_received','completed')
+              THEN FIELD(SUBSTRING_INDEX(SUBSTRING_INDEX(po.po_number, '/', 3), '/', -1),
+                         'I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII') ELSE 0 END) DESC,
+        (CASE WHEN po.approved_at IS NOT NULL OR po.status IN ('approved','partial_received','completed')
+              THEN CAST(SUBSTRING_INDEX(po.po_number, '/', 1) AS UNSIGNED) ELSE 0 END) DESC,
+        po.created_at DESC, po.id DESC";
 
     /**
      * Versi listWithRelations() khusus Laporan PO -- ditambah kolom Barang (ringkasan

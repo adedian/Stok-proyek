@@ -6,7 +6,7 @@
  * Butuh variabel $units dan permission 'item'.'quick_add'.
  *
  * Kode Barang mengikuti "Jenis Stok" yang dipilih: Stok Proyek -> prefix ITM/LA/..,
- * Stok Lampu -> LMP, Inventory Kantor -> INVT (masing-masing punya sequence sendiri,
+ * Stok Lampu -> LMP, Inventory Kantor -> INV.HME / INV.EXGF / INV.EXSS (wajib dipilih; masing-masing punya sequence sendiri,
  * lihat Master Kode > Barang). Jenis Stok yang dipilih di sini juga yang tersimpan
  * di items.stock_type -- menentukan pengelompokan di Stok Barang / Opname / Laporan.
  */
@@ -26,7 +26,7 @@ foreach ($__qaTypes as $__st => $__stLabel) {
     $qaGroups[$__st] = [
         'label'      => $__stLabel,
         'entity'     => $__ent,
-        'prefixes'   => $__qaCode->configsForEntity($__ent),
+        'prefixes'   => $__qaCode->activeConfigsForEntity($__ent),
         'masterCode' => $__qaCode->masterCodeForEntity($__ent),
     ];
 }

@@ -33,7 +33,11 @@ class CodeConfig extends Model
         'item_inventory_kantor' => [
             'table' => 'items', 'code_col' => 'item_code', 'name_col' => 'item_name',
             'label' => 'Barang - Inventory Kantor', 'module' => 'item', 'stock_type' => 'inventory_kantor',
-            'master_code' => 'ITM',
+            // Kode Inventory Kantor = pilihan Master Kode (INV.HME / INV.EXGF / INV.EXSS), tampil
+            // utuh sebagai INV.HME.0001 (tanpa kode akhir) -- jadi master_code default KOSONG.
+            // 'require_prefix': pengguna WAJIB memilih salah satu prefix aktif (tanpa pilihan
+            // default diam-diam); divalidasi di backend lewat resolvePrefix().
+            'master_code' => '', 'require_prefix' => true,
         ],
         'supplier' => [
             'table' => 'suppliers', 'code_col' => 'supplier_code', 'name_col' => 'supplier_name',
@@ -99,6 +103,45 @@ class CodeConfig extends Model
         );
     }
 
+    /** Prefix AKTIF saja -- untuk dropdown form Tambah (prefix nonaktif = kode lama, tak dipakai untuk data baru). */
+    public function activeConfigsForEntity(string $entityType): array
+    {
+        return $this->db->fetchAll(
+            "SELECT * FROM code_configs WHERE entity_type = :t AND status = 'active' ORDER BY prefix ASC",
+            ['t' => $entityType]
+        );
+    }
+
+    /** true kalau kelompok ini mewajibkan pengguna memilih prefix secara eksplisit. */
+    public function requiresPrefix(string $entityType): bool
+    {
+        return !empty($this->entities[$entityType]['require_prefix']);
+    }
+
+    /**
+     * Validasi prefix kiriman form untuk satu kelompok. Return [prefixAtauNull, pesanError].
+     * Kelompok ber-'require_prefix': prefix wajib & harus terdaftar + aktif di Master Kode
+     * (nilai di luar daftar yang dikirim manual lewat request ditolak). Kelompok lain:
+     * perilaku lama (kosong -> nextCode() memakai prefix pertama).
+     */
+    public function resolvePrefix(string $entityType, $input): array
+    {
+        // Parameter bukan string (mis. code_prefix[]=x) dianggap tidak dikirim.
+        $input = is_string($input) ? strtoupper(trim($input)) : '';
+        if (!$this->requiresPrefix($entityType)) {
+            return [$input !== '' ? $input : null, ''];
+        }
+        $label = $this->entities[$entityType]['label'] ?? $entityType;
+        $active = array_column($this->activeConfigsForEntity($entityType), 'prefix');
+        if ($input === '') {
+            return [null, "Kode {$label} wajib dipilih (" . ($active ? implode(' / ', $active) : 'belum ada prefix aktif') . ').'];
+        }
+        if (!in_array($input, $active, true)) {
+            return [null, "Kode '{$input}' tidak terdaftar pada Master Kode {$label}."];
+        }
+        return [$input, ''];
+    }
+
     /** Baris prefix pertama (backward-compat "sudah dikonfigurasi?"). NULL kalau belum ada. */
     public function getConfig(string $entityType): ?array
     {
@@ -120,7 +163,7 @@ class CodeConfig extends Model
     public function masterCodeForEntity(string $entityType): string
     {
         $row = $this->db->fetchOne(
-            "SELECT master_code FROM code_configs WHERE entity_type = :t AND master_code <> '' ORDER BY prefix ASC LIMIT 1",
+            "SELECT master_code FROM code_configs WHERE entity_type = :t AND status = 'active' AND master_code <> '' ORDER BY prefix ASC LIMIT 1",
             ['t' => $entityType]
         );
         if ($row && $row['master_code'] !== '') {
@@ -147,8 +190,8 @@ class CodeConfig extends Model
             return ['ok' => false, 'error' => 'Kelompok tidak dikenal.'];
         }
         $prefix = strtoupper(trim($prefix));
-        if ($prefix === '' || !preg_match('/^[A-Z0-9]+$/', $prefix)) {
-            return ['ok' => false, 'error' => 'Prefix hanya boleh huruf/angka (tanpa spasi/simbol).'];
+        if ($prefix === '' || !preg_match('/^[A-Z0-9]+(\.[A-Z0-9]+)*$/', $prefix)) {
+            return ['ok' => false, 'error' => 'Prefix hanya boleh huruf/angka (boleh dipisah titik, mis. INV.HME), tanpa spasi/simbol lain.'];
         }
         if ($this->prefixExists($entityType, $prefix)) {
             return ['ok' => false, 'error' => "Prefix {$prefix} sudah digunakan pada kategori ini."];
@@ -174,8 +217,8 @@ class CodeConfig extends Model
             return ['ok' => false, 'error' => 'Baris konfigurasi tidak ditemukan.'];
         }
         $prefix = strtoupper(trim($prefix));
-        if ($prefix === '' || !preg_match('/^[A-Z0-9]+$/', $prefix)) {
-            return ['ok' => false, 'error' => 'Prefix hanya boleh huruf/angka.'];
+        if ($prefix === '' || !preg_match('/^[A-Z0-9]+(\.[A-Z0-9]+)*$/', $prefix)) {
+            return ['ok' => false, 'error' => 'Prefix hanya boleh huruf/angka (boleh dipisah titik, mis. INV.HME).'];
         }
         if ($this->prefixExists($row['entity_type'], $prefix, $id)) {
             return ['ok' => false, 'error' => "Prefix {$prefix} sudah digunakan pada kategori ini."];

@@ -92,6 +92,9 @@ function mkPreview(array $c, string $mc): string
                         <label class="form-label small mb-0">Prefix</label>
                         <input type="text" name="prefix" class="form-control form-control-sm text-uppercase" style="width: 120px;"
                                value="<?= e($c['prefix']) ?>" maxlength="20" required>
+                        <?php if (($c['status'] ?? 'active') !== 'active'): ?>
+                            <span class="badge bg-secondary mt-1" title="Kode lama: barang yang sudah memakainya tetap utuh, tapi prefix ini tidak muncul di form Tambah Barang.">Nonaktif (kode lama)</span>
+                        <?php endif; ?>
                     </div>
                     <div>
                         <label class="form-label small mb-0">Digit</label>

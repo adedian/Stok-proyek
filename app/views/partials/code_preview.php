@@ -22,6 +22,10 @@ $codeMasterCode  = $codeMasterCode ?? '';
 $fieldId         = $codePrefixFieldId ?? 'codePrefix';
 $codePrefixHideAdd = $codePrefixHideAdd ?? false;
 $codePrefixCanAdd  = $codePrefixCanAdd ?? (function_exists('can') && can('master_kode', 'edit'));
+// Kelompok ber-'require_prefix' (Inventory Kantor): dropdown diawali "-- Pilih Kode --" supaya
+// pengguna memilih sendiri (kosong ditolak browser lewat `required` + backend resolvePrefix()).
+require_once ROOT_PATH . '/app/models/CodeConfig.php';
+$__cpRequirePick = !empty($codeEntityType) && (new CodeConfig())->requiresPrefix($codeEntityType);
 ?>
 <?php if (empty($codePrefixes)): ?>
     <div class="alert alert-warning py-2 mb-0">
@@ -37,6 +41,7 @@ $codePrefixCanAdd  = $codePrefixCanAdd ?? (function_exists('can') && can('master
             <div class="input-group input-group-sm">
                 <select name="code_prefix" id="<?= e($fieldId) ?>" class="form-select form-select-sm js-cp-prefix"
                         data-master="<?= e($codeMasterCode) ?>" required>
+                    <?php if ($__cpRequirePick): ?><option value="">-- Pilih Kode --</option><?php endif; ?>
                     <?php foreach ($codePrefixes as $cfg): ?>
                         <option value="<?= e($cfg['prefix']) ?>"
                                 data-digit="<?= (int) $cfg['digit_length'] ?>"
@@ -74,6 +79,7 @@ $codePrefixCanAdd  = $codePrefixCanAdd ?? (function_exists('can') && can('master
         if (!out) return;
         const opt = sel.options[sel.selectedIndex];
         if (!opt) { out.value = ''; return; }
+        if (!sel.value) { out.value = ''; return; }
         const digit = parseInt(opt.dataset.digit || '4', 10);
         const next = parseInt(opt.dataset.next || '1', 10);
         const master = opt.dataset.master || sel.dataset.master || '';

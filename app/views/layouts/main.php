@@ -23,7 +23,9 @@ require ROOT_PATH . '/app/views/layouts/sidebar.php';
                         toast: true,
                         position: 'top-end',
                         showConfirmButton: false,
-                        timer: 4000,
+                        // Pesan gagal dibiarkan lebih lama + bisa ditutup, supaya sempat dibaca.
+                        showCloseButton: type === 'error',
+                        timer: type === 'error' ? 12000 : 4000,
                         timerProgressBar: true,
                         didOpen: function (t) {
                             t.addEventListener('mouseenter', Swal.stopTimer);

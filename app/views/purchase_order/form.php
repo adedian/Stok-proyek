@@ -565,6 +565,10 @@ $categoryLocked = $isEdit && !empty($categoryLockReasons);
             locCol.classList.toggle('d-none', isService);
             locSel.disabled = isService;
         }
+        // "Sebagian Diterima" = konsep penerimaan barang; PO Jasa menolaknya di server,
+        // jadi opsinya dimatikan agar tidak dipilih lalu gagal simpan.
+        const partialOpt = document.querySelector('select[name="status"] option[value="partial_received"]');
+        if (partialOpt) { partialOpt.disabled = isService; }
         const rcvText = document.getElementById('receiverLabelText');
         if (rcvText) { rcvText.textContent = isService ? 'Penerima Dokumen' : 'Penerima Barang'; }
         const rcvHelp = document.getElementById('receiverHelp');

@@ -107,8 +107,15 @@ function mkPreview(array $c, string $mc): string
                                value="<?= (int) $c['digit_length'] ?>" min="1" max="10" required>
                     </div>
                     <div class="text-muted small">
-                        Nomor berikutnya: <strong><?= (int) $c['next_number'] ?></strong><br>
-                        Contoh: <code><?= e(mkPreview($c, $masterCode)) ?></code>
+                        <?php if (!empty($entityMeta['master_code_options'])): ?>
+                            Nomor berikutnya per Kode Akhir:<br>
+                            <?php foreach ((new CodeConfig())->suffixNextNumbers($c + ['entity_type' => $entityType]) as $__mc => $__n): ?>
+                                <code><?= e($c['prefix'] . '.' . str_pad((string) $__n, (int) $c['digit_length'], '0', STR_PAD_LEFT) . '.' . $__mc) ?></code><br>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            Nomor berikutnya: <strong><?= (int) $c['next_number'] ?></strong><br>
+                            Contoh: <code><?= e(mkPreview($c, $masterCode)) ?></code>
+                        <?php endif; ?>
                     </div>
                     <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-save"></i> Simpan</button>
                 </form>

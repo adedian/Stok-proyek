@@ -259,6 +259,43 @@ class CodeConfig extends Model
         return ['ok' => true, 'error' => ''];
     }
 
+    /**
+     * Nomor berikutnya untuk satu (prefix, kode akhir) pada kelompok ber-master_code_options.
+     * Counter belum ada -> mulai dari nomor tertinggi kode yang SUDAH ada + 1 (termasuk yang
+     * di Tempat Sampah), atau 1 kalau belum ada kode sama sekali dengan pasangan itu.
+     */
+    public function suffixNextNumber(array $config, string $masterCode): int
+    {
+        $row = $this->db->fetchOne(
+            "SELECT next_number FROM code_config_suffix_counters WHERE config_id = :c AND master_code = :m",
+            ['c' => (int) $config['id'], 'm' => $masterCode]
+        );
+        if ($row) {
+            return max(1, (int) $row['next_number']);
+        }
+        $meta = $this->entityMeta($config['entity_type']);
+        if (!$meta) {
+            return 1;
+        }
+        $col = $meta['code_col'];
+        $max = $this->db->fetchOne(
+            "SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(SUBSTRING_INDEX({$col}, '.', 2), '.', -1) AS UNSIGNED)), 0) AS m
+               FROM {$meta['table']} WHERE {$col} LIKE :pat",
+            ['pat' => $config['prefix'] . '.%.' . $masterCode]
+        );
+        return (int) ($max['m'] ?? 0) + 1;
+    }
+
+    /** Peta [kode akhir => nomor berikutnya] untuk satu baris prefix (pratinjau form & Master Kode). */
+    public function suffixNextNumbers(array $config): array
+    {
+        $out = [];
+        foreach ($this->masterCodeOptions($config['entity_type']) as $mc) {
+            $out[$mc] = $this->suffixNextNumber($config, $mc);
+        }
+        return $out;
+    }
+
     /** Preview format kode dari sebuah baris config (bukan kode final). */
     public function previewFormat(array $config): string
     {
@@ -318,7 +355,13 @@ class CodeConfig extends Model
             $mc = $masterCodeOverride ?? trim((string) ($config['master_code'] ?? ''));
             $mcSuffix = $mc !== '' ? '.' . $mc : '';
 
-            $number = (int) $config['next_number'];
+            // Kelompok ber-pilihan Kode Akhir: nomor urut TERPISAH per (prefix, kode akhir) --
+            // INV.HME / INV.EXGF / INV.EXSS masing-masing mulai dari 1 (atau lanjut dari kode yang
+            // sudah ada), bukan berbagi satu counter prefix. Baris config sudah terkunci (FOR UPDATE).
+            $perSuffix = $masterCodeOverride !== null;
+            $number = $perSuffix
+                ? $this->suffixNextNumber($config, $mc)
+                : (int) $config['next_number'];
             $code = null;
             for ($attempt = 0; $attempt < 100; $attempt++) {
                 $candidate = $config['prefix'] . '.'
@@ -342,10 +385,18 @@ class CodeConfig extends Model
                 return null;
             }
 
-            $this->db->query(
-                "UPDATE code_configs SET next_number = :next WHERE id = :id",
-                ['next' => $number + 1, 'id' => (int) $config['id']]
-            );
+            if ($perSuffix) {
+                $this->db->query(
+                    "INSERT INTO code_config_suffix_counters (config_id, master_code, next_number)
+                     VALUES (:c, :m, :n) ON DUPLICATE KEY UPDATE next_number = VALUES(next_number)",
+                    ['c' => (int) $config['id'], 'm' => $mc, 'n' => $number + 1]
+                );
+            } else {
+                $this->db->query(
+                    "UPDATE code_configs SET next_number = :next WHERE id = :id",
+                    ['next' => $number + 1, 'id' => (int) $config['id']]
+                );
+            }
             if ($manageTx) {
                 $this->db->commit();
             }

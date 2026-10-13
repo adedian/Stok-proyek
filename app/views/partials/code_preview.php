@@ -45,6 +45,7 @@ $__cpMcOptions = !empty($codeEntityType) ? (new CodeConfig())->masterCodeOptions
                         <option value="<?= e($cfg['prefix']) ?>"
                                 data-digit="<?= (int) $cfg['digit_length'] ?>"
                                 data-next="<?= (int) $cfg['next_number'] ?>"
+                                <?php if ($__cpMcOptions): ?>data-suffix-next="<?= e(json_encode((new CodeConfig())->suffixNextNumbers($cfg + ['entity_type' => $codeEntityType]))) ?>"<?php endif; ?>
                                 data-master="<?= e($cfg['master_code'] ?? $codeMasterCode) ?>">
                             <?= e($cfg['prefix']) ?>
                         </option>
@@ -94,11 +95,15 @@ $__cpMcOptions = !empty($codeEntityType) ? (new CodeConfig())->masterCodeOptions
         const opt = sel.options[sel.selectedIndex];
         if (!opt) { out.value = ''; return; }
         const digit = parseInt(opt.dataset.digit || '4', 10);
-        const next = parseInt(opt.dataset.next || '1', 10);
+        let next = parseInt(opt.dataset.next || '1', 10);
         const mSel = wrap.querySelector('.js-cp-master');
         // Dropdown Kode Akhir ada -> pratinjau menunggu pilihan pengguna (kosong = belum dipilih).
         if (mSel && !mSel.value) { out.value = ''; return; }
         const master = mSel ? mSel.value : (opt.dataset.master || sel.dataset.master || '');
+        // Nomor urut TERPISAH per Kode Akhir (INV.HME / INV.EXGF / INV.EXSS).
+        if (mSel && opt.dataset.suffixNext) {
+            try { next = parseInt(JSON.parse(opt.dataset.suffixNext)[master] || '1', 10); } catch (err) {}
+        }
         out.value = sel.value + '.' + pad(next, digit) + (master ? '.' + master : '');
     }
     document.addEventListener('change', function (e) {

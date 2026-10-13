@@ -43,6 +43,14 @@ $actionUrl = $isEdit ? 'update' : 'store';
                            value="<?= e($project['pic_name'] ?? '') ?>" placeholder="Nama PIC">
                 </div>
                 <div class="col-md-3">
+                    <label class="form-label">Jenis</label>
+                    <select name="project_type" class="form-select">
+                        <option value="project" <?= ($project['project_type'] ?? 'project') === 'project' ? 'selected' : '' ?>>Project</option>
+                        <option value="non_project" <?= ($project['project_type'] ?? '') === 'non_project' ? 'selected' : '' ?>>Non-Project (Biaya/Stok)</option>
+                    </select>
+                    <div class="form-text">Non-Project tidak muncul di filter Project Kas/Bank.</div>
+                </div>
+                <div class="col-md-3">
                     <label class="form-label">Status</label>
                     <select name="status" class="form-select">
                         <option value="planning" <?= ($project['status'] ?? 'planning') === 'planning' ? 'selected' : '' ?>>Planning</option>

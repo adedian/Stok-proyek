@@ -462,7 +462,7 @@ class CashController extends Controller
             'kasExempt'   => kasIsExemptRole(currentUserRole()),
             'kasPicName'  => kasIsExemptRole(currentUserRole()) ? null : kasPicName(),
             'kasProjectGated' => kasIsProjectGateRole(currentUserRole()),
-            'projectOptions'  => $this->reportProjectOptions(),
+            'projectOptions'  => $this->filterProjectOptions(),
             'bankOptions'     => $this->bankChecklistOptions(),
             'rekeningOptions' => $this->rekeningChecklistOptions(),
             'canBank'         => can('bank', 'view'),
@@ -487,6 +487,20 @@ class CashController extends Controller
         return $this->projectModel->activeList();
     }
 
+    /**
+     * Dropdown filter Project (daftar Kas/Bank & Laporan Kas): HANYA project sungguhan --
+     * entri Master Project berjenis 'non_project' (biaya/kantong stok seperti Operasional Kantor,
+     * Pajak) disaring. Berasal dari reportProjectOptions() sehingga pembatasan akses role gerbang
+     * Project tetap berlaku; form transaksi tetap memakai daftar penuh (formProjectOptions()).
+     */
+    private function filterProjectOptions(): array
+    {
+        return array_values(array_filter(
+            $this->reportProjectOptions(),
+            static fn($p) => ($p['project_type'] ?? 'project') === 'project'
+        ));
+    }
+
     public function report(): void
     {
         $filters = $this->collectFilters();
@@ -507,7 +521,7 @@ class CashController extends Controller
             'filters'    => $filters,
             'categories' => $this->categoryModel->activeList(),
             'picOptions' => $scope === null ? $this->cashModel->distinctPics(null, $divScope) : $scope,
-            'projectOptions' => $this->reportProjectOptions(),
+            'projectOptions' => $this->filterProjectOptions(),
             'projectGated'   => kasIsProjectGateRole(currentUserRole()),
             'bankOptions'    => $this->bankChecklistOptions(),
             'rekeningOptions' => $this->rekeningChecklistOptions(),

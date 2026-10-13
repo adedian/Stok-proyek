@@ -338,6 +338,7 @@ class ProjectController extends Controller
             'project_name' => trim($_POST['project_name'] ?? ''),
             'location'     => trim($_POST['location'] ?? ''),
             'pic_name'     => trim($_POST['pic_name'] ?? '') ?: null,
+            'project_type' => ($_POST['project_type'] ?? '') === 'non_project' ? 'non_project' : 'project',
             'status'       => in_array($status, ['planning', 'ongoing', 'closed'], true) ? $status : 'planning',
         ];
     }

@@ -14,7 +14,7 @@ class ProjectUserAccess extends Model
     public function projectsForUser(int $userId): array
     {
         return $this->db->fetchAll(
-            "SELECT p.id, p.project_code, p.project_name
+            "SELECT p.id, p.project_code, p.project_name, p.project_type
                FROM project_user_access pua
                JOIN projects p ON p.id = pua.project_id AND p.deleted_at IS NULL
               WHERE pua.user_id = :uid AND pua.is_active = 1

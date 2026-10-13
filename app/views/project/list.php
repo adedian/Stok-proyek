@@ -87,7 +87,7 @@ function projectSortLink(string $col, string $label, string $sort, string $dir):
                     <?php foreach ($projects as $p): ?>
                         <tr>
                             <td><?= e($p['project_code']) ?></td>
-                            <td><?= e($p['project_name']) ?></td>
+                            <td><?= e($p['project_name']) ?><?php if (($p['project_type'] ?? 'project') === 'non_project'): ?> <span class="badge bg-light text-dark border">Non-Project</span><?php endif; ?></td>
                             <td><?= e($p['location'] ?? '-') ?></td>
                             <td><?= e($p['pic_name'] ?? '-') ?></td>
                             <td class="text-center">

@@ -120,9 +120,8 @@ class ItemController extends Controller
         $codePrefixes = [];
         $codeMasterCodes = [];
         foreach (self::STOCK_TYPE_CODE_ENTITY as $stockType => $entityType) {
-            // Hanya prefix AKTIF yang boleh dipilih untuk barang baru (prefix nonaktif = kode lama).
-            $codePrefixes[$stockType]    = $this->codeConfig->activeConfigsForEntity($entityType);
-            $codeConfigs[$stockType]     = $codePrefixes[$stockType][0] ?? null;
+            $codeConfigs[$stockType]     = $this->codeConfig->getConfig($entityType);
+            $codePrefixes[$stockType]    = $this->codeConfig->configsForEntity($entityType);
             $codeMasterCodes[$stockType] = $this->codeConfig->masterCodeForEntity($entityType);
         }
 
@@ -157,12 +156,14 @@ class ItemController extends Controller
         }
 
         $codeEntityType = self::STOCK_TYPE_CODE_ENTITY[$data['stock_type']];
-        [$codePrefix, $prefixError] = $this->codeConfig->resolvePrefix($codeEntityType, $_POST['code_prefix'] ?? '');
-        if ($prefixError !== '') {
-            setFlash('error', $prefixError);
+        $codePrefix = is_string($_POST['code_prefix'] ?? '') ? trim($_POST['code_prefix'] ?? '') : '';
+        // Inventory Kantor: kode akhir (INV.HME / INV.EXGF / INV.EXSS) wajib dipilih & divalidasi di sini.
+        [$masterCode, $masterError] = $this->codeConfig->resolveMasterCode($codeEntityType, $_POST['master_code'] ?? '');
+        if ($masterError !== '') {
+            setFlash('error', $masterError);
             $this->redirect('item', 'create');
         }
-        $itemCode = $this->codeConfig->nextCode($codeEntityType, $codePrefix);
+        $itemCode = $this->codeConfig->nextCode($codeEntityType, $codePrefix !== '' ? $codePrefix : null, $masterCode);
         if ($itemCode === null) {
             $label = self::STOCK_TYPE_LABELS[$data['stock_type']];
             setFlash('error', "Prefix kode Barang - {$label} belum dikonfigurasi. Silakan konfigurasi melalui Master Kode > Barang - {$label}.");
@@ -292,11 +293,12 @@ class ItemController extends Controller
         }
 
         $codeEntityType = self::STOCK_TYPE_CODE_ENTITY[$data['stock_type']];
-        [$codePrefix, $prefixError] = $this->codeConfig->resolvePrefix($codeEntityType, $_POST['code_prefix'] ?? '');
-        if ($prefixError !== '') {
-            $this->json(['errors' => [$prefixError]], 422);
+        $codePrefix = is_string($_POST['code_prefix'] ?? '') ? trim($_POST['code_prefix'] ?? '') : '';
+        [$masterCode, $masterError] = $this->codeConfig->resolveMasterCode($codeEntityType, $_POST['master_code'] ?? '');
+        if ($masterError !== '') {
+            $this->json(['errors' => [$masterError]], 422);
         }
-        $itemCode = $this->codeConfig->nextCode($codeEntityType, $codePrefix);
+        $itemCode = $this->codeConfig->nextCode($codeEntityType, $codePrefix !== '' ? $codePrefix : null, $masterCode);
         if ($itemCode === null) {
             $label = self::STOCK_TYPE_LABELS[$data['stock_type']];
             $this->json(['errors' => ["Prefix kode Barang - {$label} belum dikonfigurasi. Silakan konfigurasi melalui Master Kode > Barang - {$label}."]], 422);

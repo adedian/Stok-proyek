@@ -133,8 +133,9 @@ $actionUrl = $isEdit ? 'update' : 'store';
             var show = el.dataset.stockType === current;
             el.style.display = show ? '' : 'none';
             // Hanya prefix kelompok yang aktif yang boleh ikut submit.
-            var pf = el.querySelector('select[name="code_prefix"]');
-            if (pf) pf.disabled = !show;
+            // (juga Kode Akhir wajib milik Inventory Kantor -- kalau tak ikut dimatikan,
+            // `required`-nya yang tersembunyi menghalangi simpan jenis stok lain.)
+            el.querySelectorAll('select[name="code_prefix"], select[name="master_code"]').forEach(function (pf) { pf.disabled = !show; });
         });
         submitBtn.disabled = !configured[current];
     }

@@ -22,10 +22,10 @@ $codeMasterCode  = $codeMasterCode ?? '';
 $fieldId         = $codePrefixFieldId ?? 'codePrefix';
 $codePrefixHideAdd = $codePrefixHideAdd ?? false;
 $codePrefixCanAdd  = $codePrefixCanAdd ?? (function_exists('can') && can('master_kode', 'edit'));
-// Kelompok ber-'require_prefix' (Inventory Kantor): dropdown diawali "-- Pilih Kode --" supaya
-// pengguna memilih sendiri (kosong ditolak browser lewat `required` + backend resolvePrefix()).
+// Kelompok ber-'master_code_options' (Inventory Kantor): kode akhir dipilih pengguna lewat dropdown
+// kedua (name=master_code, wajib) dan menggantikan master code tetap pada pratinjau.
 require_once ROOT_PATH . '/app/models/CodeConfig.php';
-$__cpRequirePick = !empty($codeEntityType) && (new CodeConfig())->requiresPrefix($codeEntityType);
+$__cpMcOptions = !empty($codeEntityType) ? (new CodeConfig())->masterCodeOptions($codeEntityType) : [];
 ?>
 <?php if (empty($codePrefixes)): ?>
     <div class="alert alert-warning py-2 mb-0">
@@ -36,12 +36,11 @@ $__cpRequirePick = !empty($codeEntityType) && (new CodeConfig())->requiresPrefix
     </div>
 <?php else: ?>
     <div class="row g-2 align-items-end">
-        <div class="col-sm-4">
+        <div class="<?= $__cpMcOptions ? 'col-sm-3' : 'col-sm-4' ?>">
             <label class="form-label small mb-1">Prefix Kode <span class="text-danger">*</span></label>
             <div class="input-group input-group-sm">
                 <select name="code_prefix" id="<?= e($fieldId) ?>" class="form-select form-select-sm js-cp-prefix"
                         data-master="<?= e($codeMasterCode) ?>" required>
-                    <?php if ($__cpRequirePick): ?><option value="">-- Pilih Kode --</option><?php endif; ?>
                     <?php foreach ($codePrefixes as $cfg): ?>
                         <option value="<?= e($cfg['prefix']) ?>"
                                 data-digit="<?= (int) $cfg['digit_length'] ?>"
@@ -61,12 +60,27 @@ $__cpRequirePick = !empty($codeEntityType) && (new CodeConfig())->requiresPrefix
                 <?php endif; ?>
             </div>
         </div>
-        <div class="col-sm-8">
+        <?php if ($__cpMcOptions): ?>
+        <div class="col-sm-4">
+            <label class="form-label small mb-1">Kode Akhir <span class="text-danger">*</span></label>
+            <select name="master_code" id="<?= e($fieldId) ?>_master" class="form-select form-select-sm js-cp-master" required>
+                <option value="">-- Pilih Kode Akhir --</option>
+                <?php foreach ($__cpMcOptions as $mcOpt): ?>
+                    <option value="<?= e($mcOpt) ?>"><?= e($mcOpt) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <?php endif; ?>
+        <div class="<?= $__cpMcOptions ? 'col-sm-5' : 'col-sm-8' ?>">
             <label class="form-label small mb-1">Kode <?= e(preg_replace('/\s*[-\x{2013}].*$/u', '', $codeEntityLabel)) ?> <span class="text-muted">(otomatis)</span></label>
             <input type="text" class="form-control form-control-sm fw-bold js-cp-out" value="" readonly>
         </div>
     </div>
-    <div class="form-text">Nomor urut otomatis per prefix. Master Code: <strong><?= e($codeMasterCode ?: '-') ?></strong> (atur di Master Kode).</div>
+    <?php if ($__cpMcOptions): ?>
+        <div class="form-text">Nomor urut otomatis per prefix. Kode Akhir dipilih per barang: <strong><?= e(implode(' / ', $__cpMcOptions)) ?></strong>.</div>
+    <?php else: ?>
+        <div class="form-text">Nomor urut otomatis per prefix. Master Code: <strong><?= e($codeMasterCode ?: '-') ?></strong> (atur di Master Kode).</div>
+    <?php endif; ?>
 <?php endif; ?>
 
 <?php if (empty($GLOBALS['__codePreviewJsDone'])): $GLOBALS['__codePreviewJsDone'] = true; ?>
@@ -79,14 +93,20 @@ $__cpRequirePick = !empty($codeEntityType) && (new CodeConfig())->requiresPrefix
         if (!out) return;
         const opt = sel.options[sel.selectedIndex];
         if (!opt) { out.value = ''; return; }
-        if (!sel.value) { out.value = ''; return; }
         const digit = parseInt(opt.dataset.digit || '4', 10);
         const next = parseInt(opt.dataset.next || '1', 10);
-        const master = opt.dataset.master || sel.dataset.master || '';
+        const mSel = wrap.querySelector('.js-cp-master');
+        // Dropdown Kode Akhir ada -> pratinjau menunggu pilihan pengguna (kosong = belum dipilih).
+        if (mSel && !mSel.value) { out.value = ''; return; }
+        const master = mSel ? mSel.value : (opt.dataset.master || sel.dataset.master || '');
         out.value = sel.value + '.' + pad(next, digit) + (master ? '.' + master : '');
     }
     document.addEventListener('change', function (e) {
         if (e.target.classList.contains('js-cp-prefix')) refresh(e.target);
+        if (e.target.classList.contains('js-cp-master')) {
+            const p = e.target.closest('.row').querySelector('.js-cp-prefix');
+            if (p) refresh(p);
+        }
     });
     document.querySelectorAll('.js-cp-prefix').forEach(refresh);
 })();

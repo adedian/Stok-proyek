@@ -32,6 +32,13 @@ function mkPreview(array $c, string $mc): string
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
                 <h6 class="mb-3">Master Code (kode akhir)</h6>
+                <?php if (!empty($entityMeta['master_code_options'])): ?>
+                    <p class="mb-2">Kode akhir dipilih per barang saat Tambah Barang (Tambah Cepat &amp; Tambah Manual):</p>
+                    <?php foreach ($entityMeta['master_code_options'] as $__mcOpt): ?>
+                        <span class="badge bg-primary me-1"><?= e($__mcOpt) ?></span>
+                    <?php endforeach; ?>
+                    <div class="form-text mt-2">Contoh: <code>PREFIX.0001.<?= e($entityMeta['master_code_options'][0]) ?></code>. Kode lama berakhiran INVT tetap berlaku.</div>
+                <?php else: ?>
                 <form method="POST" action="<?= BASE_URL ?>/master_kode/saveMasterCode" class="row g-2 align-items-end">
                     <?= csrfField() ?>
                     <input type="hidden" name="entity_type" value="<?= e($entityType) ?>">
@@ -45,6 +52,7 @@ function mkPreview(array $c, string $mc): string
                     </div>
                     <div class="col-12"><div class="form-text">Berlaku untuk semua prefix kelompok ini.</div></div>
                 </form>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -92,9 +100,6 @@ function mkPreview(array $c, string $mc): string
                         <label class="form-label small mb-0">Prefix</label>
                         <input type="text" name="prefix" class="form-control form-control-sm text-uppercase" style="width: 120px;"
                                value="<?= e($c['prefix']) ?>" maxlength="20" required>
-                        <?php if (($c['status'] ?? 'active') !== 'active'): ?>
-                            <span class="badge bg-secondary mt-1" title="Kode lama: barang yang sudah memakainya tetap utuh, tapi prefix ini tidak muncul di form Tambah Barang.">Nonaktif (kode lama)</span>
-                        <?php endif; ?>
                     </div>
                     <div>
                         <label class="form-label small mb-0">Digit</label>

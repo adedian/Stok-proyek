@@ -108,10 +108,16 @@ class PurchaseOrder extends Model
      */
     public function listWithRelations(array $filters = []): array
     {
-        $sql = "SELECT po.*, s.supplier_name, s.supplier_code, p.project_name, rcv.full_name AS receiver_name
+        // PO Non Project: project_id NULL + is_non_project = 1 -> LEFT JOIN & label "Non Project"
+        // (bukan project palsu). cost_category_label = nama Kategori Biaya master, cadangan snapshot.
+        $sql = "SELECT po.*, s.supplier_name, s.supplier_code,
+                       IF(po.is_non_project = 1, 'Non Project', p.project_name) AS project_name,
+                       COALESCE(cc.category_name, po.cost_category_name) AS cost_category_label,
+                       rcv.full_name AS receiver_name
                 FROM purchase_orders po
                 JOIN suppliers s ON s.id = po.supplier_id
-                JOIN projects p ON p.id = po.project_id
+                LEFT JOIN projects p ON p.id = po.project_id
+                LEFT JOIN cash_categories cc ON cc.id = po.cost_category_id
                 LEFT JOIN users rcv ON rcv.id = po.receiver_user_id
                 WHERE po.deleted_at IS NULL";
         $params = [];
@@ -131,7 +137,9 @@ class PurchaseOrder extends Model
             $sql .= " AND po.po_category = :po_category";
             $params['po_category'] = self::normalizeCategory($filters['po_category']);
         }
-        if (!empty($filters['project_id'])) {
+        if (($filters['project_id'] ?? '') === 'non_project') {
+            $sql .= " AND po.is_non_project = 1";
+        } elseif (!empty($filters['project_id'])) {
             $sql .= " AND po.project_id = :project_id";
             $params['project_id'] = $filters['project_id'];
         }
@@ -283,7 +291,9 @@ class PurchaseOrder extends Model
             $sql .= " AND po.po_category = :po_category";
             $params['po_category'] = self::normalizeCategory($filters['po_category']);
         }
-        if (!empty($filters['project_id'])) {
+        if (($filters['project_id'] ?? '') === 'non_project') {
+            $sql .= " AND po.is_non_project = 1";
+        } elseif (!empty($filters['project_id'])) {
             $sql .= " AND po.project_id = :project_id";
             $params['project_id'] = $filters['project_id'];
         }
@@ -354,7 +364,9 @@ class PurchaseOrder extends Model
     {
         $sql = "SELECT po.*, s.supplier_name, s.supplier_code, s.address AS supplier_address,
                        s.contact_person AS supplier_contact_person, s.phone AS supplier_phone,
-                       p.project_name, p.location AS project_location, u.full_name AS created_by_name,
+                       IF(po.is_non_project = 1, 'Non Project', p.project_name) AS project_name,
+                       p.location AS project_location, u.full_name AS created_by_name,
+                       COALESCE(cc.category_name, po.cost_category_name) AS cost_category_label,
                        w.warehouse_name AS delivery_location_name, w.address AS delivery_location_address,
                        sig.name AS signature_name, sig.position AS signature_position,
                        sig.signature_image AS signature_image,
@@ -362,7 +374,8 @@ class PurchaseOrder extends Model
                        rcv.full_name AS receiver_name
                 FROM purchase_orders po
                 JOIN suppliers s ON s.id = po.supplier_id
-                JOIN projects p ON p.id = po.project_id
+                LEFT JOIN projects p ON p.id = po.project_id
+                LEFT JOIN cash_categories cc ON cc.id = po.cost_category_id
                 LEFT JOIN users u ON u.id = po.created_by
                 LEFT JOIN warehouses w ON w.id = po.delivery_location_id
                 LEFT JOIN signatures sig ON sig.id = po.signature_id AND sig.deleted_at IS NULL

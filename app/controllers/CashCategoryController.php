@@ -5,7 +5,7 @@ require_once ROOT_PATH . '/app/models/CashCategory.php';
 require_once ROOT_PATH . '/app/models/ActivityLog.php';
 
 /**
- * Master Kategori Kas (Revisi 9) -- Master Data > Kategori Kas.
+ * Master Kategori Biaya (Revisi 9) -- Master Data > Kategori Biaya.
  * Pola identik ItemCategoryController. Accounting boleh kelola (view/create/
  * edit) tetapi TIDAK hapus (aturan global: Accounting no delete).
  */
@@ -38,7 +38,7 @@ class CashCategoryController extends Controller
         ])));
 
         $this->view('cash_category/list', [
-            'pageTitle'  => 'Kategori Kas',
+            'pageTitle'  => 'Kategori Biaya',
             'categories' => $categories,
             'filters'    => $filters,
             'sort'       => $sort,
@@ -52,7 +52,7 @@ class CashCategoryController extends Controller
     {
         Middleware::requirePermission('cash_category', 'create');
         $this->view('cash_category/form', [
-            'pageTitle' => 'Tambah Kategori Kas',
+            'pageTitle' => 'Tambah Kategori Biaya',
             'mode'      => 'create',
             'category'  => null,
         ]);
@@ -75,8 +75,8 @@ class CashCategoryController extends Controller
         }
 
         $this->categoryModel->create(['category_name' => $name, 'created_by' => currentUserId()]);
-        $this->activityLog->log(currentUserId(), 'cash_category', 'create', "Kategori Kas '{$name}' dibuat");
-        setFlash('success', 'Kategori Kas berhasil ditambahkan.');
+        $this->activityLog->log(currentUserId(), 'cash_category', 'create', "Kategori Biaya '{$name}' dibuat");
+        setFlash('success', 'Kategori Biaya berhasil ditambahkan.');
         $this->redirect('cash_category', 'index');
     }
 
@@ -92,7 +92,7 @@ class CashCategoryController extends Controller
         }
 
         $this->view('cash_category/form', [
-            'pageTitle' => 'Edit Kategori Kas',
+            'pageTitle' => 'Edit Kategori Biaya',
             'mode'      => 'edit',
             'category'  => $category,
         ]);
@@ -122,8 +122,8 @@ class CashCategoryController extends Controller
         }
 
         $this->categoryModel->updateById($id, ['category_name' => $name]);
-        $this->activityLog->log(currentUserId(), 'cash_category', 'update', "Kategori Kas '{$name}' diperbarui");
-        setFlash('success', 'Kategori Kas berhasil diperbarui.');
+        $this->activityLog->log(currentUserId(), 'cash_category', 'update', "Kategori Biaya '{$name}' diperbarui");
+        setFlash('success', 'Kategori Biaya berhasil diperbarui.');
         $this->redirect('cash_category', 'index');
     }
 
@@ -140,8 +140,8 @@ class CashCategoryController extends Controller
 
         if ($category) {
             $this->categoryModel->deleteById($id);
-            $this->activityLog->log(currentUserId(), 'cash_category', 'delete', "Kategori Kas '{$category['category_name']}' dihapus");
-            setFlash('success', 'Kategori Kas berhasil dihapus.');
+            $this->activityLog->log(currentUserId(), 'cash_category', 'delete', "Kategori Biaya '{$category['category_name']}' dihapus");
+            setFlash('success', 'Kategori Biaya berhasil dihapus.');
         } else {
             setFlash('error', 'Kategori tidak ditemukan.');
         }

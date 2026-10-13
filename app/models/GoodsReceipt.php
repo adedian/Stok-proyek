@@ -30,7 +30,7 @@ class GoodsReceipt extends Model
                        po.pembuat_po,
                        COALESCE(po.project_id, op.project_id, gr.project_id) AS effective_project_id,
                        COALESCE(s.supplier_name, op.supplier_name, gr.source_detail, 'Pemakai/Internal') AS supplier_name,
-                       COALESCE(p.project_name, p3.project_name, p2.project_name) AS project_name,
+                       COALESCE(IF(po.is_non_project = 1, 'Non Project', NULL), p.project_name, p3.project_name, p2.project_name) AS project_name,
                        COALESCE(gr.receiver_name, u.full_name) AS received_by_name
                 FROM goods_receipts gr
                 LEFT JOIN purchase_orders po ON po.id = gr.purchase_order_id
@@ -92,7 +92,7 @@ class GoodsReceipt extends Model
                        po.pembuat_po,
                        COALESCE(po.project_id, op.project_id, gr.project_id) AS effective_project_id,
                        COALESCE(s.supplier_name, op.supplier_name, gr.source_detail, 'Pemakai/Internal') AS supplier_name,
-                       COALESCE(p.project_name, p3.project_name, p2.project_name) AS project_name,
+                       COALESCE(IF(po.is_non_project = 1, 'Non Project', NULL), p.project_name, p3.project_name, p2.project_name) AS project_name,
                        COALESCE(gr.receiver_name, u.full_name) AS received_by_name
                 FROM goods_receipts gr
                 LEFT JOIN purchase_orders po ON po.id = gr.purchase_order_id

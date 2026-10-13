@@ -890,9 +890,12 @@ class GoodsReceiptController extends Controller
 
         // stock_scope (kolom lama) -- PO/Offline selalu terikat project; Pemakai
         // diturunkan dari ada/tidaknya Project (Project kini opsional).
+        // PO Non Project (tanpa project) -> stok masuk ke bucket Kantor (project_id NULL), supaya
+        // tidak ada baris stok 'proyek' tanpa project yang tak pernah muncul di daftar per project.
+        $poForScope = $receiptType === 'purchase_order' ? $this->poModel->find((int) ($_POST['purchase_order_id'] ?? 0)) : null;
         $stockScope = $receiptType === 'pemakai'
             ? ($projectId > 0 ? 'proyek' : 'kantor')
-            : 'proyek';
+            : (($poForScope && !empty($poForScope['is_non_project'])) ? 'kantor' : 'proyek');
 
         return [
             'purchase_order_id'   => (int) ($_POST['purchase_order_id'] ?? 0),

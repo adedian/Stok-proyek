@@ -29,7 +29,7 @@ $renderCategoryFilter = function () use ($categories, $selectedCategoryIds) { ?>
                     </button>
                     <div class="dropdown-menu p-2" style="max-height:260px; overflow:auto; min-width:240px;">
                         <?php if (empty($categories)): ?>
-                            <div class="text-muted small px-2">Belum ada Master Kategori Kas.</div>
+                            <div class="text-muted small px-2">Belum ada Master Kategori Biaya.</div>
                         <?php endif; ?>
                         <?php foreach ($categories as $c): ?>
                             <div class="form-check">

@@ -55,6 +55,7 @@
                 <label class="form-label small text-muted mb-1">Project</label>
                 <select name="project_id" class="form-select form-select-sm">
                     <option value="">Semua Project</option>
+                    <option value="non_project" <?= (string) $filters['project_id'] === 'non_project' ? 'selected' : '' ?>>Non Project</option>
                     <?php foreach ($projects as $p): ?>
                         <option value="<?= (int) $p['id'] ?>" <?= (string) $filters['project_id'] === (string) $p['id'] ? 'selected' : '' ?>>
                             <?= e($p['project_name']) ?>
@@ -106,6 +107,7 @@
                         <th>Pembuat PO</th>
                         <th>Penerima Barang</th>
                         <th>Project</th>
+                        <th>Kategori Biaya</th>
                         <th>Tanggal</th>
                         <th class="text-end">Total</th>
                         <th class="text-center">Status</th>
@@ -116,7 +118,7 @@
                 <tbody>
                     <?php if (empty($purchaseOrders)): ?>
                         <tr>
-                            <td colspan="14" class="p-0">
+                            <td colspan="15" class="p-0">
                                 <div class="empty-state">
                                     <i class="bi bi-cart-x empty-icon"></i>
                                     <div class="empty-title">Belum ada Purchase Order</div>
@@ -146,7 +148,8 @@
                             <td><?= e($po['supplier_name']) ?></td>
                             <td><?= e($po['pembuat_po'] ?? '-') ?></td>
                             <td><?php if (!empty($po['receiver_name'])): ?><?= e($po['receiver_name']) ?><?php else: ?><span class="text-muted fst-italic">Belum ditentukan</span><?php endif; ?></td>
-                            <td><?= e($po['project_name']) ?></td>
+                            <td><?= e($po['project_name'] ?? '-') ?></td>
+                            <td><?= !empty($po['cost_category_label']) ? e($po['cost_category_label']) : '<span class="text-muted">&mdash;</span>' ?></td>
                             <td><?= formatTanggal($po['po_date']) ?></td>
                             <td class="text-end"><?= formatMoney($po['total_amount'], $po['currency'] ?? 'IDR') ?></td>
                             <td class="text-center">

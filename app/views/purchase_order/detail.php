@@ -40,9 +40,13 @@
                         <div class="text-muted small">Supplier</div>
                         <div class="fw-semibold"><?= e($po['supplier_name']) ?> (<?= e($po['supplier_code']) ?>)</div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-3">
                         <div class="text-muted small">Project</div>
-                        <div class="fw-semibold"><?= e($po['project_name']) ?></div>
+                        <div class="fw-semibold"><?= e($po['project_name'] ?? '-') ?></div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-muted small">Kategori Biaya</div>
+                        <div class="fw-semibold"><?= !empty($po['cost_category_label']) ? e($po['cost_category_label']) : '&mdash;' ?></div>
                     </div>
                     <div class="col-md-4">
                         <div class="text-muted small">Kategori PO</div>

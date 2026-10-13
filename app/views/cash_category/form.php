@@ -3,7 +3,7 @@ $isEdit = $mode === 'edit';
 $actionUrl = $isEdit ? 'update' : 'store';
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="mb-0"><?= $isEdit ? 'Edit' : 'Tambah' ?> Kategori Kas</h4>
+    <h4 class="mb-0"><?= $isEdit ? 'Edit' : 'Tambah' ?> Kategori Biaya</h4>
     <a href="<?= BASE_URL ?>/cash_category" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Kembali
     </a>

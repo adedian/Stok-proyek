@@ -141,7 +141,7 @@ class TrashController extends Controller
                 'display' => fn(array $r) => trim(($r['no_bukti'] ?? '') . ' - ' . ($r['uraian'] ?? ''), ' -'),
             ],
             'cash_category' => [
-                'label' => 'Kategori Kas',
+                'label' => 'Kategori Biaya',
                 'model' => new CashCategory(),
                 'display' => fn(array $r) => $r['category_name'] ?? '-',
             ],

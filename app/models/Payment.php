@@ -141,14 +141,15 @@ class Payment extends Model
     {
         // pay.currency/pay.kurs = mata uang & kurs PEMBAYARAN (snapshot); po.currency dipisah
         // sebagai po_currency supaya tidak menimpa kolom 'currency' milik pembayaran.
-        $sql = "SELECT pay.*, po.po_number, po.po_category, po.currency AS po_currency, po.total_amount, po.project_id, po.pembuat_po, s.supplier_name, p.project_name,
+        $sql = "SELECT pay.*, po.po_number, po.po_category, po.currency AS po_currency, po.total_amount, po.project_id, po.is_non_project, po.pembuat_po, s.supplier_name,
+                       IF(po.is_non_project = 1, 'Non Project', p.project_name) AS project_name,
                        pm.method_name,
                        (SELECT COALESCE(SUM(p2.amount), 0) FROM payments p2
                         WHERE p2.purchase_order_id = po.id AND p2.deleted_at IS NULL) AS po_total_paid
                 FROM payments pay
                 JOIN purchase_orders po ON po.id = pay.purchase_order_id
                 JOIN suppliers s ON s.id = po.supplier_id
-                JOIN projects p ON p.id = po.project_id
+                LEFT JOIN projects p ON p.id = po.project_id
                 LEFT JOIN payment_methods pm ON pm.id = pay.payment_method_id
                 WHERE pay.deleted_at IS NULL";
         $params = [];
@@ -161,7 +162,9 @@ class Payment extends Model
             $sql .= " AND pay.purchase_order_id = :po_id";
             $params['po_id'] = $filters['po_id'];
         }
-        if (!empty($filters['project_id'])) {
+        if (($filters['project_id'] ?? '') === 'non_project') {
+            $sql .= " AND po.is_non_project = 1";
+        } elseif (!empty($filters['project_id'])) {
             $sql .= " AND po.project_id = :project_id";
             $params['project_id'] = $filters['project_id'];
         }

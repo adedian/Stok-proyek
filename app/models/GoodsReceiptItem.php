@@ -155,7 +155,7 @@ class GoodsReceiptItem extends Model
                        COALESCE(po.po_number, op.purchase_number, '-') AS po_number,
                        po.pembuat_po,
                        COALESCE(s.supplier_name, op.supplier_name, gr.source_detail, 'Pemakai/Internal') AS supplier_name,
-                       COALESCE(p.project_name, p2.project_name, '-') AS project_name,
+                       COALESCE(IF(po.is_non_project = 1, 'Non Project', NULL), p.project_name, p2.project_name, '-') AS project_name,
                        v.full_name AS validated_by_name
                 FROM goods_receipt_items gri
                 LEFT JOIN purchase_order_items poi ON poi.id = gri.purchase_order_item_id
@@ -217,7 +217,7 @@ class GoodsReceiptItem extends Model
                        po.pembuat_po,
                        COALESCE(po.project_id, op.project_id, gr.project_id) AS project_id,
                        COALESCE(s.supplier_name, op.supplier_name, gr.source_detail) AS supplier_name,
-                       COALESCE(p.project_name, p2.project_name) AS project_name
+                       COALESCE(IF(po.is_non_project = 1, 'Non Project', NULL), p.project_name, p2.project_name) AS project_name
                 FROM goods_receipt_items gri
                 LEFT JOIN purchase_order_items poi ON poi.id = gri.purchase_order_item_id
                 LEFT JOIN offline_purchase_items opi ON opi.id = gri.offline_purchase_item_id

@@ -7,6 +7,7 @@ require_once ROOT_PATH . '/app/models/PurchaseOrderExtraCost.php';
 require_once ROOT_PATH . '/app/models/PurchaseOrderHistory.php';
 require_once ROOT_PATH . '/app/models/Supplier.php';
 require_once ROOT_PATH . '/app/models/Project.php';
+require_once ROOT_PATH . '/app/models/CashCategory.php';
 require_once ROOT_PATH . '/app/models/User.php';
 require_once ROOT_PATH . '/app/models/Item.php';
 require_once ROOT_PATH . '/app/models/ItemCategory.php';
@@ -146,6 +147,7 @@ class PurchaseOrderController extends Controller
             'items'       => [],
             'extraCosts'  => [],
             'poNumber'    => $this->poModel->previewPoNumber(),
+            'costCategories' => (new CashCategory())->activeList(),
             'poSuffixOptions' => $this->poModel->suffixOptions(),
             'currencies'  => poCurrencies(),
             'suppliers'   => $this->supplierModel->activeList(),
@@ -194,12 +196,16 @@ class PurchaseOrderController extends Controller
             $pdo->beginTransaction();
 
             $poNumber = PurchaseOrder::withSuffix($this->poModel->generatePoNumber(), $data['po_suffix']);
+            $costCat = $this->resolveCostCategory($data['cost_category_id'], null);
             $poId = $this->poModel->create([
                 'po_number'   => $poNumber,
                 'po_number_suffix' => $data['po_suffix'] !== '' ? $data['po_suffix'] : null,
                 'po_category' => $data['po_category'],
                 'supplier_id' => $data['supplier_id'],
-                'project_id'  => $data['project_id'],
+                'project_id'  => $data['is_non_project'] ? null : $data['project_id'],
+                'is_non_project' => $data['is_non_project'] ? 1 : 0,
+                'cost_category_id'   => $costCat['id'],
+                'cost_category_name' => $costCat['name'],
                 'receiver_user_id' => $data['receiver_user_id'],
                 'delivery_location_id' => $data['delivery_location_id'] ?: null,
                 'po_date'     => $data['po_date'],
@@ -275,6 +281,7 @@ class PurchaseOrderController extends Controller
             'extraCosts' => $this->extraCostModel->itemsByPo($id),
             'categoryLockReasons' => $this->poModel->categoryLockReasons($id),
             'poNumber'  => $po['po_number'],
+            'costCategories' => $this->costCategoriesFor($po),
             'poSuffixOptions' => $this->poModel->suffixOptions(),
             'currencies' => poCurrencies(),
             'suppliers' => $this->supplierModel->activeList(),
@@ -361,6 +368,14 @@ class PurchaseOrderController extends Controller
         // hanya data umum PO (supplier/project/tanggal/status/catatan) yang diperbarui.
         $itemsLocked = $this->itemModel->hasReceipts($id);
 
+        // Beralih Project <-> Non Project TIDAK boleh bila PO sudah punya penerimaan barang: stok yang
+        // sudah masuk dicatat ke bucket project (atau kantor utk Non Project) dan koreksinya mencari
+        // bucket yang sama. Ganti project -> project lain tetap seperti perilaku sebelumnya.
+        if ($itemsLocked && (bool) ($existing['is_non_project'] ?? 0) !== (bool) $data['is_non_project']) {
+            setFlash('error', 'Project tidak bisa diganti ke/dari Non Project karena PO ini sudah memiliki penerimaan barang.');
+            $this->redirect('purchase_order', 'edit', ['id' => $id]);
+        }
+
         // Nomor baru (akhiran diubah) tidak boleh bentrok dengan PO lain -- po_number
         // UNIK dan ikut menghitung PO di Tempat Sampah. Dicek di sini supaya pesannya jelas.
         {
@@ -379,6 +394,7 @@ class PurchaseOrderController extends Controller
             $pdo->beginTransaction();
 
             $statusChanged = $existing['status'] !== $data['status'];
+            $costCat = $this->resolveCostCategory($data['cost_category_id'], $existing);
 
             // Nomor PO = bagian otomatis (tetap) + spasi + akhiran dari form. Bagian otomatis
             // diambil dari nomor tersimpan dengan membuang akhiran lama.
@@ -393,7 +409,10 @@ class PurchaseOrderController extends Controller
                 'po_number_suffix' => $data['po_suffix'] !== '' ? $data['po_suffix'] : null,
                 'po_category' => $data['po_category'],
                 'supplier_id' => $data['supplier_id'],
-                'project_id'  => $data['project_id'],
+                'project_id'  => $data['is_non_project'] ? null : $data['project_id'],
+                'is_non_project' => $data['is_non_project'] ? 1 : 0,
+                'cost_category_id'   => $costCat['id'],
+                'cost_category_name' => $costCat['name'],
                 'receiver_user_id' => $data['receiver_user_id'],
                 'delivery_location_id' => $data['delivery_location_id'] ?: null,
                 'po_date'     => $data['po_date'],
@@ -730,7 +749,11 @@ class PurchaseOrderController extends Controller
         return [
             'po_category' => $poCategory,
             'supplier_id' => (int) ($_POST['supplier_id'] ?? 0),
-            'project_id'  => (int) ($_POST['project_id'] ?? 0),
+            // Project: id project, atau nilai khusus 'non_project' (opsi resmi PO Non Project, BUKAN project palsu).
+            'is_non_project' => ($_POST['project_id'] ?? '') === 'non_project',
+            'project_id'  => ($_POST['project_id'] ?? '') === 'non_project' ? 0 : (int) (is_scalar($_POST['project_id'] ?? null) ? $_POST['project_id'] : 0),
+            // Kategori Biaya (opsional): id dari Master Kategori Biaya; divalidasi di validatePoInput().
+            'cost_category_id' => (int) (is_scalar($_POST['cost_category_id'] ?? null) ? $_POST['cost_category_id'] : 0),
             // Penerima Barang: HANYA id user (FK users.id); divalidasi di validatePoInput().
             'receiver_user_id' => (int) ($_POST['receiver_user_id'] ?? 0),
             // Lokasi pengiriman hanya relevan untuk PO Barang.
@@ -762,6 +785,43 @@ class PurchaseOrderController extends Controller
         ];
     }
 
+    /**
+     * Pilihan Kategori Biaya di form: kategori master yang masih ada + (saat edit) kategori yang sudah
+     * tersimpan di PO walau kini dihapus, supaya membuka/menyimpan PO lama tidak menghilangkannya.
+     */
+    private function costCategoriesFor(array $po): array
+    {
+        $cats = (new CashCategory())->activeList();
+        $stored = (int) ($po['cost_category_id'] ?? 0);
+        if ($stored > 0 && !in_array($stored, array_map('intval', array_column($cats, 'id')), true)) {
+            $cats[] = [
+                'id' => $stored,
+                'category_name' => ($po['cost_category_name'] ?? 'Kategori #' . $stored) . ' (dihapus)',
+            ];
+        }
+        return $cats;
+    }
+
+    /**
+     * Id + snapshot nama kategori untuk disimpan. 0 -> tidak ada kategori (kolom NULL). Id yang sama dgn
+     * yang sudah tersimpan di PO lama dan kini dihapus: id & snapshot lama dipertahankan.
+     * @return array{id:?int,name:?string}
+     */
+    private function resolveCostCategory(int $id, ?array $existing): array
+    {
+        if ($id <= 0) {
+            return ['id' => null, 'name' => null];
+        }
+        $cat = (new CashCategory())->find($id);
+        if ($cat) {
+            return ['id' => $id, 'name' => $cat['category_name']];
+        }
+        if ($existing !== null && (int) ($existing['cost_category_id'] ?? 0) === $id) {
+            return ['id' => $id, 'name' => $existing['cost_category_name'] ?? null];
+        }
+        return ['id' => null, 'name' => null];
+    }
+
     private function validatePoInput(array $data, ?array $existing = null): array
     {
         $errors = [];
@@ -778,8 +838,19 @@ class PurchaseOrderController extends Controller
         if ($data['supplier_id'] <= 0) {
             $errors[] = 'Supplier wajib dipilih.';
         }
-        if ($data['project_id'] <= 0) {
-            $errors[] = 'Project wajib dipilih.';
+        if (!$data['is_non_project'] && $data['project_id'] <= 0) {
+            $errors[] = 'Project wajib dipilih (atau pilih Non Project).';
+        } elseif (!$data['is_non_project'] && !$this->projectModel->find($data['project_id'])) {
+            $errors[] = 'Project yang dipilih tidak valid.';
+        }
+        // Kategori Biaya opsional, tetapi kalau diisi harus kategori master yang masih ada (tidak
+        // dihapus). PO lama yang kategorinya kini dihapus boleh disimpan ulang dgn kategori yang SAMA.
+        if ($data['cost_category_id'] > 0) {
+            $cat = (new CashCategory())->find($data['cost_category_id']);
+            $unchanged = $existing !== null && (int) ($existing['cost_category_id'] ?? 0) === $data['cost_category_id'];
+            if (!$cat && !$unchanged) {
+                $errors[] = 'Kategori Biaya yang dipilih tidak tersedia.';
+            }
         }
         if ($data['receiver_user_id'] <= 0) {
             $errors[] = 'Penerima Barang wajib dipilih.';

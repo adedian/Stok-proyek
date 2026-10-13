@@ -290,8 +290,10 @@
                     <div class="line"><?= e($po['delivery_location_name']) ?></div>
                     <?php if (!empty($po['delivery_location_address'])): ?><div class="line"><?= nl2br(e($po['delivery_location_address'])) ?></div><?php endif; ?>
                 <?php endif; ?>
-                <div class="line">Project <?= e($po['project_name']) ?></div>
-                <?php if (!empty($po['project_location'])): ?><div class="line"><?= e($po['project_location']) ?></div><?php endif; ?>
+                <div class="line"><?= !empty($po['is_non_project']) ? 'Non Project' : 'Project ' . e($po['project_name'] ?? '') ?></div>
+                <?php if (!empty($po['project_location']) && empty($po['is_non_project'])): ?><div class="line"><?= e($po['project_location']) ?></div><?php endif; ?>
+                <?php /* Kategori Biaya (Master Data) -- bagian kanan dokumen; PO lama tanpa kategori = tanda "—". */ ?>
+                <div class="line">Kategori Biaya: <?= !empty($po['cost_category_label']) ? e($po['cost_category_label']) : '&mdash;' ?></div>
             </div>
         </div>
 

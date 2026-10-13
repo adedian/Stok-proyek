@@ -73,9 +73,11 @@ $categoryLocked = $isEdit && !empty($categoryLockReasons);
                     <div class="input-group">
                         <select name="project_id" id="project_id" class="form-select" required>
                             <option value="">-- Pilih Project --</option>
+                            <?php /* "Non Project" = opsi resmi (project_id NULL + is_non_project), bukan project palsu. */ ?>
+                            <option value="non_project" <?= ($po && !empty($po['is_non_project'])) ? 'selected' : '' ?>>Non Project</option>
                             <?php foreach ($projects as $p): ?>
                                 <option value="<?= (int) $p['id'] ?>"
-                                    <?= ($po && (int) $po['project_id'] === (int) $p['id']) ? 'selected' : '' ?>>
+                                    <?= ($po && empty($po['is_non_project']) && (int) $po['project_id'] === (int) $p['id']) ? 'selected' : '' ?>>
                                     <?= e($p['project_name']) ?>
                                 </option>
                             <?php endforeach; ?>
@@ -86,6 +88,19 @@ $categoryLocked = $isEdit && !empty($categoryLockReasons);
                             </button>
                         <?php endif; ?>
                     </div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Kategori Biaya</label>
+                    <select name="cost_category_id" id="cost_category_id" class="form-select">
+                        <option value="">-- Tanpa Kategori Biaya --</option>
+                        <?php foreach (($costCategories ?? []) as $cc): ?>
+                            <option value="<?= (int) $cc['id'] ?>"
+                                <?= ($po && (int) ($po['cost_category_id'] ?? 0) === (int) $cc['id']) ? 'selected' : '' ?>>
+                                <?= e($cc['category_name']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <div class="form-text">Opsional. Sumber: Master Data &rarr; Kategori Biaya.</div>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Mata Uang <span class="text-danger">*</span></label>

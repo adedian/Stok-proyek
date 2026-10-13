@@ -8,7 +8,7 @@ function cashCatSortLink(string $col, string $label, string $sort, string $dir):
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-        <h4 class="mb-0">Kategori Kas</h4>
+        <h4 class="mb-0">Kategori Biaya</h4>
         <small class="text-muted">Master kategori transaksi Kas</small>
     </div>
     <div class="d-flex gap-2">

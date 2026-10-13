@@ -105,6 +105,7 @@ class InformationController extends Controller
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('information', 'create');
         }
+        $this->guardPostSize('create');
         verifyCsrf();
 
         $data = $this->collectInput();
@@ -115,11 +116,27 @@ class InformationController extends Controller
             $this->redirect('information', 'create');
         }
 
+        // Gambar (opsional): divalidasi + dikompres < 300 KB di server SEBELUM menyentuh DB.
+        // Gagal -> informasi tidak disimpan & tidak ada file tersisa.
+        $upload = $this->processImageUpload('create');
+        if ($upload) {
+            $data['image_path'] = $upload['path'];
+        }
+
         $data['created_by'] = currentUserId();
-        $id = $this->infoModel->create($data);
+        try {
+            $id = $this->infoModel->create($data);
+        } catch (Throwable $e) {
+            if ($upload) {
+                deleteUploadedFile($upload['path']);
+            }
+            error_log('Information store error: ' . $e->getMessage());
+            setFlash('error', 'Gagal menyimpan informasi. Silakan coba lagi.');
+            $this->redirect('information', 'create');
+        }
 
         $this->activityLog->log(currentUserId(), 'information', 'create', "Informasi '{$data['title']}' dibuat");
-        setFlash('success', 'Informasi berhasil ditambahkan.');
+        setFlash('success', 'Informasi berhasil ditambahkan.' . ($upload ? ' ' . $this->imageSummary($upload) : ''));
         $this->redirect('information', 'detail', ['id' => $id]);
     }
 
@@ -149,6 +166,7 @@ class InformationController extends Controller
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('information', 'index');
         }
+        $this->guardPostSize('index');
         verifyCsrf();
 
         $id = (int) ($_POST['id'] ?? 0);
@@ -166,7 +184,32 @@ class InformationController extends Controller
             $this->redirect('information', 'edit', ['id' => $id]);
         }
 
-        $this->infoModel->updateById($id, $data);
+        // Gambar: unggahan baru MENGGANTI yang lama; centang "Hapus gambar" menghapusnya.
+        // File lama baru dihapus dari disk SETELAH DB berhasil diperbarui.
+        $upload = $this->processImageUpload('edit', $id);
+        $oldImage = $existing['image_path'] ?? null;
+        $dropOld = false;
+        if ($upload) {
+            $data['image_path'] = $upload['path'];
+            $dropOld = !empty($oldImage);
+        } elseif (!empty($_POST['remove_image']) && !empty($oldImage)) {
+            $data['image_path'] = null;
+            $dropOld = true;
+        }
+
+        try {
+            $this->infoModel->updateById($id, $data);
+        } catch (Throwable $e) {
+            if ($upload) {
+                deleteUploadedFile($upload['path']);
+            }
+            error_log('Information update error: ' . $e->getMessage());
+            setFlash('error', 'Gagal memperbarui informasi. Silakan coba lagi.');
+            $this->redirect('information', 'edit', ['id' => $id]);
+        }
+        if ($dropOld) {
+            deleteUploadedFile($oldImage);
+        }
         $this->activityLog->log(currentUserId(), 'information', 'update', "Informasi '{$data['title']}' diperbarui");
 
         if ($existing['status'] !== $data['status']) {
@@ -178,7 +221,7 @@ class InformationController extends Controller
             );
         }
 
-        setFlash('success', 'Informasi berhasil diperbarui.');
+        setFlash('success', 'Informasi berhasil diperbarui.' . ($upload ? ' ' . $this->imageSummary($upload) : ''));
         $this->redirect('information', 'detail', ['id' => $id]);
     }
 
@@ -202,6 +245,51 @@ class InformationController extends Controller
         }
 
         $this->redirect('information', 'index');
+    }
+
+    /**
+     * Upload melebihi post_max_size -> PHP mengosongkan $_POST & $_FILES (CSRF akan tampak
+     * "kadaluarsa"). Deteksi dulu supaya pengguna mendapat pesan yang benar.
+     */
+    private function guardPostSize(string $backAction): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_POST) && empty($_FILES)
+            && (int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
+            setFlash('error', 'Ukuran data yang dikirim melebihi batas server (' . ini_get('post_max_size')
+                . '). Pilih gambar yang lebih kecil lalu coba lagi.');
+            $this->redirect('information', $backAction === 'edit' ? 'index' : $backAction);
+        }
+    }
+
+    /**
+     * Proses field "image": validasi isi file (bukan sekadar ekstensi), kompres di server sampai
+     * < Information::IMAGE_MAX_BYTES, simpan. Return info hasil atau null kalau tidak ada file.
+     * Gagal -> flash pesan jelas + redirect balik ke form (tidak ada file tersisa).
+     */
+    private function processImageUpload(string $backAction, int $id = 0): ?array
+    {
+        $err = $_FILES['image']['error'] ?? UPLOAD_ERR_NO_FILE;
+        if (is_int($err) && ($err === UPLOAD_ERR_INI_SIZE || $err === UPLOAD_ERR_FORM_SIZE)) {
+            setFlash('error', 'Ukuran file gambar melebihi batas upload server (' . ini_get('upload_max_filesize')
+                . '). Pilih gambar yang lebih kecil lalu coba lagi.');
+            $this->redirect('information', $backAction, $id ? ['id' => $id] : []);
+        }
+        try {
+            return handleImageUploadUnderLimit('image', Information::IMAGE_FOLDER, Information::IMAGE_MAX_BYTES, Information::IMAGE_MAX_UPLOAD_MB);
+        } catch (RuntimeException $e) {
+            setFlash('error', 'Gambar tidak dapat disimpan: ' . $e->getMessage() . ' Informasi belum disimpan.');
+            $this->redirect('information', $backAction, $id ? ['id' => $id] : []);
+        }
+    }
+
+    private function imageSummary(array $upload): string
+    {
+        $kb = fn(int $b) => number_format($b / 1000, 1, ',', '.') . ' KB';
+        $msg = 'Gambar disimpan: ' . $kb($upload['bytes']) . ' (' . $upload['width'] . '×' . $upload['height'] . ' px)';
+        if (($upload['original_bytes'] ?? 0) > $upload['bytes']) {
+            $msg .= ', dikompres dari ' . $kb((int) $upload['original_bytes']);
+        }
+        return $msg . '.';
     }
 
     private function collectInput(): array

@@ -10,10 +10,29 @@ class BankTransaction extends Model
     protected string $table = 'bank_transactions';
     protected bool $softDelete = true;
 
-    public function noBuktiExists(string $noBukti, ?int $excludeId = null): bool
+    /** Tahun No Bukti ikut disimpan (keunikan = no_bukti + tahun): "BK 09/0001" boleh berulang tiap tahun. */
+    public function create(array $data): int
     {
-        $sql = "SELECT id FROM bank_transactions WHERE no_bukti = :nb AND deleted_at IS NULL";
+        if (!isset($data['no_bukti_year']) && !empty($data['trx_date'])) {
+            $data['no_bukti_year'] = (int) substr((string) $data['trx_date'], 0, 4);
+        }
+        return parent::create($data);
+    }
+
+    /**
+     * $year diisi (tahun transaksi) -> cek persis seperti unique index (no_bukti + tahun, Tempat Sampah ikut);
+     * tanpa $year -> perilaku lama (hanya baris aktif).
+     */
+    public function noBuktiExists(string $noBukti, ?int $excludeId = null, ?int $year = null): bool
+    {
+        $sql = "SELECT id FROM bank_transactions WHERE no_bukti = :nb";
         $params = ['nb' => $noBukti];
+        if ($year !== null) {
+            $sql .= " AND no_bukti_year = :y";
+            $params['y'] = $year;
+        } else {
+            $sql .= " AND deleted_at IS NULL";
+        }
         if ($excludeId) {
             $sql .= " AND id != :ex";
             $params['ex'] = $excludeId;

@@ -125,7 +125,7 @@ class MasterKodeController extends Controller
     {
         $cfg = $this->codeConfig->getConfig($type);
         $prefix = $cfg['prefix'] ?? ($type === 'bank_masuk' ? 'BM' : 'BK');
-        $nextNumber = (new CashNumber())->currentNext($prefix);
+        $nextNumber = (new CashNumber())->currentNextMonthly($prefix, date('Y-m-d'));
 
         $this->view('master_kode/group_bank', [
             'pageTitle'  => 'Master Kode - ' . $meta['label'],

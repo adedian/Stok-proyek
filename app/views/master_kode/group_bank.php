@@ -7,14 +7,15 @@
  * MasterKodeController::groupBank().
  * $entityType, $entityMeta, $config (baris code_configs atau null), $prefix, $nextNumber
  */
-$nextExample = $prefix . '-' . str_pad((string) max(1, $nextNumber), 4, '0', STR_PAD_LEFT);
+// Format bulanan: "BK 09/0001" -- bulan berjalan, urutan kembali ke 0001 tiap bulan.
+$nextExample = $prefix . ' ' . date('m') . '/' . str_pad((string) max(1, $nextNumber), 4, '0', STR_PAD_LEFT);
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h4 class="mb-0">Master Kode &raquo; <?= e($entityMeta['label']) ?></h4>
         <small class="text-muted">
             Transaksi Bank dikelola di <a href="<?= BASE_URL ?>/cash">Kas/Bank</a> &mdash;
-            di sini hanya prefix No Bukti-nya: <code>PREFIX-NOMOR</code> (mis. <?= e($prefix) ?>-0001).
+            di sini hanya prefix No Bukti-nya: <code>PREFIX BULAN/NOMOR</code> (mis. <?= e($prefix) ?> <?= date('m') ?>/0001), urutan kembali ke 0001 tiap bulan.
         </small>
     </div>
     <a href="<?= BASE_URL ?>/master_kode" class="btn btn-outline-secondary">

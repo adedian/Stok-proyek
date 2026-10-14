@@ -133,7 +133,11 @@ class BankController extends Controller
             $this->json(['preview' => '']);
         }
         $prefix = $this->noBuktiPrefix($mutasi, (int) ($_GET['bank_id'] ?? 0));
-        $this->json(['preview' => (new CashNumber())->preview($prefix, 'bank_transactions'), 'prefix' => $prefix]);
+        $trxDate = $_GET['trx_date'] ?? '';
+        if (!is_string($trxDate) || !preg_match('/^\d{4}-(0[1-9]|1[0-2])-\d{2}$/', $trxDate)) {
+            $trxDate = date('Y-m-d');
+        }
+        $this->json(['preview' => (new CashNumber())->previewMonthly($prefix, $trxDate), 'prefix' => $prefix]);
     }
 
     public function store(): void
@@ -163,10 +167,12 @@ class BankController extends Controller
             // catatan class di atas). Mutasi sudah divalidasi non-kosong oleh
             // validate() sebelum sampai sini.
             $prefix = $this->noBuktiPrefix($data['mutasi'], (int) $data['bank_id']);
-            $noBukti = (new CashNumber())->next($prefix, 'bank_transactions');
+            // Format bulanan "BK 09/0032": bulan dari tanggal transaksi, urut kembali ke 0001 tiap bulan.
+            $noYear = (int) substr($data['trx_date'], 0, 4);
+            $noBukti = (new CashNumber())->nextMonthly($prefix, $data['trx_date']);
             $guard = 0;
-            while ($this->model->noBuktiExists($noBukti) && $guard++ < 50) {
-                $noBukti = (new CashNumber())->next($prefix, 'bank_transactions');
+            while ($this->model->noBuktiExists($noBukti, null, $noYear) && $guard++ < 50) {
+                $noBukti = (new CashNumber())->nextMonthly($prefix, $data['trx_date']);
             }
             $trxId = $this->model->create(array_merge($data, [
                 'no_bukti'   => $noBukti,

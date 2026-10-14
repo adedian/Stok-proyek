@@ -81,7 +81,7 @@ $curPic = $row['pic'] ?? '';
             <div class="row g-3">
                 <div class="col-md-3">
                     <label class="form-label">Tanggal <span class="text-danger">*</span></label>
-                    <input type="date" name="trx_date" class="form-control" value="<?= $val('trx_date', date('Y-m-d')) ?>" required>
+                    <input type="date" name="trx_date" id="bank_trx_date" class="form-control" value="<?= $val('trx_date', date('Y-m-d')) ?>" required>
                 </div>
 
                 <div class="col-md-3">
@@ -104,7 +104,8 @@ $curPic = $row['pic'] ?? '';
                             Nomor tidak berubah saat transaksi diedit.
                         <?php else: ?>
                             Dibuat otomatis: <strong>BM</strong> untuk Masuk, <strong>BK</strong> untuk Keluar
-                            (Bank <strong>Loan</strong>: <strong>BML</strong> / <strong>BKL</strong>).
+                            (Bank <strong>Loan</strong>: <strong>BML</strong> / <strong>BKL</strong>), format
+                            <strong>BK 09/0001</strong> &mdash; bulan mengikuti Tanggal, urutan kembali ke 0001 tiap bulan.
                         <?php endif; ?>
                     </div>
                 </div>
@@ -288,6 +289,7 @@ $curPic = $row['pic'] ?? '';
     var mutasiSel = document.getElementById('bank_mutasi');
     var out  = document.getElementById('bank_no_bukti');
     var hint = document.getElementById('bank_no_bukti_hint');
+    var dateEl = document.getElementById('bank_trx_date');
     if (!mutasiSel || !out) { return; }
 
     function refresh() {
@@ -295,7 +297,7 @@ $curPic = $row['pic'] ?? '';
         if (!mutasi) { out.value = ''; out.placeholder = 'pilih Mutasi dulu'; return; }
         var bankSel = document.getElementById('bank_id');
         var bankId = bankSel ? bankSel.value : '';
-        fetch('<?= BASE_URL ?>/index.php?module=bank&action=previewNoBukti&mutasi=' + encodeURIComponent(mutasi) + '&bank_id=' + encodeURIComponent(bankId))
+        fetch('<?= BASE_URL ?>/index.php?module=bank&action=previewNoBukti&mutasi=' + encodeURIComponent(mutasi) + '&bank_id=' + encodeURIComponent(bankId) + '&trx_date=' + encodeURIComponent(dateEl ? dateEl.value : ''))
             .then(function (r) { return r.json(); })
             .then(function (d) {
                 if (d && d.preview) {
@@ -309,6 +311,8 @@ $curPic = $row['pic'] ?? '';
     }
 
     mutasiSel.addEventListener('change', refresh);
+    // Bulan di nomor mengikuti Tanggal transaksi -> pratinjau ikut berubah saat tanggal diganti.
+    if (dateEl) { dateEl.addEventListener('change', refresh); }
     // Bank berjenis Loan memakai prefix BML/BKL -> pratinjau ikut berubah saat Bank diganti.
     var bankSelEl = document.getElementById('bank_id');
     if (bankSelEl) { bankSelEl.addEventListener('change', refresh); }

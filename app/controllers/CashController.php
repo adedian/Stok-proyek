@@ -967,10 +967,11 @@ class CashController extends Controller
             // --- Sisi Bank Keluar ---
             // Bank LOAN -> BKL, selain itu BK (Master Kode) -- lihat MasterBank::noBuktiPrefix().
             $bankPrefix = $this->masterBankModel->noBuktiPrefix('keluar', $bankId);
-            $bankNoBukti = (new CashNumber())->next($bankPrefix, 'bank_transactions');
+            $bankNoYear = (int) substr($trxDate, 0, 4);
+            $bankNoBukti = (new CashNumber())->nextMonthly($bankPrefix, $trxDate);
             $guard = 0;
-            while ($this->bankModel->noBuktiExists($bankNoBukti) && $guard++ < 50) {
-                $bankNoBukti = (new CashNumber())->next($bankPrefix, 'bank_transactions');
+            while ($this->bankModel->noBuktiExists($bankNoBukti, null, $bankNoYear) && $guard++ < 50) {
+                $bankNoBukti = (new CashNumber())->nextMonthly($bankPrefix, $trxDate);
             }
             $bankUraian = "Transfer ke Kas {$toPic}" . ($notes !== '' ? " -- {$notes}" : '');
             $bankTrxId = $this->bankModel->create([

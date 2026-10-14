@@ -475,15 +475,25 @@ class PurchaseOrder extends Model
      * PO yang boleh dibuatkan pembayaran: bukan draft/cancelled
      * (dipakai oleh modul Pembayaran untuk mengisi dropdown)
      */
-    public function payablePoList(): array
+    public function payablePoList(int $keepPoId = 0): array
     {
+        // PO yang sudah LUNAS (total pembayaran >= total PO, toleransi 1 sen untuk pembulatan)
+        // tidak ditawarkan lagi. $keepPoId = PO yang sedang diedit pembayarannya: tetap tampil
+        // supaya pilihan di form Edit tidak kosong meski PO-nya sudah lunas.
         $sql = "SELECT po.id, po.po_number, po.po_category, po.currency, po.total_amount, s.supplier_name
                 FROM purchase_orders po
                 JOIN suppliers s ON s.id = po.supplier_id
                 WHERE po.deleted_at IS NULL
                   AND po.status NOT IN ('draft', 'cancelled')
+                  AND (
+                        po.id = :keep_id
+                        OR po.total_amount - COALESCE((
+                            SELECT SUM(p.amount) FROM payments p
+                            WHERE p.purchase_order_id = po.id AND p.deleted_at IS NULL
+                        ), 0) > 0.01
+                  )
                 ORDER BY po.created_at DESC";
-        return $this->db->fetchAll($sql);
+        return $this->db->fetchAll($sql, ['keep_id' => $keepPoId]);
     }
 
     /**

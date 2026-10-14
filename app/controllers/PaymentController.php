@@ -168,7 +168,7 @@ class PaymentController extends Controller
             'mode'          => 'edit',
             'payment'       => $payment,
             'paymentNumber' => $payment['payment_number'],
-            'poList'        => $this->getPayablePoList(),
+            'poList'        => $this->getPayablePoList((int) $payment['purchase_order_id']),
             'selectedPo'    => $po,
             'remaining'     => $this->getRemaining($po, (float) $payment['amount']),
             'progress'      => $po ? $this->paymentModel->poPaymentInfo((int) $po['id'], (float) $po['total_amount']) : null,
@@ -370,9 +370,9 @@ class PaymentController extends Controller
     /**
      * PO yang boleh dibuatkan pembayaran: bukan draft/cancelled
      */
-    private function getPayablePoList(): array
+    private function getPayablePoList(int $keepPoId = 0): array
     {
-        return $this->poModel->payablePoList();
+        return $this->poModel->payablePoList($keepPoId);
     }
 
     private function getRemaining(?array $po, float $excludeAmount = 0): ?float

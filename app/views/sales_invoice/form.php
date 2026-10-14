@@ -186,7 +186,7 @@ if (empty($terms)) {
                                 </td>
                                 <td><input type="number" name="qty[]" class="form-control form-control-sm qty-input" value="<?= e($item['qty']) ?>" min="0.01" step="0.01" required></td>
                                 <td><input type="text" name="unit[]" class="form-control form-control-sm unit-input" list="unitOptions" value="<?= e($item['unit']) ?>" placeholder="Pilih/ketik satuan" required></td>
-                                <td><input type="text" name="unit_price[]" class="form-control form-control-sm price-input currency-input" inputmode="numeric"
+                                <td><input type="text" name="unit_price[]" class="form-control form-control-sm price-input currency-input" inputmode="decimal"
                                            value="<?= $item['unit_price'] !== '' ? number_format((float) $item['unit_price'], 2, '.', ',') : '' ?>" placeholder="0" required></td>
                                 <td class="text-end subtotal-cell">Rp 0.00</td>
                                 <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger btn-remove-row"><i class="bi bi-trash"></i></button></td>
@@ -546,7 +546,7 @@ if (empty($terms)) {
             '</td>' +
             '<td><input type="number" name="qty[]" class="form-control form-control-sm qty-input" min="0.01" step="0.01" required></td>' +
             '<td><input type="text" name="unit[]" class="form-control form-control-sm unit-input" list="unitOptions" placeholder="Pilih/ketik satuan" required></td>' +
-            '<td><input type="text" name="unit_price[]" class="form-control form-control-sm price-input currency-input" inputmode="numeric" placeholder="0" required></td>' +
+            '<td><input type="text" name="unit_price[]" class="form-control form-control-sm price-input currency-input" inputmode="decimal" placeholder="0" required></td>' +
             '<td class="text-end subtotal-cell">Rp 0.00</td>' +
             '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger btn-remove-row"><i class="bi bi-trash"></i></button></td>';
         tableBody.appendChild(tr);

@@ -17,7 +17,7 @@ $qs = http_build_query(array_filter([
 ]));
 $detailMode = $detailMode ?? false;
 $modeQs = $detailMode ? '&mode=rincian' : ''; // tombol utama PDF/Excel ikut mode layar
-$rp = static fn($v) => number_format((float) $v, 0, ',', '.');
+$rp = static fn($v) => number_format((float) $v, 2, ',', '.');
 $qtyFmt = static fn($v) => rtrim(rtrim(number_format((float) $v, 2, ',', '.'), '0'), ',');
 $canCetakVoucher = can('cash', 'print_voucher'); // Super Admin & Accounting saja
 $selectedProjectIds = array_map('strval', $filters['project_ids']);

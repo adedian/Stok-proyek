@@ -147,7 +147,7 @@ $canQuickAddProject = function_exists('canQuickAdd') && canQuickAdd('project');
     </td>
     <td data-label="Harga Satuan (Rp)" style="width: 140px;">
         <input type="text" name="item_satuan[]" class="form-control form-control-sm price-input currency-input"
-               inputmode="numeric" value="<?= e($satuanVal) ?>" placeholder="0" required>
+               inputmode="decimal" value="<?= e($satuanVal) ?>" placeholder="0" required>
     </td>
     <td data-label="Jumlah" style="width: 140px;" class="text-end subtotal-cell">Rp 0.00</td>
     <td class="text-center cell-remove" style="width: 44px;">

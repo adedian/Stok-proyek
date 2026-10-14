@@ -45,7 +45,7 @@ $projects = $projects ?? [];
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Nominal <span class="text-danger">*</span></label>
-                    <input type="text" name="amount" class="form-control currency-input" inputmode="numeric" placeholder="0" required>
+                    <input type="text" name="amount" class="form-control currency-input" inputmode="decimal" placeholder="0" required>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Dari PIC (pengirim)</label>

@@ -8,7 +8,7 @@
  * cetak/export, tampilan layar (cash/report.php) tidak berubah.
  */
 $reportTitle = $reportTitle ?? 'Laporan Kas';
-$rp = static fn($v) => number_format((float) $v, 0, ',', '.');
+$rp = static fn($v) => number_format((float) $v, 2, ',', '.');
 $qtyFmt = static function ($v) {
     $v = (float) $v;
     return $v == (int) $v ? number_format($v, 0, ',', '.') : rtrim(rtrim(number_format($v, 2, ',', '.'), '0'), ',');

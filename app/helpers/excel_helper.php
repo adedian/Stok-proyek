@@ -454,7 +454,7 @@ function streamCashReportGroupedExcel(array $groups, string $companyName, string
     foreach (['A' => 12, 'B' => 16, 'C' => 22, 'D' => 40, 'E' => 16, 'F' => 16] as $c => $w) {
         $sheet->getColumnDimension($c)->setWidth($w);
     }
-    $money = '#,##0;[Red]-#,##0';
+    $money = '#,##0.00;[Red]-#,##0.00';
     $grandMasuk = 0.0;
     $grandKeluar = 0.0;
 
@@ -521,7 +521,7 @@ function streamCashReportGroupedExcel(array $groups, string $companyName, string
     $sheet->getStyle("E{$row}:F{$row}")->getNumberFormat()->setFormatCode($money);
     $row++;
     $sheet->mergeCells("A{$row}:{$lastColLetter}{$row}");
-    $sheet->setCellValue('A' . $row, 'Saldo: ' . number_format($grandMasuk - $grandKeluar, 0, ',', '.'));
+    $sheet->setCellValue('A' . $row, 'Saldo: ' . number_format($grandMasuk - $grandKeluar, 2, ',', '.'));
     $sheet->getStyle('A' . $row)->getFont()->setBold(true);
     $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
 
@@ -566,10 +566,10 @@ function streamCashReportExcel(array $ledger, string $companyName, string $perio
     $sheet->getStyle("A{$headerRow}:{$lastColLetter}{$headerRow}")->getAlignment()
         ->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
 
-    $money = '#,##0';
+    $money = '#,##0.00';
     // Format nominal yang bisa bernilai negatif: minus + merah supaya koreksi
     // Kas kelihatan jelas di Excel.
-    $moneyNeg = '#,##0;[Red]-#,##0';
+    $moneyNeg = '#,##0.00;[Red]-#,##0.00';
     $row = $headerRow + 1;
 
     // Saldo Awal

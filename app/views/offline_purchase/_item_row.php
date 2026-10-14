@@ -44,7 +44,7 @@ $isLegacyRow = !$hasItemId && $item['item_name'] !== '';
     </td>
     <td style="width: 160px;">
         <input type="text" name="price[]" class="form-control form-control-sm price-input currency-input"
-               inputmode="numeric" value="<?= e($item['price'] !== '' ? number_format((float) $item['price'], 2, '.', ',') : '') ?>" placeholder="0" required>
+               inputmode="decimal" value="<?= e($item['price'] !== '' ? number_format((float) $item['price'], 2, '.', ',') : '') ?>" placeholder="0" required>
     </td>
     <td style="width: 160px;" class="text-end subtotal-cell">Rp 0.00</td>
     <td style="width: 50px;" class="text-center">

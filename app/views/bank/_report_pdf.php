@@ -4,7 +4,7 @@
  * $company, $periodText, $reportTitle (dinamis mengikuti filter Project).
  */
 $reportTitle = $reportTitle ?? 'Laporan Bank';
-$rp = static fn($v) => number_format((float) $v, 0, ',', '.');
+$rp = static fn($v) => number_format((float) $v, 2, ',', '.');
 ?>
 <!DOCTYPE html>
 <html>

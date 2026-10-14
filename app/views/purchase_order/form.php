@@ -392,7 +392,7 @@ $categoryLocked = $isEdit && !empty($categoryLockReasons);
                                     <div class="input-group input-group-sm">
                                         <span class="input-group-text po-currency-label"><?= e(currencyPrefix($poCurrency)) ?></span>
                                         <input type="text" name="extra_cost_amount[]" class="form-control form-control-sm extra-cost-amount-input currency-input"
-                                               inputmode="decimal" value="<?= e(number_format((float) $cost['amount'], 2, '.', ',')) ?>" placeholder="0">
+                                               inputmode="numeric" value="<?= e(number_format((float) $cost['amount'], 2, '.', ',')) ?>" placeholder="0">
                                     </div>
                                 </td>
                                 <td class="text-center">
@@ -680,7 +680,7 @@ $categoryLocked = $isEdit && !empty($categoryLockReasons);
             tr.className = 'extra-cost-row';
             tr.innerHTML =
                 '<td><input type="text" name="extra_cost_name[]" class="form-control form-control-sm" placeholder="mis. Ongkir, Biaya Bongkar"></td>'
-                + '<td><div class="input-group input-group-sm"><span class="input-group-text po-currency-label"></span><input type="text" name="extra_cost_amount[]" class="form-control form-control-sm extra-cost-amount-input currency-input" inputmode="decimal" placeholder="0"></div></td>'
+                + '<td><div class="input-group input-group-sm"><span class="input-group-text po-currency-label"></span><input type="text" name="extra_cost_amount[]" class="form-control form-control-sm extra-cost-amount-input currency-input" inputmode="numeric" placeholder="0"></div></td>'
                 + '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger btn-remove-extra-cost"><i class="bi bi-trash"></i></button></td>';
             extraCostBody.appendChild(tr);
             syncCurrencyLabels();

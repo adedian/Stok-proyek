@@ -10,7 +10,7 @@
  * mengikuti contoh struktur yang diminta user.
  */
 $reportTitle = $reportTitle ?? 'Laporan Kas';
-$rp = static fn($v) => number_format((float) $v, 2, ',', '.');
+$rp = static fn($v) => number_format((float) $v, 0, ',', '.');
 $grandSaldo = (float) $grandMasuk - (float) $grandKeluar;
 ?>
 <!DOCTYPE html>

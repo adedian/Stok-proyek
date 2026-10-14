@@ -115,7 +115,7 @@ $selectedPoId = $selectedPo['id'] ?? ($payment['purchase_order_id'] ?? '');
                     <label class="form-label">Nominal Pembayaran (IDR) <span class="text-danger">*</span></label>
                     <div class="input-group">
                         <span class="input-group-text">IDR</span>
-                        <input type="text" name="amount" id="amountInput" class="form-control currency-input" inputmode="decimal"
+                        <input type="text" name="amount" id="amountInput" class="form-control currency-input" inputmode="numeric"
                                value="<?= e(!empty($payment['amount_idr']) ? number_format((float) $payment['amount_idr'], 2, '.', ',') : (!empty($payment['amount']) ? number_format((float) $payment['amount'], 2, '.', ',') : '')) ?>" required>
                     </div>
                     <div class="form-text <?= $kursNeeded ? '' : 'd-none' ?>" id="amountForeignHint">

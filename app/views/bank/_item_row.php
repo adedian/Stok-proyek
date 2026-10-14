@@ -15,7 +15,7 @@ $amountVal = ($item['amount'] ?? '') !== '' ? number_format((float) $item['amoun
     </td>
     <td data-label="Nominal (Rp)" style="width: 220px;">
         <input type="text" name="item_amount[]" class="form-control form-control-sm amount-input currency-input"
-               inputmode="decimal" value="<?= e($amountVal) ?>" placeholder="0" required>
+               inputmode="numeric" value="<?= e($amountVal) ?>" placeholder="0" required>
     </td>
     <td class="text-center cell-remove" style="width: 44px;">
         <button type="button" class="btn btn-sm btn-outline-danger btn-remove-row" title="Hapus baris">

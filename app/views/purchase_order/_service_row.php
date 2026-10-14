@@ -28,7 +28,7 @@ $item = $item ?? ['item_name' => '', 'unit' => '', 'qty_order' => '', 'price' =>
         <div class="input-group input-group-sm">
             <span class="input-group-text po-currency-label"><?= e(currencyPrefix($poCurrency ?? 'IDR')) ?></span>
             <input type="text" name="price[]" class="form-control form-control-sm price-input currency-input"
-                   inputmode="decimal" value="<?= e($item['price'] !== '' ? number_format((float) $item['price'], 2, '.', ',') : '') ?>" placeholder="0" required>
+                   inputmode="numeric" value="<?= e($item['price'] !== '' ? number_format((float) $item['price'], 2, '.', ',') : '') ?>" placeholder="0" required>
         </div>
     </td>
     <td style="width: 90px;">

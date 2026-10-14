@@ -268,7 +268,7 @@ $curPic = $row['pic'] ?? '';
         tpl.innerHTML =
             '<tr class="item-row">' +
                 '<td data-label="Uraian"><input type="text" name="item_uraian[]" class="form-control form-control-sm uraian-input" required></td>' +
-                '<td data-label="Nominal (Rp)" style="width: 220px;"><input type="text" name="item_amount[]" class="form-control form-control-sm amount-input currency-input" inputmode="decimal" placeholder="0" required></td>' +
+                '<td data-label="Nominal (Rp)" style="width: 220px;"><input type="text" name="item_amount[]" class="form-control form-control-sm amount-input currency-input" inputmode="numeric" placeholder="0" required></td>' +
                 '<td class="text-center cell-remove" style="width: 44px;"><button type="button" class="btn btn-sm btn-outline-danger btn-remove-row" title="Hapus baris"><i class="bi bi-trash"></i><span class="d-md-none ms-1">Hapus baris</span></button></td>' +
             '</tr>';
         tableBody.appendChild(tpl.firstElementChild);

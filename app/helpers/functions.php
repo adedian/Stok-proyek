@@ -660,7 +660,8 @@ function normalizeStockType($value, string $default = 'stok_proyek'): string
  *
  *   terbilang(15000)     => "lima belas ribu"
  *   terbilang(-5000)     => "minus lima ribu"
- *   terbilang(1500.5)    => "seribu lima ratus koma lima nol"
+ *   terbilang(1500.5)    => "seribu lima ratus koma lima puluh"
+ *   terbilang(157099119.67) => "... sembilan belas koma enam puluh tujuh"
  */
 function terbilang($number): string
 {
@@ -671,22 +672,21 @@ function terbilang($number): string
         $number = abs($number);
     }
 
-    $int  = (int) floor($number + 1e-9);
-    $frac = (int) round(($number - $int) * 100);
+    // Bulatkan ke sen DULU (bukan floor + selisih float) supaya 157099119.67 tidak jadi ...66 / ...67 acak.
+    $cents = (int) round($number * 100);
+    $int   = intdiv($cents, 100);
+    $frac  = $cents % 100;
 
     $words = trim(preg_replace('/\s+/', ' ', _terbilangInt($int)));
     if ($words === '') {
         $words = 'nol';
     }
 
+    // Pecahan dibaca sebagai BILANGAN 2 digit, bukan digit per digit: .67 = "enam puluh tujuh"
+    // (bukan "enam tujuh"), .50 = "lima puluh", .05 = "nol lima".
     if ($frac > 0) {
-        $digits = str_pad((string) $frac, 2, '0', STR_PAD_LEFT);
-        $satuan = ['nol', 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan'];
-        $spoken = [];
-        foreach (str_split($digits) as $d) {
-            $spoken[] = $satuan[(int) $d];
-        }
-        $words .= ' koma ' . implode(' ', $spoken);
+        $fracWords = trim(preg_replace('/\s+/', ' ', _terbilangInt($frac)));
+        $words .= ' koma ' . ($frac < 10 ? 'nol ' : '') . $fracWords;
     }
 
     return $prefix . $words;

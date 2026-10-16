@@ -131,6 +131,7 @@
                                     <input type="checkbox" class="form-check-input so-row-check"
                                            value="<?= (int) $so['id'] ?>"
                                            data-stock-out-id="<?= (int) $so['id'] ?>"
+                                           data-doc-id="<?= (int) ($so['document_id'] ?: $so['id']) ?>"
                                            <?php if (!empty($so['delivery_note_id'])): ?>
                                                data-has-dn="1"
                                                data-delivery-note-id="<?= (int) $so['delivery_note_id'] ?>"
@@ -250,6 +251,18 @@ document.addEventListener('DOMContentLoaded', function () {
             hint.textContent = parts.length ? 'Terpilih: ' + parts.join('  •  ') : '';
         }
     }
+
+    // Barang dalam satu dokumen pengeluaran (nomor sama) dicentang/dilepas bersamaan,
+    // supaya hanya satu Surat Jalan yang terbit untuk dokumen itu. Listener ini
+    // didaftarkan SEBELUM wireSelectAllCheckbox agar status "Centang Semua" ikut benar.
+    Array.prototype.forEach.call(document.querySelectorAll('.so-row-check'), function (box) {
+        box.addEventListener('change', function () {
+            Array.prototype.forEach.call(
+                document.querySelectorAll('.so-row-check[data-doc-id="' + box.dataset.docId + '"]'),
+                function (sib) { sib.checked = box.checked; }
+            );
+        });
+    });
 
     wireSelectAllCheckbox('#soSelectAll', '.so-row-check', refresh);
 

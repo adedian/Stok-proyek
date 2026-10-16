@@ -66,6 +66,8 @@ class DeliveryNoteController extends Controller
             setFlash('error', 'Pilih minimal 1 baris Pengeluaran Barang yang belum masuk Surat Jalan manapun.');
             $this->redirect('stock_out', 'index');
         }
+        // Daftar ID final (sudah diperluas ke seluruh barang satu dokumen).
+        $ids = array_map(fn($r) => (int) $r['id'], $rows);
 
         $this->view('delivery_note/select', [
             'pageTitle' => 'Buat Surat Jalan',
@@ -334,10 +336,24 @@ class DeliveryNoteController extends Controller
             return [];
         }
         $rows = [];
+        $seenDocs = [];
         foreach ($ids as $id) {
             $row = $this->stockOutModel->findWithRelations($id);
-            if ($row && empty($row['delivery_note_id'])) {
-                $rows[] = $row;
+            if (!$row) {
+                continue;
+            }
+            // Satu dokumen pengeluaran (banyak barang, 1 nomor) = SATU Surat Jalan:
+            // mencentang salah satu barangnya otomatis menyertakan barang lain dari
+            // dokumen yang sama, jadi tidak mungkin terbit SJ berbeda per barang.
+            $docId = (int) ($row['document_id'] ?: $row['id']);
+            if (isset($seenDocs[$docId])) {
+                continue;
+            }
+            $seenDocs[$docId] = true;
+            foreach ($this->stockOutModel->documentRows($docId) as $docRow) {
+                if (empty($docRow['delivery_note_id'])) {
+                    $rows[] = $this->stockOutModel->findWithRelations((int) $docRow['id']);
+                }
             }
         }
         return $rows;

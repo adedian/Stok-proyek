@@ -183,6 +183,7 @@ class DeliveryNoteController extends Controller
 
         $this->view('delivery_note/print', [
             'pageTitle' => 'Cetak Surat Jalan',
+            'documentTitle' => $this->printFileTitle([$note]),
             'notes'     => [$note],
             'company'   => (new SystemSetting())->getGroup('company'),
         ]);
@@ -226,6 +227,7 @@ class DeliveryNoteController extends Controller
 
         $this->view('delivery_note/print', [
             'pageTitle' => 'Cetak Surat Jalan',
+            'documentTitle' => $this->printFileTitle($notes),
             'notes'     => $notes,
             'company'   => (new SystemSetting())->getGroup('company'),
         ]);
@@ -316,6 +318,19 @@ class DeliveryNoteController extends Controller
     }
 
     // ================= Helper privat =================
+
+    /**
+     * Judul halaman cetak = nama file default saat "Save as PDF" di browser.
+     * Satu dokumen: "Surat_Jalan 011_SJ.HME_X_2026" (garis miring diganti garis bawah
+     * karena tak boleh ada di nama file). Banyak dokumen: ringkasan jumlahnya.
+     */
+    private function printFileTitle(array $notes): string
+    {
+        if (count($notes) === 1) {
+            return 'Surat_Jalan ' . str_replace(['/', '\\'], '_', (string) $notes[0]['delivery_number']);
+        }
+        return 'Surat_Jalan (' . count($notes) . ' dokumen)';
+    }
 
     private function parseIds($idsParam): array
     {

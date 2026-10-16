@@ -15,7 +15,7 @@
             } catch (e) { /* abaikan */ }
         })();
     </script>
-    <title><?= isset($pageTitle) ? e($pageTitle) . ' - ' : '' ?><?= e(APP_NAME) ?></title>
+    <title><?= isset($documentTitle) ? e($documentTitle) : (isset($pageTitle) ? e($pageTitle) . ' - ' : '') . e(APP_NAME) ?></title>
     <?php if (isLoggedIn()): ?>
         <meta name="csrf-token" content="<?= e(csrfToken()) ?>">
     <?php endif; ?>

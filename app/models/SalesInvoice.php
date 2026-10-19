@@ -17,24 +17,28 @@ class SalesInvoice extends Model
     protected bool $softDelete = true;
 
     /**
-     * Generate nomor invoice keluar otomatis: "001/INV.HME/VIII/2026" (Project)
-     * atau "001/FKT.HME/VIII/2026" (Lampu) -- urut/kode/bulan romawi/tahun,
-     * mengikuti tanggal invoice ($invoiceDate, bukan tanggal hari ini kalau
-     * invoice di-backdate), reset urutan tiap tahun baru. Atomic (lihat
-     * DocumentNumber::next()) -- aman dari race condition, dan HANYA dipanggil
-     * sekali saat dokumen dibuat (SalesInvoiceController::store()), bukan
-     * setiap kali dicetak, supaya nomor tidak pernah berubah.
-     *
-     * Project & Lampu SENGAJA pakai doc_type counter TERPISAH ('sales_invoice'
-     * vs 'sales_invoice_lampu') -- supaya sequence-nya independen (Lampu mulai
-     * dari 001 walau Project sudah di nomor berapapun), bukan 1 counter yang
-     * dibagi 2 kategori.
+     * Nomor invoice keluar kini DIKETIK MANUAL di form (bukan lagi otomatis).
+     * generateInvoiceNumber() ("001/INV.HME/VIII/2026" / "001/FKT.HME/...") dipertahankan
+     * hanya kalau nanti penomoran otomatis diaktifkan kembali; saat ini tidak dipanggil.
+     * Project & Lampu memakai doc_type counter TERPISAH.
      */
     public function generateInvoiceNumber(string $invoiceType, ?string $invoiceDate = null): string
     {
         $docType = $invoiceType === 'lampu' ? 'sales_invoice_lampu' : 'sales_invoice';
         $codeSettingKey = $invoiceType === 'lampu' ? 'prefix_fkt' : 'prefix_sls';
         return (new DocumentNumber())->next($docType, $codeSettingKey, $invoiceDate);
+    }
+
+    /** Apakah nomor ini sudah dipakai invoice lain (termasuk di Tempat Sampah -- kolom invoice_number UNIK). */
+    public function numberTaken(string $number, ?int $excludeId = null): bool
+    {
+        $sql = "SELECT id FROM sales_invoices WHERE invoice_number = :n";
+        $params = ['n' => $number];
+        if ($excludeId) {
+            $sql .= " AND id != :id";
+            $params['id'] = $excludeId;
+        }
+        return (bool) $this->db->fetchOne($sql, $params);
     }
 
     /**

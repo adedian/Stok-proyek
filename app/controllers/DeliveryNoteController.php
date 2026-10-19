@@ -119,8 +119,24 @@ class DeliveryNoteController extends Controller
             $this->redirect('delivery_note', 'select', ['ids' => implode(',', $ids)]);
         }
 
+        // No. Surat Jalan diketik manual -- wajib, maks 50 karakter, unik (termasuk Tempat Sampah).
+        $numberRaw = $_POST['delivery_number'] ?? '';
+        $deliveryNumber = is_string($numberRaw) ? trim(preg_replace('/\s+/', ' ', $numberRaw)) : '';
+        $numberError = null;
+        if ($deliveryNumber === '') {
+            $numberError = 'No. Surat Jalan wajib diisi.';
+        } elseif (mb_strlen($deliveryNumber) > 50) {
+            $numberError = 'No. Surat Jalan maksimal 50 karakter.';
+        } elseif ($this->deliveryNoteModel->numberTaken($deliveryNumber)) {
+            $numberError = "No. Surat Jalan {$deliveryNumber} sudah dipakai Surat Jalan lain (termasuk yang ada di Tempat Sampah).";
+        }
+        if ($numberError !== null) {
+            setFlash('error', $numberError);
+            $this->redirect('delivery_note', 'select', ['ids' => implode(',', $ids)]);
+        }
+
         $data = [
-            'delivery_number'  => $this->deliveryNoteModel->generateDeliveryNumber($deliveryDate),
+            'delivery_number'  => $deliveryNumber,
             'delivery_date'    => $deliveryDate,
             'destination_type' => $destinationType,
             'client_id'        => $destinationType === 'client' ? $clientId : null,

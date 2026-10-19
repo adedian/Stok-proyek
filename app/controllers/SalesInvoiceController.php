@@ -110,14 +110,8 @@ class SalesInvoiceController extends Controller
 
         assertPeriodOpen('sales_invoice', $data['invoice_date'], 'sales_invoice', 'create');
 
-        // Generate nomor SEBELUM beginTransaction() -- DocumentNumber::next() punya
-        // transaction atomic sendiri (SELECT...FOR UPDATE pada counter), tidak bisa
-        // dinested di dalam transaction PDO lain (PDO MySQL tidak dukung nested
-        // transaction/savepoint otomatis, beginTransaction() kedua akan throw).
-        // Kalau insert invoice di bawah gagal & rollback, nomor yang sudah terpakai
-        // TETAP hilang (gap di sequence) -- itu perilaku yang benar untuk numbering
-        // dokumen (gap boleh, duplicate TIDAK boleh), bukan bug.
-        $invoiceNumber = $this->invoiceModel->generateInvoiceNumber($data['invoice_type'], $data['invoice_date']);
+        // Nomor invoice diketik manual (sudah divalidasi wajib-isi + unik di validateInput()).
+        $invoiceNumber = $data['invoice_number'];
 
         $pdo = getPDO();
         try {
@@ -126,8 +120,7 @@ class SalesInvoiceController extends Controller
             $totals = $this->calculateTotals($items, $terms, $data['ppn_percent']);
 
             $invoiceId = $this->invoiceModel->create(array_merge($data, [
-                'invoice_number'   => $invoiceNumber,
-                'subtotal'         => $totals['subtotal'],
+                'subtotal'        => $totals['subtotal'],
                 'dp_percentage_id' => $totals['dp_percentage_id'],
                 'dp_percentage'    => $totals['dp_percentage'],
                 'dp_amount'        => $totals['dp_amount'],
@@ -237,7 +230,7 @@ class SalesInvoiceController extends Controller
         }
 
         [$data, $items, $terms] = $this->collectInput();
-        $errors = $this->validateInput($data, $items, $terms);
+        $errors = $this->validateInput($data, $items, $terms, $id);
 
         if (!empty($errors)) {
             setFlash('error', implode(' ', $errors));
@@ -275,7 +268,10 @@ class SalesInvoiceController extends Controller
             $this->termModel->deleteByInvoice($id);
             $this->saveTerms($id, $totals['terms']);
 
-            $this->activityLog->log(currentUserId(), 'sales_invoice', 'update', "Invoice Keluar {$existing['invoice_number']} diperbarui");
+            $logMsg = $data['invoice_number'] !== $existing['invoice_number']
+                ? "Invoice Keluar {$existing['invoice_number']} diperbarui (nomor diubah menjadi {$data['invoice_number']})"
+                : "Invoice Keluar {$existing['invoice_number']} diperbarui";
+            $this->activityLog->log(currentUserId(), 'sales_invoice', 'update', $logMsg);
 
             $pdo->commit();
             setFlash('success', 'Invoice Keluar berhasil diperbarui.');
@@ -442,10 +438,13 @@ class SalesInvoiceController extends Controller
             ? (int) $tempoRaw : null;
         $invoiceDate = is_string($_POST['invoice_date'] ?? '') ? ($_POST['invoice_date'] ?? '') : '';
 
+        $invoiceNumberRaw = $_POST['invoice_number'] ?? '';
         $data = [
+            // No. Invoice diketik manual; spasi berlebih dirapikan.
+            'invoice_number'   => is_string($invoiceNumberRaw) ? trim(preg_replace('/\s+/', ' ', $invoiceNumberRaw)) : '',
             'client_id'        => (int) ($_POST['client_id'] ?? 0),
             'project_id'       => !empty($_POST['project_id']) ? (int) $_POST['project_id'] : null,
-            // 'project' (INV.HME) vs 'lampu' (FKT.HME) -- lihat SalesInvoice::generateInvoiceNumber().
+            // 'project' (INV.HME) vs 'lampu' (FKT.HME) -- kini hanya pengelompokan jenis, nomor diketik manual.
             'invoice_type'     => in_array($invoiceType, ['project', 'lampu'], true) ? $invoiceType : 'project',
             // 'invoice' vs 'proforma' -- hanya mengubah judul cetak, nomor/isi sama.
             'document_kind'    => (($_POST['document_kind'] ?? '') === 'proforma') ? 'proforma' : 'invoice',
@@ -541,9 +540,17 @@ class SalesInvoiceController extends Controller
         return $date->format('Y-m-d');
     }
 
-    private function validateInput(array $data, array $items, array $terms): array
+    private function validateInput(array $data, array $items, array $terms, ?int $excludeId = null): array
     {
         $errors = [];
+
+        if ($data['invoice_number'] === '') {
+            $errors[] = 'No. Invoice wajib diisi.';
+        } elseif (mb_strlen($data['invoice_number']) > 50) {
+            $errors[] = 'No. Invoice maksimal 50 karakter.';
+        } elseif ($this->invoiceModel->numberTaken($data['invoice_number'], $excludeId)) {
+            $errors[] = "No. Invoice {$data['invoice_number']} sudah dipakai invoice lain (termasuk yang ada di Tempat Sampah).";
+        }
 
         if ($data['client_id'] <= 0 || !$this->clientModel->find($data['client_id'])) {
             $errors[] = 'Client wajib dipilih.';

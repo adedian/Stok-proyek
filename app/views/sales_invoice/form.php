@@ -17,7 +17,7 @@ if (empty($terms)) {
             <?php if ($isEdit): ?>
                 No. Invoice: <strong><?= e($invoice['invoice_number']) ?></strong>
             <?php else: ?>
-                Nomor invoice dibuat otomatis saat disimpan
+                No. Invoice diisi manual
             <?php endif; ?>
         </small>
     </div>
@@ -35,6 +35,13 @@ if (empty($terms)) {
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-body">
             <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">No. Invoice <span class="text-danger">*</span></label>
+                    <input type="text" name="invoice_number" id="invoice_number" class="form-control" maxlength="50"
+                           value="<?= e($invoice['invoice_number'] ?? '') ?>" autocomplete="off" required
+                           placeholder="mis. 001/INV.HME/X/2026">
+                    <div class="form-text">Ketik sendiri, harus unik (maks. 50 karakter).</div>
+                </div>
                 <div class="col-md-3">
                     <label class="form-label">Jenis Invoice <span class="text-danger">*</span></label>
                     <?php $invoiceType = $invoice['invoice_type'] ?? 'project'; ?>
@@ -44,9 +51,9 @@ if (empty($terms)) {
                     </select>
                     <?php if ($isEdit): ?>
                         <input type="hidden" name="invoice_type" value="<?= e($invoiceType) ?>">
-                        <div class="form-text">Jenis invoice tidak bisa diganti setelah dibuat (nomor sudah mengikuti jenis awal).</div>
+                        <div class="form-text">Jenis invoice tidak bisa diganti setelah dibuat.</div>
                     <?php else: ?>
-                        <div class="form-text">Menentukan format nomor: Project = .../INV.HME/..., Lampu = .../FKT.HME/... (urutan terpisah).</div>
+                        <div class="form-text">Pengelompokan jenis invoice. Nomor tidak lagi mengikuti jenis (diisi manual).</div>
                     <?php endif; ?>
                 </div>
                 <div class="col-md-2">

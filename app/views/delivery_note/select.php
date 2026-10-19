@@ -20,6 +20,12 @@
                 <div class="card-body">
                     <div class="row g-3">
                         <div class="col-md-6">
+                            <label class="form-label">No. Surat Jalan <span class="text-danger">*</span></label>
+                            <input type="text" name="delivery_number" class="form-control" maxlength="50" required
+                                   autocomplete="off" placeholder="mis. 001/SJ.HME/X/2026">
+                            <div class="form-text">Ketik sendiri, harus unik (maks. 50 karakter).</div>
+                        </div>
+                        <div class="col-md-6">
                             <label class="form-label">Tanggal Surat Jalan</label>
                             <input type="date" name="delivery_date" class="form-control" value="<?= e(date('Y-m-d')) ?>" required>
                         </div>

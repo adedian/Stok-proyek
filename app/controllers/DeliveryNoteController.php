@@ -185,6 +185,109 @@ class DeliveryNoteController extends Controller
         }
     }
 
+    /**
+     * Edit header Surat Jalan (nomor, tanggal, tujuan, kendaraan, driver, dst).
+     * Barang di dalamnya TIDAK diubah di sini -- itu tetap hasil pengelompokan
+     * Pengeluaran Barang. Izin delivery_note.edit: Super Admin + akun Nissa.
+     */
+    public function edit()
+    {
+        Middleware::requirePermission('delivery_note', 'edit');
+
+        $id = (int) ($_GET['id'] ?? 0);
+        $note = $this->deliveryNoteModel->findWithRelations($id);
+        if (!$note) {
+            setFlash('error', 'Surat Jalan tidak ditemukan.');
+            $this->redirect('stock_out', 'index');
+        }
+
+        $this->view('delivery_note/edit', [
+            'pageTitle'  => 'Edit Surat Jalan',
+            'note'       => $note,
+            'items'      => $this->deliveryNoteModel->itemsByDeliveryNote($id),
+            'clients'    => $this->clientModel->activeList(),
+            'projects'   => $this->projectModel->activeList(),
+            'signatures' => $this->signatureModel->activeList(),
+        ]);
+    }
+
+    public function update()
+    {
+        Middleware::requirePermission('delivery_note', 'edit');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('stock_out', 'index');
+        }
+        verifyCsrf();
+
+        $id = (int) ($_POST['id'] ?? 0);
+        $existing = $this->deliveryNoteModel->find($id);
+        if (!$existing) {
+            setFlash('error', 'Surat Jalan tidak ditemukan.');
+            $this->redirect('stock_out', 'index');
+        }
+
+        $destinationType = in_array($_POST['destination_type'] ?? 'project', ['client', 'manual'], true)
+            ? $_POST['destination_type']
+            : 'project';
+        $clientId = !empty($_POST['client_id']) ? (int) $_POST['client_id'] : null;
+        $projectId = !empty($_POST['project_id']) ? (int) $_POST['project_id'] : null;
+        $destinationName = trim($_POST['destination_name'] ?? '');
+
+        $error = null;
+        $deliveryDate = $_POST['delivery_date'] ?: date('Y-m-d');
+        $numberRaw = $_POST['delivery_number'] ?? '';
+        $deliveryNumber = is_string($numberRaw) ? trim(preg_replace('/\s+/', ' ', $numberRaw)) : '';
+
+        if ($destinationType === 'client' && ($clientId === null || !$this->clientModel->find($clientId))) {
+            $error = 'Client tujuan wajib dipilih untuk pengiriman penjualan.';
+        } elseif ($destinationType === 'manual' && $destinationName === '') {
+            $error = 'Nama Tujuan wajib diisi untuk tujuan pengiriman manual.';
+        } elseif (!isValidDateString($deliveryDate)) {
+            $error = 'Tanggal Surat Jalan tidak valid.';
+        } elseif ($deliveryNumber === '') {
+            $error = 'No. Surat Jalan wajib diisi.';
+        } elseif (mb_strlen($deliveryNumber) > 50) {
+            $error = 'No. Surat Jalan maksimal 50 karakter.';
+        } elseif ($this->deliveryNoteModel->numberTaken($deliveryNumber, $id)) {
+            $error = "No. Surat Jalan {$deliveryNumber} sudah dipakai Surat Jalan lain (termasuk yang ada di Tempat Sampah).";
+        }
+        if ($error !== null) {
+            setFlash('error', $error);
+            $this->redirect('delivery_note', 'edit', ['id' => $id]);
+        }
+
+        $data = [
+            'delivery_number'  => $deliveryNumber,
+            'delivery_date'    => $deliveryDate,
+            'destination_type' => $destinationType,
+            'client_id'        => $destinationType === 'client' ? $clientId : null,
+            'project_id'       => $destinationType === 'project' ? $projectId : null,
+            'destination_name' => $destinationName ?: null,
+            'city'             => trim($_POST['city'] ?? '') ?: null,
+            'vehicle_number'   => trim($_POST['vehicle_number'] ?? '') ?: null,
+            'driver_name'      => trim($_POST['driver_name'] ?? '') ?: null,
+            'sender_name'      => trim($_POST['sender_name'] ?? '') ?: null,
+            'recipient_name'   => trim($_POST['recipient_name'] ?? '') ?: null,
+            'signature_id'     => !empty($_POST['signature_id']) ? (int) $_POST['signature_id'] : null,
+            'notes'            => trim($_POST['notes'] ?? '') ?: null,
+        ];
+
+        try {
+            $this->deliveryNoteModel->updateById($id, $data);
+            $logMsg = $deliveryNumber !== $existing['delivery_number']
+                ? "Surat Jalan {$existing['delivery_number']} diperbarui (nomor diubah menjadi {$deliveryNumber})"
+                : "Surat Jalan {$existing['delivery_number']} diperbarui";
+            $this->activityLog->log(currentUserId(), 'delivery_note', 'update', $logMsg);
+            setFlash('success', "Surat Jalan {$deliveryNumber} berhasil diperbarui.");
+            $this->redirect('stock_out', 'index');
+        } catch (Throwable $e) {
+            error_log('DeliveryNote update error: ' . $e->getMessage());
+            setFlash('error', 'Gagal memperbarui Surat Jalan. Silakan coba lagi.');
+            $this->redirect('delivery_note', 'edit', ['id' => $id]);
+        }
+    }
+
     public function print()
     {
         $id = (int) ($_GET['id'] ?? 0);

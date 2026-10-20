@@ -214,6 +214,9 @@ return [
     'delivery_note' => [
         'view'   => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT, ROLE_PROJECT_MANAGER],
         'create' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT],
+        // Edit Surat Jalan (menu Aksi di Pengeluaran Barang): default HANYA Super Admin;
+        // akun Nissa diberi PER AKUN lewat user_permissions -- migrasi 2026_10_31_delivery_note_edit_nissa.php.
+        'edit'   => [ROLE_SUPER_ADMIN],
         'delete' => [ROLE_SUPER_ADMIN],
     ],
 

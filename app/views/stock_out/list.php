@@ -170,7 +170,8 @@
                                 <span class="badge bg-<?= $soValBadge[$soVs] ?? 'secondary' ?>"><?= $soValLabel[$soVs] ?? $soVs ?></span>
                             </td>
                             <td class="text-center">
-                                <?php if (can('stock_out', 'edit') || can('stock_out', 'delete')): ?>
+                                <?php $soCanEditDn = !empty($so['delivery_note_id']) && can('delivery_note', 'edit'); ?>
+                                <?php if (can('stock_out', 'edit') || can('stock_out', 'delete') || $soCanEditDn): ?>
                                 <div class="dropdown row-actions">
                                     <button type="button" class="btn btn-row-actions" data-bs-toggle="dropdown" aria-expanded="false" title="Aksi">
                                         <i class="bi bi-three-dots-vertical"></i>
@@ -183,6 +184,14 @@
                                                 && ($so['validation_status'] ?? '') === 'tervalidasi'
                                                 && currentUserRole() !== ROLE_SUPER_ADMIN;
                                         ?>
+                                        <?php if ($soCanEditDn): ?>
+                                        <?php // Edit header Surat Jalan: tidak ikut terkunci validasi/periode Pengeluaran (yang diubah hanya dokumen SJ). ?>
+                                        <li>
+                                            <a class="dropdown-item" href="<?= BASE_URL ?>/delivery_note/edit/<?= (int) $so['delivery_note_id'] ?>">
+                                                <i class="bi bi-truck"></i> Edit Surat Jalan
+                                            </a>
+                                        </li>
+                                        <?php endif; ?>
                                         <?php if ($soLocked): ?>
                                         <li><span class="dropdown-item-text text-muted small"><i class="bi bi-lock-fill"></i> Sudah divalidasi (hubungi Super Admin)</span></li>
                                         <?php elseif (isPeriodClosed('stock_out', $so['out_date'])): ?>

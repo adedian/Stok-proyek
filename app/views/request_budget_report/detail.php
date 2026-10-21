@@ -51,8 +51,12 @@ $docLink = fn(?string $p) => $p ? '<a href="' . e(fileUrl($p)) . '" target="_bla
                     <div class="col-md-6"><div class="border rounded p-2 h-100">
                         <div class="d-flex justify-content-between"><span class="fw-semibold small"><?= e($def['label']) ?></span><span class="badge bg-<?= e($bd[0]) ?>"><?= $ap ? e($bd[1]) : 'Belum diajukan' ?></span></div>
                         <?php if ($ap && $ap['status'] !== 'PENDING'): ?>
+                            <?php if (($ap['approver_role'] ?? '') === RequestBudget::AUTO_APPROVER_ROLE): ?>
+                                <div class="small mt-1 text-muted">Tidak memerlukan persetujuan (otomatis)</div>
+                            <?php else: ?>
                             <div class="small mt-1">Oleh: <strong><?= e($ap['approver_name'] ?? '-') ?></strong> &mdash; <?= e($ap['approver_role'] ?? '-') ?></div>
                             <div class="small text-muted"><?= e($fmtDt($ap['acted_at'])) ?></div>
+                            <?php endif; ?>
                             <?php if (!empty($ap['note'])): ?><div class="small">Catatan: <?= nl2br(e($ap['note'])) ?></div><?php endif; ?>
                         <?php endif; ?>
                     </div></div>

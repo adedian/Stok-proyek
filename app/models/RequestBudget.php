@@ -519,11 +519,29 @@ class RequestBudget extends Model
         return $out;
     }
 
-    /** Buat ulang 2 slot approval PENDING (dipanggil saat request disubmit). */
+    /** Tanda baris approval yang diisi sistem (slot tidak lagi memerlukan manusia) -- dipakai tampilan. */
+    public const AUTO_APPROVER_ROLE = 'Otomatis';
+
+    /**
+     * Slot approval yang TIDAK lagi memerlukan persetujuan siapa pun: langsung dianggap APPROVED oleh sistem.
+     * Slot 'pm' (Project Manager) dibebaskan -- Request Budget cukup disetujui Purchase. Slotnya tetap dibuat
+     * (bukan dihapus) supaya urutan approval, riwayat, dan laporan lama tidak berubah bentuk.
+     */
+    public const AUTO_APPROVED_SLOTS = ['pm'];
+
+    /** Buat ulang slot approval (dipanggil saat request disubmit): PENDING, kecuali slot yang dibebaskan -> APPROVED otomatis. */
     public function createApprovals(int $id): void
     {
         $this->db->query("DELETE FROM request_budget_approvals WHERE request_budget_id = :id", ['id' => $id]);
         foreach (array_keys(self::APPROVAL_SLOTS) as $slot) {
+            if (in_array($slot, self::AUTO_APPROVED_SLOTS, true)) {
+                $this->db->insert('request_budget_approvals', [
+                    'request_budget_id' => $id, 'slot' => $slot, 'status' => 'APPROVED',
+                    'approver_user_id' => null, 'approver_role' => self::AUTO_APPROVER_ROLE,
+                    'note' => null, 'acted_at' => date('Y-m-d H:i:s'),
+                ]);
+                continue;
+            }
             $this->db->insert('request_budget_approvals', ['request_budget_id' => $id, 'slot' => $slot, 'status' => 'PENDING']);
         }
     }

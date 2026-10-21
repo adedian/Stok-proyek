@@ -31,7 +31,7 @@ $steps[] = $st === RequestBudget::DRAFT ? ['wait', 'Submit', 'Belum diajukan'] :
 foreach ($slotDefs as $slot => $def) {
     $ap = $approvals[$slot] ?? null;
     if ($ap && $ap['status'] === 'APPROVED') {
-        $steps[] = ['done', $def['label'], 'Approved by: ' . ($ap['approver_name'] ?? '-') . ' — ' . ($ap['approver_role'] ?? '-') . ' · ' . $fmtDt($ap['acted_at'])];
+        $steps[] = ['done', $def['label'], ($ap['approver_role'] ?? '') === RequestBudget::AUTO_APPROVER_ROLE ? 'Tidak diperlukan' : 'Approved by: ' . ($ap['approver_name'] ?? '-') . ' — ' . ($ap['approver_role'] ?? '-') . ' · ' . $fmtDt($ap['acted_at'])];
     } elseif ($ap && $ap['status'] === 'REJECTED') {
         $steps[] = ['fail', $def['label'] . ' — Ditolak', ($ap['approver_name'] ?? '-') . ' · ' . $fmtDt($ap['acted_at'])];
     } else {
@@ -166,8 +166,12 @@ $delDoc = function (string $type, int $docId) use ($actions, $postUrl, $id) {
                                     <span class="badge bg-<?= e($bd[0]) ?>"><?= $ap ? e($bd[1]) : 'Belum diajukan' ?></span>
                                 </div>
                                 <?php if ($ap && $ap['status'] !== 'PENDING'): ?>
+                                    <?php if (($ap['approver_role'] ?? '') === RequestBudget::AUTO_APPROVER_ROLE): ?>
+                                        <div class="small mt-1 text-muted">Tidak memerlukan persetujuan (otomatis)</div>
+                                    <?php else: ?>
                                     <div class="small mt-1">Oleh: <strong><?= e($ap['approver_name'] ?? '-') ?></strong> &mdash; <?= e($ap['approver_role'] ?? '-') ?></div>
                                     <div class="small text-muted"><?= e($fmtDt($ap['acted_at'])) ?></div>
+                                    <?php endif; ?>
                                     <?php if (!empty($ap['note'])): ?><div class="small">Catatan: <?= nl2br(e($ap['note'])) ?></div><?php endif; ?>
                                 <?php endif; ?>
                             </div>

@@ -222,6 +222,41 @@ class CashTransaction extends Model
      */
     public const NEEDS_VALIDATION_SQL = "c.related_bank_transaction_id IS NULL AND c.validation_status <> 'tidak_perlu'";
 
+    /**
+     * Divisi yang TIDAK lagi memerlukan validasi (dulu divisi Project divalidasi Project Manager). Transaksi divisi ini
+     * langsung berstatus 'tidak_perlu' (tidak masuk antrian Validasi Kas) -- pola yang sama dengan Transfer ke Kas.
+     */
+    public const NO_VALIDATION_DIVISIONS = ['project'];
+
+    public function create(array $data): int
+    {
+        if (empty($data['validation_status']) && in_array($data['division'] ?? '', self::NO_VALIDATION_DIVISIONS, true)) {
+            $data['validation_status'] = 'tidak_perlu';
+        }
+        return parent::create($data);
+    }
+
+    /**
+     * Perubahan status validasi saat transaksi DIEDIT (divisi bisa berubah karena PIC diganti):
+     * pindah KE divisi tanpa validasi -> 'tidak_perlu' (kalau masih menunggu/ditolak); pindah KELUAR dari divisi itu -> 'menunggu'.
+     * Transaksi hasil Transfer ke Kas & yang sudah 'tervalidasi' tidak disentuh.
+     */
+    public function validationStatusPatch(array $existing, string $newDivision): array
+    {
+        if (!empty($existing['related_bank_transaction_id'])) {
+            return [];
+        }
+        $cur = $existing['validation_status'] ?? 'menunggu';
+        $exempt = in_array($newDivision, self::NO_VALIDATION_DIVISIONS, true);
+        if ($exempt && in_array($cur, ['menunggu', 'ditolak'], true)) {
+            return ['validation_status' => 'tidak_perlu', 'validated_by' => null, 'validated_at' => null, 'validation_note' => null];
+        }
+        if (!$exempt && $cur === 'tidak_perlu' && in_array($existing['division'] ?? '', self::NO_VALIDATION_DIVISIONS, true)) {
+            return ['validation_status' => 'menunggu'];
+        }
+        return [];
+    }
+
     /** true kalau baris ini hasil Transfer ke Kas / tak butuh validasi (guard backend). */
     public static function isValidationExempt(array $row): bool
     {

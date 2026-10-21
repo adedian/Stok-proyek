@@ -1127,10 +1127,11 @@ class CashController extends Controller
 
             // No Bukti TIDAK pernah dibuat ulang saat edit -- nomor resmi hanya
             // lahir sekali di store(). Pertahankan nilai lama apa adanya.
-            $this->cashModel->updateById($id, [
+            $newDivision = $this->resolveDivision($data['pic']);
+            $this->cashModel->updateById($id, $this->cashModel->validationStatusPatch($existing, $newDivision) + [
                 'trx_date'      => $data['trx_date'],
                 'pic'           => $data['pic'],
-                'division'      => $this->resolveDivision($data['pic']),
+                'division'      => $newDivision,
                 'project_id'    => $resolvedProjectId,
                 'rekening_id'   => $data['rekening_id'],
                 'no_bukti'      => $existing['no_bukti'],

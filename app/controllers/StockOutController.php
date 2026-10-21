@@ -486,7 +486,9 @@ class StockOutController extends Controller
     public function ajaxItemsByProject()
     {
         $projectId = (int) ($_GET['project_id'] ?? 0);
-        $items = $projectId ? $this->inventoryModel->listAllWithStock() : [];
+        // project_id = 0 -> semua barang ber-stok tanpa urutan khusus (dropdown aktif
+        // sejak form dibuka, sebelum Project/Client dipilih).
+        $items = $this->inventoryModel->listAllWithStock();
 
         // Semua barang ber-stok ditampilkan; milik project tujuan di urutan teratas.
         // Pemilihan barang milik project lain/Kantor diberi peringatan di form.

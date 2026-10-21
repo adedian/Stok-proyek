@@ -260,7 +260,7 @@ if (!$canClientDest) {
                     <?php if ($isEdit): ?>
                         Memuat daftar barang...
                     <?php else: ?>
-                        Pilih <?= $canClientDest ? 'Project atau Client (Invoice)' : 'Project' ?> dulu untuk melihat barang yang tersedia.
+                        Memuat daftar barang...
                     <?php endif; ?>
                 </div>
                 <?php if ($isEdit): ?>
@@ -466,9 +466,16 @@ if (!$canClientDest) {
         });
         renderAllRows();
         itemsHint.textContent = message || '';
+        loadAllItems(message);
     }
 
-    function loadItems(url, emptyMessage, ctxProject) {
+    // Dropdown barang aktif sejak awal: tanpa Project/Client, tampilkan semua barang ber-stok.
+    function loadAllItems(loadedHint) {
+        loadItems('<?= BASE_URL ?>/index.php?module=stock_out&action=ajaxItemsByProject&project_id=0',
+            'Tidak ada barang dengan stok tersedia.', null, loadedHint);
+    }
+
+    function loadItems(url, emptyMessage, ctxProject, loadedHint) {
         itemsProjectCtx = ctxProject ? String(ctxProject) : null;
         fetch(url)
             .then(function (res) { return res.json(); })
@@ -486,7 +493,7 @@ if (!$canClientDest) {
                 // hapus key project_name kalau memang tidak ada (biar 'in' akurat)
                 currentItems.forEach(function (it) { if (it.project_name === undefined) delete it.project_name; });
                 renderAllRows();
-                itemsHint.textContent = currentItems.length ? '' : emptyMessage;
+                itemsHint.textContent = currentItems.length ? (loadedHint || '') : emptyMessage;
             })
             .catch(function () { itemsHint.textContent = 'Gagal memuat daftar barang.'; });
     }
@@ -511,11 +518,11 @@ if (!$canClientDest) {
             if (this.value === 'client') {
                 projectSelect.value = '';
                 if (window.resyncSearchableSelect) { window.resyncSearchableSelect(projectSelect); }
-                if (invoiceSelect.value) { loadOfficeItems(); } else { resetItems('Pilih Client (Invoice) dulu.'); }
+                if (invoiceSelect.value) { loadOfficeItems(); } else { resetItems('Pilih Client (Invoice) agar barang yang cocok tampil paling atas.'); }
             } else {
                 invoiceSelect.value = '';
                 if (window.resyncSearchableSelect) { window.resyncSearchableSelect(invoiceSelect); }
-                resetItems('Pilih Project dulu untuk melihat barang yang tersedia.');
+                resetItems('Pilih Project agar barang milik project tujuan tampil paling atas.');
             }
         });
     });
@@ -523,13 +530,13 @@ if (!$canClientDest) {
     projectSelect.addEventListener('change', function () {
         // Konfirmasi "Tetap lanjutkan" berlaku per project; ganti project = tanya ulang.
         itemsBody.querySelectorAll('.so-item-row').forEach(function (r) { delete r.dataset.foreignOk; });
-        if (!this.value) { resetItems('Pilih Project dulu untuk melihat barang yang tersedia.'); return; }
+        if (!this.value) { resetItems('Pilih Project agar barang milik project tujuan tampil paling atas.'); return; }
         loadItems('<?= BASE_URL ?>/index.php?module=stock_out&action=ajaxItemsByProject&project_id=' + this.value,
             'Tidak ada barang dengan stok tersedia.', this.value);
     });
 
     invoiceSelect.addEventListener('change', function () {
-        if (!this.value) { resetItems('Pilih Client (Invoice) dulu.'); return; }
+        if (!this.value) { resetItems('Pilih Client (Invoice) agar barang yang cocok tampil paling atas.'); return; }
         loadOfficeItems();
     });
 
@@ -590,6 +597,8 @@ if (!$canClientDest) {
     }
     <?php elseif ($selectedSalesInvoiceId): ?>
     if (invoiceSelect.value) { loadOfficeItems(); }
+    <?php else: ?>
+    loadAllItems('Pilih Project atau Client (Invoice) agar barang milik tujuan tampil paling atas.');
     <?php endif; ?>
 })();
 </script>

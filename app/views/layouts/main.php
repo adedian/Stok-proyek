@@ -17,15 +17,15 @@ require ROOT_PATH . '/app/views/layouts/sidebar.php';
             document.addEventListener('DOMContentLoaded', function () {
                 var type = <?= json_encode($flash['type']) ?>;
                 var message = <?= json_encode($flash['message']) ?>;
-                var icon = type === 'error' ? 'error' : (type === 'success' ? 'success' : 'info');
+                var icon = type === 'error' ? 'error' : (type === 'success' ? 'success' : (type === 'warning' ? 'warning' : 'info'));
                 if (window.Swal) {
                     Swal.mixin({
                         toast: true,
                         position: 'top-end',
                         showConfirmButton: false,
                         // Pesan gagal dibiarkan lebih lama + bisa ditutup, supaya sempat dibaca.
-                        showCloseButton: type === 'error',
-                        timer: type === 'error' ? 12000 : 4000,
+                        showCloseButton: type === 'error' || type === 'warning',
+                        timer: type === 'error' ? 12000 : (type === 'warning' ? 10000 : 4000),
                         timerProgressBar: true,
                         didOpen: function (t) {
                             t.addEventListener('mouseenter', Swal.stopTimer);

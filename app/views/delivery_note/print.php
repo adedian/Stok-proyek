@@ -198,6 +198,10 @@
             <table>
                 <tr><td>Number</td><td>: <strong><?= e($note['delivery_number']) ?></strong></td></tr>
                 <tr><td>Date</td><td>: <?= formatTanggal($note['delivery_date']) ?></td></tr>
+                <?php if (!empty($note['sales_order_number'])): ?>
+                    <tr><td>Ref. Order</td><td>: <?= e($note['sales_order_number']) ?></td></tr>
+                    <tr><td>PO Customer</td><td>: <?= e($note['sales_order_po_number']) ?><?= !empty($note['sales_order_po_date']) ? ' (' . e(formatTanggal($note['sales_order_po_date'])) . ')' : '' ?></td></tr>
+                <?php endif; ?>
             </table>
         </div>
 

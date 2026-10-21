@@ -1,7 +1,8 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h4 class="mb-0">Buat Surat Jalan</h4>
-        <small class="text-muted"><?= count($rows) ?> baris Pengeluaran Barang terpilih</small>
+        <small class="text-muted"><?= count($rows) ?> baris Pengeluaran Barang terpilih<?php if (!empty($salesOrder)): ?>
+            &middot; Order Penjualan <strong><?= e($salesOrder['order_number']) ?></strong> (PO Customer <strong><?= e($salesOrder['po_number']) ?></strong>)<?php endif; ?></small>
     </div>
     <a href="<?= BASE_URL ?>/stock_out" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Kembali
@@ -32,8 +33,9 @@
                         <div class="col-md-6">
                             <label class="form-label">Tujuan Pengiriman</label>
                             <select name="destination_type" id="destinationType" class="form-select">
-                                <option value="project" selected>Site/Project</option>
-                                <option value="client">Penjualan (Client)</option>
+                                <?php $soDefaultClient = !empty($salesOrder); ?>
+                                <option value="project" <?= $soDefaultClient ? '' : 'selected' ?>>Site/Project</option>
+                                <option value="client" <?= $soDefaultClient ? 'selected' : '' ?>>Penjualan (Client)</option>
                                 <option value="manual">Lainnya / Manual (isi bebas)</option>
                             </select>
                         </div>
@@ -55,7 +57,7 @@
                                 <select name="client_id" id="client_id" class="form-select">
                                     <option value="">-- Pilih Client --</option>
                                     <?php foreach ($clients as $c): ?>
-                                        <option value="<?= (int) $c['id'] ?>"><?= e($c['client_name']) ?></option>
+                                        <option value="<?= (int) $c['id'] ?>" <?= !empty($salesOrder) && (int) $salesOrder['client_id'] === (int) $c['id'] ? 'selected' : '' ?>><?= e($c['client_name']) ?></option>
                                     <?php endforeach; ?>
                                 </select>
                                 <?php if (canQuickAdd('client')): ?>
@@ -70,7 +72,7 @@
                                 <span class="text-danger d-none" id="destNameReq">*</span>
                                 <span class="text-muted small">(bebas, mis. "Hotel Azana - Tulungagung")</span>
                             </label>
-                            <input type="text" name="destination_name" id="destinationName" class="form-control" value="<?= e($rows[0]['destination'] ?? '') ?>">
+                            <input type="text" name="destination_name" id="destinationName" class="form-control" value="<?= e(!empty($salesOrder) ? $salesOrder['client_name'] : ($rows[0]['destination'] ?? '')) ?>">
                         </div>
                         <div class="col-12">
                             <label class="form-label">Kota <span class="text-muted small">(untuk baris "Kota, Tanggal" di penutup Surat Jalan -- bukan nama project/client)</span></label>

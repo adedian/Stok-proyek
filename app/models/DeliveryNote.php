@@ -76,11 +76,14 @@ class DeliveryNote extends Model
     public function findWithRelations(int $id)
     {
         $sql = "SELECT dn.*, c.client_name, c.address AS client_address, p.project_name,
-                       s.name AS signature_name, s.position AS signature_position, s.signature_image
+                       s.name AS signature_name, s.position AS signature_position, s.signature_image,
+                       sord.order_number AS sales_order_number, sord.po_number AS sales_order_po_number,
+                       sord.po_date AS sales_order_po_date
                 FROM delivery_notes dn
                 LEFT JOIN clients c ON c.id = dn.client_id
                 LEFT JOIN projects p ON p.id = dn.project_id
                 LEFT JOIN signatures s ON s.id = dn.signature_id
+                LEFT JOIN sales_orders sord ON sord.id = dn.sales_order_id
                 WHERE dn.id = :id AND dn.deleted_at IS NULL";
         return $this->db->fetchOne($sql, ['id' => $id]);
     }

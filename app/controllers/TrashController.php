@@ -215,6 +215,13 @@ class TrashController extends Controller
             $this->redirect('trash', 'index');
         }
 
+        // Pengeluaran hasil pemenuhan Order Penjualan sudah DIKOREKSI (stok dikembalikan) -- dipulihkan
+        // begitu saja akan menghidupkan pengeluaran tanpa memotong stok lagi. Tidak boleh dipulihkan.
+        if ($module === 'stock_out' && !empty($row['sales_order_id'])) {
+            setFlash('error', 'Pengeluaran ini berasal dari Order Penjualan yang sudah dikoreksi (stok sudah dikembalikan) dan tidak dapat dipulihkan. Proses ulang pemenuhan dari Order Penjualan.');
+            $this->redirect('trash', 'index');
+        }
+
         $pdo = getPDO();
         try {
             $pdo->beginTransaction();

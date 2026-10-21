@@ -57,7 +57,13 @@ class DashboardController extends Controller
             'po_belum_diproses' => $settingModel->getBool('notify_po_belum_diproses', true),
         ];
 
-        $recentActivities = array_slice((new ActivityLog())->listWithFilters(), 0, 8);
+        $recentActivities = (new ActivityLog())->listWithFilters();
+        // Log Order Penjualan memuat nomor PO Customer & rincian pesanan -- jangan ditampilkan ke role yang
+        // tidak boleh membuka modul itu (feed ini memang lintas modul).
+        if (!can('sales_order', 'view')) {
+            $recentActivities = array_values(array_filter($recentActivities, fn($a) => $a['module'] !== 'sales_order'));
+        }
+        $recentActivities = array_slice($recentActivities, 0, 8);
         foreach ($recentActivities as &$activity) {
             $activity['icon'] = self::ACTIVITY_ICONS[$activity['module']] ?? 'bi-info-circle';
         }

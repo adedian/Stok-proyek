@@ -145,7 +145,14 @@
                             <td>
                                 <?php if ($so['destination_type'] === 'client'): ?>
                                     <span class="badge text-bg-info text-dark"><?= e($so['client_name'] ?? '-') ?></span>
-                                    <div class="text-muted small"><?= e($so['invoice_number'] ?? '-') ?></div>
+                                    <?php if (!empty($so['sales_order_number'])): ?>
+                                        <div class="text-muted small">
+                                            <a href="<?= BASE_URL ?>/sales_order/detail/<?= (int) $so['sales_order_id'] ?>" class="text-decoration-none"><?= e($so['sales_order_number']) ?></a>
+                                            &middot; PO <?= e($so['sales_order_po_number']) ?>
+                                        </div>
+                                    <?php else: ?>
+                                        <div class="text-muted small"><?= e($so['invoice_number'] ?? '-') ?></div>
+                                    <?php endif; ?>
                                 <?php else: ?>
                                     <?= e($so['project_name']) ?>
                                 <?php endif; ?>
@@ -192,7 +199,9 @@
                                             </a>
                                         </li>
                                         <?php endif; ?>
-                                        <?php if ($soLocked): ?>
+                                        <?php if (!empty($so['sales_order_id'])): ?>
+                                        <li><span class="dropdown-item-text text-muted small"><i class="bi bi-lock-fill"></i> Dari Order Penjualan &mdash; koreksi lewat order</span></li>
+                                        <?php elseif ($soLocked): ?>
                                         <li><span class="dropdown-item-text text-muted small"><i class="bi bi-lock-fill"></i> Sudah divalidasi (hubungi Super Admin)</span></li>
                                         <?php elseif (isPeriodClosed('stock_out', $so['out_date'])): ?>
                                         <li><span class="dropdown-item-text text-muted small"><i class="bi bi-lock-fill"></i> Periode ditutup</span></li>

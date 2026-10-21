@@ -220,6 +220,22 @@ return [
         'delete' => [ROLE_SUPER_ADMIN],
     ],
 
+    // Order Penjualan -- pesanan customer berdasarkan PO Customer.
+    //   Purchase  : input/ubah/batalkan order, lihat stok & kekurangan (view/create/edit/cancel).
+    //   Accounting: periksa stok & PROSES pemenuhan (potong stok lewat Pengeluaran Barang),
+    //               terbitkan Invoice Keluar & Surat Jalan dari order ('process').
+    //   Super Admin: semua, termasuk 'reverse' (koreksi/pembatalan pemenuhan yang sudah dikeluarkan).
+    // Purchase SENGAJA tidak punya 'process' -- penerbitan dokumen & pengeluaran stok urusan Accounting.
+    'sales_order' => [
+        'view'    => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING],
+        'create'  => [ROLE_SUPER_ADMIN, ROLE_PURCHASE],
+        'edit'    => [ROLE_SUPER_ADMIN, ROLE_PURCHASE],
+        'cancel'  => [ROLE_SUPER_ADMIN, ROLE_PURCHASE],
+        'process' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'reverse' => [ROLE_SUPER_ADMIN],
+        'print'   => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING],
+    ],
+
     // Tanda Terima (tanda terima penagihan) -- mengemas beberapa Invoice Keluar.
     'collection_receipt' => [
         'view'   => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING],

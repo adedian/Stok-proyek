@@ -39,6 +39,7 @@ class Router
         'payment_method'    => 'PaymentMethodController',
         'signature'         => 'SignatureController',
         'settings'          => 'SettingsController',
+        'sales_order'        => 'SalesOrderController',
         'sales_invoice'      => 'SalesInvoiceController',
         'delivery_note'      => 'DeliveryNoteController',
         'collection_receipt' => 'CollectionReceiptController',

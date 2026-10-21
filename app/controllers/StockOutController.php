@@ -170,6 +170,7 @@ class StockOutController extends Controller
         $docId = (int) ($stockOut['document_id'] ?: $stockOut['id']);
         $docRows = $this->stockOutModel->documentRows($docId);
         foreach ($docRows as $docRow) {
+            $this->assertNotSalesOrderRow($docRow, 'diubah');
             $this->assertValidationAllowsChange($docRow, 'diubah');
         }
 
@@ -224,6 +225,7 @@ class StockOutController extends Controller
             $this->redirect('stock_out', 'index');
         }
         foreach ($docRows as $docRow) {
+            $this->assertNotSalesOrderRow($docRow, 'diubah');
             $this->assertValidationAllowsChange($docRow, 'diubah');
         }
         $docNumber = (string) $existing['stock_out_number'];
@@ -394,6 +396,7 @@ class StockOutController extends Controller
             setFlash('error', 'Data pengeluaran barang tidak ditemukan.');
             $this->redirect('stock_out', 'index');
         }
+        $this->assertNotSalesOrderRow($existing, 'dihapus');
         $this->assertValidationAllowsChange($existing, 'dihapus');
 
         assertPeriodOpen('stock_out', $existing['out_date'], 'stock_out', 'index');
@@ -413,6 +416,9 @@ class StockOutController extends Controller
         $existing = $this->stockOutModel->find($id);
         if (!$existing) {
             return 'gagal';
+        }
+        if (!empty($existing['sales_order_id'])) {
+            return 'dari Order Penjualan (koreksi lewat Order Penjualan)';
         }
         // Soft-delete ke Tempat Sampah aman walau periode terkunci (koreksi stok
         // dicatat tanggal-sekarang) -- gerbang Tutup Bulan tetap berlaku untuk
@@ -781,6 +787,21 @@ class StockOutController extends Controller
      * assertValidationAllowsChange()). 'menunggu' & 'ditolak' tetap bebas
      * diedit/dihapus pembuatnya seperti sebelumnya.
      */
+    /**
+     * Pengeluaran yang dibuat dari pemenuhan Order Penjualan TIDAK boleh diubah/dihapus dari sini:
+     * jumlahnya sudah menjadi dasar status order, Invoice Keluar, dan Surat Jalan. Koreksi dilakukan
+     * lewat "Koreksi" pada detail Order Penjualan (Super Admin) yang mengembalikan stok dengan benar
+     * dan menolak koreksi bila barang sudah masuk Surat Jalan / sudah ditagih.
+     */
+    private function assertNotSalesOrderRow(array $row, string $verb): void
+    {
+        if (!empty($row['sales_order_id'])) {
+            setFlash('error', "Pengeluaran '{$row['stock_out_number']}' berasal dari Order Penjualan -- tidak bisa {$verb} dari sini. "
+                . "Gunakan 'Koreksi' pada detail Order Penjualan (Super Admin).");
+            $this->redirect('sales_order', 'detail', ['id' => (int) $row['sales_order_id']]);
+        }
+    }
+
     private function assertValidationAllowsChange(array $row, string $verb): void
     {
         // Hanya pengeluaran PROJECT yang terkunci setelah tervalidasi; non-project

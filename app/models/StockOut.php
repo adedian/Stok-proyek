@@ -22,12 +22,15 @@ class StockOut extends Model
         // LEFT JOIN projects (bukan INNER) -- so.project_id NULL untuk pengeluaran
         // tujuan Client (destination_type='client'), lihat sales_invoice_id/clients.
         $sql = "SELECT so.*, inv.item_name, inv.unit, p.project_name, dn.delivery_number,
-                       si.invoice_number, c.client_name
+                       si.invoice_number, COALESCE(c.client_name, soc.client_name) AS client_name,
+                       sord.order_number AS sales_order_number, sord.po_number AS sales_order_po_number
                 FROM stock_out so
                 JOIN inventory inv ON inv.id = so.inventory_id
                 LEFT JOIN projects p ON p.id = so.project_id
                 LEFT JOIN sales_invoices si ON si.id = so.sales_invoice_id
                 LEFT JOIN clients c ON c.id = si.client_id
+                LEFT JOIN sales_orders sord ON sord.id = so.sales_order_id
+                LEFT JOIN clients soc ON soc.id = sord.client_id
                 LEFT JOIN delivery_notes dn ON dn.id = so.delivery_note_id AND dn.deleted_at IS NULL
                 WHERE so.deleted_at IS NULL";
         $params = [];
@@ -104,6 +107,20 @@ class StockOut extends Model
             "UPDATE stock_out SET delivery_note_id = NULL WHERE delivery_note_id = :id",
             ['id' => $deliveryNoteId]
         );
+    }
+
+    /**
+     * Pasang baris ke Surat Jalan HANYA kalau belum terpasang ke Surat Jalan manapun (atomik).
+     * false = sudah diambil Surat Jalan lain (mis. dua pengguna membuat SJ bersamaan).
+     */
+    public function claimForDeliveryNote(int $stockOutId, int $deliveryNoteId): bool
+    {
+        $stmt = $this->db->query(
+            "UPDATE stock_out SET delivery_note_id = :dn
+              WHERE id = :id AND delivery_note_id IS NULL AND deleted_at IS NULL",
+            ['dn' => $deliveryNoteId, 'id' => $stockOutId]
+        );
+        return $stmt->rowCount() === 1;
     }
 
     // ===================== Validasi Pengeluaran Barang =====================

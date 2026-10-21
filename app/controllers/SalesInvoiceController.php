@@ -195,6 +195,7 @@ class SalesInvoiceController extends Controller
             setFlash('error', 'Invoice Keluar tidak ditemukan.');
             $this->redirect('sales_invoice', 'index');
         }
+        $this->assertNotFromSalesOrder($invoice);
 
         $this->view('sales_invoice/form', [
             'pageTitle' => 'Edit Invoice Keluar',
@@ -228,6 +229,7 @@ class SalesInvoiceController extends Controller
             setFlash('error', 'Invoice Keluar tidak ditemukan.');
             $this->redirect('sales_invoice', 'index');
         }
+        $this->assertNotFromSalesOrder($existing);
 
         [$data, $items, $terms] = $this->collectInput();
         $errors = $this->validateInput($data, $items, $terms, $id);
@@ -605,68 +607,24 @@ class SalesInvoiceController extends Controller
     }
 
     /**
-     * Rumus Invoice Keluar (revisi Termin, Revisi 10 Fase 5):
-     *   Jumlah        = SUM(harga jumlah tiap item)
-     *   Nominal termin = Jumlah x %termin
-     *   PPN termin     = Nominal termin x PPN%   (BUKAN dari Jumlah)
-     *   Total termin   = Nominal termin + PPN termin
-     *   Total invoice  = SUM(Total tiap termin)
-     * SELALU dihitung ulang di backend dari item + termin yang dikirim --
-     * subtotal/nominal/ppn/total dari browser TIDAK PERNAH dipakai langsung,
-     * JS di form.php cuma preview UX. Kolom agregat di sales_invoices
-     * (dp_percentage/dp_amount/ppn_amount/total_amount) dipertahankan
-     * (additive-only) sebagai SUM seluruh termin, supaya Tanda Terima &
-     * Laporan Invoice Keluar (yang membaca kolom itu langsung) tetap benar
-     * tanpa perubahan.
+     * Invoice yang diterbitkan dari Order Penjualan terikat ke jumlah barang yang sudah dikeluarkan
+     * (kolom sales_order_item_id) -- mengedit barisnya lewat form umum akan memutus ikatan itu dan
+     * bisa membuat penagihan melebihi barang yang dikirim. Koreksi: batalkan invoice di detail
+     * Order Penjualan lalu terbitkan ulang.
      */
+    private function assertNotFromSalesOrder(array $invoice): void
+    {
+        if (!empty($invoice['sales_order_id'])) {
+            setFlash('error', "Invoice {$invoice['invoice_number']} diterbitkan dari Order Penjualan, sehingga tidak bisa diedit dari sini. "
+                . 'Batalkan invoice di detail Order Penjualan lalu terbitkan ulang.');
+            $this->redirect('sales_invoice', 'detail', ['id' => (int) $invoice['id']]);
+        }
+    }
+
+    /** Rumus Invoice Keluar -- lihat SalesInvoice::calculateTotals() (satu sumber, juga dipakai Order Penjualan). */
     private function calculateTotals(array $items, array $terms, float $ppnPercent): array
     {
-        $subtotal = 0.0;
-        foreach ($items as $item) {
-            $subtotal += $item['subtotal'];
-        }
-        $subtotal = round($subtotal, 2);
-
-        $computedTerms = [];
-        $sumPercentage = 0.0;
-        $sumAmount = 0.0;
-        $sumPpn = 0.0;
-        $sumTotal = 0.0;
-
-        foreach ($terms as $i => $term) {
-            $amount = round($subtotal * $term['percentage'] / 100, 2);
-            $ppnAmount = round($amount * $ppnPercent / 100, 2);
-            $total = round($amount + $ppnAmount, 2);
-
-            $computedTerms[] = [
-                'term_no'          => $i + 1,
-                'dp_percentage_id' => $term['dp_percentage_id'],
-                'label'            => $term['label'],
-                'percentage'       => $term['percentage'],
-                'amount'           => $amount,
-                'ppn_amount'       => $ppnAmount,
-                'total_amount'     => $total,
-                'due_date'         => $term['due_date'],
-            ];
-
-            $sumPercentage += $term['percentage'];
-            $sumAmount += $amount;
-            $sumPpn += $ppnAmount;
-            $sumTotal += $total;
-        }
-
-        return [
-            'subtotal'         => $subtotal,
-            'terms'            => $computedTerms,
-            // dp_percentage_id agregat hanya bermakna kalau invoice ini PERSIS
-            // 1 termin (mirip perilaku lama) -- kalau lebih dari 1, tidak ada
-            // "satu preset" yang mewakili, jadi null.
-            'dp_percentage_id' => count($computedTerms) === 1 ? $computedTerms[0]['dp_percentage_id'] : null,
-            'dp_percentage'    => round($sumPercentage, 2),
-            'dp_amount'        => round($sumAmount, 2),
-            'ppn_amount'       => round($sumPpn, 2),
-            'total'            => round($sumTotal, 2),
-        ];
+        return SalesInvoice::calculateTotals($items, $terms, $ppnPercent);
     }
 
     private function saveTerms(int $invoiceId, array $computedTerms): void

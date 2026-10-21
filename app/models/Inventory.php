@@ -182,6 +182,15 @@ class Inventory extends Model
         );
     }
 
+    /** Seperti find() tapi mengunci baris (SELECT ... FOR UPDATE) sampai transaksi pemanggil selesai. */
+    public function findForUpdate(int $inventoryId)
+    {
+        return $this->db->fetchOne(
+            "SELECT * FROM inventory WHERE id = :id AND deleted_at IS NULL FOR UPDATE",
+            ['id' => $inventoryId]
+        );
+    }
+
     /**
      * Kurangi stok (dipakai untuk pengeluaran barang / stock out).
      * Melempar RuntimeException kalau stok tidak mencukupi -- WAJIB dicek
@@ -200,7 +209,10 @@ class Inventory extends Model
             throw new RuntimeException('Qty yang dikeluarkan harus lebih dari 0.');
         }
 
-        $existing = $this->find($inventoryId);
+        // Baca dengan FOR UPDATE: dua pengeluaran yang memakai baris stok yang sama
+        // diserialkan di sini, dan nilai yang dibaca = nilai TERBARU (bukan snapshot
+        // transaksi yang lebih lama) -- mencegah stok ganda keluar / lost update.
+        $existing = $this->findForUpdate($inventoryId);
         if (!$existing) {
             throw new RuntimeException('Data stok barang tidak ditemukan.');
         }
@@ -253,7 +265,7 @@ class Inventory extends Model
             return;
         }
 
-        $existing = $this->find($inventoryId);
+        $existing = $this->findForUpdate($inventoryId);
         if (!$existing) {
             return;
         }

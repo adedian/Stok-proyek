@@ -29,6 +29,65 @@ class SalesInvoice extends Model
         return (new DocumentNumber())->next($docType, $codeSettingKey, $invoiceDate);
     }
 
+    /**
+     * Rumus Invoice Keluar (Termin, Revisi 10 Fase 5) -- satu-satunya tempat rumusnya
+     * (dipakai SalesInvoiceController DAN penerbitan invoice dari Order Penjualan):
+     *   Jumlah         = SUM(subtotal tiap item)
+     *   Nominal termin = Jumlah x %termin
+     *   PPN termin     = Nominal termin x PPN%
+     *   Total termin   = Nominal termin + PPN termin
+     *   Total invoice  = SUM(Total tiap termin)
+     * Selalu dihitung ulang di backend; angka dari browser tidak pernah dipercaya.
+     * Kolom agregat (dp_percentage/dp_amount/ppn_amount/total_amount) = SUM seluruh termin.
+     */
+    public static function calculateTotals(array $items, array $terms, float $ppnPercent): array
+    {
+        $subtotal = 0.0;
+        foreach ($items as $item) {
+            $subtotal += $item['subtotal'];
+        }
+        $subtotal = round($subtotal, 2);
+
+        $computedTerms = [];
+        $sumPercentage = 0.0;
+        $sumAmount = 0.0;
+        $sumPpn = 0.0;
+        $sumTotal = 0.0;
+
+        foreach ($terms as $i => $term) {
+            $amount = round($subtotal * $term['percentage'] / 100, 2);
+            $ppnAmount = round($amount * $ppnPercent / 100, 2);
+            $total = round($amount + $ppnAmount, 2);
+
+            $computedTerms[] = [
+                'term_no'          => $i + 1,
+                'dp_percentage_id' => $term['dp_percentage_id'],
+                'label'            => $term['label'],
+                'percentage'       => $term['percentage'],
+                'amount'           => $amount,
+                'ppn_amount'       => $ppnAmount,
+                'total_amount'     => $total,
+                'due_date'         => $term['due_date'],
+            ];
+
+            $sumPercentage += $term['percentage'];
+            $sumAmount += $amount;
+            $sumPpn += $ppnAmount;
+            $sumTotal += $total;
+        }
+
+        return [
+            'subtotal'         => $subtotal,
+            'terms'            => $computedTerms,
+            // dp_percentage_id agregat hanya bermakna kalau invoice ini PERSIS 1 termin.
+            'dp_percentage_id' => count($computedTerms) === 1 ? $computedTerms[0]['dp_percentage_id'] : null,
+            'dp_percentage'    => round($sumPercentage, 2),
+            'dp_amount'        => round($sumAmount, 2),
+            'ppn_amount'       => round($sumPpn, 2),
+            'total'            => round($sumTotal, 2),
+        ];
+    }
+
     /** Apakah nomor ini sudah dipakai invoice lain (termasuk di Tempat Sampah -- kolom invoice_number UNIK). */
     public function numberTaken(string $number, ?int $excludeId = null): bool
     {
@@ -121,11 +180,12 @@ class SalesInvoice extends Model
         $sql = "SELECT si.*, c.client_name, c.client_code, c.address AS client_address,
                        c.contact_person AS client_contact_person, c.phone AS client_phone,
                        p.project_name, s.name AS signature_name, s.position AS signature_position,
-                       s.signature_image
+                       s.signature_image, sord.order_number AS sales_order_number, sord.po_number AS sales_order_po_number
                 FROM sales_invoices si
                 JOIN clients c ON c.id = si.client_id
                 LEFT JOIN projects p ON p.id = si.project_id
                 LEFT JOIN signatures s ON s.id = si.signature_id
+                LEFT JOIN sales_orders sord ON sord.id = si.sales_order_id
                 WHERE si.id = :id AND si.deleted_at IS NULL";
         return $this->db->fetchOne($sql, ['id' => $id]);
     }

@@ -69,10 +69,23 @@ class DeliveryNoteController extends Controller
         // Daftar ID final (sudah diperluas ke seluruh barang satu dokumen).
         $ids = array_map(fn($r) => (int) $r['id'], $rows);
 
+        // Baris dari pemenuhan Order Penjualan -> tujuan otomatis "Penjualan (Client)" milik order itu.
+        [$orderId, $orderError] = $this->resolveSalesOrder($rows);
+        if ($orderError !== null) {
+            setFlash('error', $orderError);
+            $this->redirect('stock_out', 'index');
+        }
+        $salesOrder = null;
+        if ($orderId !== null) {
+            require_once ROOT_PATH . '/app/models/SalesOrder.php';
+            $salesOrder = (new SalesOrder())->findWithAggregates($orderId);
+        }
+
         $this->view('delivery_note/select', [
             'pageTitle' => 'Buat Surat Jalan',
             'rows'      => $rows,
             'ids'       => $ids,
+            'salesOrder' => $salesOrder,
             'clients'   => $this->clientModel->activeList(),
             'projects'  => $this->projectModel->activeList(),
             'signatures' => $this->signatureModel->activeList(),
@@ -93,6 +106,14 @@ class DeliveryNoteController extends Controller
 
         if (empty($rows)) {
             setFlash('error', 'Baris Pengeluaran Barang yang dipilih tidak valid atau sudah masuk Surat Jalan lain.');
+            $this->redirect('stock_out', 'index');
+        }
+
+        // Referensi Order Penjualan DIAMBIL DARI BARIS pengeluaran (bukan dari input form):
+        // satu Surat Jalan hanya boleh untuk satu order, dan tidak boleh dicampur dengan barang non-order.
+        [$salesOrderId, $orderError] = $this->resolveSalesOrder($rows);
+        if ($orderError !== null) {
+            setFlash('error', $orderError);
             $this->redirect('stock_out', 'index');
         }
 
@@ -141,6 +162,7 @@ class DeliveryNoteController extends Controller
             'destination_type' => $destinationType,
             'client_id'        => $destinationType === 'client' ? $clientId : null,
             'project_id'       => $destinationType === 'project' ? $projectId : null,
+            'sales_order_id'   => $salesOrderId,
             'destination_name' => $destinationName ?: null,
             // Kota tempat serah terima ditandatangani (baris penutup Surat Jalan) --
             // SENGAJA field terpisah dari destination_name/project/client: nama
@@ -164,7 +186,12 @@ class DeliveryNoteController extends Controller
             $deliveryNoteId = $this->deliveryNoteModel->create($data);
 
             foreach ($rows as $row) {
-                $this->stockOutModel->updateById((int) $row['id'], ['delivery_note_id' => $deliveryNoteId]);
+                // UPDATE bersyarat (delivery_note_id masih NULL): kalau dua Surat Jalan dibuat bersamaan
+                // untuk baris yang sama, hanya satu yang berhasil -- yang lain rollback, tidak ada SJ ganda.
+                $claimed = $this->stockOutModel->claimForDeliveryNote((int) $row['id'], $deliveryNoteId);
+                if (!$claimed) {
+                    throw new DomainException('Sebagian barang yang dipilih baru saja dimasukkan ke Surat Jalan lain. Muat ulang daftar Pengeluaran Barang.');
+                }
             }
 
             $this->activityLog->log(
@@ -172,11 +199,21 @@ class DeliveryNoteController extends Controller
                 'delivery_note',
                 'create',
                 "Surat Jalan {$data['delivery_number']} dibuat dari " . count($rows) . ' baris Pengeluaran Barang'
+                    . ($salesOrderId ? " (Order Penjualan #{$salesOrderId})" : '')
             );
+            if ($salesOrderId) {
+                require_once ROOT_PATH . '/app/models/SalesOrder.php';
+                (new SalesOrder())->addHistory($salesOrderId, currentUserId(), 'delivery_note',
+                    "Surat Jalan {$data['delivery_number']} diterbitkan (" . count($rows) . ' baris barang)');
+            }
 
             $pdo->commit();
             setFlash('success', "Surat Jalan {$data['delivery_number']} berhasil dibuat.");
             $this->redirect('delivery_note', 'print', ['id' => $deliveryNoteId]);
+        } catch (DomainException $e) {
+            $pdo->rollBack();
+            setFlash('error', $e->getMessage());
+            $this->redirect('stock_out', 'index');
         } catch (Throwable $e) {
             $pdo->rollBack();
             error_log('DeliveryNote store error: ' . $e->getMessage());
@@ -449,6 +486,31 @@ class DeliveryNoteController extends Controller
             return 'Surat_Jalan ' . str_replace(['/', '\\'], '_', (string) $notes[0]['delivery_number']);
         }
         return 'Surat_Jalan (' . count($notes) . ' dokumen)';
+    }
+
+    /**
+     * Order Penjualan asal baris pengeluaran. [orderId|null, pesanError|null].
+     * Aturan: semua baris dari SATU order yang sama, atau semuanya bukan dari order -- tidak boleh dicampur.
+     */
+    private function resolveSalesOrder(array $rows): array
+    {
+        $orderIds = [];
+        $plain = 0;
+        foreach ($rows as $r) {
+            $oid = (int) ($r['sales_order_id'] ?? 0);
+            if ($oid > 0) {
+                $orderIds[$oid] = true;
+            } else {
+                $plain++;
+            }
+        }
+        if (count($orderIds) > 1) {
+            return [null, 'Satu Surat Jalan hanya boleh berisi barang dari satu Order Penjualan. Pilih pengeluaran dari order yang sama.'];
+        }
+        if ($orderIds && $plain > 0) {
+            return [null, 'Barang dari Order Penjualan tidak boleh digabung dengan pengeluaran non-order dalam satu Surat Jalan.'];
+        }
+        return [$orderIds ? (int) array_key_first($orderIds) : null, null];
     }
 
     private function parseIds($idsParam): array

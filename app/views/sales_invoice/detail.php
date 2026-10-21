@@ -8,7 +8,7 @@
            class="btn btn-outline-dark" target="_blank">
             <i class="bi bi-printer"></i> Cetak Invoice
         </a>
-        <?php if (can('sales_invoice', 'edit')): ?>
+        <?php if (can('sales_invoice', 'edit') && empty($invoice['sales_order_id'])): ?>
             <a href="<?= BASE_URL ?>/sales_invoice/edit/<?= (int) $invoice['id'] ?>" class="btn btn-outline-primary">
                 <i class="bi bi-pencil"></i> Edit
             </a>
@@ -18,6 +18,15 @@
         </a>
     </div>
 </div>
+
+<?php if (!empty($invoice['sales_order_id'])): ?>
+    <div class="alert alert-secondary small mb-3">
+        <i class="bi bi-bag-check"></i> Invoice ini diterbitkan dari Order Penjualan
+        <a href="<?= BASE_URL ?>/sales_order/detail/<?= (int) $invoice['sales_order_id'] ?>" class="fw-semibold"><?= e($invoice['sales_order_number']) ?></a>
+        (PO Customer <strong><?= e($invoice['sales_order_po_number']) ?></strong>). Jumlah barangnya terikat ke pemenuhan order sehingga tidak diedit dari sini
+        &mdash; untuk koreksi, batalkan invoice di detail Order Penjualan lalu terbitkan ulang.
+    </div>
+<?php endif; ?>
 
 <?php if ($isBilled): ?>
     <div class="alert alert-info small mb-3">

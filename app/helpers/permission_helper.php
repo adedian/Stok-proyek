@@ -72,7 +72,7 @@ function permissionLabelMaps(): array
             'payment' => 'Pembayaran', 'goods_receipt' => 'Penerimaan Barang', 'validation' => 'Validasi Barang',
             'stock_out' => 'Pengeluaran Barang', 'stock_out_validation' => 'Validasi Pengeluaran Barang',
             'inventory' => 'Stok & Opname', 'offline_purchase' => 'Pembelian Offline',
-            'sales_invoice' => 'Invoice Keluar', 'delivery_note' => 'Surat Jalan', 'collection_receipt' => 'Tanda Terima',
+            'sales_order' => 'Order Penjualan', 'sales_invoice' => 'Invoice Keluar', 'delivery_note' => 'Surat Jalan', 'collection_receipt' => 'Tanda Terima',
             'cash' => 'Kas / Bank', 'cash_validation' => 'Validasi Kas', 'cash_category' => 'Kategori Biaya', 'user_pic' => 'PIC Kas',
             'bank' => 'Bank', 'master_bank' => 'Master Bank', 'master_rekening' => 'Master Rekening',
             'report' => 'Laporan', 'user' => 'User Management', 'master_data' => 'Master Data', 'master_kode' => 'Master Kode',
@@ -91,6 +91,7 @@ function permissionLabelMaps(): array
             'print_voucher' => 'Cetak Voucher Terpilih', 'manage_access' => 'Atur Akses Project',
             'submit' => 'Ajukan (Submit)', 'reject' => 'Tolak', 'forward' => 'Teruskan ke Purwati/Nissa', 'purchase_process' => 'Proses Purchase (PO/Invoice/Dokumen)', 'export' => 'Export',
             'view_all' => 'Lihat Semua Project', 'view_all_purchase' => 'Lihat Semua Kas Purchase', 'print' => 'Cetak', 'admin_delete' => 'Hapus Administratif',
+            'cancel' => 'Batalkan', 'process' => 'Proses Pemenuhan (Stok/Invoice/Surat Jalan)', 'reverse' => 'Koreksi Pemenuhan',
         ],
     ];
 }
@@ -131,6 +132,8 @@ function activityLogActionLabel(string $slug): string
         'kas_login_failed' => 'Verifikasi Kas Gagal', 'kas_view_balance' => 'Lihat Saldo Kas',
         'activate' => 'Aktifkan', 'deactivate' => 'Nonaktifkan',
         'purge' => 'Bersihkan Log', 'validate' => 'Validasi', 'upload' => 'Unggah Lampiran',
+        'cancel' => 'Batalkan', 'process' => 'Proses Pemenuhan', 'reverse' => 'Koreksi Pemenuhan',
+        'check_stock' => 'Periksa Stok', 'issue_invoice' => 'Terbitkan Invoice', 'void_invoice' => 'Batalkan Invoice',
     ];
     return $map[$slug] ?? ucwords(str_replace('_', ' ', $slug));
 }

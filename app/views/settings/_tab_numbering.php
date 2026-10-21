@@ -29,6 +29,11 @@
                     <div class="form-text">Contoh: 001/<?= e($numbering['prefix_off'] ?? 'OFF.HME') ?>/VIII/2026</div>
                 </div>
                 <div class="col-md-3">
+                    <label class="form-label">Kode Order Penjualan</label>
+                    <input type="text" name="prefix_op" class="form-control" value="<?= e($numbering['prefix_op'] ?? 'SR.HME') ?>">
+                    <div class="form-text">Contoh: 001/<?= e($numbering['prefix_op'] ?? 'SR.HME') ?>/VIII/2026</div>
+                </div>
+                <div class="col-md-3">
                     <label class="form-label">Kode Invoice Keluar - Project</label>
                     <input type="text" name="prefix_sls" class="form-control" value="<?= e($numbering['prefix_sls'] ?? 'INV.HME') ?>">
                     <div class="form-text">Contoh: 001/<?= e($numbering['prefix_sls'] ?? 'INV.HME') ?>/VIII/2026</div>

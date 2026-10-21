@@ -65,6 +65,30 @@ if (empty($terms)) {
                     </select>
                     <div class="form-text">Menentukan judul cetak. Isi &amp; nomor sama.</div>
                 </div>
+                <?php if ($isEdit): ?>
+                    <?php if (!empty($invoice['delivery_note_id'])): ?>
+                        <div class="col-12">
+                            <label class="form-label">Surat Jalan yang Diterbitkan Invoice</label>
+                            <div class="form-control-plaintext fw-semibold"><i class="bi bi-truck"></i> <?= e($invoice['linked_delivery_number']) ?></div>
+                            <div class="form-text">Surat Jalan tidak bisa diganti setelah invoice dibuat.</div>
+                        </div>
+                    <?php endif; ?>
+                <?php else: ?>
+                    <?php $deliveryNotes = $deliveryNotes ?? []; ?>
+                    <div class="col-12 d-none" id="dnLinkWrap">
+                        <label class="form-label" for="dnLinkSelect">Surat Jalan yang Diterbitkan Invoice <span class="text-muted small">(opsional)</span></label>
+                        <select name="delivery_note_id" id="dnLinkSelect" class="form-select" disabled>
+                            <option value="">-- Pilih Surat Jalan (cari No. Surat Jalan / customer / PO) --</option>
+                            <?php foreach ($deliveryNotes as $dn): ?>
+                                <option value="<?= (int) $dn['id'] ?>">
+                                    <?= e($dn['delivery_number'] . ' | ' . $dn['client_name'] . ' | ' . formatTanggal($dn['delivery_date']) . (!empty($dn['po_number']) ? ' | PO: ' . $dn['po_number'] : '')) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="form-text" id="dnLinkHint">Client &amp; baris item terisi otomatis dari Surat Jalan yang dipilih. Hanya Surat Jalan tujuan Client yang belum punya invoice yang ditampilkan.</div>
+                        <div id="dnLinkError" class="small text-danger mt-1 d-none"></div>
+                    </div>
+                <?php endif; ?>
                 <div class="col-md-4">
                     <label class="form-label">Client <span class="text-danger">*</span></label>
                     <div class="input-group">
@@ -189,6 +213,7 @@ if (empty($terms)) {
                                     </div>
                                     <div class="small text-muted item-code-hint mb-1"><?= $selectedItemCode !== '' ? 'Kode: ' . e($selectedItemCode) : '' ?></div>
                                     <input type="hidden" name="item_id[]" class="item-id-input" value="<?= $selectedItemId ?: '' ?>">
+                                    <input type="hidden" name="so_item_id[]" class="so-item-id-input" value="">
                                     <input type="text" name="description[]" class="form-control form-control-sm description-input" value="<?= e($item['description']) ?>" placeholder="Deskripsi pekerjaan/barang (boleh diedit bebas)" required>
                                 </td>
                                 <td><input type="number" name="qty[]" class="form-control form-control-sm qty-input" value="<?= e($item['qty']) ?>" min="0.01" step="0.01" required></td>
@@ -549,6 +574,7 @@ if (empty($terms)) {
                 '</div>' +
                 '<div class="small text-muted item-code-hint mb-1"></div>' +
                 '<input type="hidden" name="item_id[]" class="item-id-input" value="">' +
+                '<input type="hidden" name="so_item_id[]" class="so-item-id-input" value="">' +
                 '<input type="text" name="description[]" class="form-control form-control-sm description-input" placeholder="Deskripsi pekerjaan/barang (boleh diedit bebas)" required>' +
             '</td>' +
             '<td><input type="number" name="qty[]" class="form-control form-control-sm qty-input" min="0.01" step="0.01" required></td>' +
@@ -558,6 +584,125 @@ if (empty($terms)) {
             '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger btn-remove-row"><i class="bi bi-trash"></i></button></td>';
         tableBody.appendChild(tr);
     });
+
+    // ---------- Surat Jalan (khusus Jenis Invoice = Lampu) ----------
+    const typeSelect = document.getElementById('invoiceTypeSelect');
+    const dnWrap = document.getElementById('dnLinkWrap');
+    const dnSelect = document.getElementById('dnLinkSelect');
+    if (dnWrap && dnSelect && typeSelect) {
+        const dnHint = document.getElementById('dnLinkHint');
+        const dnErr = document.getElementById('dnLinkError');
+        const clientSelect = document.getElementById('client_id');
+        const dnHintDefault = dnHint.textContent;
+        let dnSeq = 0;
+
+        function resync(sel) {
+            if (typeof window.resyncSearchableSelect === 'function') { window.resyncSearchableSelect(sel); }
+        }
+        function showDnError(msg) {
+            dnErr.textContent = msg || '';
+            dnErr.classList.toggle('d-none', !msg);
+        }
+        function clearDnSelect() {
+            dnSelect.value = '';
+            resync(dnSelect);
+            dnHint.textContent = dnHintDefault;
+        }
+        // Lepas kunci harga/qty & ikatan order dari baris yang tadinya diisi dari Surat Jalan order.
+        function releaseLocks() {
+            tableBody.querySelectorAll('.item-row').forEach(function (row) {
+                row.querySelector('.so-item-id-input').value = '';
+                const price = row.querySelector('.price-input');
+                price.readOnly = false; price.classList.remove('bg-light');
+                row.querySelector('.qty-input').removeAttribute('max');
+            });
+        }
+        function applyType() {
+            const lampu = typeSelect.value === 'lampu';
+            dnWrap.classList.toggle('d-none', !lampu);
+            dnSelect.disabled = !lampu;      // disabled = tidak ikut terkirim
+            if (!lampu && dnSelect.value) { clearDnSelect(); releaseLocks(); }
+            showDnError('');
+        }
+        typeSelect.addEventListener('change', applyType);
+        applyType();
+
+        function money(n) { return Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+        function fillRow(row, it) {
+            const sel = row.querySelector('.item-select');
+            sel.value = it.item_id ? String(it.item_id) : '';
+            if (it.item_id && sel.value === String(it.item_id)) {
+                sel.dispatchEvent(new Event('change', { bubbles: true }));   // isi hint kode barang
+            }
+            resync(sel);
+            row.querySelector('.item-id-input').value = it.item_id || '';
+            row.querySelector('.so-item-id-input').value = it.sales_order_item_id || '';
+            row.querySelector('.description-input').value = it.description;
+            row.querySelector('.unit-input').value = it.unit;
+            const qty = row.querySelector('.qty-input');
+            qty.value = it.qty;
+            const price = row.querySelector('.price-input');
+            price.value = money(it.unit_price);
+            if (it.sales_order_item_id) {
+                qty.max = it.qty;                       // tidak boleh melebihi qty pada Surat Jalan
+                price.readOnly = true; price.classList.add('bg-light');   // harga mengikuti Order Penjualan
+            } else {
+                qty.removeAttribute('max');
+                price.readOnly = false; price.classList.remove('bg-light');
+            }
+        }
+
+        function applyDeliveryNote(j) {
+            const dn = j.delivery_note;
+            if (clientSelect) {
+                clientSelect.value = String(dn.client_id);
+                resync(clientSelect);
+                clientSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            let rows = tableBody.querySelectorAll('.item-row');
+            for (let i = rows.length - 1; i >= 1; i--) { rows[i].remove(); }
+            for (let i = 1; i < j.items.length; i++) { document.getElementById('btnAddRow').click(); }
+            rows = tableBody.querySelectorAll('.item-row');
+            j.items.forEach(function (it, i) { fillRow(rows[i], it); });
+
+            if (dn.from_order) {
+                const cn = document.querySelector('[name="contract_number"]');
+                const cd = document.querySelector('[name="contract_date"]');
+                if (cn && !cn.value) { cn.value = dn.po_number || ''; }
+                if (cd && !cd.value) { cd.value = dn.po_date || ''; }
+                if (dn.ppn_percent !== null) { ppnInput.value = dn.ppn_percent; }
+            }
+            dnHint.textContent = 'Terisi dari Surat Jalan ' + dn.delivery_number + ' (' + dn.client_name + ')' +
+                (dn.from_order ? ' - Order Penjualan ' + dn.order_number + ', harga mengikuti order.' : '. Isi Harga Satuan manual.');
+            recalcAll();
+        }
+
+        dnSelect.addEventListener('change', function () {
+            const id = dnSelect.value;
+            showDnError('');
+            if (!id) { dnHint.textContent = dnHintDefault; releaseLocks(); return; }
+            const seq = ++dnSeq;
+            dnHint.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Mengambil data Surat Jalan...';
+            fetch('<?= BASE_URL ?>/index.php?module=sales_invoice&action=ajaxDeliveryNote&id=' + encodeURIComponent(id),
+                  { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+                .then(function (r) { return r.json().then(function (j) { if (!r.ok) { throw new Error(j.error || 'Gagal memuat Surat Jalan.'); } return j; }); })
+                .then(function (j) {
+                    if (seq !== dnSeq) { return; }
+                    const hasData = Array.prototype.some.call(tableBody.querySelectorAll('.description-input'), function (i) { return i.value.trim() !== ''; });
+                    if (!hasData) { applyDeliveryNote(j); return; }
+                    confirmAction('Baris item yang sudah diisi akan diganti dengan barang dari Surat Jalan ' + j.delivery_note.delivery_number + '. Lanjutkan?', 'Ya, ganti').then(function (ok) {
+                        if (seq !== dnSeq) { return; }
+                        if (ok) { applyDeliveryNote(j); } else { clearDnSelect(); }
+                    });
+                })
+                .catch(function (e) {
+                    if (seq !== dnSeq) { return; }
+                    clearDnSelect();
+                    showDnError(e.message);
+                });
+        });
+    }
 
     recalcAll();
     refreshDueDate();

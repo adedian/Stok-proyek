@@ -78,6 +78,19 @@ class SalesOrder extends Model
         'lengkap'   => 'success',
     ];
 
+    /** Status PENGIRIMAN barang -- terpisah dari status order, invoice & dokumen. Dihitung dari stock_out (sumber kebenaran). */
+    public const SHIP_LABELS = [
+        'belum_dikirim'   => 'Belum Dikirim',
+        'dikirim_sebagian' => 'Dikirim Sebagian',
+        'selesai_dikirim' => 'Selesai Dikirim',
+    ];
+
+    public const SHIP_BADGES = [
+        'belum_dikirim'   => 'light text-muted border',
+        'dikirim_sebagian' => 'warning text-dark',
+        'selesai_dikirim' => 'success',
+    ];
+
     public static function statusLabel(?string $s): string
     {
         return self::STATUS_LABELS[$s] ?? (string) $s;
@@ -353,6 +366,72 @@ class SalesOrder extends Model
         }
         $allRows = $onDn === (int) $order['sj_rows_total'];
         return ($allRows && (float) $order['remaining_qty'] <= self::EPS) ? 'lengkap' : 'sebagian';
+    }
+
+    /**
+     * Status Pengiriman dari agregat order (fulfilled_qty = total stock_out yang MASIH ada, remaining_qty = sisa pesanan).
+     * Tidak disimpan: koreksi pemenuhan (stock_out masuk Tempat Sampah) otomatis menghitung ulang status ini.
+     */
+    public static function shipStatus(array $order): string
+    {
+        if ((float) ($order['fulfilled_qty'] ?? 0) <= self::EPS) {
+            return 'belum_dikirim';
+        }
+        return (float) ($order['remaining_qty'] ?? 0) <= self::EPS ? 'selesai_dikirim' : 'dikirim_sebagian';
+    }
+
+    /**
+     * Order yang bisa dipilih di form Surat Jalan: Order aktif (bukan draft/batal) yang masih punya sisa pesanan.
+     * $includeDone = juga yang sudah selesai (khusus lihat/audit -- pemanggil WAJIB menolak pengiriman barunya).
+     * Pencarian: No. Order / PO Customer / nama customer. Selalu dibatasi $limit baris.
+     * Urutan: yang sudah dikirim sebagian dulu, lalu yang paling lama menunggu.
+     */
+    public function searchForShipment(string $keyword, int $limit = 20, bool $includeDone = false): array
+    {
+        $e = self::EPS;
+        $params = [];
+        $where = "so.status = 'aktif'";
+        $keyword = trim($keyword);
+        if ($keyword !== '') {
+            [$ss, $sp] = SmartSearch::clause($keyword, ['c.client_name'], ['so.order_number', 'so.po_number'], 'shipkw');
+            if ($ss !== '') {
+                $where .= " AND {$ss}";
+                $params += $sp;
+            }
+        }
+        $having = $includeDone ? '' : " AND COALESCE(agg.remaining, 0) > {$e}";
+        $limit = max(1, min(50, $limit));
+
+        return $this->db->fetchAll(
+            "SELECT so.id, so.order_number, so.order_date, so.po_number, so.po_date, c.client_name,
+                    COALESCE(agg.ordered, 0) AS ordered_qty, COALESCE(agg.shipped, 0) AS shipped_qty,
+                    COALESCE(agg.remaining, 0) AS remaining_qty
+               FROM sales_orders so
+               JOIN clients c ON c.id = so.client_id
+               LEFT JOIN (
+                    SELECT soi.sales_order_id, SUM(soi.qty) AS ordered, SUM(COALESCE(f.q, 0)) AS shipped,
+                           SUM(GREATEST(soi.qty - COALESCE(f.q, 0), 0)) AS remaining
+                      FROM sales_order_items soi
+                      LEFT JOIN (SELECT sales_order_item_id, SUM(qty) AS q FROM stock_out
+                                  WHERE deleted_at IS NULL AND sales_order_item_id IS NOT NULL
+                                  GROUP BY sales_order_item_id) f ON f.sales_order_item_id = soi.id
+                     GROUP BY soi.sales_order_id
+               ) agg ON agg.sales_order_id = so.id
+              WHERE {$where}{$having}
+              ORDER BY (COALESCE(agg.shipped, 0) > 0) DESC, so.order_date ASC, so.id ASC
+              LIMIT {$limit}",
+            $params
+        );
+    }
+
+    /** Jumlah baris pengeluaran order ini yang belum masuk Surat Jalan manapun (pemenuhan lewat halaman Proses). */
+    public function ungroupedStockOutRows(int $orderId): int
+    {
+        $row = $this->db->fetchOne(
+            "SELECT COUNT(*) AS n FROM stock_out WHERE sales_order_id = :o AND deleted_at IS NULL AND delivery_note_id IS NULL",
+            ['o' => $orderId]
+        );
+        return (int) ($row['n'] ?? 0);
     }
 
     // ------------------------------------------------------------------

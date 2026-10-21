@@ -14,6 +14,8 @@ require_once ROOT_PATH . '/app/models/ActivityLog.php';
 require_once ROOT_PATH . '/app/models/Item.php';
 require_once ROOT_PATH . '/app/models/ItemCategory.php';
 require_once ROOT_PATH . '/app/models/User.php';
+require_once ROOT_PATH . '/app/models/DeliveryNote.php';
+require_once ROOT_PATH . '/app/models/SalesOrder.php';
 
 /**
  * SalesInvoiceController -- Invoice Keluar (AR, HME menagih ke client).
@@ -33,6 +35,7 @@ class SalesInvoiceController extends Controller
     private Item $itemCatalogModel;
     private ItemCategory $itemCategoryModel;
     private User $userModel;
+    private DeliveryNote $deliveryNoteModel;
 
     public function __construct()
     {
@@ -49,6 +52,7 @@ class SalesInvoiceController extends Controller
         $this->itemCatalogModel  = new Item();
         $this->itemCategoryModel = new ItemCategory();
         $this->userModel         = new User();
+        $this->deliveryNoteModel = new DeliveryNote();
     }
 
     public function index()
@@ -88,6 +92,8 @@ class SalesInvoiceController extends Controller
             'itemCatalog'    => $this->itemCatalogModel->activeList(),
             'itemCategories' => $this->itemCategoryModel->activeList(),
             'picUsers'       => $this->userModel->activeList(),
+            // Surat Jalan yang bisa diterbitkan invoice (field muncul bila Jenis Invoice = Lampu).
+            'deliveryNotes'  => $this->deliveryNoteModel->eligibleForInvoice(),
         ]);
     }
 
@@ -110,12 +116,21 @@ class SalesInvoiceController extends Controller
 
         assertPeriodOpen('sales_invoice', $data['invoice_date'], 'sales_invoice', 'create');
 
+        // Jenis Lampu: invoice boleh diterbitkan dari sebuah Surat Jalan (relasi + validasi barang/qty).
+        $linkErrors = $this->prepareDeliveryNoteLink($data, $items);
+        if (!empty($linkErrors)) {
+            setFlash('error', implode(' ', $linkErrors));
+            $this->redirect('sales_invoice', 'create');
+        }
+
         // Nomor invoice diketik manual (sudah divalidasi wajib-isi + unik di validateInput()).
         $invoiceNumber = $data['invoice_number'];
 
         $pdo = getPDO();
         try {
             $pdo->beginTransaction();
+
+            $this->lockAndRecheckDeliveryNoteLink($data, $items);
 
             $totals = $this->calculateTotals($items, $terms, $data['ppn_percent']);
 
@@ -157,6 +172,12 @@ class SalesInvoiceController extends Controller
 
             setFlash('success', 'Invoice Keluar berhasil disimpan.');
             $this->redirect('sales_invoice', 'detail', ['id' => $invoiceId]);
+        } catch (DomainException $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            setFlash('error', $e->getMessage());
+            $this->redirect('sales_invoice', 'create');
         } catch (Throwable $e) {
             $pdo->rollBack();
             error_log('SalesInvoice store error: ' . $e->getMessage());
@@ -248,6 +269,11 @@ class SalesInvoiceController extends Controller
         // asli. Field-nya di form.php memang <select disabled> (tidak terkirim),
         // ini lapisan pertahanan kedua supaya tidak bisa dipalsukan lewat request manual.
         $data['invoice_type'] = $existing['invoice_type'];
+        // Ikatan ke Order Penjualan hanya dibuat saat invoice diterbitkan dari Surat Jalan order (dan itu tidak bisa diedit).
+        foreach ($items as &$itRef) {
+            $itRef['sales_order_item_id'] = null;
+        }
+        unset($itRef);
 
         $pdo = getPDO();
         try {
@@ -425,6 +451,171 @@ class SalesInvoiceController extends Controller
         ]);
     }
 
+    // ================= Invoice dari Surat Jalan (jenis Lampu) =================
+
+    /** Barang + harga + data order dari sebuah Surat Jalan (dipanggil form saat Surat Jalan dipilih). */
+    public function ajaxDeliveryNote()
+    {
+        Middleware::requirePermission('sales_invoice', 'create');
+        $id = (int) ($_GET['id'] ?? 0);
+        $dn = $this->deliveryNoteModel->findForInvoice($id);
+        if (!$dn || $dn['destination_type'] !== 'client' || empty($dn['client_id'])) {
+            $this->json(['error' => 'Surat Jalan tidak ditemukan atau tidak berujuan Client.'], 404);
+        }
+        if ($used = $this->deliveryNoteModel->activeInvoice($id)) {
+            $this->json(['error' => "Surat Jalan ini sudah diterbitkan invoice {$used['invoice_number']}."], 409);
+        }
+
+        $fromOrder = !empty($dn['sales_order_id']);
+        $orders = new SalesOrder();
+        $items = [];
+        foreach ($this->deliveryNoteModel->invoiceLines($id, $fromOrder) as $l) {
+            $qty = (float) $l['qty'];
+            $desc = $l['item_name'];
+            if ($fromOrder) {
+                // Tidak boleh menagih lebih dari yang sudah dikeluarkan & belum ditagih (invoice lain dari order yang sama ikut dihitung).
+                $lid = (int) $l['sales_order_item_id'];
+                $qty = min($qty, round($orders->fulfilledQty($lid) - $orders->invoicedQty($lid), 2));
+                if (trim((string) $l['specification']) !== '') {
+                    $desc .= ' - ' . preg_replace('/\s+/', ' ', trim($l['specification']));
+                }
+            }
+            if ($qty <= SalesOrder::EPS) {
+                continue;
+            }
+            $items[] = [
+                'item_id'             => $l['item_id'] ? (int) $l['item_id'] : null,
+                'sales_order_item_id' => $l['sales_order_item_id'] ? (int) $l['sales_order_item_id'] : null,
+                'description'         => mb_substr($desc, 0, 255),
+                'qty'                 => round($qty, 2),
+                'unit'                => $l['unit'],
+                'unit_price'          => (float) $l['unit_price'],
+            ];
+        }
+        if (!$items) {
+            $this->json(['error' => 'Seluruh barang pada Surat Jalan ini sudah ditagih di invoice lain.'], 409);
+        }
+        $this->json([
+            'delivery_note' => [
+                'id'              => (int) $dn['id'],
+                'delivery_number' => $dn['delivery_number'],
+                'client_id'       => (int) $dn['client_id'],
+                'client_name'     => $dn['client_name'],
+                'from_order'      => $fromOrder,
+                'order_number'    => $dn['sales_order_number'],
+                'po_number'       => $dn['po_number'],
+                'po_date'         => $dn['po_date'],
+                'ppn_percent'     => $fromOrder ? (float) $dn['order_ppn'] : null,
+            ],
+            'items' => $items,
+        ]);
+    }
+
+    /**
+     * Validasi (sebelum transaksi) Surat Jalan yang dipilih & ubah $data/$items sesuai aturannya.
+     * Surat Jalan dari Order Penjualan: invoice ikut terikat ke order (sales_order_id + sales_order_item_id), harga
+     * DIAMBIL dari order (bukan dari browser), dan qty tiap barang dibatasi qty pada Surat Jalan itu.
+     */
+    private function prepareDeliveryNoteLink(array &$data, array &$items): array
+    {
+        $dnId = (int) ($_POST['delivery_note_id'] ?? 0);
+        if ($data['invoice_type'] !== 'lampu' || $dnId <= 0) {
+            foreach ($items as &$itRef) {
+                $itRef['sales_order_item_id'] = null;
+            }
+            unset($itRef);
+            return [];
+        }
+
+        $dn = $this->deliveryNoteModel->findForInvoice($dnId);
+        if (!$dn || $dn['destination_type'] !== 'client' || empty($dn['client_id'])) {
+            return ['Surat Jalan tidak ditemukan atau tidak berujuan Client.'];
+        }
+        if ((int) $dn['client_id'] !== (int) $data['client_id']) {
+            return ["Client invoice harus sama dengan customer pada Surat Jalan {$dn['delivery_number']} ({$dn['client_name']})."];
+        }
+        if ($used = $this->deliveryNoteModel->activeInvoice($dnId)) {
+            return ["Surat Jalan {$dn['delivery_number']} sudah diterbitkan invoice {$used['invoice_number']}."];
+        }
+        $data['delivery_note_id'] = $dnId;
+
+        if (empty($dn['sales_order_id'])) {
+            foreach ($items as &$itRef) {
+                $itRef['sales_order_item_id'] = null;
+            }
+            unset($itRef);
+            return [];
+        }
+
+        $data['sales_order_id'] = (int) $dn['sales_order_id'];
+        if (empty($data['contract_number'])) {
+            $data['contract_number'] = $dn['po_number'];
+            $data['contract_date'] = $dn['po_date'];
+        }
+        $lines = [];
+        foreach ($this->deliveryNoteModel->invoiceLines($dnId, true) as $l) {
+            $lines[(int) $l['sales_order_item_id']] = $l;
+        }
+        $perLine = [];
+        foreach ($items as &$it) {
+            $lid = (int) ($it['sales_order_item_id'] ?? 0);
+            if ($lid <= 0 || !isset($lines[$lid])) {
+                return ['Invoice dari Surat Jalan Order Penjualan hanya boleh berisi barang yang ada pada Surat Jalan tersebut. Pilih ulang Surat Jalan untuk memuat barangnya.'];
+            }
+            $perLine[$lid] = ($perLine[$lid] ?? 0.0) + $it['qty'];
+            $it['item_id'] = (int) $lines[$lid]['item_id'];
+            $it['unit_price'] = (float) $lines[$lid]['unit_price'];
+            $it['subtotal'] = round($it['qty'] * $it['unit_price'], 2);
+        }
+        unset($it);
+        foreach ($perLine as $lid => $sum) {
+            if ($sum > (float) $lines[$lid]['qty'] + SalesOrder::EPS) {
+                return ["Qty '{$lines[$lid]['item_name']}' (" . self::fmtQty($sum) . ') melebihi qty pada Surat Jalan (' . self::fmtQty((float) $lines[$lid]['qty']) . ').'];
+            }
+        }
+        return [];
+    }
+
+    /**
+     * Di dalam transaksi: kunci Surat Jalan (dan order) lalu cek ULANG -- dua pengguna yang menerbitkan invoice dari
+     * Surat Jalan yang sama / menagih barang order yang sama diserialkan, yang kedua ditolak.
+     * @throws DomainException
+     */
+    private function lockAndRecheckDeliveryNoteLink(array $data, array $items): void
+    {
+        if (empty($data['delivery_note_id'])) {
+            return;
+        }
+        $dnId = (int) $data['delivery_note_id'];
+        if (!$this->deliveryNoteModel->lockForUpdate($dnId)) {
+            throw new DomainException('Surat Jalan tidak ditemukan.');
+        }
+        if ($used = $this->deliveryNoteModel->activeInvoice($dnId)) {
+            throw new DomainException("Surat Jalan ini baru saja diterbitkan invoice {$used['invoice_number']}.");
+        }
+        if (empty($data['sales_order_id'])) {
+            return;
+        }
+        $orders = new SalesOrder();
+        $orders->lockForUpdate((int) $data['sales_order_id']);
+        $perLine = [];
+        foreach ($items as $it) {
+            $lid = (int) $it['sales_order_item_id'];
+            $perLine[$lid] = ($perLine[$lid] ?? 0.0) + $it['qty'];
+        }
+        foreach ($perLine as $lid => $sum) {
+            $invoiceable = round($orders->fulfilledQty($lid) - $orders->invoicedQty($lid), 2);
+            if ($sum > $invoiceable + SalesOrder::EPS) {
+                throw new DomainException('Qty tagihan melebihi barang yang sudah dikeluarkan dan belum ditagih di invoice lain dari order ini (tersisa ' . self::fmtQty(max(0, $invoiceable)) . ').');
+            }
+        }
+    }
+
+    private static function fmtQty(float $n): string
+    {
+        return rtrim(rtrim(number_format($n, 2, ',', '.'), '0'), ',') ?: '0';
+    }
+
     // ================= Helper privat =================
 
     private function collectInput(): array
@@ -467,6 +658,7 @@ class SalesInvoiceController extends Controller
         $qtys = $_POST['qty'] ?? [];
         $units = $_POST['unit'] ?? [];
         $prices = $_POST['unit_price'] ?? [];
+        $soItemIds = is_array($_POST['so_item_id'] ?? null) ? $_POST['so_item_id'] : [];
 
         foreach ($descriptions as $i => $description) {
             $description = trim($description);
@@ -482,6 +674,8 @@ class SalesInvoiceController extends Controller
                 // konsultasi teknis" -- lihat migration untuk audit datanya), jadi
                 // item_id TIDAK boleh diwajibkan di sini.
                 'item_id'     => !empty($itemIds[$i]) ? (int) $itemIds[$i] : null,
+                // Hanya bermakna untuk invoice dari Surat Jalan Order Penjualan (divalidasi di prepareDeliveryNoteLink()).
+                'sales_order_item_id' => !empty($soItemIds[$i]) ? (int) $soItemIds[$i] : null,
                 'description' => $description,
                 'qty'         => $qty,
                 'unit'        => trim($units[$i] ?? ''),

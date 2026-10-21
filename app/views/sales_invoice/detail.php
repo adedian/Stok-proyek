@@ -73,6 +73,16 @@
                         <div class="text-muted small">Jatuh Tempo</div>
                         <div class="fw-semibold"><?= !empty($invoice['jatuh_tempo']) ? formatTanggal($invoice['jatuh_tempo']) : '-' ?></div>
                     </div>
+                    <?php if (!empty($invoice['delivery_note_id'])): ?>
+                        <div class="col-md-4">
+                            <div class="text-muted small">Surat Jalan</div>
+                            <div class="fw-semibold">
+                                <a href="<?= BASE_URL ?>/delivery_note/print/<?= (int) $invoice['delivery_note_id'] ?>" target="_blank" class="text-decoration-none">
+                                    <i class="bi bi-truck"></i> <?= e($invoice['linked_delivery_number']) ?>
+                                </a>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                     <div class="col-md-4">
                         <div class="text-muted small">No. Kontrak</div>
                         <div class="fw-semibold"><?= e($invoice['contract_number'] ?? '-') ?></div>

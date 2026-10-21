@@ -180,12 +180,14 @@ class SalesInvoice extends Model
         $sql = "SELECT si.*, c.client_name, c.client_code, c.address AS client_address,
                        c.contact_person AS client_contact_person, c.phone AS client_phone,
                        p.project_name, s.name AS signature_name, s.position AS signature_position,
-                       s.signature_image, sord.order_number AS sales_order_number, sord.po_number AS sales_order_po_number
+                       s.signature_image, sord.order_number AS sales_order_number, sord.po_number AS sales_order_po_number,
+                       dnl.delivery_number AS linked_delivery_number
                 FROM sales_invoices si
                 JOIN clients c ON c.id = si.client_id
                 LEFT JOIN projects p ON p.id = si.project_id
                 LEFT JOIN signatures s ON s.id = si.signature_id
                 LEFT JOIN sales_orders sord ON sord.id = si.sales_order_id
+                LEFT JOIN delivery_notes dnl ON dnl.id = si.delivery_note_id
                 WHERE si.id = :id AND si.deleted_at IS NULL";
         return $this->db->fetchOne($sql, ['id' => $id]);
     }

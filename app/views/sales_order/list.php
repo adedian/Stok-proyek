@@ -80,13 +80,14 @@ $canPrint = can('sales_order', 'print');
                         <th class="text-end">Total Pesanan</th>
                         <th>Status Stok</th>
                         <th>Status Order</th>
+                        <th>Pengiriman</th>
                         <th>Pembuat</th>
                         <th class="text-center no-print">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($rows)): ?>
-                        <tr><td colspan="10" class="p-0">
+                        <tr><td colspan="11" class="p-0">
                             <div class="empty-state">
                                 <i class="bi bi-bag-check empty-icon"></i>
                                 <?php if (array_filter($filters)): ?>
@@ -131,6 +132,11 @@ $canPrint = can('sales_order', 'print');
                             </td>
                             <td data-label="Status Order">
                                 <span class="badge bg-<?= e(SalesOrder::statusBadge($st)) ?>"><?= e(SalesOrder::statusLabel($st)) ?></span>
+                            </td>
+                            <td data-label="Pengiriman">
+                                <?php if ($open): $shipSt = SalesOrder::shipStatus($r); ?>
+                                    <span class="badge bg-<?= e(SalesOrder::SHIP_BADGES[$shipSt]) ?>"><?= e(SalesOrder::SHIP_LABELS[$shipSt]) ?></span>
+                                <?php else: ?><span class="text-muted">-</span><?php endif; ?>
                             </td>
                             <td data-label="Pembuat"><?= e($r['created_by_name'] ?? '-') ?></td>
                             <td class="text-center no-print" data-label="Aksi">

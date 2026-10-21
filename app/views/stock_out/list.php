@@ -71,6 +71,11 @@
             <button type="button" class="btn btn-sm btn-primary" id="soCreateDeliveryNoteBtn" disabled>
                 <i class="bi bi-truck"></i> Buat Surat Jalan
             </button>
+            <?php if (can('sales_order', 'process')): ?>
+                <a href="<?= BASE_URL ?>/delivery_note/createFromOrder" class="btn btn-sm btn-success">
+                    <i class="bi bi-cart-check"></i> Surat Jalan dari Order Penjualan
+                </a>
+            <?php endif; ?>
         <?php endif; ?>
         <button type="button" class="btn btn-sm btn-outline-dark" id="soPrintDeliveryNoteBtn" disabled>
             <i class="bi bi-printer"></i> Cetak Surat Jalan Terpilih

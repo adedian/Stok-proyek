@@ -47,6 +47,9 @@ $postForm = function (string $action, array $fields, string $label, string $icon
         <?php if ($isOpen && $canProcess && $hasRemaining): ?>
             <a href="<?= BASE_URL ?>/sales_order/process/<?= $id ?>" class="btn btn-primary btn-sm"><i class="bi bi-box-arrow-up"></i> Proses Pemenuhan</a>
         <?php endif; ?>
+        <?php if ($isOpen && $canDnCreate && $hasRemaining): ?>
+            <a href="<?= BASE_URL ?>/delivery_note/createFromOrder?order_id=<?= $id ?>" class="btn btn-success btn-sm"><i class="bi bi-truck"></i> Kirim &amp; Buat Surat Jalan</a>
+        <?php endif; ?>
         <?php if ($isOpen && $canProcess && $hasInvoiceable): ?>
             <a href="<?= BASE_URL ?>/sales_order/invoice/<?= $id ?>" class="btn btn-warning btn-sm"><i class="bi bi-receipt"></i> Terbitkan Invoice</a>
         <?php endif; ?>
@@ -93,6 +96,12 @@ $postForm = function (string $action, array $fields, string $label, string $icon
         <?php if ($order['stock_status']): ?>
             <span class="badge bg-<?= e(SalesOrder::stockBadge($order['stock_status'])) ?>"><?= e(SalesOrder::stockLabel($order['stock_status'])) ?></span>
         <?php else: ?><span class="text-muted">-</span><?php endif; ?>
+    </div></div></div>
+    <?php $shipSt = SalesOrder::shipStatus($order); ?>
+    <div class="col-6 col-md-4 col-xl-2"><div class="card border-0 shadow-sm h-100"><div class="card-body py-3">
+        <div class="small text-muted">Status Pengiriman</div>
+        <span class="badge bg-<?= e(SalesOrder::SHIP_BADGES[$shipSt]) ?>"><?= e(SalesOrder::SHIP_LABELS[$shipSt]) ?></span>
+        <div class="small text-muted mt-1">terkirim <?= e($fq($order['fulfilled_qty'])) ?> / <?= e($fq($order['ordered_qty'])) ?> unit</div>
     </div></div></div>
     <div class="col-6 col-md-4 col-xl-2"><div class="card border-0 shadow-sm h-100"><div class="card-body py-3">
         <div class="small text-muted">Status Invoice</div>

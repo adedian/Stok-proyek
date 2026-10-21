@@ -473,6 +473,290 @@ class DeliveryNoteController extends Controller
         $this->redirect('delivery_note', 'index');
     }
 
+    // ================= Surat Jalan dari Order Penjualan =================
+    //
+    // Alur satu langkah: pilih Order Penjualan -> isi Qty Dikirim -> simpan. Dalam SATU transaksi database:
+    //   1. SalesOrderFulfillment::fulfill() membuat dokumen Pengeluaran Barang & mengurangi stok
+    //      (jalur Inventory::debitStock yang sama dengan Pengeluaran Barang biasa -- TIDAK ada pengurangan kedua),
+    //   2. Surat Jalan dibuat dan baris pengeluaran tadi langsung "diklaim" olehnya.
+    // Gagal di mana pun = rollback total (stok tidak berubah, Surat Jalan tidak ada).
+
+    /** Izin: boleh membuat SJ DAN memproses pengeluaran dari order (Accounting/Super Admin, sama seperti halaman Proses). */
+    private function canShipFromOrder(): bool
+    {
+        return can('delivery_note', 'create') && can('sales_order', 'process');
+    }
+
+    private function requireShipFromOrder(): void
+    {
+        Middleware::requirePermission('delivery_note', 'create');
+        Middleware::requirePermission('sales_order', 'process');
+    }
+
+    public function createFromOrder()
+    {
+        $this->requireShipFromOrder();
+        require_once ROOT_PATH . '/app/models/SalesOrderFulfillment.php';
+
+        $this->view('delivery_note/from_order', [
+            'pageTitle'  => 'Buat Surat Jalan dari Order Penjualan',
+            'signatures' => $this->signatureModel->activeList(),
+            'token'      => SalesOrderFulfillment::newToken(),
+            'presetOrderId' => (int) ($_GET['order_id'] ?? 0),
+        ]);
+    }
+
+    /** Pencarian Order Penjualan untuk dropdown (maks. 20 baris). */
+    public function ajaxOrders()
+    {
+        if (!$this->canShipFromOrder()) {
+            $this->json(['error' => 'Tidak punya akses'], 403);
+        }
+        require_once ROOT_PATH . '/app/models/SalesOrder.php';
+        $rows = (new SalesOrder())->searchForShipment(
+            trim((string) ($_GET['q'] ?? '')),
+            20,
+            !empty($_GET['include_done'])
+        );
+        $out = [];
+        foreach ($rows as $r) {
+            $done = (float) $r['remaining_qty'] <= SalesOrder::EPS;
+            $out[] = [
+                'id'           => (int) $r['id'],
+                'order_number' => $r['order_number'],
+                'po_number'    => $r['po_number'],
+                'client_name'  => $r['client_name'],
+                'order_date'   => formatTanggal($r['order_date']),
+                'remaining'    => (float) $r['remaining_qty'],
+                'shipped'      => (float) $r['shipped_qty'],
+                'done'         => $done,
+            ];
+        }
+        $this->json(['orders' => $out]);
+    }
+
+    /** Header + barang + progres + stok TERKINI satu order (dipanggil saat order dipilih di form). */
+    public function ajaxOrder()
+    {
+        if (!$this->canShipFromOrder()) {
+            $this->json(['error' => 'Tidak punya akses'], 403);
+        }
+        require_once ROOT_PATH . '/app/models/SalesOrder.php';
+        $orders = new SalesOrder();
+        $id = (int) ($_GET['id'] ?? 0);
+        $order = $orders->findWithAggregates($id);
+        if (!$order) {
+            $this->json(['error' => 'Order Penjualan tidak ditemukan.'], 404);
+        }
+        $client = $this->clientModel->find((int) $order['client_id']);
+        $items = [];
+        foreach ($orders->itemsWithProgress($id) as $it) {
+            $remaining = (float) $it['remaining_qty'];
+            $stock = (float) $it['stock_qty'];
+            $items[] = [
+                'id'            => (int) $it['id'],
+                'item_code'     => $it['item_code'],
+                'item_name'     => $it['item_name'],
+                'specification' => (string) ($it['specification'] ?? ''),
+                'unit'          => $it['unit'],
+                'ordered'       => (float) $it['qty'],
+                'shipped'       => (float) $it['fulfilled_qty'],
+                'remaining'     => $remaining,
+                'stock'         => $stock,
+                'max_send'      => round(max(0.0, min($remaining, $stock)), 2),
+            ];
+        }
+        $shipStatus = SalesOrder::shipStatus($order);
+        $blocked = null;
+        if ($order['status'] === SalesOrder::CANCELLED) {
+            $blocked = 'Order ini sudah dibatalkan, tidak bisa dibuatkan Surat Jalan baru.';
+        } elseif ($order['status'] !== SalesOrder::ACTIVE) {
+            $blocked = 'Order masih berstatus Draft. Purchase harus mengirimkannya ke Accounting terlebih dahulu.';
+        } elseif ((float) $order['remaining_qty'] <= SalesOrder::EPS) {
+            $blocked = 'Seluruh barang pada order ini sudah terkirim. Tidak tersedia untuk pengiriman lanjutan.';
+        }
+
+        $this->json([
+            'order' => [
+                'id'            => (int) $order['id'],
+                'order_number'  => $order['order_number'],
+                'order_date'    => formatTanggal($order['order_date']),
+                'po_number'     => $order['po_number'],
+                'po_date'       => formatTanggal($order['po_date']),
+                'client_name'   => $order['client_name'],
+                'address'       => (string) (($order['customer_address'] ?? '') !== '' ? $order['customer_address'] : ($client['address'] ?? '')),
+                'phone'         => (string) ($order['customer_phone'] ?? ''),
+                'notes'         => (string) ($order['notes'] ?? ''),
+                'ship_status'   => $shipStatus,
+                'ship_label'    => SalesOrder::SHIP_LABELS[$shipStatus],
+                'ship_badge'    => SalesOrder::SHIP_BADGES[$shipStatus],
+                'ungrouped_rows' => $orders->ungroupedStockOutRows($id),
+            ],
+            'items'   => $items,
+            'blocked' => $blocked,
+        ]);
+    }
+
+    public function storeFromOrder()
+    {
+        $this->requireShipFromOrder();
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('stock_out', 'index');
+        }
+        verifyCsrf();
+        require_once ROOT_PATH . '/app/models/SalesOrder.php';
+        require_once ROOT_PATH . '/app/models/SalesOrderFulfillment.php';
+
+        $orderId = (int) ($_POST['sales_order_id'] ?? 0);
+        $back = fn() => $this->redirect('delivery_note', 'createFromOrder', $orderId > 0 ? ['order_id' => $orderId] : []);
+
+        $orders = new SalesOrder();
+        $order = $orderId > 0 ? $orders->find($orderId) : null;
+        if (!$order) {
+            setFlash('error', 'Pilih Order Penjualan terlebih dahulu.');
+            $this->redirect('delivery_note', 'createFromOrder');
+        }
+
+        $deliveryDate = (string) ($_POST['delivery_date'] ?? '');
+        if ($deliveryDate === '') {
+            $deliveryDate = date('Y-m-d');
+        }
+        if (!isValidDateString($deliveryDate)) {
+            setFlash('error', 'Tanggal Surat Jalan tidak valid.');
+            $back();
+        }
+        // Pengeluaran stok ikut tanggal Surat Jalan -> periode Pengeluaran Barang harus masih terbuka.
+        assertPeriodOpen('stock_out', $deliveryDate, 'delivery_note', 'createFromOrder', ['order_id' => $orderId]);
+
+        // No. Surat Jalan diketik manual -- wajib, maks 50 karakter, unik (termasuk Tempat Sampah).
+        $numberRaw = $_POST['delivery_number'] ?? '';
+        $deliveryNumber = is_string($numberRaw) ? trim(preg_replace('/\s+/', ' ', $numberRaw)) : '';
+        $numberError = null;
+        if ($deliveryNumber === '') {
+            $numberError = 'No. Surat Jalan wajib diisi.';
+        } elseif (mb_strlen($deliveryNumber) > 50) {
+            $numberError = 'No. Surat Jalan maksimal 50 karakter.';
+        } elseif ($this->deliveryNoteModel->numberTaken($deliveryNumber)) {
+            $numberError = "No. Surat Jalan {$deliveryNumber} sudah dipakai Surat Jalan lain (termasuk yang ada di Tempat Sampah).";
+        }
+        if ($numberError !== null) {
+            setFlash('error', $numberError);
+            $back();
+        }
+
+        $lineIds = $_POST['line_id'] ?? [];
+        $qtys = $_POST['qty'] ?? [];
+        if (!is_array($lineIds) || !is_array($qtys)) {
+            setFlash('error', 'Data pengiriman tidak valid.');
+            $back();
+        }
+        $lines = [];
+        foreach ($lineIds as $i => $lineId) {
+            $qty = parseQtyInput($qtys[$i] ?? 0);
+            if ($qty < 0) {
+                setFlash('error', 'Qty Dikirim tidak boleh negatif.');
+                $back();
+            }
+            // inventory_id 0 = otomatis (Stok Kantor dulu, lalu stok terbanyak) -- sama seperti halaman Proses.
+            $lines[] = ['order_item_id' => (int) $lineId, 'qty' => $qty, 'inventory_id' => 0];
+        }
+        $lines = array_values(array_filter($lines, fn($l) => $l['qty'] > SalesOrder::EPS));
+        if (!$lines) {
+            setFlash('error', 'Isi Qty Dikirim minimal untuk satu barang.');
+            $back();
+        }
+
+        $client = $this->clientModel->find((int) $order['client_id']);
+        $data = [
+            'delivery_number'  => $deliveryNumber,
+            'delivery_date'    => $deliveryDate,
+            'destination_type' => 'client',
+            'client_id'        => (int) $order['client_id'],
+            'project_id'       => null,
+            'sales_order_id'   => $orderId,
+            'destination_name' => trim($_POST['destination_name'] ?? '') ?: ($client['client_name'] ?? null),
+            'city'             => trim($_POST['city'] ?? '') ?: null,
+            'vehicle_number'   => trim($_POST['vehicle_number'] ?? '') ?: null,
+            'driver_name'      => trim($_POST['driver_name'] ?? '') ?: null,
+            'sender_name'      => trim($_POST['sender_name'] ?? '') ?: null,
+            'recipient_name'   => trim($_POST['recipient_name'] ?? '') ?: null,
+            'signature_id'     => !empty($_POST['signature_id']) ? (int) $_POST['signature_id'] : null,
+            'notes'            => trim($_POST['notes'] ?? '') ?: null,
+            'created_by'       => currentUserId(),
+        ];
+        $picName = mb_substr($data['sender_name'] ?: currentUserName(), 0, 150);
+        $token = (string) ($_POST['token'] ?? '');
+
+        $pdo = getPDO();
+        $fulfillModel = new SalesOrderFulfillment();
+        try {
+            $pdo->beginTransaction();
+
+            // (1) Pengeluaran Barang + pengurangan stok. Order dikunci, sisa pesanan & stok dihitung ulang di bawah kunci,
+            //     token sekali-pakai menolak klik ganda / refresh. fulfill() ikut transaksi ini (tidak commit sendiri).
+            $res = $fulfillModel->fulfill($orderId, $lines, $deliveryDate, $token, $picName, $data['notes'], (int) currentUserId());
+
+            // (2) Surat Jalan + klaim baris pengeluaran yang baru dibuat.
+            $deliveryNoteId = $this->deliveryNoteModel->create($data);
+            $rowIds = array_column(getPDO()->query(
+                'SELECT id FROM stock_out WHERE sales_order_fulfillment_id = ' . (int) $res['fulfillment_id'] . ' AND deleted_at IS NULL ORDER BY id'
+            )->fetchAll(PDO::FETCH_ASSOC), 'id');
+            if (!$rowIds || count($rowIds) !== (int) $res['rows']) {
+                throw new RuntimeException('Jumlah baris pengeluaran tidak cocok dengan pemenuhan.');
+            }
+            foreach ($rowIds as $rid) {
+                if (!$this->stockOutModel->claimForDeliveryNote((int) $rid, $deliveryNoteId)) {
+                    throw new RuntimeException('Baris pengeluaran gagal dikaitkan ke Surat Jalan.');
+                }
+            }
+
+            $this->activityLog->log(
+                currentUserId(), 'delivery_note', 'create',
+                "Surat Jalan {$deliveryNumber} dibuat dari Order Penjualan {$order['order_number']} (PO {$order['po_number']}): "
+                . "pengeluaran {$res['stock_out_number']}, {$res['qty_total']} unit pada {$res['rows']} baris"
+            );
+            $orders->addHistory($orderId, currentUserId(), 'fulfill',
+                "Surat Jalan {$deliveryNumber} diterbitkan bersama pengeluaran {$res['stock_out_number']}: {$res['qty_total']} unit. Sisa belum terkirim: {$res['remaining']}");
+            if ($res['remaining'] <= SalesOrder::EPS) {
+                $orders->addHistory($orderId, currentUserId(), 'complete', 'Seluruh barang pada order telah terkirim');
+            }
+
+            $pdo->commit();
+        } catch (DomainException $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            setFlash('error', $e->getMessage());
+            $back();
+        } catch (PDOException $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            if ((int) ($e->errorInfo[1] ?? 0) === 1062) {
+                setFlash('error', "No. Surat Jalan {$deliveryNumber} baru saja dipakai Surat Jalan lain, atau permintaan ini sudah diproses. Periksa Riwayat Surat Jalan.");
+            } else {
+                error_log('DeliveryNote storeFromOrder error: ' . $e->getMessage());
+                setFlash('error', 'Gagal membuat Surat Jalan. Tidak ada stok yang berubah. Silakan coba lagi.');
+            }
+            $back();
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            error_log('DeliveryNote storeFromOrder error: ' . $e->getMessage());
+            setFlash('error', 'Gagal membuat Surat Jalan. Tidak ada stok yang berubah. Silakan coba lagi.');
+            $back();
+        }
+
+        if ($res['remaining'] > SalesOrder::EPS) {
+            setFlash('warning', "Surat Jalan {$deliveryNumber} dibuat (pengeluaran {$res['stock_out_number']}). Order masih punya sisa "
+                . rtrim(rtrim(number_format($res['remaining'], 2, ',', '.'), '0'), ',') . ' unit yang belum dikirim.');
+        } else {
+            setFlash('success', "Surat Jalan {$deliveryNumber} dibuat (pengeluaran {$res['stock_out_number']}). Seluruh barang pada order telah terkirim.");
+        }
+        $this->redirect('delivery_note', 'print', ['id' => $deliveryNoteId]);
+    }
+
     // ================= Helper privat =================
 
     /**

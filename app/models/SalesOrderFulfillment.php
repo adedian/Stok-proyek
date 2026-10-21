@@ -57,7 +57,7 @@ class SalesOrderFulfillment extends Model
             throw new DomainException('Isi jumlah pemenuhan minimal untuk satu barang.');
         }
         if (!preg_match('/^[0-9a-f]{32}$/', $token)) {
-            throw new DomainException('Sesi form tidak valid. Muat ulang halaman Proses lalu coba lagi.');
+            throw new DomainException('Sesi form tidak valid. Muat ulang halaman lalu coba lagi.');
         }
 
         $manageTx = !$this->db->inTransaction();
@@ -136,7 +136,7 @@ class SalesOrderFulfillment extends Model
                 }
 
                 // (3) Kunci & alokasikan stok.
-                foreach ($this->allocate($item, $qty, (int) $line['inventory_id']) as [$bucket, $take]) {
+                foreach ($this->allocate($item, $qty, (int) $line['inventory_id'], $remaining) as [$bucket, $take]) {
                     if ($docNumber === null) {
                         $docNumber = $this->stockOut->generateStockOutNumber($date);
                     }
@@ -206,7 +206,7 @@ class SalesOrderFulfillment extends Model
      *
      * @return array<int, array{0:array,1:float}> [[barisInventory, jumlahDiambil], ...]
      */
-    private function allocate(array $item, float $qty, int $preferredInventoryId): array
+    private function allocate(array $item, float $qty, int $preferredInventoryId, float $remaining): array
     {
         $buckets = $this->db->fetchAll(
             "SELECT * FROM inventory
@@ -237,10 +237,11 @@ class SalesOrderFulfillment extends Model
         }
 
         if ($total + SalesOrder::EPS < $qty) {
-            $short = round($qty - $total, 2);
+            $maxNow = min($total, $remaining);
             throw new DomainException(
-                "Stok barang tidak mencukupi. '{$item['item_name']}': pesanan diproses " . self::fmt($qty) . " {$item['unit']}, "
-                . 'stok tersedia ' . self::fmt($total) . " {$item['unit']}, kekurangan " . self::fmt($short) . " {$item['unit']}."
+                "Stok '{$item['item_name']}' tersedia hanya " . self::fmt($total) . " {$item['unit']}, sedangkan jumlah yang akan dikirim "
+                . self::fmt($qty) . " {$item['unit']} (sisa pesanan " . self::fmt($remaining) . "). "
+                . 'Jumlah pengiriman maksimal saat ini adalah ' . self::fmt($maxNow) . " {$item['unit']}."
             );
         }
 

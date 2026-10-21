@@ -10,6 +10,7 @@ $offlineItems = $offlineItems ?? [];
 // Pembelian Offline (ditegakkan juga di GoodsReceiptController).
 $canOfflineSource = can('offline_purchase', 'view');
 $pemakaiItems = $pemakaiItems ?? [];
+$itemCatalog = $itemCatalog ?? [];
 // Mode edit tidak punya JS toggle sumber -- tampilan tiap bagian ditentukan dari tipe tersimpan.
 $hideUnlessType = function (string $type) use ($isEdit, $receiptType): string {
     return ($isEdit && $receiptType !== $type) ? 'style="display:none;"' : '';
@@ -349,7 +350,37 @@ $hideUnlessType = function (string $type) use ($isEdit, $receiptType): string {
                     <tbody id="pemakaiItemsBody">
                         <?php foreach ($pemakaiItems ?: [null] as $pi): ?>
                         <tr class="pemakai-item-row">
-                            <td><input type="text" name="pemakai_item_name[]" class="form-control form-control-sm" placeholder="Nama barang" value="<?= e($pi['item_name'] ?? '') ?>"></td>
+                            <?php
+                                // Dropdown Master Barang. Nama yang tersimpan tetap teks (pemakai_item_name[]),
+                                // diisi otomatis dari pilihan; baris lama yang namanya tak ada di master
+                                // ditampilkan sebagai "(lama)" supaya tidak hilang saat Edit.
+                                $piName = (string) ($pi['item_name'] ?? '');
+                                $piMatchedId = 0;
+                                if ($piName !== '') {
+                                    foreach ($itemCatalog as $ic) {
+                                        if (mb_strtolower($ic['item_name']) === mb_strtolower($piName)) { $piMatchedId = (int) $ic['id']; break; }
+                                    }
+                                }
+                            ?>
+                            <td>
+                                <div class="input-group input-group-sm">
+                                    <select class="form-select item-select">
+                                        <option value="">-- Pilih Barang --</option>
+                                        <?php if ($piName !== '' && !$piMatchedId): ?>
+                                            <option value="legacy" data-legacy="1" data-name="<?= e($piName) ?>" data-unit="<?= e($pi['unit'] ?? '') ?>" selected>(lama) <?= e($piName) ?></option>
+                                        <?php endif; ?>
+                                        <?php foreach ($itemCatalog as $ic): ?>
+                                            <option value="<?= (int) $ic['id'] ?>" data-unit="<?= e($ic['unit_name']) ?>" <?= $piMatchedId === (int) $ic['id'] ? 'selected' : '' ?>><?= e($ic['item_name']) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <?php if (canQuickAdd('item')): ?>
+                                        <button type="button" class="btn btn-outline-secondary btn-quick-add-item" title="Tambah Barang Cepat">
+                                            <i class="bi bi-plus-lg"></i>
+                                        </button>
+                                    <?php endif; ?>
+                                </div>
+                                <input type="hidden" name="pemakai_item_name[]" class="pemakai-name-input" value="<?= e($piName) ?>">
+                            </td>
                             <td>
                                 <select name="pemakai_unit[]" class="form-select form-select-sm">
                                     <option value="">-- Satuan --</option>
@@ -384,6 +415,10 @@ $hideUnlessType = function (string $type) use ($isEdit, $receiptType): string {
         <a href="<?= BASE_URL ?>/goods_receipt" class="btn btn-light border">Batal</a>
     </div>
 </form>
+
+<?php if (canQuickAdd('item')): ?>
+    <?php require ROOT_PATH . '/app/views/partials/quick_add_item_modal.php'; ?>
+<?php endif; ?>
 
 <script>
 (function () {
@@ -436,11 +471,44 @@ $hideUnlessType = function (string $type) use ($isEdit, $receiptType): string {
             if (window.stripChoicesFromClone) { window.stripChoicesFromClone(row); }
             row.querySelectorAll('input').forEach(function (input) { input.value = ''; });
             row.querySelectorAll('select').forEach(function (select) { select.selectedIndex = 0; });
+            // Baris "(lama)" tidak boleh ikut terkloning ke baris baru.
+            row.querySelectorAll('.item-select option[data-legacy]').forEach(function (o) { o.remove(); });
+            row.querySelectorAll('option[selected]').forEach(function (o) { o.removeAttribute('selected'); });
             pemakaiBody.appendChild(row);
         });
     }
     if (pemakaiBody) {
+        // Barang dipilih dari Master Barang -> isi nama (hidden) + satuan otomatis.
+        pemakaiBody.addEventListener('change', function (e) {
+            if (!e.target.classList.contains('item-select')) return;
+            const select = e.target;
+            const row = select.closest('.pemakai-item-row');
+            const opt = select.options[select.selectedIndex];
+            const nameInput = row.querySelector('.pemakai-name-input');
+            const unitSelect = row.querySelector('select[name="pemakai_unit[]"]');
+            let unit = '';
+            if (opt && opt.value) {
+                nameInput.value = opt.dataset.legacy ? (opt.dataset.name || '') : opt.textContent.trim();
+                unit = opt.dataset.unit || '';
+            } else {
+                nameInput.value = '';
+            }
+            if (unitSelect && unit !== '') {
+                if (!Array.prototype.some.call(unitSelect.options, function (o) { return o.value === unit; })) {
+                    unitSelect.add(new Option(unit, unit));
+                }
+                unitSelect.value = unit;
+                if (window.resyncSearchableSelect) { window.resyncSearchableSelect(unitSelect); }
+            }
+        });
         pemakaiBody.addEventListener('click', function (e) {
+            const qa = e.target.closest('.btn-quick-add-item');
+            if (qa) {
+                window.__quickAddItemTarget = qa.closest('.pemakai-item-row').querySelector('.item-select');
+                const modalEl = document.getElementById('modalQuickAddItem');
+                if (modalEl) { bootstrap.Modal.getOrCreateInstance(modalEl).show(); }
+                return;
+            }
             const btn = e.target.closest('.btn-remove-pemakai-row');
             if (!btn) return;
             const rows = pemakaiBody.querySelectorAll('.pemakai-item-row');

@@ -11,6 +11,7 @@ require_once ROOT_PATH . '/app/models/Inventory.php';
 require_once ROOT_PATH . '/app/models/Project.php';
 require_once ROOT_PATH . '/app/models/ActivityLog.php';
 require_once ROOT_PATH . '/app/models/Unit.php';
+require_once ROOT_PATH . '/app/models/Item.php';
 require_once ROOT_PATH . '/app/models/Signature.php';
 
 class GoodsReceiptController extends Controller
@@ -27,6 +28,7 @@ class GoodsReceiptController extends Controller
     private Project $projectModel;
     private ActivityLog $activityLog;
     private Unit $unitModel;
+    private Item $itemModel;
     private Signature $signatureModel;
 
     public function __construct()
@@ -43,6 +45,7 @@ class GoodsReceiptController extends Controller
         $this->projectModel     = new Project();
         $this->activityLog      = new ActivityLog();
         $this->unitModel        = new Unit();
+        $this->itemModel        = new Item();
         $this->signatureModel   = new Signature();
     }
 
@@ -150,6 +153,7 @@ class GoodsReceiptController extends Controller
             'defaultReceiptType' => $defaultReceiptType,
             'projects'       => $this->projectModel->activeList(),
             'units'          => $this->unitModel->activeList(),
+            'itemCatalog'    => $this->itemModel->activeList(),
             'mismatchItems'  => [],
             'documents'      => [],
         ]);
@@ -377,6 +381,7 @@ class GoodsReceiptController extends Controller
             'defaultReceiptType' => $receipt['receipt_type'],
             'projects'       => $this->projectModel->activeList(),
             'units'          => $this->unitModel->activeList(),
+            'itemCatalog'    => $this->itemModel->activeList(),
             'mismatchItems'  => $mismatchItems,
             'pemakaiItems'   => $pemakaiItems,
             'documents'      => $this->documentModel->byReceipt($id),

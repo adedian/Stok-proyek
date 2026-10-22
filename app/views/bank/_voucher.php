@@ -44,7 +44,7 @@ if ($total < 0) {
     $terbilangStr = 'Minus ' . lcfirst($terbilangStr);
 }
 
-$minRows  = 6; // kertas setengah folio (215x165mm): baris kosong secukupnya agar 1 transaksi muat 1 lembar
+$minRows  = 13; // 13 baris isi + Ch/G.B. + TOTAL = 15 baris dari uraian pertama sampai TOTAL
 $padCount = max(0, $minRows - count($vItems));
 $bodyRowCount = count($vItems) + $padCount + 2; // + baris Ch/G.B. + TOTAL
 $labelRowspan = $bodyRowCount + 1; // + baris header grid sendiri

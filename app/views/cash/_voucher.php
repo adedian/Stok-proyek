@@ -45,7 +45,7 @@ if ($total < 0) {
     $terbilangStr = 'Minus ' . lcfirst($terbilangStr);
 }
 
-$minRows  = 4; // kertas nota (A5 landscape): baris kosong secukupnya agar 1 transaksi muat 1 lembar
+$minRows  = 13; // 13 baris isi + Ch/G.B. + TOTAL = 15 baris dari uraian pertama sampai TOTAL
 $padCount = max(0, $minRows - count($vItems));
 ?>
 <div class="voucher print-page <?= $isKeluar ? 'is-keluar' : 'is-masuk' ?>">

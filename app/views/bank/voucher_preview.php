@@ -18,11 +18,11 @@ $backUrl  = $backUrl ?? (BASE_URL . '/cash');
 ?>
 <style>
     /* ---- Kontainer lembar voucher (scoped, tidak menyentuh halaman lain) ---- */
-    .bank-voucher-print { max-width: 215mm; margin: 0 auto; }
+    .bank-voucher-print { max-width: 210mm; margin: 0 auto; }
     .bank-voucher-print .voucher {
         background: #fff;
         border: 1px solid #dee2e6;
-        padding: 8mm 8mm 6mm 14mm; /* margin KIRI sengaja lebih lebar dari kanan */
+        padding: 12mm 12mm 10mm 18mm; /* margin KIRI lebih lebar dari kanan */
         margin: 0 auto 20px;
         color: #1a1a1a;
         font-size: 11px;
@@ -53,7 +53,7 @@ $backUrl  = $backUrl ?? (BASE_URL . '/cash');
     .bank-voucher-print table.nomor td.v { font-weight: bold; }
 
     .bank-voucher-print table.grid { width: 100%; border-collapse: collapse; }
-    .bank-voucher-print table.grid td { border: 1px solid var(--v-color); padding: 3px 7px; vertical-align: top; }
+    .bank-voucher-print table.grid td { border: 1px solid var(--v-color); padding: 1px 7px; line-height: 1.25; vertical-align: top; }
     .bank-voucher-print table.grid tr.grid-head td { background: var(--v-color); color: #fff; text-align: center; font-weight: bold; letter-spacing: 2px; }
     .bank-voucher-print table.grid tr.grid-head td.c-label { background: #fff; padding: 0; }
     .bank-voucher-print table.grid td.c-label, .bank-voucher-print table.grid td.perkiraan { background: var(--v-fill); }
@@ -69,7 +69,7 @@ $backUrl  = $backUrl ?? (BASE_URL . '/cash');
     }
     .bank-voucher-print table.grid td.perkiraan { width: 90px; }
     .bank-voucher-print table.grid td.uraian, .bank-voucher-print table.grid td.jumlah { background: var(--v-fill); }
-    .bank-voucher-print table.grid .c-jumlah { width: 130px; }
+    .bank-voucher-print table.grid .c-jumlah { width: 150px; }
     .bank-voucher-print table.grid td.jumlah { text-align: right; white-space: nowrap; }
     .bank-voucher-print table.grid td.jumlah.neg { color: #b00020; }
     .bank-voucher-print table.grid tr.row-ch td.uraian,
@@ -83,12 +83,12 @@ $backUrl  = $backUrl ?? (BASE_URL . '/cash');
     .bank-voucher-print table.terbilang td { border: 1px solid var(--v-color); padding: 4px 7px; }
     .bank-voucher-print table.terbilang td.k { width: 70px; font-weight: bold; background: var(--v-total-bg); white-space: nowrap; }
     .bank-voucher-print table.terbilang td.v { font-style: italic; }
-    .bank-voucher-print table.catatan td { border: 1px solid var(--v-color); border-top: 0; padding: 5px 7px 16px; font-weight: bold; }
+    .bank-voucher-print table.catatan td { border: 1px solid var(--v-color); border-top: 0; padding: 5px 7px 22px; font-weight: bold; }
 
     .bank-voucher-print table.ttd { width: 100%; border-collapse: collapse; margin-top: 6px; }
     .bank-voucher-print table.ttd th, .bank-voucher-print table.ttd td { border: 1px solid var(--v-color); text-align: center; padding: 4px; width: 25%; }
     .bank-voucher-print table.ttd th { background: var(--v-color); color: #fff; font-weight: bold; }
-    .bank-voucher-print table.ttd tr.space td { height: 46px; }
+    .bank-voucher-print table.ttd tr.space td { height: 66px; }
 
     .bank-voucher-print .foot { margin-top: 8px; font-size: 9px; color: #999; text-align: right; }
 
@@ -96,14 +96,15 @@ $backUrl  = $backUrl ?? (BASE_URL . '/cash');
        cash voucher) -- responsive-tables.js (scalePrintPreviews) menangani
        .print-page otomatis. @media print mengembalikan zoom:1. */
 
-    /* KERTAS SETENGAH FOLIO: 215 x 165 mm (folio 215 x 330 mm dibagi dua). */
-    @page { size: 215mm 165mm; margin: 5mm; }
+    /* Halaman POTRET penuh; ukuran kertas (A4 / Folio) mengikuti pilihan di dialog cetak. Voucher menempati
+       setengah bagian ATAS halaman (sisanya kosong, untuk dipotong). */
+    @page { size: portrait; margin: 2mm 10mm 10mm 10mm; } /* margin atas minimal: voucher mepet ke atas lembar */
     @media print {
         .bank-voucher-print { max-width: none; }
         .bank-voucher-print .voucher {
             border: none;
             margin: 0;
-            padding: 1mm 3mm 1mm 10mm; /* kiri lebih lebar dari kanan (total dgn margin @page: kiri 15mm, kanan 8mm) */
+            padding: 1mm 0 4mm 14mm; /* kiri lebih lebar; kanan 0 -> tepi kanan tabel = margin @page 10mm (1 cm dari tepi kertas) */
             break-inside: avoid;
             page-break-inside: avoid;
         }

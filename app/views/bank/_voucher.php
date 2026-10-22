@@ -44,7 +44,7 @@ if ($total < 0) {
     $terbilangStr = 'Minus ' . lcfirst($terbilangStr);
 }
 
-$minRows  = 8;
+$minRows  = 4; // kertas nota (A5 landscape): baris kosong secukupnya agar 1 transaksi muat 1 lembar
 $padCount = max(0, $minRows - count($vItems));
 $bodyRowCount = count($vItems) + $padCount + 2; // + baris Ch/G.B. + TOTAL
 $labelRowspan = $bodyRowCount + 1; // + baris header grid sendiri

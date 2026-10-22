@@ -31,6 +31,10 @@
  *                      TIDAK dihapus: ia dipindah ke nomor paling ujung deret (setelah semua nomor
  *                      di atas --gap bergeser -1), lalu nomor --gap terisi oleh nomor berikutnya.
  *                      Transaksi aktif yang memegang --gap tetap ditolak.
+ *   --park-aside       seperti --park-trashed, tetapi baris Tempat Sampah itu TIDAK ditaruh di ujung deret
+ *                      (yang memakan satu nomor & menggeser "nomor berikutnya"): ia diberi label di luar deret
+ *                      "PREFIX MM/NNNN-SAMPAH" sehingga tidak lagi memegang nomor mana pun. Counter ikut turun 1,
+ *                      jadi nomor tertinggi lama (mis. 0065) kembali bisa dipakai transaksi berikutnya.
  *   --apply            benar-benar menulis (tanpa ini = dry-run).
  *
  * PENGAMAN (tool berhenti tanpa mengubah apa pun bila):
@@ -60,7 +64,8 @@ foreach (array_slice($argv, 1) as $a) {
     }
 }
 $apply = !empty($opt['apply']);
-$park  = !empty($opt['park-trashed']);
+$aside = !empty($opt['park-aside']);
+$park  = $aside || !empty($opt['park-trashed']);
 
 function out(string $s): void { echo $s, "\n"; }
 function fail(string $s, int $code): void { fwrite(STDERR, $s . "\n"); exit($code); }
@@ -164,10 +169,12 @@ try {
     $maxN = (int) max(array_column($all, 'n'));
     $parkPlan = [];
     foreach ($parked as $i => $r) {
-        $new = $prefix . ' ' . $month . '/' . str_pad((string) ($maxN + $i), 4, '0', STR_PAD_LEFT);
+        $new = $aside
+            ? $prefix . ' ' . $month . '/' . str_pad((string) $gap, 4, '0', STR_PAD_LEFT) . '-SAMPAH'
+            : $prefix . ' ' . $month . '/' . str_pad((string) ($maxN + $i), 4, '0', STR_PAD_LEFT);
         $parkPlan[] = ['id' => (int) $r['id'], 'old' => $r['no_bukti'], 'new' => $new,
                        'tmp' => $prefix . ' ' . $month . '/TMP' . $r['id']];
-        out(sprintf("  #%-5d %-14s -> %-14s  %s  %-16s %-6s %14s  [Sampah, dipindah ke ujung deret]", $r['id'], $r['no_bukti'], $new,
+        out(sprintf("  #%-5d %-14s -> %-14s  %s  %-16s %-6s %14s  [Sampah, " . ($aside ? 'dikeluarkan dari deret' : 'dipindah ke ujung deret') . "]", $r['id'], $r['no_bukti'], $new,
             $r['trx_date'], $r['bank_name'], $r['mutasi'], number_format((float) $r['amount'], 2)));
     }
     $banks = array_unique(array_column(array_merge($shift, $parked), 'bank_name'));
@@ -178,7 +185,7 @@ try {
     $c->execute(['p' => $prefix, 'pe' => $period]);
     $counter = $c->fetch(PDO::FETCH_ASSOC);
     $counterBefore = $counter ? (int) $counter['next_number'] : null;
-    $counterDelta = count($parked) - 1;   // geser -1, tiap baris parkir menambah satu nomor di ujung
+    $counterDelta = ($aside ? 0 : count($parked)) - 1;   // geser -1; baris parkir di ujung deret menambah satu nomor (kecuali --park-aside)
     if ($counter && $counterBefore === $maxN + 1) {
         out("Counter {$prefix}/{$period}: {$counterBefore} -> " . ($counterBefore + $counterDelta));
     } else {

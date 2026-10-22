@@ -38,28 +38,44 @@
  * form.submit() terprogram tidak memicu event 'submit' lagi.
  */
 /**
- * Dropdown aksi (.row-actions "⋮") di dalam tabel sering terpotong/"tenggelam" di
- * bagian bawah kartu. Penyebabnya: .table-responsive Bootstrap men-set overflow-x:auto,
- * dan menurut spesifikasi CSS begitu salah satu sumbu overflow diset non-visible,
- * browser otomatis menghitung sumbu satunya (overflow-y) jadi auto juga -- efek
- * samping standar, bukan disengaja -- sehingga dropdown-menu yang keluar dari batas
- * bawah container ikut ter-clip. Solusinya: begitu dropdown di dalam tabel dibuka,
- * izinkan container itu overflow (visible) sementara, lalu kembalikan begitu ditutup.
- * Delegasi event di document supaya otomatis berlaku ke SEMUA tabel .row-actions
- * di seluruh modul tanpa perlu mengubah satupun file view.
+ * Dropdown aksi (.row-actions "⋮") di dalam tabel terpotong oleh overflow-x:auto
+ * bawaan .table-responsive (menu yang keluar dari batas bawah container ikut ter-clip).
+ * Solusi lama -- membuat container overflow:visible selagi menu terbuka -- membuat
+ * tabel lebar (mis. PO, 15 kolom) meluber keluar kartu sehingga seluruh halaman melebar
+ * dan layout (sidebar/topbar) bergeser. Solusi sekarang: menu memakai Popper
+ * strategy 'fixed' sehingga posisinya relatif ke viewport dan tidak pernah ter-clip,
+ * tanpa menyentuh overflow container. Berlaku ke SEMUA tabel di seluruh modul tanpa
+ * ubah view.
+ *
+ * Instance harus sudah ada SEBELUM klik: handler data-api Bootstrap bersifat delegated
+ * (didaftarkan di fase capture) sehingga jalan lebih dulu dari listener click kita dan
+ * membuat instance tanpa config. Maka instance dibuat saat halaman siap, dan sebagai
+ * cadangan (baris yang muncul belakangan) saat pointer/fokus/keyboard menyentuh tombol.
  */
-document.addEventListener('show.bs.dropdown', function (e) {
-    var wrapper = e.target.closest('.table-responsive');
-    if (wrapper) {
-        wrapper.classList.add('dropdown-open-overflow');
+(function () {
+    function fixedPopper(defaultConfig) {
+        return Object.assign({}, defaultConfig, { strategy: 'fixed' });
     }
-});
-document.addEventListener('hide.bs.dropdown', function (e) {
-    var wrapper = e.target.closest('.table-responsive');
-    if (wrapper) {
-        wrapper.classList.remove('dropdown-open-overflow');
+
+    function prepare(toggle) {
+        if (!toggle || !window.bootstrap || !toggle.closest('.table-responsive, .rt-card')) {
+            return;
+        }
+        window.bootstrap.Dropdown.getOrCreateInstance(toggle, { popperConfig: fixedPopper });
     }
-});
+
+    function prepareFromEvent(e) {
+        var el = e.target;
+        prepare(el && el.closest ? el.closest('[data-bs-toggle="dropdown"]') : null);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        Array.prototype.forEach.call(document.querySelectorAll('[data-bs-toggle="dropdown"]'), prepare);
+    });
+    ['pointerdown', 'mouseover', 'focusin', 'keydown', 'touchstart'].forEach(function (type) {
+        document.addEventListener(type, prepareFromEvent, true);
+    });
+})();
 
 document.addEventListener('submit', function (e) {
     if (e.defaultPrevented) {

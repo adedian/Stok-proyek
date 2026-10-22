@@ -30,9 +30,9 @@
     opacity: .6;
 }
 
-/* Kelas ditambah/dilepas otomatis oleh layout.js saat dropdown .row-actions di
-   dalam tabel dibuka/ditutup, supaya menu-nya tidak ter-clip oleh overflow-x:auto
-   bawaan .table-responsive (lihat komentar di layout.js untuk penjelasan lengkap). */
+/* Kelas ditambah/dilepas oleh searchable-select.js saat dropdown Choices di dalam
+   tabel dibuka/ditutup. Dropdown aksi .row-actions TIDAK memakai ini lagi -- memakai
+   Popper strategy 'fixed' (lihat layout.js) agar tabel lebar tidak melebarkan halaman. */
 .table-responsive.dropdown-open-overflow {
     overflow: visible;
 }

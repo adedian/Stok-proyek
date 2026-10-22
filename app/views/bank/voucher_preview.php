@@ -22,7 +22,7 @@ $backUrl  = $backUrl ?? (BASE_URL . '/cash');
     .bank-voucher-print .voucher {
         background: #fff;
         border: 1px solid #dee2e6;
-        padding: 12mm 12mm 10mm;
+        padding: 12mm 18mm 10mm 12mm; /* margin kanan sengaja lebih lebar dari kiri */
         margin: 0 auto 20px;
         color: #1a1a1a;
         font-size: 11px;
@@ -42,8 +42,9 @@ $backUrl  = $backUrl ?? (BASE_URL . '/cash');
     .bank-voucher-print table.head > tbody > tr > td { border: 1.5px solid var(--v-color); vertical-align: top; padding: 5px 7px; }
     .bank-voucher-print .head-left { width: 33%; }
     .bank-voucher-print .head-left .lbl { font-size: 10px; color: #555; }
-    .bank-voucher-print .head-left .val { font-weight: bold; font-size: 12px; margin-top: 8px; }
-    .bank-voucher-print .head-mid { width: 34%; text-align: center; font-size: 17px; font-weight: bold; letter-spacing: 1px; color: var(--v-color); vertical-align: middle; }
+    .bank-voucher-print .head-left .val { font-weight: bold; font-size: 12px; margin-top: 2px; } /* nama tepat di bawah label (tidak turun ke dasar kotak) */
+    /* Selektor setara table.head > tbody > tr > td (vertical-align: top) supaya judul benar-benar di TENGAH kotak. */
+    .bank-voucher-print table.head > tbody > tr > td.head-mid { width: 34%; text-align: center; vertical-align: middle; font-size: 17px; font-weight: bold; letter-spacing: 1px; color: var(--v-color); }
     .bank-voucher-print .head-right { width: 33%; padding: 3px 6px; }
     .bank-voucher-print table.nomor { width: 100%; border-collapse: collapse; }
     .bank-voucher-print table.nomor td { border: 0; padding: 2px 3px; font-size: 11px; }
@@ -56,7 +57,7 @@ $backUrl  = $backUrl ?? (BASE_URL . '/cash');
     .bank-voucher-print table.grid tr.grid-head td { background: var(--v-color); color: #fff; text-align: center; font-weight: bold; letter-spacing: 2px; }
     .bank-voucher-print table.grid tr.grid-head td.c-label { background: #fff; padding: 0; }
     .bank-voucher-print table.grid td.c-label, .bank-voucher-print table.grid td.perkiraan { background: var(--v-fill); }
-    .bank-voucher-print table.grid td.c-label { width: 22px; text-align: center; }
+    .bank-voucher-print table.grid td.c-label { width: 22px; text-align: center; vertical-align: middle; } /* KEPERLUAN INTERN di tengah tinggi tabel */
     .bank-voucher-print table.grid td.c-label .vert {
         display: block;
         writing-mode: vertical-rl;
@@ -101,7 +102,7 @@ $backUrl  = $backUrl ?? (BASE_URL . '/cash');
         .bank-voucher-print .voucher {
             border: none;
             margin: 0;
-            padding: 4mm 8mm;
+            padding: 4mm 14mm 4mm 8mm; /* kiri tetap 8mm, kanan lebih lebar */
         }
         .bank-voucher-print, .bank-voucher-print * {
             -webkit-print-color-adjust: exact;

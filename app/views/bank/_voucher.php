@@ -7,9 +7,9 @@
  * itu kosong -- tidak ada field kode perkiraan di data Bank saat ini, murni
  * mengikuti tata letak contoh).
  *
- * "Dibayarkan Kepada" (keluar) / "Diterima dari" (masuk) memakai kolom
- * `pic` (field paling dekat maknanya yang sudah ada di data Bank -- tidak
- * ada kolom "pihak eksternal" terpisah).
+ * "Dibayarkan Kepada" (keluar) / "Diterima dari" (masuk) memakai Rekening
+ * (master_rekening.nama_rekening, field "Rekening" di form Transaksi Bank),
+ * BUKAN PIC.
  *
  * Partial markup satu voucher. Di-loop oleh app/views/bank/voucher_preview.php,
  * dipanggil dari BankController::printVoucher(). Tiap voucher dipisah page-break.
@@ -56,7 +56,7 @@ $labelRowspan = $bodyRowCount + 1; // + baris header grid sendiri
         <tr>
             <td class="head-left">
                 <div class="lbl"><?= e($pihakLbl) ?></div>
-                <div class="val"><?= e($vHeader['pic'] ?: '-') ?></div>
+                <div class="val"><?= e($vHeader['nama_rekening'] ?? '' ?: '-') ?></div>
             </td>
             <td class="head-mid"><?= e($judul) ?></td>
             <td class="head-right">

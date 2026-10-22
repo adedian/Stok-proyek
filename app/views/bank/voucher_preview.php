@@ -36,59 +36,56 @@ $backUrl  = $backUrl ?? (BASE_URL . '/cash');
     .bank-voucher-print .voucher ~ .voucher { page-break-before: always; break-before: page; }
     .bank-voucher-print .page-break { page-break-after: always; break-after: page; }
 
-    .bank-voucher-print .company { text-align: center; font-size: 11px; margin-bottom: 6px; color: var(--v-color); }
+    /* ---- HEADER (3 kolom): kiri Diterima dari/Dibayarkan Kepada + Rekening | tengah perusahaan + judul | kanan Nomor/Tanggal ---- */
+    .bank-voucher-print .vh { display: grid; grid-template-columns: 29.25% 42% 28.75%; border: 1px solid var(--v-color); }
+    .bank-voucher-print .vh-left, .bank-voucher-print .vh-mid, .bank-voucher-print .vh-right { display: flex; flex-direction: column; min-width: 0; }
+    .bank-voucher-print .vh-mid { border-left: 1px solid var(--v-color); border-right: 1px solid var(--v-color); }
+    .bank-voucher-print .vh-left .vh-cell, .bank-voucher-print .vh-right .vh-cell { flex: 1; display: flex; align-items: center; padding: 4px 8px; min-height: 24px; }
+    .bank-voucher-print .vh-right .vh-cell + .vh-cell { border-top: 1px solid var(--v-color); }
+    .bank-voucher-print .vh-right .k { width: 56px; }
+    .bank-voucher-print .vh-right .s { width: 14px; }
+    .bank-voucher-print .vh-company { text-align: center; font-size: 11px; color: var(--v-color); padding: 3px 4px 0; }
+    .bank-voucher-print .vh-title { flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 17px; font-weight: bold; letter-spacing: 1px; color: var(--v-color); padding: 4px; }
 
-    .bank-voucher-print table.head { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
-    .bank-voucher-print table.head > tbody > tr > td { border: 1.5px solid var(--v-color); vertical-align: top; padding: 5px 7px; }
-    .bank-voucher-print .head-left { width: 33%; }
-    .bank-voucher-print .head-left .lbl { font-size: 10px; color: #555; }
-    .bank-voucher-print .head-left .val { font-weight: bold; font-size: 12px; margin-top: 2px; } /* nama tepat di bawah label (tidak turun ke dasar kotak) */
-    /* Selektor setara table.head > tbody > tr > td (vertical-align: top) supaya judul benar-benar di TENGAH kotak. */
-    .bank-voucher-print table.head > tbody > tr > td.head-mid { width: 34%; text-align: center; vertical-align: middle; font-size: 17px; font-weight: bold; letter-spacing: 1px; color: var(--v-color); }
-    .bank-voucher-print .head-right { width: 33%; padding: 3px 6px; }
-    .bank-voucher-print table.nomor { width: 100%; border-collapse: collapse; }
-    .bank-voucher-print table.nomor td { border: 0; padding: 2px 3px; font-size: 11px; }
-    .bank-voucher-print table.nomor td.k { width: 52px; }
-    .bank-voucher-print table.nomor td.s { width: 8px; }
-    .bank-voucher-print table.nomor td.v { font-weight: bold; }
-
-    .bank-voucher-print table.grid { width: 100%; border-collapse: collapse; }
-    .bank-voucher-print table.grid td { border: 1px solid var(--v-color); padding: 1px 7px; line-height: 1.25; vertical-align: top; }
-    .bank-voucher-print table.grid tr.grid-head td { background: var(--v-color); color: #fff; text-align: center; font-weight: bold; letter-spacing: 2px; }
-    .bank-voucher-print table.grid tr.grid-head td.c-label { background: #fff; padding: 0; }
-    .bank-voucher-print table.grid td.c-label, .bank-voucher-print table.grid td.perkiraan { background: var(--v-fill); }
-    .bank-voucher-print table.grid td.c-label { width: 22px; text-align: center; vertical-align: middle; } /* KEPERLUAN INTERN di tengah tinggi tabel */
+    /* ---- GRID: kolom kosong | KEPERLUAN INTERN | Perkiraan | Uraian (putih) | Jumlah ---- */
+    .bank-voucher-print col.g-blank { width: 10.7%; }
+    .bank-voucher-print col.g-label { width: 2.5%; }
+    .bank-voucher-print col.g-perkiraan { width: 12.3%; }
+    .bank-voucher-print col.g-uraian { width: 57.4%; }
+    .bank-voucher-print col.g-jumlah { width: 17.1%; }
+    .bank-voucher-print table.grid, .bank-voucher-print table.terbilang, .bank-voucher-print table.bawah { width: 100%; table-layout: fixed; border-collapse: collapse; margin-top: -1px; }
+    .bank-voucher-print table.grid td { border: 1px solid var(--v-color); padding: 2px 7px; line-height: 1.45; vertical-align: top; overflow: hidden; }
+    .bank-voucher-print table.grid tr.grid-head td.c-perkiraan,
+    .bank-voucher-print table.grid tr.grid-head td.c-uraian,
+    .bank-voucher-print table.grid tr.grid-head td.c-jumlah { background: var(--v-color); color: #fff; text-align: center; font-weight: bold; letter-spacing: 2px; }
+    .bank-voucher-print table.grid td.c-blank { background: #fff; }
+    .bank-voucher-print table.grid td.c-label { background: #fff; padding: 0; text-align: center; vertical-align: middle; } /* KEPERLUAN INTERN di tengah tinggi tabel */
     .bank-voucher-print table.grid td.c-label .vert {
         display: block;
         writing-mode: vertical-rl;
         transform: rotate(180deg);
-        font-weight: bold;
         letter-spacing: 3px;
-        color: #333;
-        margin: 6px auto;
+        color: var(--v-color);
+        white-space: nowrap;
+        margin: 0 auto;
     }
-    .bank-voucher-print table.grid td.perkiraan { width: 90px; }
-    .bank-voucher-print table.grid td.uraian, .bank-voucher-print table.grid td.jumlah { background: var(--v-fill); }
-    .bank-voucher-print table.grid .c-jumlah { width: 150px; }
-    .bank-voucher-print table.grid td.jumlah { text-align: right; white-space: nowrap; }
+    .bank-voucher-print table.grid td.perkiraan, .bank-voucher-print table.grid td.jumlah { background: var(--v-fill); }
+    .bank-voucher-print table.grid td.uraian { background: #fff; }
+    .bank-voucher-print .amt { display: flex; justify-content: space-between; white-space: nowrap; } /* "Rp" kiri, angka kanan */
     .bank-voucher-print table.grid td.jumlah.neg { color: #b00020; }
-    .bank-voucher-print table.grid tr.row-ch td.uraian,
-    .bank-voucher-print table.grid tr.row-total td.uraian { text-align: right; font-weight: bold; }
-    .bank-voucher-print table.grid tr.row-ch td.uraian, .bank-voucher-print table.grid tr.row-ch td.jumlah,
-    .bank-voucher-print table.grid tr.row-total td.uraian, .bank-voucher-print table.grid tr.row-total td.jumlah {
-        background: var(--v-total-bg); font-weight: bold;
-    }
+    .bank-voucher-print table.grid tr.row-last td { background: #fff; font-weight: bold; }
+    .bank-voucher-print table.grid tr.row-last td.tot-label { text-align: right; }
 
-    .bank-voucher-print table.terbilang, .bank-voucher-print table.catatan { width: 100%; border-collapse: collapse; }
-    .bank-voucher-print table.terbilang td { border: 1px solid var(--v-color); padding: 4px 7px; }
-    .bank-voucher-print table.terbilang td.k { width: 70px; font-weight: bold; background: var(--v-total-bg); white-space: nowrap; }
+    .bank-voucher-print table.terbilang td { border: 1px solid var(--v-color); padding: 4px 7px; background: var(--v-fill); }
+    .bank-voucher-print table.terbilang td.k { font-weight: bold; white-space: nowrap; }
     .bank-voucher-print table.terbilang td.v { font-style: italic; }
-    .bank-voucher-print table.catatan td { border: 1px solid var(--v-color); border-top: 0; padding: 5px 7px 22px; font-weight: bold; }
 
-    .bank-voucher-print table.ttd { width: 100%; border-collapse: collapse; margin-top: 6px; }
-    .bank-voucher-print table.ttd th, .bank-voucher-print table.ttd td { border: 1px solid var(--v-color); text-align: center; padding: 4px; width: 25%; }
-    .bank-voucher-print table.ttd th { background: var(--v-color); color: #fff; font-weight: bold; }
-    .bank-voucher-print table.ttd tr.space td { height: 66px; }
+    /* CATATAN (kiri) + tanda tangan (kanan) */
+    .bank-voucher-print col.b-catatan { width: 29.25%; }
+    .bank-voucher-print table.bawah th, .bank-voucher-print table.bawah td { border: 1px solid var(--v-color); text-align: center; padding: 4px; }
+    .bank-voucher-print table.bawah th { background: var(--v-color); color: #fff; font-weight: bold; }
+    .bank-voucher-print table.bawah tr.space td { height: 66px; background: var(--v-fill); }
+    .bank-voucher-print table.bawah td.catatan { text-align: left; vertical-align: top; font-weight: bold; text-decoration: underline; color: var(--v-color); background: #fff; padding: 5px 7px; }
 
     .bank-voucher-print .foot { margin-top: 8px; font-size: 9px; color: #999; text-align: right; }
 
@@ -108,6 +105,14 @@ $backUrl  = $backUrl ?? (BASE_URL . '/cash');
             break-inside: avoid;
             page-break-inside: avoid;
         }
+        /* Voucher mengisi SETENGAH kertas FOLIO (330mm -> setengah 165mm): mulai 3mm dari atas, tinggi 157mm,
+           jadi isi berhenti 10mm (1 cm) sebelum garis tengah supaya aman dipotong. Tinggi tetap dalam mm
+           (vh tidak mengikuti ukuran kertas pilihan). min-height: bila baris banyak, voucher tetap boleh memanjang.
+           Sisa tinggi dibagi ke tabel isi (baris diperbesar, 3 bagian) dan area tanda tangan (1 bagian). */
+        .bank-voucher-print .voucher { display: flex; flex-direction: column; min-height: 157mm; }
+        .bank-voucher-print .voucher > .vh, .bank-voucher-print .voucher > table.terbilang, .bank-voucher-print .voucher > .foot { flex: 0 0 auto; }
+        .bank-voucher-print .voucher > table.grid { flex: 3 1 auto; }
+        .bank-voucher-print .voucher > table.bawah { flex: 1 1 auto; }
         .bank-voucher-print, .bank-voucher-print * {
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;

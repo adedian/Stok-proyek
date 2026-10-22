@@ -50,7 +50,7 @@ $backUrl  = $backUrl ?? (BASE_URL . '/cash');
     .kas-voucher-print table.nomor td.v { font-weight: bold; }
 
     .kas-voucher-print table.grid { width: 100%; border-collapse: collapse; }
-    .kas-voucher-print table.grid th, .kas-voucher-print table.grid td { border: 1px solid var(--v-color); padding: 1px 7px; line-height: 1.25; vertical-align: top; }
+    .kas-voucher-print table.grid th, .kas-voucher-print table.grid td { border: 1px solid var(--v-color); padding: 2px 7px; line-height: 1.45; vertical-align: top; }
     .kas-voucher-print table.grid thead th { background: var(--v-head-bg); color: #fff; text-align: center; font-weight: bold; letter-spacing: 2px; }
     .kas-voucher-print table.grid .c-jumlah { width: 150px; }
     .kas-voucher-print table.grid td.uraian .sub { font-size: 9px; color: #666; margin-top: 2px; }

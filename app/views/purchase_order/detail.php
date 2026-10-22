@@ -18,7 +18,7 @@
                 </button>
             </form>
         <?php endif; ?>
-        <?php if (can('purchase_order', 'edit')): ?>
+        <?php if (can('purchase_order', 'edit') && !PurchaseOrder::editBlockedForCurrentUser($po)): ?>
             <a href="<?= BASE_URL ?>/purchase_order/edit/<?= (int) $po['id'] ?>"
                class="btn btn-outline-primary">
                 <i class="bi bi-pencil"></i> Edit

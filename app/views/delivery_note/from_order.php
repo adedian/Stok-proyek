@@ -87,12 +87,6 @@
                 <div class="card-body">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label">No. Surat Jalan <span class="text-danger">*</span></label>
-                            <input type="text" name="delivery_number" class="form-control" maxlength="50" required
-                                   autocomplete="off" placeholder="mis. 001/SJ.HME/X/2026">
-                            <div class="form-text">Ketik sendiri, harus unik (maks. 50 karakter).</div>
-                        </div>
-                        <div class="col-md-6">
                             <label class="form-label">Tanggal Surat Jalan <span class="text-danger">*</span></label>
                             <input type="date" name="delivery_date" class="form-control" value="<?= e(date('Y-m-d')) ?>" required>
                             <div class="form-text">Tanggal ini juga menjadi tanggal Pengeluaran Barang.</div>
@@ -324,8 +318,6 @@
         e.preventDefault();
         if (submitted) { return; }                       // klik ganda
         if (!idInput.value) { alert('Pilih Order Penjualan terlebih dahulu.'); search.focus(); return; }
-        var no = form.querySelector('[name="delivery_number"]');
-        if (!no.value.trim()) { alert('No. Surat Jalan wajib diisi.'); no.focus(); return; }
         var any = false, ok = true;
         itemsBody.querySelectorAll('.dn-row').forEach(function (tr) {
             var inp = tr.querySelector('.dn-qty'); if (!inp) { return; }

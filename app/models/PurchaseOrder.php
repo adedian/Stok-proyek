@@ -385,6 +385,19 @@ class PurchaseOrder extends Model
         return $this->db->fetchOne($sql, ['id' => $id]);
     }
 
+    /** PO terkunci: pernah disetujui (approved_at) ATAU statusnya sudah Disetujui/Sebagian/Selesai. */
+    public static function isApprovalLocked(array $po): bool
+    {
+        return !empty($po['approved_at'])
+            || in_array($po['status'] ?? '', ['approved', 'partial_received', 'completed'], true);
+    }
+
+    /** PO yang sudah disetujui TIDAK BOLEH diedit siapa pun kecuali Super Admin. */
+    public static function editBlockedForCurrentUser(array $po): bool
+    {
+        return self::isApprovalLocked($po) && currentUserRole() !== ROLE_SUPER_ADMIN;
+    }
+
     /**
      * "001/PO.HME/X/2026" -- lihat catatan lengkap di SalesInvoice::generateInvoiceNumber(),
      * pola & jaminan yang sama (atomic, reset per tahun).

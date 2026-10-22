@@ -1,6 +1,9 @@
 <?php
 $isEdit = $mode === 'edit';
 $actionUrl = $isEdit ? 'update' : 'store';
+// Bagian nomor otomatis (tanpa akhiran) -- dipakai pratinjau nomor di header.
+$poSuffix = (string) ($po['po_number_suffix'] ?? '');
+$poBaseNumber = PurchaseOrder::baseNumber((string) $poNumber, $poSuffix);
 // Kategori PO: kosong di form Tambah (wajib dipilih); form Edit mengikuti data tersimpan.
 $poCategory = (string) ($po['po_category'] ?? '');
 // Kategori terkunci kalau PO sudah punya pembayaran/penerimaan (lihat PurchaseOrder::categoryLockReasons()).
@@ -10,13 +13,7 @@ $categoryLocked = $isEdit && !empty($categoryLockReasons);
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h4 class="mb-0"><?= $isEdit ? 'Edit' : 'Tambah' ?> Purchase Order</h4>
-        <small class="text-muted">
-            <?php if ($isEdit): ?>
-                No. PO: <strong><?= e($poNumber) ?></strong>
-            <?php else: ?>
-                No. PO diisi manual
-            <?php endif; ?>
-        </small>
+        <small class="text-muted">No. PO: <strong id="poNumberPreview" data-base="<?= e($poBaseNumber) ?>"><?= e($poNumber) ?></strong> (otomatis)</small>
     </div>
     <a href="<?= BASE_URL ?>/purchase_order" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Kembali
@@ -232,12 +229,17 @@ $categoryLocked = $isEdit && !empty($categoryLockReasons);
                     <textarea name="notes" class="form-control" rows="3"
                               placeholder="Opsional -- tekan Enter untuk baris baru (mis. catatan bernomor 1, 2, 3)"><?= e($po['notes'] ?? '') ?></textarea>
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label">No. PO <span class="text-danger">*</span></label>
-                    <input type="text" name="po_number" id="po_number" class="form-control" maxlength="50"
-                           autocomplete="off" required value="<?= e($poNumber) ?>"
-                           placeholder="mis. 123/PO.HME/X/2026">
-                    <div class="form-text">Ketik sendiri, harus unik (maks. 50 karakter).</div>
+                <div class="col-md-8">
+                    <label class="form-label">Akhiran Nomor PO</label>
+                    <input type="text" name="po_suffix" id="po_suffix" class="form-control" maxlength="31"
+                           list="poSuffixOptions" autocomplete="off" value="<?= e($poSuffix) ?>"
+                           placeholder="Opsional -- mis. rev1">
+                    <datalist id="poSuffixOptions">
+                        <?php foreach (($poSuffixOptions ?? []) as $opt): ?>
+                            <option value="<?= e($opt) ?>"></option>
+                        <?php endforeach; ?>
+                    </datalist>
+                    <div class="form-text">Pilih saran atau ketik sendiri. Ditambahkan di belakang nomor PO (dipisah spasi), persis seperti yang diketik, mis. <code><?= e($poBaseNumber) ?> rev1</code>.</div>
                 </div>
             </div>
         </div>
@@ -761,4 +763,17 @@ $categoryLocked = $isEdit && !empty($categoryLockReasons);
     }
     applyCategory();
 })();
+
+    // Pratinjau nomor PO di header ikut akhiran yang diketik (dipisah spasi).
+    (function () {
+        const input = document.getElementById('po_suffix');
+        const preview = document.getElementById('poNumberPreview');
+        if (!input || !preview) return;
+        function refresh() {
+            const sfx = input.value.trim();
+            preview.textContent = preview.dataset.base + (sfx ? ' ' + sfx : '');
+        }
+        input.addEventListener('input', refresh);
+        refresh();
+    })();
 </script>

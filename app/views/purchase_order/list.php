@@ -179,11 +179,15 @@
                                         <li><span class="dropdown-item-text text-muted small"><i class="bi bi-lock-fill"></i> Periode ditutup</span></li>
                                         <?php else: ?>
                                         <?php if (can('purchase_order', 'edit')): ?>
+                                        <?php if (PurchaseOrder::editBlockedForCurrentUser($po)): ?>
+                                        <li><span class="dropdown-item-text text-muted small"><i class="bi bi-lock-fill"></i> Sudah disetujui (edit: Super Admin)</span></li>
+                                        <?php else: ?>
                                         <li>
                                             <a class="dropdown-item" href="<?= BASE_URL ?>/purchase_order/edit/<?= (int) $po['id'] ?>">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
                                         </li>
+                                        <?php endif; ?>
                                         <?php endif; ?>
                                         <?php if (can('purchase_order', 'delete') && (!(!empty($po['approved_at']) || in_array($po['status'] ?? '', ['approved', 'partial_received', 'completed'], true)) || hasRole([ROLE_SUPER_ADMIN]))): ?>
                                             <li>

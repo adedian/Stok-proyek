@@ -140,24 +140,8 @@ class DeliveryNoteController extends Controller
             $this->redirect('delivery_note', 'select', ['ids' => implode(',', $ids)]);
         }
 
-        // No. Surat Jalan diketik manual -- wajib, maks 50 karakter, unik (termasuk Tempat Sampah).
-        $numberRaw = $_POST['delivery_number'] ?? '';
-        $deliveryNumber = is_string($numberRaw) ? trim(preg_replace('/\s+/', ' ', $numberRaw)) : '';
-        $numberError = null;
-        if ($deliveryNumber === '') {
-            $numberError = 'No. Surat Jalan wajib diisi.';
-        } elseif (mb_strlen($deliveryNumber) > 50) {
-            $numberError = 'No. Surat Jalan maksimal 50 karakter.';
-        } elseif ($this->deliveryNoteModel->numberTaken($deliveryNumber)) {
-            $numberError = "No. Surat Jalan {$deliveryNumber} sudah dipakai Surat Jalan lain (termasuk yang ada di Tempat Sampah).";
-        }
-        if ($numberError !== null) {
-            setFlash('error', $numberError);
-            $this->redirect('delivery_note', 'select', ['ids' => implode(',', $ids)]);
-        }
-
         $data = [
-            'delivery_number'  => $deliveryNumber,
+            'delivery_number'  => $this->deliveryNoteModel->generateDeliveryNumber($deliveryDate),
             'delivery_date'    => $deliveryDate,
             'destination_type' => $destinationType,
             'client_id'        => $destinationType === 'client' ? $clientId : null,
@@ -628,22 +612,6 @@ class DeliveryNoteController extends Controller
         // Pengeluaran stok ikut tanggal Surat Jalan -> periode Pengeluaran Barang harus masih terbuka.
         assertPeriodOpen('stock_out', $deliveryDate, 'delivery_note', 'createFromOrder', ['order_id' => $orderId]);
 
-        // No. Surat Jalan diketik manual -- wajib, maks 50 karakter, unik (termasuk Tempat Sampah).
-        $numberRaw = $_POST['delivery_number'] ?? '';
-        $deliveryNumber = is_string($numberRaw) ? trim(preg_replace('/\s+/', ' ', $numberRaw)) : '';
-        $numberError = null;
-        if ($deliveryNumber === '') {
-            $numberError = 'No. Surat Jalan wajib diisi.';
-        } elseif (mb_strlen($deliveryNumber) > 50) {
-            $numberError = 'No. Surat Jalan maksimal 50 karakter.';
-        } elseif ($this->deliveryNoteModel->numberTaken($deliveryNumber)) {
-            $numberError = "No. Surat Jalan {$deliveryNumber} sudah dipakai Surat Jalan lain (termasuk yang ada di Tempat Sampah).";
-        }
-        if ($numberError !== null) {
-            setFlash('error', $numberError);
-            $back();
-        }
-
         $lineIds = $_POST['line_id'] ?? [];
         $qtys = $_POST['qty'] ?? [];
         if (!is_array($lineIds) || !is_array($qtys)) {
@@ -668,7 +636,7 @@ class DeliveryNoteController extends Controller
 
         $client = $this->clientModel->find((int) $order['client_id']);
         $data = [
-            'delivery_number'  => $deliveryNumber,
+            'delivery_number'  => '', // diisi otomatis di dalam transaksi (generateDeliveryNumber)
             'delivery_date'    => $deliveryDate,
             'destination_type' => 'client',
             'client_id'        => (int) $order['client_id'],
@@ -686,6 +654,7 @@ class DeliveryNoteController extends Controller
         ];
         $picName = mb_substr($data['sender_name'] ?: currentUserName(), 0, 150);
         $token = (string) ($_POST['token'] ?? '');
+        $deliveryNumber = '';
 
         $pdo = getPDO();
         $fulfillModel = new SalesOrderFulfillment();
@@ -696,7 +665,10 @@ class DeliveryNoteController extends Controller
             //     token sekali-pakai menolak klik ganda / refresh. fulfill() ikut transaksi ini (tidak commit sendiri).
             $res = $fulfillModel->fulfill($orderId, $lines, $deliveryDate, $token, $picName, $data['notes'], (int) currentUserId());
 
-            // (2) Surat Jalan + klaim baris pengeluaran yang baru dibuat.
+            // (2) Surat Jalan + klaim baris pengeluaran yang baru dibuat. Nomor otomatis dibuat di
+            //     sini (dalam transaksi) supaya counter ikut rollback bila ada yang gagal.
+            $deliveryNumber = $this->deliveryNoteModel->generateDeliveryNumber($deliveryDate);
+            $data['delivery_number'] = $deliveryNumber;
             $deliveryNoteId = $this->deliveryNoteModel->create($data);
             $rowIds = array_column(getPDO()->query(
                 'SELECT id FROM stock_out WHERE sales_order_fulfillment_id = ' . (int) $res['fulfillment_id'] . ' AND deleted_at IS NULL ORDER BY id'

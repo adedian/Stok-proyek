@@ -16,16 +16,16 @@ class DeliveryNote extends Model
     protected bool $softDelete = true;
 
     /**
-     * Nomor Surat Jalan kini DIKETIK MANUAL di form (bukan lagi otomatis).
-     * generateDeliveryNumber() ("001/SJ.HME/VIII/2026") dipertahankan hanya kalau
-     * nanti penomoran otomatis diaktifkan kembali; saat ini tidak dipanggil.
+     * "001/SJ.HME/VIII/2026" -- lihat catatan lengkap di SalesInvoice::generateInvoiceNumber(),
+     * pola & jaminan yang sama (atomic, mengikuti tanggal dokumen, reset per tahun,
+     * dibuat sekali saat dokumen dibuat).
      */
     public function generateDeliveryNumber(?string $deliveryDate = null): string
     {
         return (new DocumentNumber())->next('delivery_note', 'prefix_sj', $deliveryDate);
     }
 
-    /** Apakah nomor ini sudah dipakai Surat Jalan lain (termasuk di Tempat Sampah -- kolom delivery_number UNIK). */
+    /** Apakah nomor ini sudah dipakai Surat Jalan lain (termasuk di Tempat Sampah -- kolom delivery_number UNIK). Dipakai form Edit Surat Jalan. */
     public function numberTaken(string $number, ?int $excludeId = null): bool
     {
         $sql = "SELECT id FROM delivery_notes WHERE delivery_number = :n";

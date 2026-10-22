@@ -21,6 +21,7 @@ require_once ROOT_PATH . '/app/models/PaymentMethod.php';
 require_once ROOT_PATH . '/app/models/DeliveryNote.php';
 require_once ROOT_PATH . '/app/models/CollectionReceipt.php';
 require_once ROOT_PATH . '/app/models/CashTransaction.php';
+require_once ROOT_PATH . '/app/models/BankTransaction.php';
 require_once ROOT_PATH . '/app/models/CashCategory.php';
 require_once ROOT_PATH . '/app/models/Information.php';
 
@@ -139,6 +140,13 @@ class TrashController extends Controller
                 'label' => 'Kas',
                 'model' => new CashTransaction(),
                 'display' => fn(array $r) => trim(($r['no_bukti'] ?? '') . ' - ' . ($r['uraian'] ?? ''), ' -'),
+            ],
+            // Transaksi Bank: "Hapus" di menu Kas/Bank memindahkan ke Tempat Sampah, tapi modul ini dulu
+            // tidak terdaftar -- barisnya tak terlihat & No Bukti-nya tertahan selamanya.
+            'bank' => [
+                'label' => 'Transaksi Bank',
+                'model' => new BankTransaction(),
+                'display' => fn(array $r) => trim(($r['no_bukti'] ?? '') . ' - ' . ($r['trx_date'] ?? ''), ' -'),
             ],
             'cash_category' => [
                 'label' => 'Kategori Biaya',

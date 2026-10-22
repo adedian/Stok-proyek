@@ -9,6 +9,8 @@ class BankTransaction extends Model
 {
     protected string $table = 'bank_transactions';
     protected bool $softDelete = true;
+    /** Rincian milik transaksi (FK RESTRICT) ikut terhapus saat dihapus permanen dari Tempat Sampah. */
+    protected array $ownedChildren = ['bank_transaction_items' => 'bank_transaction_id'];
 
     /** Tahun No Bukti ikut disimpan (keunikan = no_bukti + tahun): "BK 09/0001" boleh berulang tiap tahun. */
     public function create(array $data): int

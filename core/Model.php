@@ -11,6 +11,13 @@ abstract class Model
     protected string $table;
     protected string $primaryKey = 'id';
     protected bool $softDelete = false; // set true di model yang punya kolom deleted_at
+    /**
+     * Tabel anak MILIK dokumen ini (baris rincian/termin) yang FK-nya RESTRICT, [tabel => kolom FK].
+     * Baris anak ini TIDAK dihitung "dipakai transaksi lain" oleh isReferenced() dan ikut dihapus
+     * saat hapus permanen -- kalau tidak, dokumen yang punya rincian tak pernah bisa dibersihkan
+     * dari Tempat Sampah dan nomornya tertahan selamanya.
+     */
+    protected array $ownedChildren = [];
 
     public function __construct()
     {
@@ -87,7 +94,29 @@ abstract class Model
     public function forceDeleteById(int $id): int
     {
         $sql = "DELETE FROM {$this->table} WHERE {$this->primaryKey} = :id";
-        return $this->db->query($sql, ['id' => $id])->rowCount();
+        if (!$this->ownedChildren) {
+            return $this->db->query($sql, ['id' => $id])->rowCount();
+        }
+        // Anak milik dokumen dihapus dulu, satu transaksi dengan induknya (gagal -> anak tetap utuh).
+        $manageTx = !$this->db->inTransaction();
+        if ($manageTx) {
+            $this->db->beginTransaction();
+        }
+        try {
+            foreach ($this->ownedChildren as $childTable => $childColumn) {
+                $this->db->query("DELETE FROM `{$childTable}` WHERE `{$childColumn}` = :id", ['id' => $id]);
+            }
+            $n = $this->db->query($sql, ['id' => $id])->rowCount();
+            if ($manageTx) {
+                $this->db->commit();
+            }
+            return $n;
+        } catch (Throwable $e) {
+            if ($manageTx && $this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $e;
+        }
     }
 
     public function findTrashed(int $id)
@@ -169,6 +198,9 @@ abstract class Model
         );
         $out = [];
         foreach ($rows as $r) {
+            if (($this->ownedChildren[$r['child_table']] ?? null) === $r['child_column']) {
+                continue;
+            }
             $out[] = ['table' => $r['child_table'], 'column' => $r['child_column']];
         }
         return $cache[$this->table] = $out;

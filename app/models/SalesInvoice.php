@@ -15,6 +15,8 @@ class SalesInvoice extends Model
 {
     protected string $table = 'sales_invoices';
     protected bool $softDelete = true;
+    /** Termin milik invoice (FK RESTRICT) ikut terhapus saat invoice dihapus permanen dari Tempat Sampah. */
+    protected array $ownedChildren = ['sales_invoice_terms' => 'sales_invoice_id'];
 
     /**
      * Nomor invoice keluar kini DIKETIK MANUAL di form (bukan lagi otomatis).

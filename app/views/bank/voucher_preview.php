@@ -22,7 +22,7 @@ $backUrl  = $backUrl ?? (BASE_URL . '/cash');
     .bank-voucher-print .voucher {
         background: #fff;
         border: 1px solid #dee2e6;
-        padding: 12mm 18mm 10mm 12mm; /* margin kanan sengaja lebih lebar dari kiri */
+        padding: 12mm 12mm 10mm 18mm; /* margin KIRI sengaja lebih lebar dari kanan */
         margin: 0 auto 20px;
         color: #1a1a1a;
         font-size: 11px;
@@ -102,7 +102,7 @@ $backUrl  = $backUrl ?? (BASE_URL . '/cash');
         .bank-voucher-print .voucher {
             border: none;
             margin: 0;
-            padding: 4mm 14mm 4mm 8mm; /* kiri tetap 8mm, kanan lebih lebar */
+            padding: 4mm 8mm 4mm 14mm; /* kiri lebih lebar dari kanan */
         }
         .bank-voucher-print, .bank-voucher-print * {
             -webkit-print-color-adjust: exact;

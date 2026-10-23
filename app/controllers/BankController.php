@@ -231,6 +231,9 @@ class BankController extends Controller
         }
 
         $data  = $this->collectInput();
+        // Mutasi terkunci saat Edit: No Bukti (BM/BK) tidak diganti oleh update(), jadi
+        // mutasi dari request diabaikan dan selalu memakai nilai tersimpan.
+        $data['mutasi'] = $existing['mutasi'];
         $items = $this->collectItems();
         $errors = $this->validate($data, $items, (int) $existing['bank_id']);
         if (!empty($errors)) {

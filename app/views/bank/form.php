@@ -112,11 +112,18 @@ $curPic = $row['pic'] ?? '';
 
                 <div class="col-md-3">
                     <label class="form-label">Mutasi <span class="text-danger">*</span></label>
-                    <select name="mutasi" id="bank_mutasi" class="form-select" required>
+                    <?php if ($isEdit): ?>
+                        <?php /* Terkunci saat Edit: prefix No Bukti (BM/BK) melekat pada Mutasi. Nilai asli tetap dikirim lewat hidden input. */ ?>
+                        <input type="hidden" name="mutasi" value="<?= e($row['mutasi'] ?? '') ?>">
+                    <?php endif; ?>
+                    <select <?= $isEdit ? 'disabled' : 'name="mutasi"' ?> id="bank_mutasi" class="form-select" <?= $isEdit ? '' : 'required' ?>>
                         <option value="">-- Pilih --</option>
                         <option value="masuk" <?= ($row['mutasi'] ?? '') === 'masuk' ? 'selected' : '' ?>>Masuk</option>
                         <option value="keluar" <?= ($row['mutasi'] ?? '') === 'keluar' ? 'selected' : '' ?>>Keluar</option>
                     </select>
+                    <?php if ($isEdit): ?>
+                        <div class="form-text">Mutasi tidak dapat diubah. Bila salah, hapus lalu buat transaksi baru.</div>
+                    <?php endif; ?>
                 </div>
 
                 <div class="col-md-3">

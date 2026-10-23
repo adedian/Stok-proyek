@@ -652,9 +652,9 @@ class PurchaseOrderController extends Controller
     // ================= Helper privat =================
 
     /**
-     * Judul dokumen cetak = nama file default saat "Save as PDF": "No PO - Supplier".
-     * Satu PO: "138_PO.HME_IX_2026 - PT Contoh" (karakter terlarang di nama file, termasuk "/",
-     * diganti "_"). Banyak PO: ringkasan jumlahnya.
+     * Judul dokumen cetak = nama file default saat "Save as PDF": nomor PO LENGKAP termasuk
+     * akhiran revisi (po_number sudah memuatnya). Satu PO: "138_PO.HME_IX_2026 - Rev2"
+     * (karakter terlarang di nama file, termasuk "/", diganti "_"). Banyak PO: ringkasan jumlahnya.
      */
     private function printFileTitle(array $purchaseOrders): string
     {
@@ -663,9 +663,7 @@ class PurchaseOrderController extends Controller
         }
         $po = $purchaseOrders[0];
         $clean = static fn(string $v): string => trim(preg_replace('/\s+/', ' ', str_replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], '_', $v)));
-        $title = $clean((string) $po['po_number']);
-        $supplier = $clean((string) ($po['supplier_name'] ?? ''));
-        return $supplier !== '' ? $title . ' - ' . $supplier : $title;
+        return $clean((string) $po['po_number']);
     }
 
     /**

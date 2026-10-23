@@ -642,6 +642,7 @@ class PurchaseOrderController extends Controller
 
         $this->view('purchase_order/print', [
             'pageTitle'      => 'Cetak Purchase Order',
+            'documentTitle'  => $this->printFileTitle($purchaseOrders),
             'purchaseOrders' => $purchaseOrders,
             'statusLabels'   => $this->poModel->statusLabels,
             'company'        => (new SystemSetting())->getGroup('company'),
@@ -649,6 +650,23 @@ class PurchaseOrderController extends Controller
     }
 
     // ================= Helper privat =================
+
+    /**
+     * Judul dokumen cetak = nama file default saat "Save as PDF": "No PO - Supplier".
+     * Satu PO: "138_PO.HME_IX_2026 - PT Contoh" (karakter terlarang di nama file, termasuk "/",
+     * diganti "_"). Banyak PO: ringkasan jumlahnya.
+     */
+    private function printFileTitle(array $purchaseOrders): string
+    {
+        if (count($purchaseOrders) !== 1) {
+            return 'Purchase Order (' . count($purchaseOrders) . ' dokumen)';
+        }
+        $po = $purchaseOrders[0];
+        $clean = static fn(string $v): string => trim(preg_replace('/\s+/', ' ', str_replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], '_', $v)));
+        $title = $clean((string) $po['po_number']);
+        $supplier = $clean((string) ($po['supplier_name'] ?? ''));
+        return $supplier !== '' ? $title . ' - ' . $supplier : $title;
+    }
 
     /**
      * PO yang sudah disetujui (approved_at terisi) terkunci -- tidak bisa

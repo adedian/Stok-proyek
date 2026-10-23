@@ -973,7 +973,9 @@ class CashController extends Controller
             while ($this->bankModel->noBuktiExists($bankNoBukti, null, $bankNoYear) && $guard++ < 50) {
                 $bankNoBukti = (new CashNumber())->nextMonthly($bankPrefix, $trxDate);
             }
-            $bankUraian = "Transfer ke Kas {$toPic}" . ($notes !== '' ? " -- {$notes}" : '');
+            // Uraian Bank = isi Catatan apa adanya (tanpa awalan "Transfer ke Kas <PIC> --").
+            // Catatan kosong -> label default supaya Uraian (wajib) tidak kosong di voucher/laporan.
+            $bankUraian = $notes !== '' ? $notes : "Transfer ke Kas {$toPic}";
             $bankTrxId = $this->bankModel->create([
                 'trx_date'    => $trxDate,
                 'bank_id'     => $bankId,

@@ -11,7 +11,7 @@ $rp = static fn($v) => number_format((float) $v, 0, ',', '.');
 <head>
 <meta charset="UTF-8">
 <style>
-    body { font-family: sans-serif; font-size: 10px; color: #212529; }
+    body { font-family: sans-serif; font-size: 11px; color: #212529; }
     h2 { margin: 0 0 2px; text-align: center; }
     .sub { text-align: center; color: #0070C0; margin-bottom: 2px; font-weight: bold; }
     .meta { text-align: center; color: #0070C0; margin-bottom: 12px; }
@@ -20,7 +20,7 @@ $rp = static fn($v) => number_format((float) $v, 0, ',', '.');
     th { background-color: #f1f3f5; text-align: center; }
     td.end, th.end { text-align: right; }
     tr.akhir td { font-weight: bold; background-color: #f1f3f5; }
-    .print-note { position: fixed; bottom: 0; left: 0; right: 0; text-align: right; padding: 4px 14px; font-size: 9px; color: #999; }
+    .print-note { position: fixed; bottom: 0; left: 0; right: 0; text-align: right; padding: 4px 14px; font-size: 10px; color: #999; }
 </style>
 </head>
 <body>

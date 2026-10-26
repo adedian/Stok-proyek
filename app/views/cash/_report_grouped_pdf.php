@@ -18,7 +18,7 @@ $grandSaldo = (float) $grandMasuk - (float) $grandKeluar;
 <head>
 <meta charset="UTF-8">
 <style>
-    body { font-family: sans-serif; font-size: 10px; color: #212529; }
+    body { font-family: sans-serif; font-size: 11px; color: #212529; }
     h2 { margin: 0 0 2px; text-align: center; }
     .sub { text-align: center; color: #0070C0; margin-bottom: 2px; font-weight: bold; }
     .meta { text-align: center; color: #0070C0; margin-bottom: 4px; }
@@ -32,7 +32,7 @@ $grandSaldo = (float) $grandMasuk - (float) $grandKeluar;
     .grand-total { margin-top: 18px; border: 1px solid #212529; }
     .grand-total th { background-color: #212529; color: #fff; }
     .grand-total td { font-weight: bold; }
-    .print-note { position: fixed; bottom: 0; left: 0; right: 0; text-align: right; padding: 4px 14px; font-size: 9px; color: #999; }
+    .print-note { position: fixed; bottom: 0; left: 0; right: 0; text-align: right; padding: 4px 14px; font-size: 10px; color: #999; }
 </style>
 </head>
 <body>

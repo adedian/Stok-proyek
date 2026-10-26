@@ -23,7 +23,7 @@ $backUrl  = $backUrl ?? (BASE_URL . '/cash');
         padding: 12mm 12mm 10mm 18mm; /* margin KIRI lebih lebar dari kanan */
         margin: 0 auto 20px;
         color: #1a1a1a;
-        font-size: 11px;
+        font-size: 12px;
         box-sizing: border-box;
     }
     .kas-voucher-print .voucher.is-keluar { --v-color: #843C0C; --v-head-bg: #C55A11; --v-total-bg: #F7CBAC; --v-stripe-bg: #FDF1E8; }
@@ -34,17 +34,17 @@ $backUrl  = $backUrl ?? (BASE_URL . '/cash');
     .kas-voucher-print .voucher ~ .voucher { page-break-before: always; break-before: page; }
     .kas-voucher-print .page-break { page-break-after: always; break-after: page; }
 
-    .kas-voucher-print .company { text-align: center; font-size: 11px; margin-bottom: 6px; color: var(--v-color); }
+    .kas-voucher-print .company { text-align: center; font-size: 12px; margin-bottom: 6px; color: var(--v-color); }
 
     .kas-voucher-print table.head { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
     .kas-voucher-print table.head > tbody > tr > td { border: 1.5px solid var(--v-color); vertical-align: top; padding: 5px 7px; }
     .kas-voucher-print .head-left { width: 33%; }
-    .kas-voucher-print .head-left .lbl { font-size: 10px; color: #555; }
-    .kas-voucher-print .head-left .val { font-weight: bold; font-size: 12px; margin-top: 8px; }
-    .kas-voucher-print .head-mid { width: 34%; text-align: center; font-size: 17px; font-weight: bold; letter-spacing: 1px; color: var(--v-color); vertical-align: middle; }
+    .kas-voucher-print .head-left .lbl { font-size: 11px; color: #555; }
+    .kas-voucher-print .head-left .val { font-weight: bold; font-size: 13px; margin-top: 8px; }
+    .kas-voucher-print .head-mid { width: 34%; text-align: center; font-size: 18px; font-weight: bold; letter-spacing: 1px; color: var(--v-color); vertical-align: middle; }
     .kas-voucher-print .head-right { width: 33%; padding: 3px 6px; }
     .kas-voucher-print table.nomor { width: 100%; border-collapse: collapse; }
-    .kas-voucher-print table.nomor td { border: 0; padding: 2px 3px; font-size: 11px; }
+    .kas-voucher-print table.nomor td { border: 0; padding: 2px 3px; font-size: 12px; }
     .kas-voucher-print table.nomor td.k { width: 52px; }
     .kas-voucher-print table.nomor td.s { width: 8px; }
     .kas-voucher-print table.nomor td.v { font-weight: bold; }
@@ -53,7 +53,7 @@ $backUrl  = $backUrl ?? (BASE_URL . '/cash');
     .kas-voucher-print table.grid th, .kas-voucher-print table.grid td { border: 1px solid var(--v-color); padding: 2px 7px; line-height: 1.45; vertical-align: top; }
     .kas-voucher-print table.grid thead th { background: var(--v-head-bg); color: #fff; text-align: center; font-weight: bold; letter-spacing: 2px; }
     .kas-voucher-print table.grid .c-jumlah { width: 150px; }
-    .kas-voucher-print table.grid td.uraian .sub { font-size: 9px; color: #666; margin-top: 2px; }
+    .kas-voucher-print table.grid td.uraian .sub { font-size: 10px; color: #666; margin-top: 2px; }
     .kas-voucher-print table.grid td.jumlah { text-align: right; white-space: nowrap; }
     .kas-voucher-print table.grid td.jumlah.neg { color: #b00020; }
     .kas-voucher-print table.grid tr.row-ch td.uraian,
@@ -72,7 +72,7 @@ $backUrl  = $backUrl ?? (BASE_URL . '/cash');
     .kas-voucher-print table.ttd th { background: var(--v-head-bg); color: #fff; font-weight: bold; }
     .kas-voucher-print table.ttd tr.space td { height: 66px; }
 
-    .kas-voucher-print .foot { margin-top: 8px; font-size: 9px; color: #999; text-align: right; }
+    .kas-voucher-print .foot { margin-top: 8px; font-size: 10px; color: #999; text-align: right; }
 
     /* Pratinjau di HP: TIDAK direflow. Tiap .voucher juga ber-class
        "print-page", jadi responsive-tables.js (scalePrintPreviews) merender

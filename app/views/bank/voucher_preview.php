@@ -25,7 +25,7 @@ $backUrl  = $backUrl ?? (BASE_URL . '/cash');
         padding: 12mm 12mm 10mm 18mm; /* margin KIRI lebih lebar dari kanan */
         margin: 0 auto 20px;
         color: #1a1a1a;
-        font-size: 11px;
+        font-size: 12px;
         box-sizing: border-box;
     }
     .bank-voucher-print .voucher.is-keluar { --v-color: #FF0000; --v-fill: #EDE1E0; --v-total-bg: #FBE5E3; }
@@ -44,8 +44,8 @@ $backUrl  = $backUrl ?? (BASE_URL . '/cash');
     .bank-voucher-print .vh-right .vh-cell + .vh-cell { border-top: 1px solid var(--v-color); }
     .bank-voucher-print .vh-right .k { width: 56px; }
     .bank-voucher-print .vh-right .s { width: 14px; }
-    .bank-voucher-print .vh-company { text-align: center; font-size: 11px; color: var(--v-color); padding: 3px 4px 0; }
-    .bank-voucher-print .vh-title { flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 17px; font-weight: bold; letter-spacing: 1px; color: var(--v-color); padding: 4px; }
+    .bank-voucher-print .vh-company { text-align: center; font-size: 12px; color: var(--v-color); padding: 3px 4px 0; }
+    .bank-voucher-print .vh-title { flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 18px; font-weight: bold; letter-spacing: 1px; color: var(--v-color); padding: 4px; }
 
     /* ---- GRID: kolom kosong | KEPERLUAN INTERN | Perkiraan | Uraian (putih) | Jumlah ---- */
     .bank-voucher-print col.g-blank { width: 10.7%; }
@@ -87,7 +87,7 @@ $backUrl  = $backUrl ?? (BASE_URL . '/cash');
     .bank-voucher-print table.bawah tr.space td { height: 66px; background: var(--v-fill); }
     .bank-voucher-print table.bawah td.catatan { text-align: left; vertical-align: top; font-weight: bold; text-decoration: underline; color: var(--v-color); background: #fff; padding: 5px 7px; }
 
-    .bank-voucher-print .foot { margin-top: 8px; font-size: 9px; color: #999; text-align: right; }
+    .bank-voucher-print .foot { margin-top: 8px; font-size: 10px; color: #999; text-align: right; }
 
     /* Pratinjau di HP: TIDAK direflow (sama pola purchase_order/print.php &
        cash voucher) -- responsive-tables.js (scalePrintPreviews) menangani

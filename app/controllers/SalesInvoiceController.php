@@ -94,6 +94,11 @@ class SalesInvoiceController extends Controller
             'picUsers'       => $this->userModel->activeList(),
             // Surat Jalan yang bisa diterbitkan invoice (field muncul bila Jenis Invoice = Lampu).
             'deliveryNotes'  => $this->deliveryNoteModel->eligibleForInvoice(),
+            // Preview nomor otomatis per jenis (tidak menaikkan counter).
+            'numberPreviews' => [
+                'project' => $this->invoiceModel->previewInvoiceNumber('project'),
+                'lampu'   => $this->invoiceModel->previewInvoiceNumber('lampu'),
+            ],
         ]);
     }
 
@@ -123,8 +128,18 @@ class SalesInvoiceController extends Controller
             $this->redirect('sales_invoice', 'create');
         }
 
-        // Nomor invoice diketik manual (sudah divalidasi wajib-isi + unik di validateInput()).
-        $invoiceNumber = $data['invoice_number'];
+        // Nomor dibuat OTOMATIS SEBELUM beginTransaction() -- DocumentNumber::next() punya
+        // transaction atomic sendiri (SELECT...FOR UPDATE pada counter) dan PDO tidak
+        // mendukung nested transaction. Kalau insert di bawah gagal, nomor tetap terpakai
+        // (gap di sequence itu wajar; duplikat yang tidak boleh).
+        try {
+            $invoiceNumber = $this->invoiceModel->generateUniqueInvoiceNumber($data['invoice_type'], $data['invoice_date']);
+        } catch (Throwable $e) {
+            error_log('SalesInvoice generate nomor error: ' . $e->getMessage());
+            setFlash('error', 'Gagal membuat nomor invoice. Silakan coba lagi.');
+            $this->redirect('sales_invoice', 'create');
+        }
+        $data['invoice_number'] = $invoiceNumber;
 
         $pdo = getPDO();
         try {
@@ -740,12 +755,16 @@ class SalesInvoiceController extends Controller
     {
         $errors = [];
 
-        if ($data['invoice_number'] === '') {
-            $errors[] = 'No. Invoice wajib diisi.';
-        } elseif (mb_strlen($data['invoice_number']) > 50) {
-            $errors[] = 'No. Invoice maksimal 50 karakter.';
-        } elseif ($this->invoiceModel->numberTaken($data['invoice_number'], $excludeId)) {
-            $errors[] = "No. Invoice {$data['invoice_number']} sudah dipakai invoice lain (termasuk yang ada di Tempat Sampah).";
+        // Tambah (store): nomor dibuat otomatis, tidak divalidasi di sini.
+        // Edit (update): nomor boleh dikoreksi manual, jadi wajib diisi + unik.
+        if ($excludeId !== null) {
+            if ($data['invoice_number'] === '') {
+                $errors[] = 'No. Invoice wajib diisi.';
+            } elseif (mb_strlen($data['invoice_number']) > 50) {
+                $errors[] = 'No. Invoice maksimal 50 karakter.';
+            } elseif ($this->invoiceModel->numberTaken($data['invoice_number'], $excludeId)) {
+                $errors[] = "No. Invoice {$data['invoice_number']} sudah dipakai invoice lain (termasuk yang ada di Tempat Sampah).";
+            }
         }
 
         if ($data['client_id'] <= 0 || !$this->clientModel->find($data['client_id'])) {

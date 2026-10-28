@@ -17,7 +17,7 @@ if (empty($terms)) {
             <?php if ($isEdit): ?>
                 No. Invoice: <strong><?= e($invoice['invoice_number']) ?></strong>
             <?php else: ?>
-                No. Invoice diisi manual
+                Nomor invoice dibuat otomatis saat disimpan
             <?php endif; ?>
         </small>
     </div>
@@ -37,10 +37,18 @@ if (empty($terms)) {
             <div class="row g-3">
                 <div class="col-md-4">
                     <label class="form-label">No. Invoice <span class="text-danger">*</span></label>
-                    <input type="text" name="invoice_number" id="invoice_number" class="form-control" maxlength="50"
-                           value="<?= e($invoice['invoice_number'] ?? '') ?>" autocomplete="off" required
-                           placeholder="mis. 001/INV.HME/X/2026">
-                    <div class="form-text">Ketik sendiri, harus unik (maks. 50 karakter).</div>
+                    <?php if ($isEdit): ?>
+                        <input type="text" name="invoice_number" id="invoice_number" class="form-control" maxlength="50"
+                               value="<?= e($invoice['invoice_number'] ?? '') ?>" autocomplete="off" required>
+                        <div class="form-text">Boleh dikoreksi, harus unik (maks. 50 karakter).</div>
+                    <?php else: ?>
+                        <?php $numberPreviews = $numberPreviews ?? []; ?>
+                        <input type="text" id="invoice_number" class="form-control bg-light" readonly tabindex="-1"
+                               value="<?= e($numberPreviews['project'] ?? '') ?>"
+                               data-preview-project="<?= e($numberPreviews['project'] ?? '') ?>"
+                               data-preview-lampu="<?= e($numberPreviews['lampu'] ?? '') ?>">
+                        <div class="form-text">Otomatis, ditetapkan saat disimpan (mengikuti Jenis Invoice &amp; tanggal).</div>
+                    <?php endif; ?>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Jenis Invoice <span class="text-danger">*</span></label>
@@ -53,7 +61,7 @@ if (empty($terms)) {
                         <input type="hidden" name="invoice_type" value="<?= e($invoiceType) ?>">
                         <div class="form-text">Jenis invoice tidak bisa diganti setelah dibuat.</div>
                     <?php else: ?>
-                        <div class="form-text">Pengelompokan jenis invoice. Nomor tidak lagi mengikuti jenis (diisi manual).</div>
+                        <div class="form-text">Menentukan format nomor: Project = .../INV.HME/..., Lampu = .../FKT.HME/... (urutan terpisah).</div>
                     <?php endif; ?>
                 </div>
                 <div class="col-md-2">
@@ -587,6 +595,17 @@ if (empty($terms)) {
 
     // ---------- Surat Jalan (khusus Jenis Invoice = Lampu) ----------
     const typeSelect = document.getElementById('invoiceTypeSelect');
+
+    // Preview nomor otomatis ikut Jenis Invoice (hanya form Tambah).
+    const numberPreview = document.getElementById('invoice_number');
+    if (numberPreview && typeSelect && numberPreview.dataset.previewProject !== undefined) {
+        typeSelect.addEventListener('change', function () {
+            numberPreview.value = (typeSelect.value === 'lampu'
+                ? numberPreview.dataset.previewLampu
+                : numberPreview.dataset.previewProject) || '';
+        });
+    }
+
     const dnWrap = document.getElementById('dnLinkWrap');
     const dnSelect = document.getElementById('dnLinkSelect');
     if (dnWrap && dnSelect && typeSelect) {

@@ -19,16 +19,39 @@ class SalesInvoice extends Model
     protected array $ownedChildren = ['sales_invoice_terms' => 'sales_invoice_id'];
 
     /**
-     * Nomor invoice keluar kini DIKETIK MANUAL di form (bukan lagi otomatis).
-     * generateInvoiceNumber() ("001/INV.HME/VIII/2026" / "001/FKT.HME/...") dipertahankan
-     * hanya kalau nanti penomoran otomatis diaktifkan kembali; saat ini tidak dipanggil.
-     * Project & Lampu memakai doc_type counter TERPISAH.
+     * Nomor invoice keluar dibuat OTOMATIS saat Tambah: "001/INV.HME/X/2026" (Project)
+     * atau "001/FKT.HME/X/2026" (Lampu) -- urut/kode/bulan romawi/tahun mengikuti tanggal
+     * invoice, atomic (lihat DocumentNumber::next()). Project & Lampu memakai doc_type
+     * counter TERPISAH. Saat Edit nomor boleh dikoreksi manual.
      */
     public function generateInvoiceNumber(string $invoiceType, ?string $invoiceDate = null): string
     {
         $docType = $invoiceType === 'lampu' ? 'sales_invoice_lampu' : 'sales_invoice';
         $codeSettingKey = $invoiceType === 'lampu' ? 'prefix_fkt' : 'prefix_sls';
         return (new DocumentNumber())->next($docType, $codeSettingKey, $invoiceDate);
+    }
+
+    /**
+     * Seperti generateInvoiceNumber(), tapi melewati nomor yang sudah terpakai (kolom UNIK) --
+     * mis. nomor yang dulu diketik manual dan kebetulan sama dengan urutan counter.
+     */
+    public function generateUniqueInvoiceNumber(string $invoiceType, ?string $invoiceDate = null): string
+    {
+        for ($i = 0; $i < 50; $i++) {
+            $number = $this->generateInvoiceNumber($invoiceType, $invoiceDate);
+            if (!$this->numberTaken($number)) {
+                return $number;
+            }
+        }
+        throw new RuntimeException('Tidak dapat menemukan nomor invoice yang belum terpakai.');
+    }
+
+    /** Preview nomor untuk FORM tambah (tidak menaikkan counter) -- lihat DocumentNumber::preview(). */
+    public function previewInvoiceNumber(string $invoiceType, ?string $invoiceDate = null): string
+    {
+        $docType = $invoiceType === 'lampu' ? 'sales_invoice_lampu' : 'sales_invoice';
+        $codeSettingKey = $invoiceType === 'lampu' ? 'prefix_fkt' : 'prefix_sls';
+        return (new DocumentNumber())->preview($docType, $codeSettingKey, $invoiceDate);
     }
 
     /**

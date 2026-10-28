@@ -568,7 +568,7 @@ class PurchaseOrder extends Model
                   AND po.po_category = 'BARANG'";
         $params = [];
 
-        if ($userRole !== null && $userRole !== ROLE_SUPER_ADMIN) {
+        if ($userRole !== null && $userRole !== ROLE_SUPER_ADMIN && !can('goods_receipt', 'receive_any')) {
             $sql .= " AND po.receiver_user_id = :uid";
             $params['uid'] = $userId;
         }
@@ -585,7 +585,7 @@ class PurchaseOrder extends Model
      */
     public function isReceivableByUser(int $poId, int $userId, string $userRole): bool
     {
-        if ($userRole === ROLE_SUPER_ADMIN) {
+        if ($userRole === ROLE_SUPER_ADMIN || can('goods_receipt', 'receive_any')) {
             return (bool) $this->db->fetchOne(
                 "SELECT 1 FROM purchase_orders WHERE id = :id AND deleted_at IS NULL AND po_category = 'BARANG'",
                 ['id' => $poId]

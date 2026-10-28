@@ -851,7 +851,7 @@ class GoodsReceiptController extends Controller
      */
     private function assertPoReceiverMayAct(array $receipt): void
     {
-        if (currentUserRole() === ROLE_SUPER_ADMIN || ($receipt['receipt_type'] ?? '') !== 'purchase_order' || empty($receipt['purchase_order_id'])) {
+        if (currentUserRole() === ROLE_SUPER_ADMIN || can('goods_receipt', 'receive_any') || ($receipt['receipt_type'] ?? '') !== 'purchase_order' || empty($receipt['purchase_order_id'])) {
             return;
         }
         $po = $this->poModel->findAny((int) $receipt['purchase_order_id']);

@@ -68,6 +68,10 @@ return [
         'create' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT],
         'edit'   => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT],
         'delete' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE],
+        // Terima barang dari SEMUA PO (tanpa harus ditunjuk sebagai Penerima Barang di PO-nya).
+        // Default HANYA Super Admin; akun Nissa diberi PER AKUN lewat user_permissions --
+        // migrasi 2026_11_06_goods_receipt_receive_any_nissa.php.
+        'receive_any' => [ROLE_SUPER_ADMIN],
     ],
 
     'validation' => [

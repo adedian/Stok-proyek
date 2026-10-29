@@ -200,7 +200,7 @@
         /* Geser kiri supaya tepi kiri kartu NPWP sejajar kolom "Disc" di tabel
            item di atasnya (bukan mepet tepi kanan halaman/kolom Kategori) --
            nilai diukur langsung dari posisi render kolom Disc vs kartu. */
-        margin-right: 100px;
+        margin-right: 140px;
     }
     .po-print-signoff-npwp img.npwp-card {
         display: block;
@@ -319,6 +319,7 @@
                     <th style="width: 48px;">Satuan</th>
                     <th class="num" style="width: 85px;">Harga Satuan</th>
                     <th class="num" style="width: 40px;">Disc</th>
+                    <th class="num" style="width: 40px;">PPN</th>
                     <th class="num" style="width: 95px;">Total</th>
                     <?php if (!$isService): ?><th style="width: 80px;">Kategori</th><?php endif; ?>
                 </tr>
@@ -332,19 +333,20 @@
                         <td><?= e($item['unit']) ?></td>
                         <td class="num"><?= formatMoney($item['price'], $po['currency'] ?? 'IDR') ?></td>
                         <td class="num"><?= (float) ($item['discount_percent'] ?? 0) > 0 ? number_format((float) $item['discount_percent'], 0, ',', '.') . '%' : '-' ?></td>
+                        <td class="num"><?= !empty($item['ppn_enabled']) ? rtrim(rtrim(number_format((float) $item['ppn_percent'], 2, ',', '.'), '0'), ',') . '%' : '-' ?></td>
                         <td class="num"><?= formatMoney($item['subtotal'], $po['currency'] ?? 'IDR') ?></td>
                         <?php if (!$isService): ?><td><?= e($item['category'] ?? '') ?></td><?php endif; ?>
                     </tr>
                 <?php endforeach; ?>
                 <?php foreach ($po['extraCosts'] ?? [] as $cost): ?>
                     <tr>
-                        <td colspan="6" class="num">Biaya Tambahan: <?= e($cost['cost_name']) ?></td>
+                        <td colspan="7" class="num">Biaya Tambahan: <?= e($cost['cost_name']) ?></td>
                         <td class="num"><?= formatMoney($cost['amount'], $po['currency'] ?? 'IDR') ?></td>
                         <?php if (!$isService): ?><td></td><?php endif; ?>
                     </tr>
                 <?php endforeach; ?>
                 <tr class="po-print-total-row">
-                    <td colspan="6" class="num">TOTAL</td>
+                    <td colspan="7" class="num">TOTAL</td>
                     <td class="num"><?= formatMoney($po['total_amount'], $po['currency'] ?? 'IDR') ?></td>
                     <?php if (!$isService): ?><td></td><?php endif; ?>
                 </tr>

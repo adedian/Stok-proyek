@@ -79,6 +79,23 @@ if (empty($terms)) {
                         <div class="form-text">Menentukan judul cetak. Proforma Invoice memakai nomor sendiri (Project = .../ProINV.HME/..., Lampu = .../ProFKT.HME/...).</div>
                     <?php endif; ?>
                 </div>
+                <div class="col-md-3">
+                    <label class="form-label">Kategori Invoice <span class="text-danger">*</span></label>
+                    <?php
+                        $invoiceCategory = $invoice['invoice_category'] ?? 'barang';
+                        $categoryLocked = $isEdit && (!empty($invoice['delivery_note_id']) || !empty($invoice['sales_order_id']));
+                    ?>
+                    <select name="invoice_category" id="invoiceCategorySelect" class="form-select" <?= $categoryLocked ? 'disabled' : '' ?> required>
+                        <option value="barang" <?= $invoiceCategory === 'barang' ? 'selected' : '' ?>>Invoice Barang</option>
+                        <option value="jasa" <?= $invoiceCategory === 'jasa' ? 'selected' : '' ?>>Invoice Jasa</option>
+                    </select>
+                    <?php if ($categoryLocked): ?>
+                        <input type="hidden" name="invoice_category" value="<?= e($invoiceCategory) ?>">
+                        <div class="form-text">Tidak bisa diganti karena invoice diterbitkan dari Surat Jalan.</div>
+                    <?php else: ?>
+                        <div class="form-text">Invoice Jasa: baris item berupa deskripsi jasa (tanpa Master Barang &amp; Surat Jalan).</div>
+                    <?php endif; ?>
+                </div>
                 <?php if ($isEdit): ?>
                     <?php if (!empty($invoice['delivery_note_id'])): ?>
                         <div class="col-12">
@@ -599,7 +616,49 @@ if (empty($terms)) {
         tableBody.appendChild(tr);
     });
 
-    // ---------- Surat Jalan (khusus Jenis Invoice = Lampu) ----------
+    // ---------- Kategori Invoice: Barang / Jasa ----------
+    // Jasa = baris item hanya deskripsi bebas (picker Master Barang disembunyikan & item_id dikosongkan).
+    const categorySelect = document.getElementById('invoiceCategorySelect');
+    const isJasa = function () { return categorySelect && categorySelect.value === 'jasa'; };
+
+    function applyCategoryToRow(row) {
+        const jasa = isJasa();
+        const group = row.querySelector('.item-select') ? row.querySelector('.item-select').closest('.input-group') : null;
+        if (group) { group.classList.toggle('d-none', jasa); }
+        const hint = row.querySelector('.item-code-hint');
+        if (hint) { hint.classList.toggle('d-none', jasa); }
+        const desc = row.querySelector('.description-input');
+        if (desc) {
+            desc.placeholder = jasa ? 'Deskripsi jasa / pekerjaan' : 'Deskripsi pekerjaan/barang (boleh diedit bebas)';
+        }
+        if (jasa) {
+            const idInput = row.querySelector('.item-id-input');
+            if (idInput) { idInput.value = ''; }
+            if (hint) { hint.textContent = ''; }
+            const sel = row.querySelector('.item-select');
+            if (sel && sel.value) {
+                sel.value = '';
+                if (typeof window.resyncSearchableSelect === 'function') { window.resyncSearchableSelect(sel); }
+            }
+        }
+    }
+    function applyCategory() {
+        tableBody.querySelectorAll('.item-row').forEach(applyCategoryToRow);
+    }
+    if (categorySelect) {
+        categorySelect.addEventListener('change', applyCategory);
+        // Baris baru (tombol Tambah Baris / "+" di sebelah hapus) ikut kategori yang aktif.
+        new MutationObserver(function (muts) {
+            muts.forEach(function (m) {
+                m.addedNodes.forEach(function (n) {
+                    if (n.nodeType === 1 && n.classList.contains('item-row')) { applyCategoryToRow(n); }
+                });
+            });
+        }).observe(tableBody, { childList: true });
+        applyCategory();
+    }
+
+    // ---------- Surat Jalan (khusus Jenis Invoice = Lampu & Kategori = Barang) ----------
     const typeSelect = document.getElementById('invoiceTypeSelect');
 
     // Preview nomor otomatis ikut Jenis Invoice (hanya form Tambah).
@@ -653,13 +712,14 @@ if (empty($terms)) {
             });
         }
         function applyType() {
-            const lampu = typeSelect.value === 'lampu';
+            const lampu = typeSelect.value === 'lampu' && !isJasa();
             dnWrap.classList.toggle('d-none', !lampu);
             dnSelect.disabled = !lampu;      // disabled = tidak ikut terkirim
             if (!lampu && dnSelect.value) { clearDnSelect(); releaseLocks(); }
             showDnError('');
         }
         typeSelect.addEventListener('change', applyType);
+        if (categorySelect) { categorySelect.addEventListener('change', applyType); }
         applyType();
 
         function money(n) { return Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }

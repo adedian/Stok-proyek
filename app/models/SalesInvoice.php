@@ -186,6 +186,10 @@ class SalesInvoice extends Model
             $sql .= " AND si.invoice_type = :invoice_type";
             $params['invoice_type'] = $filters['invoice_type'];
         }
+        if (!empty($filters['invoice_category']) && in_array($filters['invoice_category'], ['barang', 'jasa'], true)) {
+            $sql .= " AND si.invoice_category = :invoice_category";
+            $params['invoice_category'] = $filters['invoice_category'];
+        }
         if (!empty($filters['date_from'])) {
             $sql .= " AND si.invoice_date >= :date_from";
             $params['date_from'] = $filters['date_from'];

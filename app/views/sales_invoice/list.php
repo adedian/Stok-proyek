@@ -47,6 +47,14 @@
                 </select>
             </div>
             <div class="col-md-2">
+                <label class="form-label small text-muted mb-1">Kategori</label>
+                <select name="invoice_category" class="form-select form-select-sm">
+                    <option value="">Semua Kategori</option>
+                    <option value="barang" <?= $filters['invoice_category'] === 'barang' ? 'selected' : '' ?>>Invoice Barang</option>
+                    <option value="jasa" <?= $filters['invoice_category'] === 'jasa' ? 'selected' : '' ?>>Invoice Jasa</option>
+                </select>
+            </div>
+            <div class="col-md-2">
                 <label class="form-label small text-muted mb-1">Dari Tanggal</label>
                 <input type="date" name="date_from" class="form-control form-control-sm" value="<?= e($filters['date_from']) ?>">
             </div>
@@ -137,6 +145,9 @@
                                 <span class="badge <?= $inv['invoice_type'] === 'lampu' ? 'text-bg-warning' : 'text-bg-info' ?>">
                                     <?= $inv['invoice_type'] === 'lampu' ? 'Lampu' : 'Project' ?>
                                 </span>
+                                <?php if (($inv['invoice_category'] ?? 'barang') === 'jasa'): ?>
+                                    <span class="badge text-bg-success">Jasa</span>
+                                <?php endif; ?>
                             </td>
                             <td><?= e($inv['client_name']) ?></td>
                             <td><?= e($inv['project_name'] ?? '-') ?></td>

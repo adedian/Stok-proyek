@@ -427,7 +427,7 @@ function normalizeScalarQueryParams(): void
     static $scalar = [
         'id', 'keyword', 'q', 'status', 'sort', 'dir', 'page', 'date_from', 'date_to', 'period', 'tab', 'type', 'from',
         'project_id', 'po_id', 'sales_invoice_id', 'offline_purchase_id', 'client_id', 'category_id', 'requester_id',
-        'purchase_user_id', 'source', 'stock_type', 'stock_scope', 'stock_filter', 'mutasi', 'pic', 'invoice_type',
+        'purchase_user_id', 'source', 'stock_type', 'stock_scope', 'stock_filter', 'mutasi', 'pic', 'invoice_type', 'invoice_category',
         'vendor', 'validated', 'requester', 'po_number', 'number', 'module_filter', 'path',
     ];
     foreach ($scalar as $key) {

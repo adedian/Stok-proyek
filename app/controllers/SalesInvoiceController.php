@@ -61,6 +61,7 @@ class SalesInvoiceController extends Controller
             'keyword'        => trim($_GET['keyword'] ?? ''),
             'client_id'      => $_GET['client_id'] ?? '',
             'invoice_type'   => $_GET['invoice_type'] ?? '',
+            'invoice_category' => $_GET['invoice_category'] ?? '',
             'date_from'      => $_GET['date_from'] ?? '',
             'date_to'        => $_GET['date_to'] ?? '',
             'billing_status' => $_GET['billing_status'] ?? '',
@@ -287,6 +288,10 @@ class SalesInvoiceController extends Controller
         // asli. Field-nya di form.php memang <select disabled> (tidak terkirim),
         // ini lapisan pertahanan kedua supaya tidak bisa dipalsukan lewat request manual.
         $data['invoice_type'] = $existing['invoice_type'];
+        // Invoice yang diterbitkan dari Surat Jalan wajib tetap Invoice Barang (field di form juga dikunci).
+        if (!empty($existing['delivery_note_id']) || !empty($existing['sales_order_id'])) {
+            $data['invoice_category'] = 'barang';
+        }
         // Ikatan ke Order Penjualan hanya dibuat saat invoice diterbitkan dari Surat Jalan order (dan itu tidak bisa diedit).
         foreach ($items as &$itRef) {
             $itRef['sales_order_item_id'] = null;
@@ -441,6 +446,7 @@ class SalesInvoiceController extends Controller
                 'keyword'      => trim($_GET['keyword'] ?? ''),
                 'client_id'    => $_GET['client_id'] ?? '',
                 'invoice_type' => $_GET['invoice_type'] ?? '',
+                'invoice_category' => $_GET['invoice_category'] ?? '',
                 'date_from'    => $_GET['date_from'] ?? '',
                 'date_to'      => $_GET['date_to'] ?? '',
             ];
@@ -537,7 +543,7 @@ class SalesInvoiceController extends Controller
     private function prepareDeliveryNoteLink(array &$data, array &$items): array
     {
         $dnId = (int) ($_POST['delivery_note_id'] ?? 0);
-        if ($data['invoice_type'] !== 'lampu' || $dnId <= 0) {
+        if ($data['invoice_type'] !== 'lampu' || $data['invoice_category'] === 'jasa' || $dnId <= 0) {
             foreach ($items as &$itRef) {
                 $itRef['sales_order_item_id'] = null;
             }
@@ -659,6 +665,8 @@ class SalesInvoiceController extends Controller
             'invoice_type'     => in_array($invoiceType, ['project', 'lampu'], true) ? $invoiceType : 'project',
             // 'invoice' vs 'proforma' -- mengubah judul cetak & (saat Tambah) kode/urutan nomor otomatis (ProINV.HME / ProFKT.HME).
             'document_kind'    => (($_POST['document_kind'] ?? '') === 'proforma') ? 'proforma' : 'invoice',
+            // 'barang' vs 'jasa' -- Invoice Jasa tanpa Master Barang & tanpa Surat Jalan.
+            'invoice_category' => (($_POST['invoice_category'] ?? '') === 'jasa') ? 'jasa' : 'barang',
             'invoice_date'     => $invoiceDate,
             'tempo'            => $tempo,
             'jatuh_tempo'      => $this->computeDueDate($invoiceDate, $tempo),
@@ -691,7 +699,7 @@ class SalesInvoiceController extends Controller
                 // (banyak invoice riil sudah pakai baris jasa freetext, mis. "Jasa
                 // konsultasi teknis" -- lihat migration untuk audit datanya), jadi
                 // item_id TIDAK boleh diwajibkan di sini.
-                'item_id'     => !empty($itemIds[$i]) ? (int) $itemIds[$i] : null,
+                'item_id'     => ($data['invoice_category'] === 'barang' && !empty($itemIds[$i])) ? (int) $itemIds[$i] : null,
                 // Hanya bermakna untuk invoice dari Surat Jalan Order Penjualan (divalidasi di prepareDeliveryNoteLink()).
                 'sales_order_item_id' => !empty($soItemIds[$i]) ? (int) $soItemIds[$i] : null,
                 'description' => $description,

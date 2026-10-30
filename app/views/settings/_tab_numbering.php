@@ -45,6 +45,17 @@
                     <div class="form-text text-muted">Nomor urut Project &amp; Lampu terpisah (masing-masing mulai dari 001).</div>
                 </div>
                 <div class="col-md-3">
+                    <label class="form-label">Kode Proforma Invoice - Project</label>
+                    <input type="text" name="prefix_proinv" class="form-control" value="<?= e($numbering['prefix_proinv'] ?? 'ProINV.HME') ?>">
+                    <div class="form-text">Contoh: 049/<?= e($numbering['prefix_proinv'] ?? 'ProINV.HME') ?>/X/2026</div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Kode Proforma Invoice - Lampu</label>
+                    <input type="text" name="prefix_profkt" class="form-control" value="<?= e($numbering['prefix_profkt'] ?? 'ProFKT.HME') ?>">
+                    <div class="form-text">Contoh: 049/<?= e($numbering['prefix_profkt'] ?? 'ProFKT.HME') ?>/X/2026</div>
+                    <div class="form-text text-muted">Dipakai bila Jenis Dokumen = Proforma Invoice; urutan Project &amp; Lampu terpisah dari Invoice biasa.</div>
+                </div>
+                <div class="col-md-3">
                     <label class="form-label">Kode Surat Jalan</label>
                     <input type="text" name="prefix_sj" class="form-control" value="<?= e($numbering['prefix_sj'] ?? 'SJ.HME') ?>">
                     <div class="form-text">Contoh: 001/<?= e($numbering['prefix_sj'] ?? 'SJ.HME') ?>/VIII/2026</div>

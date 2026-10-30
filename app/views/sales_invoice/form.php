@@ -46,8 +46,10 @@ if (empty($terms)) {
                         <input type="text" id="invoice_number" class="form-control bg-light" readonly tabindex="-1"
                                value="<?= e($numberPreviews['project'] ?? '') ?>"
                                data-preview-project="<?= e($numberPreviews['project'] ?? '') ?>"
-                               data-preview-lampu="<?= e($numberPreviews['lampu'] ?? '') ?>">
-                        <div class="form-text">Otomatis, ditetapkan saat disimpan (mengikuti Jenis Invoice &amp; tanggal).</div>
+                               data-preview-lampu="<?= e($numberPreviews['lampu'] ?? '') ?>"
+                               data-preview-proforma-project="<?= e($numberPreviews['proforma_project'] ?? '') ?>"
+                               data-preview-proforma-lampu="<?= e($numberPreviews['proforma_lampu'] ?? '') ?>">
+                        <div class="form-text">Otomatis, ditetapkan saat disimpan (mengikuti Jenis Invoice, Jenis Dokumen &amp; tanggal).</div>
                     <?php endif; ?>
                 </div>
                 <div class="col-md-3">
@@ -71,7 +73,11 @@ if (empty($terms)) {
                         <option value="invoice" <?= $documentKind === 'invoice' ? 'selected' : '' ?>>Invoice</option>
                         <option value="proforma" <?= $documentKind === 'proforma' ? 'selected' : '' ?>>Proforma Invoice</option>
                     </select>
-                    <div class="form-text">Menentukan judul cetak. Isi &amp; nomor sama.</div>
+                    <?php if ($isEdit): ?>
+                        <div class="form-text">Menentukan judul cetak. Nomor tidak berubah otomatis; koreksi di kolom No. Invoice bila perlu.</div>
+                    <?php else: ?>
+                        <div class="form-text">Menentukan judul cetak. Proforma Invoice memakai nomor sendiri (Project = .../ProINV.HME/..., Lampu = .../ProFKT.HME/...).</div>
+                    <?php endif; ?>
                 </div>
                 <?php if ($isEdit): ?>
                     <?php if (!empty($invoice['delivery_note_id'])): ?>
@@ -598,12 +604,22 @@ if (empty($terms)) {
 
     // Preview nomor otomatis ikut Jenis Invoice (hanya form Tambah).
     const numberPreview = document.getElementById('invoice_number');
+    const kindSelect = document.getElementById('documentKindSelect');
     if (numberPreview && typeSelect && numberPreview.dataset.previewProject !== undefined) {
-        typeSelect.addEventListener('change', function () {
+        const refreshNumberPreview = function () {
+            if (kindSelect && kindSelect.value === 'proforma') {
+                numberPreview.value = (typeSelect.value === 'lampu'
+                    ? numberPreview.dataset.previewProformaLampu
+                    : numberPreview.dataset.previewProformaProject) || '';
+                return;
+            }
             numberPreview.value = (typeSelect.value === 'lampu'
                 ? numberPreview.dataset.previewLampu
                 : numberPreview.dataset.previewProject) || '';
-        });
+        };
+        typeSelect.addEventListener('change', refreshNumberPreview);
+        if (kindSelect) { kindSelect.addEventListener('change', refreshNumberPreview); }
+        refreshNumberPreview();
     }
 
     const dnWrap = document.getElementById('dnLinkWrap');

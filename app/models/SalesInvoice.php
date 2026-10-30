@@ -20,25 +20,43 @@ class SalesInvoice extends Model
 
     /**
      * Nomor invoice keluar dibuat OTOMATIS saat Tambah: "001/INV.HME/X/2026" (Project)
-     * atau "001/FKT.HME/X/2026" (Lampu) -- urut/kode/bulan romawi/tahun mengikuti tanggal
-     * invoice, atomic (lihat DocumentNumber::next()). Project & Lampu memakai doc_type
-     * counter TERPISAH. Saat Edit nomor boleh dikoreksi manual.
+     * atau "001/FKT.HME/X/2026" (Lampu) atau, bila Jenis Dokumen = Proforma Invoice,
+     * "049/ProINV.HME/X/2026" (Project) / "049/ProFKT.HME/X/2026" (Lampu) -- urut/kode/bulan
+     * romawi/tahun mengikuti tanggal invoice, atomic (lihat DocumentNumber::next()). Keempat
+     * kombinasi memakai doc_type counter TERPISAH. Saat Edit nomor boleh dikoreksi manual.
      */
-    public function generateInvoiceNumber(string $invoiceType, ?string $invoiceDate = null): string
+    public function generateInvoiceNumber(string $invoiceType, ?string $invoiceDate = null, string $documentKind = 'invoice'): string
     {
-        $docType = $invoiceType === 'lampu' ? 'sales_invoice_lampu' : 'sales_invoice';
-        $codeSettingKey = $invoiceType === 'lampu' ? 'prefix_fkt' : 'prefix_sls';
-        return (new DocumentNumber())->next($docType, $codeSettingKey, $invoiceDate);
+        [$docType, $codeSettingKey, $defaultCode] = self::numberingFor($invoiceType, $documentKind);
+        return (new DocumentNumber())->next($docType, $codeSettingKey, $invoiceDate, $defaultCode);
+    }
+
+    /**
+     * [doc_type counter, key kode di system_settings, kode bawaan] untuk kombinasi Jenis Invoice
+     * & Jenis Dokumen. Proforma Invoice punya urutan sendiri per jenis: Project =
+     * "049/ProINV.HME/X/2026", Lampu = "049/ProFKT.HME/X/2026"; selain itu Project = INV.HME,
+     * Lampu = FKT.HME.
+     */
+    private static function numberingFor(string $invoiceType, string $documentKind): array
+    {
+        if ($documentKind === 'proforma') {
+            return $invoiceType === 'lampu'
+                ? ['sales_invoice_proforma_lampu', 'prefix_profkt', 'ProFKT.HME']
+                : ['sales_invoice_proforma_project', 'prefix_proinv', 'ProINV.HME'];
+        }
+        return $invoiceType === 'lampu'
+            ? ['sales_invoice_lampu', 'prefix_fkt', 'FKT.HME']
+            : ['sales_invoice', 'prefix_sls', 'INV.HME'];
     }
 
     /**
      * Seperti generateInvoiceNumber(), tapi melewati nomor yang sudah terpakai (kolom UNIK) --
      * mis. nomor yang dulu diketik manual dan kebetulan sama dengan urutan counter.
      */
-    public function generateUniqueInvoiceNumber(string $invoiceType, ?string $invoiceDate = null): string
+    public function generateUniqueInvoiceNumber(string $invoiceType, ?string $invoiceDate = null, string $documentKind = 'invoice'): string
     {
         for ($i = 0; $i < 50; $i++) {
-            $number = $this->generateInvoiceNumber($invoiceType, $invoiceDate);
+            $number = $this->generateInvoiceNumber($invoiceType, $invoiceDate, $documentKind);
             if (!$this->numberTaken($number)) {
                 return $number;
             }
@@ -47,11 +65,10 @@ class SalesInvoice extends Model
     }
 
     /** Preview nomor untuk FORM tambah (tidak menaikkan counter) -- lihat DocumentNumber::preview(). */
-    public function previewInvoiceNumber(string $invoiceType, ?string $invoiceDate = null): string
+    public function previewInvoiceNumber(string $invoiceType, ?string $invoiceDate = null, string $documentKind = 'invoice'): string
     {
-        $docType = $invoiceType === 'lampu' ? 'sales_invoice_lampu' : 'sales_invoice';
-        $codeSettingKey = $invoiceType === 'lampu' ? 'prefix_fkt' : 'prefix_sls';
-        return (new DocumentNumber())->preview($docType, $codeSettingKey, $invoiceDate);
+        [$docType, $codeSettingKey, $defaultCode] = self::numberingFor($invoiceType, $documentKind);
+        return (new DocumentNumber())->preview($docType, $codeSettingKey, $invoiceDate, $defaultCode);
     }
 
     /**

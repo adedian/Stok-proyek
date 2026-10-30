@@ -98,6 +98,9 @@ class SalesInvoiceController extends Controller
             'numberPreviews' => [
                 'project' => $this->invoiceModel->previewInvoiceNumber('project'),
                 'lampu'   => $this->invoiceModel->previewInvoiceNumber('lampu'),
+                // Jenis Dokumen = Proforma Invoice: urutan sendiri per Jenis Invoice (ProINV / ProFKT).
+                'proforma_project' => $this->invoiceModel->previewInvoiceNumber('project', null, 'proforma'),
+                'proforma_lampu'   => $this->invoiceModel->previewInvoiceNumber('lampu', null, 'proforma'),
             ],
         ]);
     }
@@ -133,7 +136,7 @@ class SalesInvoiceController extends Controller
         // mendukung nested transaction. Kalau insert di bawah gagal, nomor tetap terpakai
         // (gap di sequence itu wajar; duplikat yang tidak boleh).
         try {
-            $invoiceNumber = $this->invoiceModel->generateUniqueInvoiceNumber($data['invoice_type'], $data['invoice_date']);
+            $invoiceNumber = $this->invoiceModel->generateUniqueInvoiceNumber($data['invoice_type'], $data['invoice_date'], $data['document_kind']);
         } catch (Throwable $e) {
             error_log('SalesInvoice generate nomor error: ' . $e->getMessage());
             setFlash('error', 'Gagal membuat nomor invoice. Silakan coba lagi.');
@@ -654,7 +657,7 @@ class SalesInvoiceController extends Controller
             'project_id'       => !empty($_POST['project_id']) ? (int) $_POST['project_id'] : null,
             // 'project' (INV.HME) vs 'lampu' (FKT.HME) -- kini hanya pengelompokan jenis, nomor diketik manual.
             'invoice_type'     => in_array($invoiceType, ['project', 'lampu'], true) ? $invoiceType : 'project',
-            // 'invoice' vs 'proforma' -- hanya mengubah judul cetak, nomor/isi sama.
+            // 'invoice' vs 'proforma' -- mengubah judul cetak & (saat Tambah) kode/urutan nomor otomatis (ProINV.HME / ProFKT.HME).
             'document_kind'    => (($_POST['document_kind'] ?? '') === 'proforma') ? 'proforma' : 'invoice',
             'invoice_date'     => $invoiceDate,
             'tempo'            => $tempo,

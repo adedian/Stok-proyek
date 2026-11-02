@@ -965,7 +965,7 @@ class CashController extends Controller
             $pdo->beginTransaction();
 
             // --- Sisi Bank Keluar ---
-            // Bank LOAN -> BKL, selain itu BK (Master Kode) -- lihat MasterBank::noBuktiPrefix().
+            // Bank LOAN -> BKL, Bank KAS -> KBK, selain itu BK (Master Kode) -- lihat MasterBank::noBuktiPrefix().
             $bankPrefix = $this->masterBankModel->noBuktiPrefix('keluar', $bankId);
             $bankNoYear = (int) substr($trxDate, 0, 4);
             $bankNoBukti = (new CashNumber())->nextMonthly($bankPrefix, $trxDate);

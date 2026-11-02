@@ -104,7 +104,8 @@ $curPic = $row['pic'] ?? '';
                             Nomor tidak berubah saat transaksi diedit.
                         <?php else: ?>
                             Dibuat otomatis: <strong>BM</strong> untuk Masuk, <strong>BK</strong> untuk Keluar
-                            (Bank <strong>Loan</strong>: <strong>BML</strong> / <strong>BKL</strong>), format
+                            (Bank <strong>Loan</strong>: <strong>BML</strong> / <strong>BKL</strong>,
+                            <strong>Kas</strong>: <strong>KBM</strong> / <strong>KBK</strong>), format
                             <strong>BK 09/0001</strong> &mdash; bulan mengikuti Tanggal, urutan kembali ke 0001 tiap bulan.
                         <?php endif; ?>
                     </div>
@@ -320,7 +321,7 @@ $curPic = $row['pic'] ?? '';
     mutasiSel.addEventListener('change', refresh);
     // Bulan di nomor mengikuti Tanggal transaksi -> pratinjau ikut berubah saat tanggal diganti.
     if (dateEl) { dateEl.addEventListener('change', refresh); }
-    // Bank berjenis Loan memakai prefix BML/BKL -> pratinjau ikut berubah saat Bank diganti.
+    // Bank berjenis Loan memakai prefix BML/BKL, Kas memakai KBM/KBK -> pratinjau ikut berubah saat Bank diganti.
     var bankSelEl = document.getElementById('bank_id');
     if (bankSelEl) { bankSelEl.addEventListener('change', refresh); }
     if (mutasiSel.value) { refresh(); }

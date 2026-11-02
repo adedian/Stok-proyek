@@ -20,7 +20,8 @@ class MasterBank extends Model
     /**
      * Prefix No Bukti transaksi Bank. Dasarnya per Mutasi (Master Kode 'bank_masuk' / 'bank_keluar',
      * default BM / BK). Bank berjenis LOAN mendapat huruf "L" di belakangnya: Masuk -> BML, Keluar -> BKL
-     * (urutan nomor terpisah dari BM/BK). Bank HR tetap BM / BK. Jenis dibaca dari database.
+     * (urutan nomor terpisah dari BM/BK). Bank berjenis KAS (Kas Besar) mendapat huruf "K" di depannya:
+     * Masuk -> KBM, Keluar -> KBK (urutan nomor juga terpisah). Bank HR tetap BM / BK. Jenis dibaca dari database.
      */
     public function noBuktiPrefix(string $mutasi, int $bankId): string
     {
@@ -31,7 +32,14 @@ class MasterBank extends Model
             $base = $cfg['prefix'];
         }
         $bank = $bankId > 0 ? $this->find($bankId) : null;
-        return ($bank && ($bank['jenis'] ?? '') === 'loan') ? $base . 'L' : $base;
+        $jenis = $bank['jenis'] ?? '';
+        if ($jenis === 'loan') {
+            return $base . 'L';
+        }
+        if ($jenis === 'kas') {
+            return 'K' . $base;
+        }
+        return $base;
     }
 
     public function activeList(): array

@@ -51,7 +51,7 @@ class BankController extends Controller
      */
     private function noBuktiPrefix(string $mutasi, int $bankId = 0): string
     {
-        // Bank LOAN -> BML/BKL (lihat MasterBank::noBuktiPrefix()).
+        // Bank LOAN -> BML/BKL, Bank KAS -> KBM/KBK (lihat MasterBank::noBuktiPrefix()).
         return $this->bankModel->noBuktiPrefix($mutasi, $bankId);
     }
 

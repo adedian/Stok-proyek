@@ -70,7 +70,8 @@ class Inventory extends Model
         string $transactionDate,
         ?int $userId,
         string $stockScope = 'proyek',
-        string $stockType = 'stok_proyek'
+        string $stockType = 'stok_proyek',
+        string $notes = ''
     ): void {
         if ($qty <= 0) {
             return;
@@ -122,7 +123,8 @@ class Inventory extends Model
             $qtyBefore,
             $qtyAfter,
             $transactionDate,
-            $userId
+            $userId,
+            $notes
         );
     }
 
@@ -138,7 +140,8 @@ class Inventory extends Model
         string $referenceType,
         int $referenceId,
         ?int $userId,
-        string $stockScope = 'proyek'
+        string $stockScope = 'proyek',
+        string $notes = 'Koreksi otomatis karena penerimaan barang terkait diedit/dihapus'
     ): void {
         if ($qty <= 0) {
             return;
@@ -178,8 +181,86 @@ class Inventory extends Model
             $qtyAfter,
             date('Y-m-d H:i:s'),
             $userId,
-            'Koreksi otomatis karena penerimaan barang terkait diedit/dihapus'
+            $notes
         );
+    }
+
+    /**
+     * Pindahkan stok hasil satu penerimaan dari bucket project lama ke project baru
+     * (dipakai saat project PO / Pembelian Offline diganti setelah barangnya masuk
+     * stok). Dicatat di kartu stok kedua project: koreksi keluar di project lama,
+     * masuk di project baru, dengan referensi penerimaan yang sama. Jenis Stok ikut
+     * baris lama. Melempar InsufficientStockException kalau sebagian sudah dikeluarkan.
+     */
+    public function moveCredit(
+        string $itemName,
+        string $unit,
+        ?int $fromProjectId,
+        ?int $toProjectId,
+        float $qty,
+        string $referenceType,
+        int $referenceId,
+        ?int $userId,
+        string $stockScope,
+        string $notes
+    ): void {
+        if ($qty <= 0 || $fromProjectId === $toProjectId) {
+            return;
+        }
+        $existing = $this->findByItemProject($itemName, $unit, $fromProjectId, $stockScope);
+        if (!$existing) {
+            return;
+        }
+        $this->reverseCredit($itemName, $unit, $fromProjectId, $qty, $referenceType, $referenceId, $userId, $stockScope, $notes);
+        $this->creditStock(
+            $itemName,
+            $unit,
+            $toProjectId,
+            $qty,
+            $referenceType,
+            $referenceId,
+            date('Y-m-d H:i:s'),
+            $userId,
+            $stockScope,
+            (string) ($existing['stock_type'] ?: 'stok_proyek'),
+            $notes
+        );
+    }
+
+    /**
+     * Pindahkan SEMUA stok yang sudah masuk dari penerimaan sebuah PO / Pembelian
+     * Offline ke project barunya. Wajib dipanggil di dalam transaksi pemanggil
+     * (stok kurang -> InsufficientStockException -> rollback). Return jumlah baris.
+     * $sourceColumn: 'purchase_order_id' | 'offline_purchase_id'.
+     */
+    public function moveReceiptStockToProject(
+        string $sourceColumn,
+        int $sourceId,
+        ?int $fromProjectId,
+        ?int $toProjectId,
+        ?int $userId,
+        string $notes
+    ): int {
+        if ($fromProjectId === $toProjectId) {
+            return 0;
+        }
+        require_once ROOT_PATH . '/app/models/GoodsReceiptItem.php';
+        $rows = (new GoodsReceiptItem())->postedForSource($sourceColumn, $sourceId);
+        foreach ($rows as $row) {
+            $this->moveCredit(
+                (string) $row['item_name'],
+                (string) $row['unit'],
+                $fromProjectId,
+                $toProjectId,
+                (float) $row['qty_received'],
+                'goods_receipt_validation',
+                (int) $row['goods_receipt_id'],
+                $userId,
+                (string) $row['stock_scope'],
+                $notes
+            );
+        }
+        return count($rows);
     }
 
     /** Seperti find() tapi mengunci baris (SELECT ... FOR UPDATE) sampai transaksi pemanggil selesai. */

@@ -16,6 +16,7 @@ require_once ROOT_PATH . '/app/models/Warehouse.php';
 require_once ROOT_PATH . '/app/models/Payment.php';
 require_once ROOT_PATH . '/app/models/Signature.php';
 require_once ROOT_PATH . '/app/models/SystemSetting.php';
+require_once ROOT_PATH . '/app/models/Inventory.php';
 
 class PurchaseOrderController extends Controller
 {
@@ -432,6 +433,30 @@ class PurchaseOrderController extends Controller
             $this->saveExtraCosts($id, $data['extra_costs']);
             $this->poModel->recalculateTotal($id);
 
+            // Project diganti setelah barang masuk stok -> stoknya ikut dipindah ke project
+            // baru. Dulu stok tertinggal di project lama, sementara laporan Penerimaan sudah
+            // membaca project baru dari PO. Sebagian sudah dikeluarkan -> ditolak (rollback).
+            $oldProjectId = $existing['project_id'] !== null ? (int) $existing['project_id'] : null;
+            $newProjectId = $data['is_non_project'] ? null : (int) $data['project_id'];
+            $projectChanged = $oldProjectId !== $newProjectId;
+            $movedRows = 0;
+            if ($projectChanged && $itemsLocked) {
+                $oldProject = $oldProjectId ? $this->projectModel->find($oldProjectId) : null;
+                $newProject = $newProjectId ? $this->projectModel->find($newProjectId) : null;
+                $movedRows = (new Inventory())->moveReceiptStockToProject(
+                    'purchase_order_id',
+                    $id,
+                    $oldProjectId,
+                    $newProjectId,
+                    currentUserId(),
+                    "Pindah project PO {$newNumber}: " . ($oldProject['project_name'] ?? '-') . ' -> ' . ($newProject['project_name'] ?? '-')
+                );
+                if ($movedRows > 0) {
+                    $this->historyModel->log($id, 'updated', "Project diubah: " . ($oldProject['project_name'] ?? '-') . ' -> '
+                        . ($newProject['project_name'] ?? '-') . "; stok {$movedRows} baris penerimaan ikut dipindah", currentUserId());
+                }
+            }
+
             $this->historyModel->log($id, 'updated', 'Data Purchase Order & item diperbarui', currentUserId());
             if ($numberChanged) {
                 $this->historyModel->log($id, 'updated', "Nomor PO diubah: {$existing['po_number']} -> {$newNumber}", currentUserId());
@@ -452,7 +477,8 @@ class PurchaseOrderController extends Controller
             $pdo->commit();
 
             if ($itemsLocked) {
-                setFlash('success', 'Data Purchase Order diperbarui. Daftar item TIDAK diubah karena PO ini sudah punya penerimaan barang.');
+                setFlash('success', 'Data Purchase Order diperbarui. Daftar item TIDAK diubah karena PO ini sudah punya penerimaan barang.'
+                    . ($movedRows > 0 ? " Stok yang sudah diterima ({$movedRows} baris) ikut dipindah ke project baru." : ''));
             } else {
                 setFlash('success', 'Purchase Order berhasil diperbarui.');
             }
@@ -460,7 +486,9 @@ class PurchaseOrderController extends Controller
         } catch (Throwable $e) {
             $pdo->rollBack();
             error_log('PO update error: ' . $e->getMessage());
-            setFlash('error', 'Gagal memperbarui Purchase Order.');
+            setFlash('error', $e instanceof InsufficientStockException
+                ? 'Project tidak bisa diganti: ' . $e->getMessage()
+                : 'Gagal memperbarui Purchase Order.');
             $this->redirect('purchase_order', 'edit', ['id' => $id]);
         }
     }

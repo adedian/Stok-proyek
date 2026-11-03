@@ -10,6 +10,7 @@ require_once ROOT_PATH . '/app/models/ItemCategory.php';
 require_once ROOT_PATH . '/app/models/Unit.php';
 require_once ROOT_PATH . '/app/models/GoodsReceipt.php';
 require_once ROOT_PATH . '/app/models/ActivityLog.php';
+require_once ROOT_PATH . '/app/models/Inventory.php';
 
 class OfflinePurchaseController extends Controller
 {
@@ -251,6 +252,25 @@ class OfflinePurchaseController extends Controller
                 $this->purchaseModel->recalculateTotal($id);
             }
 
+            // Project diganti setelah barang masuk stok -> stoknya ikut dipindah (sama
+            // seperti PurchaseOrderController::update()).
+            $movedRows = 0;
+            $oldProjectId = (int) $existing['project_id'];
+            $newProjectId = (int) $data['project_id'];
+            if ($itemsLocked && $oldProjectId !== $newProjectId) {
+                $oldProject = $this->projectModel->find($oldProjectId);
+                $newProject = $this->projectModel->find($newProjectId);
+                $movedRows = (new Inventory())->moveReceiptStockToProject(
+                    'offline_purchase_id',
+                    $id,
+                    $oldProjectId,
+                    $newProjectId,
+                    currentUserId(),
+                    "Pindah project Pembelian Offline {$existing['purchase_number']}: "
+                        . ($oldProject['project_name'] ?? '-') . ' -> ' . ($newProject['project_name'] ?? '-')
+                );
+            }
+
             $this->activityLog->log(
                 currentUserId(),
                 'offline_purchase',
@@ -261,7 +281,8 @@ class OfflinePurchaseController extends Controller
             $pdo->commit();
 
             if ($itemsLocked) {
-                setFlash('success', 'Data pembelian offline diperbarui. Daftar item TIDAK diubah karena sudah punya penerimaan barang.');
+                setFlash('success', 'Data pembelian offline diperbarui. Daftar item TIDAK diubah karena sudah punya penerimaan barang.'
+                    . ($movedRows > 0 ? " Stok yang sudah diterima ({$movedRows} baris) ikut dipindah ke project baru." : ''));
             } else {
                 setFlash('success', 'Pembelian offline berhasil diperbarui.');
             }
@@ -269,7 +290,9 @@ class OfflinePurchaseController extends Controller
         } catch (Throwable $e) {
             $pdo->rollBack();
             error_log('Offline purchase update error: ' . $e->getMessage());
-            setFlash('error', 'Gagal memperbarui pembelian offline.');
+            setFlash('error', $e instanceof InsufficientStockException
+                ? 'Project tidak bisa diganti: ' . $e->getMessage()
+                : 'Gagal memperbarui pembelian offline.');
             $this->redirect('offline_purchase', 'edit', ['id' => $id]);
         }
     }

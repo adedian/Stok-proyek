@@ -412,6 +412,29 @@ class GoodsReceiptItem extends Model
     }
 
     /**
+     * Item penerimaan (aktif) dari satu PO / Pembelian Offline yang SUDAH masuk stok
+     * (stock_posted_at terisi) -- dipakai untuk memindahkan stoknya kalau project
+     * sumbernya diganti. $sourceColumn: 'purchase_order_id' | 'offline_purchase_id'.
+     */
+    public function postedForSource(string $sourceColumn, int $sourceId): array
+    {
+        if (!in_array($sourceColumn, ['purchase_order_id', 'offline_purchase_id'], true)) {
+            throw new InvalidArgumentException('Sumber penerimaan tidak dikenal.');
+        }
+        $sql = "SELECT gri.id, gri.qty_received, gr.id AS goods_receipt_id, gr.receipt_number, gr.stock_scope,
+                       COALESCE(gri.actual_item_name, poi.item_name, opi.item_name) AS item_name,
+                       COALESCE(gri.actual_unit, poi.unit, opi.unit) AS unit
+                FROM goods_receipt_items gri
+                JOIN goods_receipts gr ON gr.id = gri.goods_receipt_id
+                LEFT JOIN purchase_order_items poi ON poi.id = gri.purchase_order_item_id
+                LEFT JOIN offline_purchase_items opi ON opi.id = gri.offline_purchase_item_id
+                WHERE gr.{$sourceColumn} = :id AND gr.deleted_at IS NULL
+                  AND gri.stock_posted_at IS NOT NULL
+                ORDER BY gri.id";
+        return $this->db->fetchAll($sql, ['id' => $sourceId]);
+    }
+
+    /**
      * Ambil satu item penerimaan lengkap dengan semua info yang dibutuhkan untuk
      * memutuskan kredit/reverse stok: nama & satuan barang AKTUAL (bukan barang PO
      * kalau ada override), project & stock_scope (dari goods_receipts, atau dari PO

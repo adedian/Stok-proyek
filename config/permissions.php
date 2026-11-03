@@ -188,7 +188,9 @@ return [
         'create'    => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
         'edit'      => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
         'delete'    => [ROLE_SUPER_ADMIN],
-        'quick_add' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT],
+        // Tambah Project Cepat (tombol "+" di form transaksi) -- Super Admin saja;
+        // Nissa diberi per akun lewat user_permissions (migrasi 2026_11_07).
+        'quick_add' => [ROLE_SUPER_ADMIN],
         // Atur Project <-> User (siapa boleh membuka Kas project ini lewat
         // gerbang Project+Password). Sensitif -> Super Admin saja. TIDAK
         // termasuk full-access Master Data Accounting -- ini soal akses Kas,

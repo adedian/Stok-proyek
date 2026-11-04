@@ -1484,6 +1484,7 @@ class CashController extends Controller
                 $amt = (float) $ln['amount'];
                 $bankRows[] = [
                     'source'            => 'bank',
+                    'bank_id'           => (int) $b['bank_id'],
                     'parent_id'         => (int) $b['id'],
                     'is_first'          => $first,
                     'trx_date_full'     => $b['trx_date'],
@@ -1518,7 +1519,85 @@ class CashController extends Controller
         }
         unset($row);
 
-        return ['saldo_awal' => $kasSaldoAwal + $bankSaldoAwal, 'saldo_akhir' => $saldo, 'rows' => $merged];
+        return [
+            'saldo_awal'  => $kasSaldoAwal + $bankSaldoAwal,
+            'saldo_akhir' => $saldo,
+            'rows'        => $merged,
+            'groups'      => $this->groupLedgerByAccount(
+                $merged,
+                $includeKas,
+                $kasSaldoAwal,
+                $this->bankModel->saldoAwalByBank($bankFilters)
+            ),
+        ];
+    }
+
+    /**
+     * Kelompokkan ledger gabungan per AKUN: Kas (1 kelompok) lalu tiap rekening
+     * Bank (BK, BKL, ...) sendiri-sendiri, masing-masing dengan Saldo Awal,
+     * saldo berjalan, dan Saldo Akhir sendiri -- supaya saat semua bank
+     * ditarik sekaligus No Bukti antar bank tidak tercampur urut tanggal.
+     * Hanya 1 akun yang tampil -> [] (laporan tetap datar seperti semula).
+     * Jumlah Saldo Akhir semua kelompok == saldo_akhir ledger gabungan.
+     */
+    private function groupLedgerByAccount(array $rows, bool $includeKas, float $kasSaldoAwal, array $bankSaldoAwal): array
+    {
+        $groups = [];
+        if ($includeKas) {
+            $groups['kas'] = ['label' => 'KAS', 'saldo_awal' => $kasSaldoAwal, 'rows' => []];
+        }
+        foreach ($bankSaldoAwal as $bid => $sa) {
+            $groups['bank:' . $bid] = ['label' => null, 'bank_id' => (int) $bid, 'saldo_awal' => (float) $sa, 'rows' => []];
+        }
+        foreach ($rows as $row) {
+            if (($row['source'] ?? 'kas') === 'bank') {
+                $key = 'bank:' . (int) $row['bank_id'];
+                $groups[$key] ??= ['label' => null, 'bank_id' => (int) $row['bank_id'], 'saldo_awal' => 0.0, 'rows' => []];
+                $groups[$key]['label'] ??= 'BANK ' . $row['kategori'];
+            } else {
+                $key = 'kas';
+                $groups[$key] ??= ['label' => 'KAS', 'saldo_awal' => 0.0, 'rows' => []];
+            }
+            $groups[$key]['rows'][] = $row;
+        }
+
+        // Bank yang cuma punya saldo awal (tanpa transaksi di periode) -> label dari master.
+        foreach ($groups as $key => &$g) {
+            if ($g['label'] === null) {
+                $mb = $this->masterBankModel->find((int) $g['bank_id']);
+                $g['label'] = 'BANK ' . ($mb ? $mb['bank_name'] . ' (' . mb_strtoupper($mb['jenis']) . ')' : '#' . $g['bank_id']);
+            }
+        }
+        unset($g);
+
+        // Buang kelompok kosong (tanpa transaksi & saldo awal nol).
+        $groups = array_filter($groups, static fn($g) => !empty($g['rows']) || abs($g['saldo_awal']) >= 0.005);
+        if (count($groups) < 2) {
+            return [];
+        }
+
+        $kas = $groups['kas'] ?? null;
+        unset($groups['kas']);
+        uasort($groups, static fn($a, $b) => strnatcasecmp($a['label'], $b['label']));
+        if ($kas !== null) {
+            $groups = ['kas' => $kas] + $groups;
+        }
+
+        foreach ($groups as &$g) {
+            $saldo = $g['saldo_awal'];
+            $g['masuk'] = 0.0;
+            $g['keluar'] = 0.0;
+            foreach ($g['rows'] as &$row) {
+                $saldo += (float) $row['masuk'] - (float) $row['keluar'];
+                $row['saldo'] = $saldo;
+                $g['masuk']  += (float) $row['masuk'];
+                $g['keluar'] += (float) $row['keluar'];
+            }
+            unset($row);
+            $g['saldo_akhir'] = $saldo;
+        }
+        unset($g);
+        return array_values($groups);
     }
 
     /**

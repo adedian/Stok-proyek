@@ -96,6 +96,35 @@ class BankTransaction extends Model
     }
 
     /**
+     * Sama dengan saldoAwal() tapi dipecah PER REKENING (bank_id) -- dipakai
+     * Laporan Kas/Bank saat baris dikelompokkan per bank (BK, BKL, dst. tidak
+     * lagi tercampur), tiap kelompok punya Saldo Awal sendiri.
+     * @return array<int,float> bank_id => saldo sebelum date_from
+     */
+    public function saldoAwalByBank(array $filters): array
+    {
+        if (empty($filters['date_from'])) {
+            return [];
+        }
+        $f = $filters;
+        unset($f['date_from'], $f['date_to']);
+        [$where, $params] = $this->buildWhere($f);
+        $params['df'] = $filters['date_from'];
+        $out = [];
+        foreach ($this->db->fetchAll(
+            "SELECT b.bank_id,
+               COALESCE(SUM(CASE WHEN b.mutasi='masuk' THEN b.amount ELSE -b.amount END),0) AS saldo
+             FROM bank_transactions b
+             {$where} AND b.trx_date < :df
+             GROUP BY b.bank_id",
+            $params
+        ) as $r) {
+            $out[(int) $r['bank_id']] = (float) $r['saldo'];
+        }
+        return $out;
+    }
+
+    /**
      * Saldo Bank TOTAL (seluruh mutasi, tidak dibatasi tanggal) -- dipakai
      * kartu "Saldo Bank" di halaman Kas (Revisi lanjutan poin 9-14), TERPISAH
      * dari Saldo Kas. Kosong ($filters=[]) = grand total; diisi filter yang

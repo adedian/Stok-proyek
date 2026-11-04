@@ -233,15 +233,31 @@ $selectedRekeningIds = array_map('strval', $filters['rekening_ids'] ?? []);
                     </tr>
                 </thead>
                 <tbody>
+                    <?php
+                    // Lebih dari 1 akun (Kas + Bank / beberapa Bank) -> 1 seksi per akun
+                    // (CashController::groupLedgerByAccount); selain itu 1 seksi datar.
+                    $grouped  = !empty($ledger['groups']);
+                    $sections = $grouped ? $ledger['groups'] : [[
+                        'label' => null, 'saldo_awal' => $ledger['saldo_awal'],
+                        'rows' => $ledger['rows'], 'saldo_akhir' => $ledger['saldo_akhir'],
+                    ]];
+                    ?>
+                    <?php foreach ($sections as $sec): ?>
+                    <?php if ($sec['label'] !== null): ?>
+                    <tr class="table-primary fw-bold">
+                        <?php if ($canCetakVoucher): ?><td class="no-print"></td><?php endif; ?>
+                        <td colspan="8"><?= e($sec['label']) ?></td>
+                    </tr>
+                    <?php endif; ?>
                     <tr class="fw-bold">
                         <?php if ($canCetakVoucher): ?><td class="no-print"></td><?php endif; ?>
                         <td colspan="7" class="text-center">Saldo Awal</td>
-                        <td class="text-end"><?= $rp($ledger['saldo_awal']) ?></td>
+                        <td class="text-end"><?= $rp($sec['saldo_awal']) ?></td>
                     </tr>
-                    <?php if (empty($ledger['rows'])): ?>
+                    <?php if (empty($sec['rows'])): ?>
                         <tr><td colspan="<?= $canCetakVoucher ? 9 : 8 ?>" class="text-center text-muted py-3">Tidak ada transaksi pada filter ini.</td></tr>
                     <?php endif; ?>
-                    <?php foreach ($ledger['rows'] as $row): ?>
+                    <?php foreach ($sec['rows'] as $row): ?>
                         <?php $isBank = ($row['source'] ?? 'kas') === 'bank'; ?>
                         <tr>
                             <?php if ($canCetakVoucher): ?>
@@ -255,7 +271,7 @@ $selectedRekeningIds = array_map('strval', $filters['rekening_ids'] ?? []);
                             <?php endif; ?>
                             <td><?= !empty($row['is_first']) ? e(date('j-M-y', strtotime($row['trx_date_full']))) : '' ?></td>
                             <td><?= !empty($row['is_first']) ? e($row['no_bukti_full']) : '' ?></td>
-                            <td><?= e($row['uraian']) ?><?= $isBank ? ' <span class="text-muted small">(' . e($row['kategori']) . ')</span>' : '' ?></td>
+                            <td><?= e($row['uraian']) ?><?= $isBank && !$grouped ? ' <span class="text-muted small">(' . e($row['kategori']) . ')</span>' : '' ?></td>
                             <td class="text-end"><?= $isBank ? '-' : $qtyFmt($row['qty']) ?></td>
                             <td class="text-end"><?= $isBank ? '-' : $rp($row['satuan']) ?></td>
                             <td class="text-end<?= $row['masuk'] < 0 ? ' text-danger' : '' ?>"><?= $row['masuk'] != 0 ? $rp($row['masuk']) : '' ?></td>
@@ -263,9 +279,19 @@ $selectedRekeningIds = array_map('strval', $filters['rekening_ids'] ?? []);
                             <td class="text-end"><?= $rp($row['saldo']) ?></td>
                         </tr>
                     <?php endforeach; ?>
+                    <?php if ($grouped): ?>
                     <tr class="fw-bold table-light">
                         <?php if ($canCetakVoucher): ?><td class="no-print"></td><?php endif; ?>
-                        <td colspan="7" class="text-end">Saldo Akhir</td>
+                        <td colspan="5" class="text-end">Saldo Akhir <?= e($sec['label']) ?></td>
+                        <td class="text-end"><?= $rp($sec['masuk']) ?></td>
+                        <td class="text-end"><?= $rp($sec['keluar']) ?></td>
+                        <td class="text-end"><?= $rp($sec['saldo_akhir']) ?></td>
+                    </tr>
+                    <?php endif; ?>
+                    <?php endforeach; ?>
+                    <tr class="fw-bold table-light">
+                        <?php if ($canCetakVoucher): ?><td class="no-print"></td><?php endif; ?>
+                        <td colspan="7" class="text-end"><?= $grouped ? 'Total Saldo Akhir (semua akun)' : 'Saldo Akhir' ?></td>
                         <td class="text-end"><?= $rp($ledger['saldo_akhir']) ?></td>
                     </tr>
                 </tbody>

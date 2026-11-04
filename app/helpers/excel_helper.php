@@ -572,42 +572,73 @@ function streamCashReportExcel(array $ledger, string $companyName, string $perio
     $moneyNeg = '#,##0;[Red]-#,##0';
     $row = $headerRow + 1;
 
-    // Saldo Awal
-    $sheet->setCellValue('A' . $row, 'Saldo Awal');
-    $sheet->mergeCells("A{$row}:G{$row}");
-    $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-    $sheet->setCellValue('H' . $row, (float) $ledger['saldo_awal']);
-    $sheet->getStyle('H' . $row)->getNumberFormat()->setFormatCode($moneyNeg);
-    $sheet->getStyle("A{$row}:I{$row}")->getFont()->setBold(true);
-    $row++;
+    // >1 akun (Kas + Bank / beberapa Bank) -> 1 seksi per akun, lihat
+    // CashController::groupLedgerByAccount(); selain itu 1 seksi datar.
+    $grouped  = !empty($ledger['groups']);
+    $sections = $grouped ? $ledger['groups'] : [[
+        'label' => null, 'saldo_awal' => $ledger['saldo_awal'],
+        'rows' => $ledger['rows'], 'saldo_akhir' => $ledger['saldo_akhir'],
+    ]];
 
-    foreach ($ledger['rows'] as $r) {
-        $isBank = ($r['source'] ?? 'kas') === 'bank';
-        $first  = !empty($r['is_first']);
-        $sheet->setCellValue('A' . $row, $first && !empty($r['trx_date_full']) ? date('j-M-y', strtotime($r['trx_date_full'])) : '');
-        $sheet->setCellValue('B' . $row, $first ? ($r['no_bukti_full'] ?? '') : '');
-        $sheet->setCellValue('C' . $row, $r['uraian'] . ($isBank ? ' (' . $r['kategori'] . ')' : ''));
-        if (!$isBank) {
-            $sheet->setCellValue('D' . $row, (float) $r['qty']);
-            $sheet->setCellValue('E' . $row, (float) $r['satuan']);
+    foreach ($sections as $sec) {
+        if ($sec['label'] !== null) {
+            $sheet->setCellValue('A' . $row, $sec['label']);
+            $sheet->mergeCells("A{$row}:I{$row}");
+            $sheet->getStyle("A{$row}:I{$row}")->getFont()->setBold(true)->getColor()->setRGB('0A3A7A');
+            $sheet->getStyle("A{$row}:I{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('CFE2FF');
+            $row++;
         }
-        // Nominal Kas boleh negatif (koreksi/refund) -> tampilkan apa pun yang
-        // bukan nol, termasuk nilai minus.
-        if ((float) $r['masuk'] != 0.0) {
-            $sheet->setCellValue('F' . $row, (float) $r['masuk']);
-        }
-        if ((float) $r['keluar'] != 0.0) {
-            $sheet->setCellValue('G' . $row, (float) $r['keluar']);
-        }
-        $sheet->setCellValue('H' . $row, (float) $r['saldo']);
-        $sheet->setCellValue('I' . $row, $first ? ($r['pic_full'] ?? '') : '');
-        $sheet->getStyle("D{$row}")->getNumberFormat()->setFormatCode('#,##0.##');
-        $sheet->getStyle("E{$row}:H{$row}")->getNumberFormat()->setFormatCode($moneyNeg);
+
+        // Saldo Awal
+        $sheet->setCellValue('A' . $row, 'Saldo Awal');
+        $sheet->mergeCells("A{$row}:G{$row}");
+        $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->setCellValue('H' . $row, (float) $sec['saldo_awal']);
+        $sheet->getStyle('H' . $row)->getNumberFormat()->setFormatCode($moneyNeg);
+        $sheet->getStyle("A{$row}:I{$row}")->getFont()->setBold(true);
         $row++;
+
+        foreach ($sec['rows'] as $r) {
+            $isBank = ($r['source'] ?? 'kas') === 'bank';
+            $first  = !empty($r['is_first']);
+            $sheet->setCellValue('A' . $row, $first && !empty($r['trx_date_full']) ? date('j-M-y', strtotime($r['trx_date_full'])) : '');
+            $sheet->setCellValue('B' . $row, $first ? ($r['no_bukti_full'] ?? '') : '');
+            $sheet->setCellValue('C' . $row, $r['uraian'] . ($isBank && !$grouped ? ' (' . $r['kategori'] . ')' : ''));
+            if (!$isBank) {
+                $sheet->setCellValue('D' . $row, (float) $r['qty']);
+                $sheet->setCellValue('E' . $row, (float) $r['satuan']);
+            }
+            // Nominal Kas boleh negatif (koreksi/refund) -> tampilkan apa pun yang
+            // bukan nol, termasuk nilai minus.
+            if ((float) $r['masuk'] != 0.0) {
+                $sheet->setCellValue('F' . $row, (float) $r['masuk']);
+            }
+            if ((float) $r['keluar'] != 0.0) {
+                $sheet->setCellValue('G' . $row, (float) $r['keluar']);
+            }
+            $sheet->setCellValue('H' . $row, (float) $r['saldo']);
+            $sheet->setCellValue('I' . $row, $first ? ($r['pic_full'] ?? '') : '');
+            $sheet->getStyle("D{$row}")->getNumberFormat()->setFormatCode('#,##0.##');
+            $sheet->getStyle("E{$row}:H{$row}")->getNumberFormat()->setFormatCode($moneyNeg);
+            $row++;
+        }
+
+        if ($grouped) {
+            $sheet->setCellValue('A' . $row, 'Saldo Akhir ' . $sec['label']);
+            $sheet->mergeCells("A{$row}:E{$row}");
+            $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+            $sheet->setCellValue('F' . $row, (float) $sec['masuk']);
+            $sheet->setCellValue('G' . $row, (float) $sec['keluar']);
+            $sheet->setCellValue('H' . $row, (float) $sec['saldo_akhir']);
+            $sheet->getStyle("F{$row}:H{$row}")->getNumberFormat()->setFormatCode($moneyNeg);
+            $sheet->getStyle("A{$row}:I{$row}")->getFont()->setBold(true);
+            $sheet->getStyle("A{$row}:I{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F1F3F5');
+            $row++;
+        }
     }
 
     // Saldo Akhir
-    $sheet->setCellValue('A' . $row, 'Saldo Akhir');
+    $sheet->setCellValue('A' . $row, $grouped ? 'Total Saldo Akhir (semua akun)' : 'Saldo Akhir');
     $sheet->mergeCells("A{$row}:G{$row}");
     $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
     $sheet->setCellValue('H' . $row, (float) $ledger['saldo_akhir']);

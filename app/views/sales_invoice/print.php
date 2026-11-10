@@ -126,10 +126,11 @@
     .inv-print-signoff {
         margin-top: auto;
         padding-top: 34px;
-        /* Blok "PT Hexa Multi Energi" + TTD digeser naik 1 baris (~18px) dari dasar. */
-        margin-bottom: 18px;
     }
     .inv-print-signoff-company {
+        /* Hanya teks nama perusahaan yang naik 1 baris (~18px); area TTD/"(.....)" tetap di posisi semula. */
+        position: relative;
+        top: -18px;
         font-weight: 700;
         margin-bottom: 4px;
     }

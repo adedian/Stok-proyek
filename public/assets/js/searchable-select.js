@@ -90,13 +90,112 @@
             if (wrapper) {
                 wrapper.classList.add('dropdown-open-overflow');
             }
+            openFloating(select);
         });
         select.addEventListener('hideDropdown', function () {
             var wrapper = select.closest('.table-responsive');
             if (wrapper) {
                 wrapper.classList.remove('dropdown-open-overflow');
             }
+            closeFloating(select);
         });
+    }
+
+    /**
+     * Daftar pilihan "melayang" (position: fixed) supaya TIDAK PERNAH tenggelam/
+     * terpotong -- .modal-content (overflow:hidden), .modal-body (scroll),
+     * .table-responsive, kartu, dsb. semuanya meng-clip anak absolute. Posisi
+     * dihitung dari kotak widget terhadap viewport: buka ke bawah kalau muat,
+     * kalau tidak muat buka ke atas (mana yang lebih lega), dan tinggi daftar
+     * dibatasi sisa ruang itu (daftar tetap bisa di-scroll). Dihitung ulang saat
+     * halaman/modal di-scroll atau jendela di-resize selama dropdown terbuka.
+     */
+    var floatingOpen = null; // { select, handler }
+    var VIEW_MARGIN = 8;
+
+    function positionFloating(select) {
+        var instance = registry.get(select);
+        if (!instance) {
+            return;
+        }
+        var outer = instance.containerOuter.element;
+        var dd = instance.dropdown.element;
+        var list = dd.querySelector('.choices__list');
+        var r = outer.getBoundingClientRect();
+        var vw = document.documentElement.clientWidth;
+        var vh = window.innerHeight;
+
+        // Ukur tinggi alami dulu (tanpa batas tinggi dari pass sebelumnya).
+        if (list) {
+            list.style.maxHeight = '';
+        }
+        dd.style.position = 'fixed';
+        dd.style.margin = '0';
+        dd.style.bottom = 'auto';
+        var width = Math.max(r.width, 220);
+        width = Math.min(width, vw - VIEW_MARGIN * 2);
+        var left = Math.min(Math.max(r.left, VIEW_MARGIN), vw - width - VIEW_MARGIN);
+        dd.style.width = width + 'px';
+        dd.style.left = left + 'px';
+        dd.style.top = '0px';
+
+        var natural = dd.offsetHeight;
+        var below = vh - r.bottom - VIEW_MARGIN;
+        var above = r.top - VIEW_MARGIN;
+        var openUp = natural > below && above > below;
+        var room = Math.max(openUp ? above : below, 120);
+
+        if (list && natural > room) {
+            // sisihkan tinggi kotak pencarian (bagian dropdown di luar daftar)
+            var chrome = natural - list.offsetHeight;
+            list.style.maxHeight = Math.max(room - chrome, 80) + 'px';
+        }
+        var h = dd.offsetHeight;
+        dd.style.top = (openUp ? Math.max(r.top - h, VIEW_MARGIN) : r.bottom) + 'px';
+    }
+
+    function openFloating(select) {
+        closeFloating(null);
+        var reposition = function (ev) {
+            var instance = registry.get(select);
+            // scroll DI DALAM daftar pilihan sendiri jangan memicu hitung ulang
+            if (ev && ev.target && instance && instance.dropdown.element.contains(ev.target)) {
+                return;
+            }
+            // kotak pilihan sudah keluar layar karena di-scroll -> tutup saja,
+            // jangan biarkan daftar menempel melayang di tepi layar
+            var box = instance && instance.containerOuter.element.getBoundingClientRect();
+            if (box && (box.bottom < 0 || box.top > window.innerHeight)) {
+                instance.hideDropdown();
+                return;
+            }
+            positionFloating(select);
+        };
+        floatingOpen = { select: select, handler: reposition };
+        window.addEventListener('scroll', reposition, true);
+        window.addEventListener('resize', reposition);
+        positionFloating(select);
+    }
+
+    function closeFloating(select) {
+        if (!floatingOpen || (select && floatingOpen.select !== select)) {
+            return;
+        }
+        var st = floatingOpen.select;
+        window.removeEventListener('scroll', floatingOpen.handler, true);
+        window.removeEventListener('resize', floatingOpen.handler);
+        floatingOpen = null;
+        var instance = registry.get(st);
+        if (instance) {
+            var dd = instance.dropdown.element;
+            var list = dd.querySelector('.choices__list');
+            ['position', 'margin', 'bottom', 'width', 'left', 'top'].forEach(function (p) {
+                dd.style[p] = '';
+            });
+            if (list) {
+                list.style.maxHeight = '';
+            }
+        }
     }
 
     function enhance(select) {
@@ -115,7 +214,7 @@
             allowHTML: false,
             searchResultLimit: 50,
             renderChoiceLimit: -1,
-            position: 'auto',
+            position: 'bottom', // posisi (bawah/atas) dihitung sendiri di positionFloating()
         });
         if (isSmall) {
             // Choices.js MEMINDAHKAN <select> asli jadi ANAK dari wrapper `.choices`

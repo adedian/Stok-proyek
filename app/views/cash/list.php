@@ -353,8 +353,18 @@ $canCetakBankVoucher = can('bank', 'view'); // Super Admin & Accounting saja (sa
 
 <div class="card border-0 shadow-sm">
     <div class="card-body p-0">
+        <style>
+        /* Daftar Kas/Bank lebar (12+ kolom): di layar >= 768px beri lebar minimum + teks tidak
+           membungkus, supaya kolom tidak mendempet -- sisanya digeser ke kanan di dalam
+           .table-responsive. Di HP (<768px) tabel tetap jadi kartu (responsive-tables.js). */
+        @media (min-width: 768px) {
+            .kas-list-table { min-width: 1750px; }
+            .kas-list-table th, .kas-list-table td { white-space: nowrap; padding-left: .9rem; padding-right: .9rem; }
+        }
+        .kas-proof-thumb { height: 40px; width: 40px; object-fit: cover; border-radius: .35rem; border: 1px solid #dee2e6; }
+        </style>
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0 kas-list-table">
                 <thead class="table-light">
                     <tr>
                         <?php if ($canCetakVoucher || $canCetakBankVoucher): ?>
@@ -374,6 +384,7 @@ $canCetakBankVoucher = can('bank', 'view'); // Super Admin & Accounting saja (sa
                         <th>Dibuat Oleh</th>
                         <th>Terakhir Diedit Oleh</th>
                         <th>Validasi</th>
+                        <th class="text-center no-print">Bukti Foto</th>
                         <th class="text-center no-print">Aksi</th>
                     </tr>
                 </thead>
@@ -388,7 +399,7 @@ $canCetakBankVoucher = can('bank', 'view'); // Super Admin & Accounting saja (sa
                         ];
                     ?>
                     <?php if (empty($rows)): ?>
-                        <tr><td colspan="<?= 11 + (($canCetakVoucher || $canCetakBankVoucher) ? 1 : 0) + ($canBank ? 2 : 0) ?>" class="p-0">
+                        <tr><td colspan="<?= 12 + (($canCetakVoucher || $canCetakBankVoucher) ? 1 : 0) + ($canBank ? 2 : 0) ?>" class="p-0">
                             <div class="empty-state">
                                 <i class="bi bi-cash-coin empty-icon"></i>
                                 <div class="empty-title">Belum ada transaksi Kas<?= $canBank ? '/Bank' : '' ?></div>
@@ -418,15 +429,7 @@ $canCetakBankVoucher = can('bank', 'view'); // Super Admin & Accounting saja (sa
                             <td><?= $i + 1 ?></td>
                             <td><?= formatTanggal($r['trx_date']) ?></td>
                             <td><?= e($r['pic'] ?: '-') ?></td>
-                            <td>
-                                <?= e($r['no_bukti']) ?>
-                                <?php if (!$isBank && !empty($r['proof_file'])): ?>
-                                    <a href="<?= e(fileUrl($r['proof_file'])) ?>" target="_blank" rel="noopener"
-                                       class="ms-1 text-decoration-none no-print" title="Lihat bukti foto">
-                                        <i class="bi bi-paperclip"></i>
-                                    </a>
-                                <?php endif; ?>
-                            </td>
+                            <td><?= e($r['no_bukti']) ?></td>
                             <td><?= ($r['category_name'] ?? '') !== '' ? e($r['category_name']) : '<span class="text-muted">-</span>' ?></td>
                             <?php if ($canBank): ?>
                                 <td><?= $isBank ? e($r['rekening_sumber'] ?? '-') : '<span class="text-muted">-</span>' ?></td>
@@ -460,10 +463,26 @@ $canCetakBankVoucher = can('bank', 'view'); // Super Admin & Accounting saja (sa
                                     <?php [$vc, $vl] = $valBadge[$r['validation_status'] ?? 'menunggu'] ?? ['secondary', $r['validation_status'] ?? '-']; ?>
                                     <span class="badge bg-<?= $vc ?>"><?= $vl ?></span>
                                     <?php if (($r['validation_status'] ?? '') === 'ditolak' && !empty($r['validation_note'])): ?>
-                                        <div class="small fst-italic text-danger mt-1" style="max-width: 16rem;">
+                                        <div class="small fst-italic text-danger mt-1" style="max-width: 16rem; white-space: normal;">
                                             <i class="bi bi-chat-left-quote"></i> <?= e($r['validation_note']) ?>
                                         </div>
                                     <?php endif; ?>
+                                <?php endif; ?>
+                            </td>
+                            <td class="text-center no-print">
+                                <?php if (!$isBank && !empty($r['proof_file'])): ?>
+                                    <?php $proofUrl = fileUrl($r['proof_file']); ?>
+                                    <?php if (strtolower(pathinfo($r['proof_file'], PATHINFO_EXTENSION)) === 'pdf'): ?>
+                                        <a href="<?= e($proofUrl) ?>" target="_blank" rel="noopener" class="btn btn-sm btn-outline-danger" title="Lihat bukti (PDF)">
+                                            <i class="bi bi-file-earmark-pdf"></i> PDF
+                                        </a>
+                                    <?php else: ?>
+                                        <a href="<?= e($proofUrl) ?>" target="_blank" rel="noopener" title="Lihat bukti foto">
+                                            <img src="<?= e($proofUrl) ?>" alt="Bukti" class="kas-proof-thumb" loading="lazy">
+                                        </a>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <span class="text-muted">-</span>
                                 <?php endif; ?>
                             </td>
                             <td class="text-center no-print">

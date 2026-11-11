@@ -418,7 +418,15 @@ $canCetakBankVoucher = can('bank', 'view'); // Super Admin & Accounting saja (sa
                             <td><?= $i + 1 ?></td>
                             <td><?= formatTanggal($r['trx_date']) ?></td>
                             <td><?= e($r['pic'] ?: '-') ?></td>
-                            <td><?= e($r['no_bukti']) ?></td>
+                            <td>
+                                <?= e($r['no_bukti']) ?>
+                                <?php if (!$isBank && !empty($r['proof_file'])): ?>
+                                    <a href="<?= e(fileUrl($r['proof_file'])) ?>" target="_blank" rel="noopener"
+                                       class="ms-1 text-decoration-none no-print" title="Lihat bukti foto">
+                                        <i class="bi bi-paperclip"></i>
+                                    </a>
+                                <?php endif; ?>
+                            </td>
                             <td><?= ($r['category_name'] ?? '') !== '' ? e($r['category_name']) : '<span class="text-muted">-</span>' ?></td>
                             <?php if ($canBank): ?>
                                 <td><?= $isBank ? e($r['rekening_sumber'] ?? '-') : '<span class="text-muted">-</span>' ?></td>

@@ -102,7 +102,7 @@ $curRekeningId = $cash['rekening_id'] ?? '';
     </div>
 <?php endif; ?>
 
-<form method="POST" action="<?= BASE_URL ?>/index.php?module=cash&action=<?= $actionUrl ?>" id="cashForm">
+<form method="POST" action="<?= BASE_URL ?>/index.php?module=cash&action=<?= $actionUrl ?>" id="cashForm" enctype="multipart/form-data">
     <?= csrfField() ?>
     <?php if ($isEdit): ?>
         <input type="hidden" name="id" value="<?= (int) $cash['id'] ?>">
@@ -181,6 +181,42 @@ $curRekeningId = $cash['rekening_id'] ?? '';
                         <?php endforeach; ?>
                     </select>
                     <div class="form-text">Opsional. Sumber: Master Data &rarr; Master Rekening.</div>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label" for="cash_proof_file">Bukti Foto</label>
+                    <input type="file" name="proof_file" id="cash_proof_file" class="form-control"
+                           accept="image/jpeg,image/png,image/webp,application/pdf">
+                    <div class="form-text">
+                        Opsional. Foto nota/kwitansi atau PDF &mdash; JPG, PNG, WEBP, atau PDF, maks. 5 MB
+                        (di HP bisa langsung ambil foto dari kamera).
+                    </div>
+                    <div id="cash_proof_preview" class="mt-2 d-none">
+                        <img src="" alt="Pratinjau bukti" class="img-thumbnail" style="max-height:140px;">
+                    </div>
+                    <?php if ($isEdit && !empty($cash['proof_file'])): ?>
+                        <?php $curProofUrl = fileUrl($cash['proof_file']); ?>
+                        <?php $curProofIsPdf = strtolower(pathinfo($cash['proof_file'], PATHINFO_EXTENSION)) === 'pdf'; ?>
+                        <div class="mt-2 p-2 border rounded bg-light small">
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <i class="bi bi-paperclip"></i>
+                                <span>Bukti saat ini:</span>
+                                <a href="<?= e($curProofUrl) ?>" target="_blank" rel="noopener">
+                                    <?= $curProofIsPdf ? 'lihat PDF' : 'lihat foto' ?>
+                                </a>
+                            </div>
+                            <?php if (!$curProofIsPdf): ?>
+                                <a href="<?= e($curProofUrl) ?>" target="_blank" rel="noopener">
+                                    <img src="<?= e($curProofUrl) ?>" alt="Bukti saat ini" class="img-thumbnail mt-2" style="max-height:120px;">
+                                </a>
+                            <?php endif; ?>
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" name="remove_proof" value="1" id="cash_remove_proof">
+                                <label class="form-check-label" for="cash_remove_proof">Hapus bukti ini</label>
+                            </div>
+                            <div class="text-muted mt-1">Pilih file baru di atas untuk mengganti bukti.</div>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -409,6 +445,35 @@ $curRekeningId = $cash['rekening_id'] ?? '';
 
     tableBody.querySelectorAll('.item-row').forEach(applyRowCategory);
     recalcAll();
+})();
+</script>
+
+<script>
+// Bukti Foto: cek ukuran (maks 5 MB) sebelum kirim + pratinjau gambar yang dipilih.
+// Validasi resmi tetap di server (handleFileUpload) -- ini hanya pelayanan cepat.
+(function () {
+    var input = document.getElementById('cash_proof_file');
+    var box = document.getElementById('cash_proof_preview');
+    if (!input || !box) { return; }
+    var img = box.querySelector('img');
+    var MAX = 5 * 1024 * 1024;
+    input.addEventListener('change', function () {
+        box.classList.add('d-none');
+        var f = input.files && input.files[0];
+        if (!f) { return; }
+        if (f.size > MAX) {
+            alert('Ukuran file bukti maksimal 5 MB. File yang dipilih ' + (f.size / 1048576).toFixed(1) + ' MB.');
+            input.value = '';
+            return;
+        }
+        if (f.type && f.type.indexOf('image/') === 0 && window.URL) {
+            if (img.dataset.blob) { URL.revokeObjectURL(img.dataset.blob); }
+            var u = URL.createObjectURL(f);
+            img.dataset.blob = u;
+            img.src = u;
+            box.classList.remove('d-none');
+        }
+    });
 })();
 </script>
 

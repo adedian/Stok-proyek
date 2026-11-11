@@ -149,6 +149,13 @@ $modals = ''; // dikumpulkan lalu dirender DI LUAR <table> (form dalam <tbody> r
                                         <div class="col-sm-4"><span class="text-muted">Mutasi</span><br><?= ucfirst($r['mutasi']) ?></div>
                                         <div class="col-sm-4"><span class="text-muted">Dibuat oleh</span><br><?= e($r['created_by_name'] ?? '-') ?></div>
                                         <div class="col-sm-4"><span class="text-muted">Total</span><br><strong><?= formatRupiah($r['total_amount']) ?></strong></div>
+                                        <div class="col-sm-4"><span class="text-muted">Bukti</span><br>
+                                          <?php if (!empty($r['proof_file'])): ?>
+                                            <a href="<?= e(fileUrl($r['proof_file'])) ?>" target="_blank" rel="noopener"><i class="bi bi-paperclip"></i> Lihat bukti</a>
+                                          <?php else: ?>
+                                            <span class="text-muted">-</span>
+                                          <?php endif; ?>
+                                        </div>
                                       </div>
                                       <div class="table-responsive mb-3">
                                         <table class="table table-sm mb-0 entry-cards">

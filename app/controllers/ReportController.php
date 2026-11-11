@@ -172,8 +172,19 @@ class ReportController extends Controller
         $role = currentUserRole();
 
         if (!in_array($role, [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING], true)) {
-            // Role project: hanya Kartu Stok (Revisi 9).
-            $out = array_values(array_filter($all, fn($r) => $r['key'] === 'inventory'));
+            // Role project: Kartu Stok (Revisi 9) + Laporan Kas / Bank untuk tim Project
+            // (PIC Project & Admin Project, mis. Tio/Adil/Rizal/Gusti). Isi laporan TETAP
+            // dibatasi per-PIC/project-nya sendiri oleh CashController::report() -- kartu ini
+            // hanya tautan; gerbang Kas (Project + password akun) tetap berlaku. Project
+            // Manager tidak ikut (tidak diminta).
+            $out = array_values(array_filter($all, function ($r) use ($role) {
+                if ($r['key'] === 'inventory') {
+                    return true;
+                }
+                return $r['key'] === 'cash'
+                    && in_array($role, [ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT], true)
+                    && can('cash', 'view');
+            }));
         } else {
             $out = array_values(array_filter($all, function ($r) use ($role) {
                 if ($r['key'] === 'activityLog') {

@@ -37,5 +37,5 @@ Options -Indexes -ExecCGI -MultiViews
 # Daftar harus sama dengan FileController::GATED + request_budget.
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteRule ^(payments|bukti_pembelian|invoice_penerimaan|invoice|request_budget)/ - [F,L]
+    RewriteRule ^(payments|bukti_pembelian|invoice_penerimaan|invoice|request_budget|bukti_kas)/ - [F,L]
 </IfModule>

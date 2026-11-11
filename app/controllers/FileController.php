@@ -27,6 +27,7 @@ class FileController extends Controller
         'bukti_pembelian'    => 'offline_purchase',
         'invoice_penerimaan' => 'goods_receipt',
         'invoice'            => 'sales_invoice',
+        'bukti_kas'          => 'cash',
     ];
 
     public function __construct()

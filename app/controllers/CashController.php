@@ -809,6 +809,15 @@ class CashController extends Controller
             $this->redirect('cash', 'create');
         }
 
+        // Bukti foto/dokumen (opsional). Divalidasi & disimpan SEBELUM transaction DB; kalau
+        // penyimpanan transaksi gagal, file yang sudah terlanjur tersimpan dibuang lagi.
+        try {
+            $proofFile = handleFileUpload('proof_file', 'bukti_kas', ['jpg', 'jpeg', 'png', 'webp', 'pdf'], 5);
+        } catch (RuntimeException $e) {
+            setFlash('error', 'Bukti: ' . $e->getMessage());
+            $this->redirect('cash', 'create');
+        }
+
         $pdo = getPDO();
         try {
             $pdo->beginTransaction();
@@ -832,6 +841,7 @@ class CashController extends Controller
                 'division'      => $this->resolveDivision($data['pic']),
                 'project_id'    => $resolvedProjectId,
                 'rekening_id'   => $data['rekening_id'],
+                'proof_file'    => $proofFile,
                 'no_bukti'      => $noBukti,
                 'mutasi'        => $data['mutasi'],
                 'total_amount'  => $this->sumItems($items),
@@ -872,6 +882,7 @@ class CashController extends Controller
         } catch (Throwable $e) {
             $pdo->rollBack();
             error_log('Cash store error: ' . $e->getMessage());
+            deleteUploadedFile($proofFile); // transaksi batal -> jangan tinggalkan file yatim
             setFlash('error', 'Gagal menyimpan transaksi Kas. Silakan coba lagi.');
             $this->redirect('cash', 'create');
         }
@@ -1115,6 +1126,22 @@ class CashController extends Controller
         assertPeriodOpen('cash', $existing['trx_date'], 'cash', 'edit', ['id' => $id]);
         assertPeriodOpen('cash', $data['trx_date'], 'cash', 'edit', ['id' => $id]);
 
+        // Bukti foto/dokumen: file baru menggantikan yang lama; centang "hapus bukti" tanpa
+        // file baru = kosongkan. File lama baru dibuang SETELAH transaksi DB sukses commit.
+        try {
+            $newProof = handleFileUpload('proof_file', 'bukti_kas', ['jpg', 'jpeg', 'png', 'webp', 'pdf'], 5);
+        } catch (RuntimeException $e) {
+            setFlash('error', 'Bukti: ' . $e->getMessage());
+            $this->redirect('cash', 'edit', ['id' => $id]);
+        }
+        $oldProof = $existing['proof_file'] ?? null;
+        $proofPatch = [];
+        if ($newProof !== null) {
+            $proofPatch = ['proof_file' => $newProof];
+        } elseif (!empty($_POST['remove_proof']) && $oldProof) {
+            $proofPatch = ['proof_file' => null];
+        }
+
         $pdo = getPDO();
         try {
             $pdo->beginTransaction();
@@ -1143,7 +1170,7 @@ class CashController extends Controller
                 // rollback bila penyimpanan gagal.
                 'last_edited_by' => currentUserId(),
                 'last_edited_at' => date('Y-m-d H:i:s'),
-            ]);
+            ] + $proofPatch);
             $this->itemModel->deleteByTransaction($id);
             $this->saveItems($id, $items, $resolvedProjectId);
 
@@ -1158,11 +1185,15 @@ class CashController extends Controller
                 . ($n > 0 ? ' (stok disesuaikan ulang)' : ''));
 
             $pdo->commit();
+            if ($proofPatch && $oldProof) {
+                deleteUploadedFile($oldProof); // bukti lama sudah tergantikan/dihapus
+            }
             setFlash('success', 'Transaksi Kas berhasil diperbarui.');
             $this->redirect('cash', 'index');
         } catch (Throwable $e) {
             $pdo->rollBack();
             error_log('Cash update error: ' . $e->getMessage());
+            deleteUploadedFile($newProof); // update batal -> buang file baru yang belum terpakai
             setFlash('error', $e instanceof InsufficientStockException ? $e->getMessage() : 'Gagal memperbarui transaksi Kas.');
             $this->redirect('cash', 'edit', ['id' => $id]);
         }

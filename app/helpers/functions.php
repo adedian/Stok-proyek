@@ -203,7 +203,7 @@ function fileUrl(?string $relPath): string
         return '';
     }
 
-    static $gated = ['payments', 'bukti_pembelian', 'invoice_penerimaan', 'invoice', 'request_budget'];
+    static $gated = ['payments', 'bukti_pembelian', 'invoice_penerimaan', 'invoice', 'request_budget', 'bukti_kas'];
     if (preg_match('#^uploads/([a-z0-9_]+)/#', $relPath, $m) && in_array($m[1], $gated, true)) {
         return route('file', 'show', ['path' => $relPath]);
     }

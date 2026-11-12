@@ -6,6 +6,14 @@ if (empty($items)) {
     $items = [['description' => '', 'qty' => '', 'unit' => '', 'unit_price' => '']];
 }
 $isDraftInvoice = $isEdit && ($invoice['status'] ?? 'final') === 'draft';
+// Invoice yang terbit dari Order Penjualan (hanya Draft yang sampai ke form ini, lihat SalesInvoice::editBlock()):
+// nomor, customer, PO Customer, barang/satuan/harga terkunci ke order; hanya qty (<= sisa tertagih), baris, termin, PPN, tanggal, dll. yang diedit.
+$soLinked = $isEdit && !empty($invoice['sales_order_id']);
+$orderLines = $orderLines ?? [];
+$orderLineMap = [];
+foreach ($orderLines as $ol) {
+    $orderLineMap[(int) $ol['so_item_id']] = $ol;
+}
 $terms = $terms ?? [];
 if (empty($terms)) {
     $terms = [['label' => '', 'percentage' => '', 'dp_percentage_id' => null, 'due_date' => '']];
@@ -31,6 +39,18 @@ if (empty($terms)) {
     <?= csrfField() ?>
     <?php if ($isEdit): ?>
         <input type="hidden" name="id" value="<?= (int) $invoice['id'] ?>">
+        <?php /* Penanda versi baris: server menolak simpan bila invoice sudah diubah pengguna/tab lain sejak halaman ini dibuka. */ ?>
+        <input type="hidden" name="row_version" value="<?= e($invoice['updated_at'] ?? '') ?>">
+    <?php endif; ?>
+
+    <?php if ($soLinked): ?>
+        <div class="alert alert-info small">
+            <i class="bi bi-bag-check"></i> Draft ini berasal dari Order Penjualan
+            <strong><?= e($invoice['sales_order_number'] ?? '') ?></strong> (PO Customer <strong><?= e($invoice['sales_order_po_number'] ?? '') ?></strong>).
+            Nomor invoice, customer, PO Customer, barang, satuan &amp; harga mengikuti order dan terkunci.
+            Qty boleh diubah selama tidak melebihi barang yang sudah dikeluarkan dan belum ditagih; baris boleh dihapus atau ditambah dari barang order.
+            Order Penjualan <u>tidak perlu dibatalkan</u>.
+        </div>
     <?php endif; ?>
 
     <?php if ($isDraftInvoice): ?>
@@ -46,9 +66,9 @@ if (empty($terms)) {
                 <div class="col-md-4">
                     <label class="form-label">No. Invoice <span class="text-danger">*</span></label>
                     <?php if ($isEdit): ?>
-                        <input type="text" name="invoice_number" id="invoice_number" class="form-control" maxlength="50"
-                               value="<?= e($invoice['invoice_number'] ?? '') ?>" autocomplete="off" required>
-                        <div class="form-text">Boleh dikoreksi, harus unik (maks. 50 karakter).</div>
+                        <input type="text" name="invoice_number" id="invoice_number" class="form-control<?= $soLinked ? ' bg-light' : '' ?>" maxlength="50"
+                               value="<?= e($invoice['invoice_number'] ?? '') ?>" autocomplete="off" <?= $soLinked ? 'readonly' : '' ?> required>
+                        <div class="form-text"><?= $soLinked ? 'Nomor dipertahankan (invoice dari Order Penjualan).' : 'Boleh dikoreksi, harus unik (maks. 50 karakter).' ?></div>
                     <?php else: ?>
                         <?php $numberPreviews = $numberPreviews ?? []; ?>
                         <input type="text" id="invoice_number" class="form-control bg-light" readonly tabindex="-1"
@@ -131,7 +151,8 @@ if (empty($terms)) {
                 <div class="col-md-4">
                     <label class="form-label">Client <span class="text-danger">*</span></label>
                     <div class="input-group">
-                        <select name="client_id" id="client_id" class="form-select" required>
+                        <?php if ($soLinked): ?><input type="hidden" name="client_id" value="<?= (int) $invoice['client_id'] ?>"><?php endif; ?>
+                        <select <?= $soLinked ? 'disabled' : 'name="client_id"' ?> id="client_id" class="form-select" required>
                             <option value="">-- Pilih Client --</option>
                             <?php foreach ($clients as $c): ?>
                                 <option value="<?= (int) $c['id'] ?>" <?= (int) ($invoice['client_id'] ?? 0) === (int) $c['id'] ? 'selected' : '' ?>>
@@ -177,11 +198,11 @@ if (empty($terms)) {
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">No. Kontrak <span class="text-muted small">(opsional)</span></label>
-                    <input type="text" name="contract_number" class="form-control" value="<?= e($invoice['contract_number'] ?? '') ?>">
+                    <input type="text" name="contract_number" class="form-control<?= $soLinked ? ' bg-light' : '' ?>" value="<?= e($invoice['contract_number'] ?? '') ?>" <?= $soLinked ? 'readonly' : '' ?>>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Tanggal Kontrak</label>
-                    <input type="date" name="contract_date" class="form-control" value="<?= e($invoice['contract_date'] ?? '') ?>">
+                    <input type="date" name="contract_date" class="form-control<?= $soLinked ? ' bg-light' : '' ?>" value="<?= e($invoice['contract_date'] ?? '') ?>" <?= $soLinked ? 'readonly' : '' ?>>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">No. Faktur Pajak <span class="text-muted small">(opsional)</span></label>
@@ -201,9 +222,25 @@ if (empty($terms)) {
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <label class="form-label mb-0 fw-semibold">Baris Item</label>
+                <?php if ($soLinked): ?>
+                    <?php /* Baris invoice dari Order hanya boleh berupa barang order: tombol Tambah Baris bebas disembunyikan, diganti picker di bawah. */ ?>
+                    <button type="button" class="btn btn-sm btn-outline-primary d-none" id="btnAddRow">
+                        <i class="bi bi-plus-lg"></i> Tambah Baris
+                    </button>
+                    <div class="input-group input-group-sm" style="max-width: 460px;">
+                        <select id="orderLinePicker" class="form-select">
+                            <option value="">-- Tambah barang dari Order Penjualan --</option>
+                            <?php foreach ($orderLines as $ol): ?>
+                                <option value="<?= (int) $ol['so_item_id'] ?>"><?= e($ol['item_name']) ?> (maks. <?= e(rtrim(rtrim(number_format($ol['max_qty'], 2, '.', ''), '0'), '.') ?: '0') ?> <?= e($ol['unit']) ?>)</option>
+                            <?php endforeach; ?>
+                        </select>
+                        <button type="button" class="btn btn-outline-primary" id="btnAddOrderLine"><i class="bi bi-plus-lg"></i> Tambah dari Order</button>
+                    </div>
+                <?php else: ?>
                 <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddRow" data-inline-add="#itemTableBody">
                     <i class="bi bi-plus-lg"></i> Tambah Baris
                 </button>
+                <?php endif; ?>
             </div>
             <div class="table-responsive">
                 <table class="table table-sm align-middle mb-0 entry-cards">
@@ -232,9 +269,13 @@ if (empty($terms)) {
                                     }
                                 }
                             ?>
+                            <?php
+                                $rowSoId = $soLinked ? (int) ($item['sales_order_item_id'] ?? 0) : 0;
+                                $rowSoLine = $rowSoId ? ($orderLineMap[$rowSoId] ?? null) : null;
+                            ?>
                             <tr class="item-row">
                                 <td>
-                                    <div class="input-group input-group-sm mb-1">
+                                    <div class="input-group input-group-sm mb-1<?= $soLinked ? ' d-none' : '' ?>">
                                         <select class="form-select item-select">
                                             <option value="">-- Pilih dari Master Barang (opsional) --</option>
                                             <?php foreach ($itemCatalog as $ic): ?>
@@ -252,13 +293,14 @@ if (empty($terms)) {
                                     </div>
                                     <div class="small text-muted item-code-hint mb-1"><?= $selectedItemCode !== '' ? 'Kode: ' . e($selectedItemCode) : '' ?></div>
                                     <input type="hidden" name="item_id[]" class="item-id-input" value="<?= $selectedItemId ?: '' ?>">
-                                    <input type="hidden" name="so_item_id[]" class="so-item-id-input" value="">
+                                    <input type="hidden" name="so_item_id[]" class="so-item-id-input" value="<?= $rowSoId ?: '' ?>">
                                     <input type="text" name="description[]" class="form-control form-control-sm description-input" value="<?= e($item['description']) ?>" placeholder="Deskripsi pekerjaan/barang (boleh diedit bebas)" required>
                                 </td>
-                                <td><input type="number" name="qty[]" class="form-control form-control-sm qty-input" value="<?= e($item['qty']) ?>" min="0.01" step="0.01" required></td>
-                                <td><input type="text" name="unit[]" class="form-control form-control-sm unit-input" list="unitOptions" value="<?= e($item['unit']) ?>" placeholder="Pilih/ketik satuan" required></td>
-                                <td><input type="text" name="unit_price[]" class="form-control form-control-sm price-input currency-input" inputmode="numeric"
-                                           value="<?= $item['unit_price'] !== '' ? number_format((float) $item['unit_price'], 2, '.', ',') : '' ?>" placeholder="0" required></td>
+                                <td><input type="number" name="qty[]" class="form-control form-control-sm qty-input" value="<?= e($item['qty']) ?>" min="0.01" step="0.01"
+                                           <?= $rowSoLine ? 'max="' . e($rowSoLine['max_qty']) . '" title="Maks. ' . e($rowSoLine['max_qty']) . ' (sudah dikeluarkan, belum ditagih di invoice lain)"' : '' ?> required></td>
+                                <td><input type="text" name="unit[]" class="form-control form-control-sm unit-input<?= $soLinked ? ' bg-light' : '' ?>" list="unitOptions" value="<?= e($item['unit']) ?>" placeholder="Pilih/ketik satuan" <?= $soLinked ? 'readonly' : '' ?> required></td>
+                                <td><input type="text" name="unit_price[]" class="form-control form-control-sm price-input currency-input<?= $soLinked ? ' bg-light' : '' ?>" inputmode="numeric"
+                                           value="<?= $item['unit_price'] !== '' ? number_format((float) $item['unit_price'], 2, '.', ',') : '' ?>" placeholder="0" <?= $soLinked ? 'readonly' : '' ?> required></td>
                                 <td class="text-end subtotal-cell">Rp 0.00</td>
                                 <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger btn-remove-row"><i class="bi bi-trash"></i></button></td>
                             </tr>
@@ -631,6 +673,36 @@ if (empty($terms)) {
             '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger btn-remove-row"><i class="bi bi-trash"></i></button></td>';
         tableBody.appendChild(tr);
     });
+
+    // ---------- Invoice dari Order Penjualan: tambah baris hanya dari barang order ----------
+    // (Backend tetap memvalidasi ulang: barang, satuan, harga & batas qty diambil dari order, bukan dari angka di layar.)
+    const orderLines = <?= json_encode(array_values($orderLines), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;
+    const orderPickerBtn = document.getElementById('btnAddOrderLine');
+    if (orderPickerBtn) {
+        const picker = document.getElementById('orderLinePicker');
+        orderPickerBtn.addEventListener('click', function () {
+            const line = orderLines.find(function (l) { return String(l.so_item_id) === picker.value; });
+            if (!line) { alert('Pilih barang dari Order Penjualan terlebih dahulu.'); return; }
+            document.getElementById('btnAddRow').click();
+            const rows = tableBody.querySelectorAll('.item-row');
+            const row = rows[rows.length - 1];
+            row.querySelector('.item-select').closest('.input-group').classList.add('d-none');
+            row.querySelector('.item-code-hint').classList.add('d-none');
+            row.querySelector('.item-id-input').value = line.item_id || '';
+            row.querySelector('.so-item-id-input').value = line.so_item_id;
+            row.querySelector('.description-input').value = line.description;
+            const unit = row.querySelector('.unit-input');
+            unit.value = line.unit; unit.readOnly = true; unit.classList.add('bg-light');
+            const price = row.querySelector('.price-input');
+            price.value = Number(line.unit_price || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            price.readOnly = true; price.classList.add('bg-light');
+            const qty = row.querySelector('.qty-input');
+            qty.max = line.max_qty; qty.value = line.max_qty;
+            picker.value = '';
+            if (typeof window.resyncSearchableSelect === 'function') { window.resyncSearchableSelect(picker); }
+            recalcAll();
+        });
+    }
 
     // ---------- Kategori Invoice: Barang / Jasa ----------
     // Jasa = baris item hanya deskripsi bebas (picker Master Barang disembunyikan & item_id dikosongkan).

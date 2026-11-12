@@ -182,7 +182,13 @@
                                         <?php if (isPeriodClosed('sales_invoice', $inv['invoice_date'])): ?>
                                         <li><span class="dropdown-item-text text-muted small"><i class="bi bi-lock-fill"></i> Periode ditutup</span></li>
                                         <?php else: ?>
-                                        <?php if (can('sales_invoice', 'edit')): ?>
+                                        <?php
+                                            // Cermin ringan SalesInvoice::editBlock() (tanpa query per baris); backend tetap penjaga utamanya.
+                                            $rowDraft = ($inv['status'] ?? 'final') === 'draft';
+                                            $rowEditable = !(((int) $inv['is_tertagih'] === 1) && (!empty($inv['sales_order_id']) || $rowDraft))
+                                                && !(!empty($inv['sales_order_id']) && !$rowDraft);
+                                        ?>
+                                        <?php if (can('sales_invoice', 'edit') && $rowEditable): ?>
                                             <li>
                                                 <a class="dropdown-item" href="<?= BASE_URL ?>/sales_invoice/edit/<?= (int) $inv['id'] ?>">
                                                     <i class="bi bi-pencil"></i> Edit

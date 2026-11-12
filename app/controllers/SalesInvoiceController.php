@@ -36,6 +36,7 @@ class SalesInvoiceController extends Controller
     private ItemCategory $itemCategoryModel;
     private User $userModel;
     private DeliveryNote $deliveryNoteModel;
+    private SalesOrder $orderModel;
 
     public function __construct()
     {
@@ -53,6 +54,7 @@ class SalesInvoiceController extends Controller
         $this->itemCategoryModel = new ItemCategory();
         $this->userModel         = new User();
         $this->deliveryNoteModel = new DeliveryNote();
+        $this->orderModel        = new SalesOrder();
     }
 
     public function index()
@@ -213,6 +215,8 @@ class SalesInvoiceController extends Controller
             'items'     => $this->itemModel->itemsByInvoice($id),
             'terms'     => $this->termModel->termsByInvoice($id),
             'isBilled'  => $this->invoiceModel->isBilled($id),
+            // null = boleh diedit; selain itu alasan penolakan (tombol Edit disembunyikan & pesan ditampilkan).
+            'editBlock' => $this->invoiceModel->editBlock($invoice),
         ]);
     }
 
@@ -227,12 +231,21 @@ class SalesInvoiceController extends Controller
             setFlash('error', 'Invoice Keluar tidak ditemukan.');
             $this->redirect('sales_invoice', 'index');
         }
-        $this->assertNotFromSalesOrder($invoice);
+        $this->assertEditable($invoice);
+
+        $order = null;
+        $orderLines = [];
+        if (!empty($invoice['sales_order_id'])) {
+            $order = $this->orderModel->find((int) $invoice['sales_order_id']);
+            $orderLines = array_values($this->orderLinesForInvoice($invoice));
+        }
 
         $this->view('sales_invoice/form', [
             'pageTitle' => 'Edit Invoice Keluar',
             'mode'      => 'edit',
             'invoice'   => $invoice,
+            'order'      => $order,
+            'orderLines' => $orderLines,
             'items'     => $this->itemModel->itemsByInvoice($id),
             'terms'     => $this->termModel->termsByInvoice($id),
             'clients'   => $this->clientModel->activeList(),
@@ -261,12 +274,49 @@ class SalesInvoiceController extends Controller
             setFlash('error', 'Invoice Keluar tidak ditemukan.');
             $this->redirect('sales_invoice', 'index');
         }
-        $this->assertNotFromSalesOrder($existing);
+        // Gerbang backend (bukan sekadar tombol disembunyikan): Draft boleh; sudah ada pembayaran / dibatalkan /
+        // final dari Order Penjualan ditolak (aturan di SalesInvoice::editBlock()).
+        $this->assertEditable($existing);
+        $soLinked = !empty($existing['sales_order_id']);
 
         [$data, $items, $terms] = $this->collectInput();
         // Hanya invoice yang masih Draft yang boleh disimpan sebagai Draft lagi; invoice final tidak bisa "diturunkan".
         $wasDraft = ($existing['status'] ?? SalesInvoice::FINAL) === SalesInvoice::DRAFT;
         $isDraft = $wasDraft && $this->isDraftSave();
+
+        // Jenis Invoice (project/lampu) TIDAK BOLEH berubah lewat edit -- nomor
+        // yang sudah tersimpan sudah "mengunci" kodenya (INV.HME vs FKT.HME), jadi
+        // apapun yang dikirim browser diabaikan & selalu dipertahankan dari data
+        // asli. Field-nya di form.php memang <select disabled> (tidak terkirim),
+        // ini lapisan pertahanan kedua supaya tidak bisa dipalsukan lewat request manual.
+        $data['invoice_type'] = $existing['invoice_type'];
+        // Invoice yang diterbitkan dari Surat Jalan wajib tetap Invoice Barang (field di form juga dikunci).
+        if (!empty($existing['delivery_note_id']) || $soLinked) {
+            $data['invoice_category'] = 'barang';
+        }
+
+        if ($soLinked) {
+            // Invoice dari Order Penjualan: nomor, customer & rujukan PO Customer DIPERTAHANKAN (tidak dipercaya dari browser);
+            // tiap baris tetap terikat ke baris order & qty dibatasi pemenuhan.
+            $order = $this->orderModel->find((int) $existing['sales_order_id']);
+            $data['invoice_number']  = $existing['invoice_number'];
+            $data['client_id']       = (int) $existing['client_id'];
+            $data['contract_number'] = $order['po_number'] ?? $existing['contract_number'];
+            $data['contract_date']   = $order['po_date'] ?? $existing['contract_date'];
+            try {
+                $this->applyOrderLinkToItems($existing, $items);
+            } catch (DomainException $e) {
+                setFlash('error', $e->getMessage());
+                $this->redirect('sales_invoice', 'edit', ['id' => $id]);
+            }
+        } else {
+            // Invoice non-Order tidak punya ikatan ke baris order.
+            foreach ($items as &$itRef) {
+                $itRef['sales_order_item_id'] = null;
+            }
+            unset($itRef);
+        }
+
         $errors = $this->validateInput($data, $items, $terms, $id, $isDraft);
 
         if (!empty($errors)) {
@@ -278,26 +328,32 @@ class SalesInvoiceController extends Controller
         assertPeriodOpen('sales_invoice', $existing['invoice_date'], 'sales_invoice', 'edit', ['id' => $id]);
         assertPeriodOpen('sales_invoice', $data['invoice_date'], 'sales_invoice', 'edit', ['id' => $id]);
 
-        // Jenis Invoice (project/lampu) TIDAK BOLEH berubah lewat edit -- nomor
-        // yang sudah tersimpan sudah "mengunci" kodenya (INV.HME vs FKT.HME), jadi
-        // apapun yang dikirim browser diabaikan & selalu dipertahankan dari data
-        // asli. Field-nya di form.php memang <select disabled> (tidak terkirim),
-        // ini lapisan pertahanan kedua supaya tidak bisa dipalsukan lewat request manual.
-        $data['invoice_type'] = $existing['invoice_type'];
-        // Invoice yang diterbitkan dari Surat Jalan wajib tetap Invoice Barang (field di form juga dikunci).
-        if (!empty($existing['delivery_note_id']) || !empty($existing['sales_order_id'])) {
-            $data['invoice_category'] = 'barang';
-        }
-        // Ikatan ke Order Penjualan hanya dibuat saat invoice diterbitkan dari Surat Jalan order (dan itu tidak bisa diedit).
-        foreach ($items as &$itRef) {
-            $itRef['sales_order_item_id'] = null;
-        }
-        unset($itRef);
+        $postedVersion = is_string($_POST['row_version'] ?? null) ? (string) $_POST['row_version'] : '';
 
         $pdo = getPDO();
         try {
             $pdo->beginTransaction();
 
+            // Urutan kunci SAMA dengan penerbitan/pembatalan invoice di Order Penjualan: order dulu, baru invoice
+            // (cegah deadlock). Semua pemeriksaan DIULANG di bawah kunci, sehingga dua pengguna tidak bisa saling menimpa.
+            if ($soLinked) {
+                $this->orderModel->lockForUpdate((int) $existing['sales_order_id']);
+            }
+            $locked = $this->invoiceModel->lockForUpdate($id);
+            if (!$locked) {
+                throw new DomainException('Invoice Keluar sudah tidak ada (dibatalkan/dihapus pengguna lain).');
+            }
+            if ($block = $this->invoiceModel->editBlock($locked)) {
+                throw new DomainException($block['title'] . '. ' . $block['message']);
+            }
+            if ($postedVersion === '' || $postedVersion !== (string) $locked['updated_at']) {
+                throw new DomainException('Invoice ini sudah diubah oleh pengguna lain atau di tab lain sejak halaman edit dibuka. Muat ulang halaman edit lalu ulangi perubahan Anda.');
+            }
+            if ($soLinked) {
+                $this->applyOrderLinkToItems($locked, $items); // qty dicek ulang terhadap pemenuhan terbaru
+            }
+
+            $oldItems = $this->itemModel->itemsByInvoice($id);
             $totals = $this->calculateTotals($items, $terms, $data['ppn_percent']);
 
             $this->invoiceModel->updateById($id, array_merge($data, [
@@ -307,6 +363,7 @@ class SalesInvoiceController extends Controller
                 'dp_amount'        => $totals['dp_amount'],
                 'ppn_amount'       => $totals['ppn_amount'],
                 'total_amount'     => $totals['total'],
+                'updated_at'       => date('Y-m-d H:i:s'),
             ]));
 
             $this->itemModel->deleteByInvoice($id);
@@ -323,7 +380,18 @@ class SalesInvoiceController extends Controller
             } elseif ($isDraft) {
                 $logMsg .= ' (tetap Draft)';
             }
-            $this->activityLog->log(currentUserId(), 'sales_invoice', 'update', $logMsg);
+            $changes = $this->describeChanges($locked, $oldItems, $items, $totals);
+            if ($changes !== '') {
+                $logMsg .= ". Perubahan: {$changes}";
+            }
+            $this->activityLog->log(currentUserId(), 'sales_invoice', 'update', mb_substr($logMsg, 0, 500));
+            if ($soLinked) {
+                // Riwayat juga di Order Penjualan, supaya perubahan invoice terlihat dari sisi order.
+                $this->orderModel->addHistory((int) $existing['sales_order_id'], currentUserId(), 'edit_invoice',
+                    mb_substr("Invoice {$existing['invoice_number']} diedit"
+                        . ($wasDraft && !$isDraft ? ' dan diterbitkan' : ($isDraft ? ' (Draft)' : ''))
+                        . ($changes !== '' ? ". {$changes}" : ''), 0, 500));
+            }
 
             $pdo->commit();
 
@@ -336,8 +404,16 @@ class SalesInvoiceController extends Controller
                 ? 'Draft Invoice Keluar berhasil disimpan.'
                 : ($wasDraft ? 'Invoice Keluar berhasil diterbitkan.' : 'Invoice Keluar berhasil diperbarui.'));
             $this->redirect('sales_invoice', 'detail', ['id' => $id]);
+        } catch (DomainException $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            setFlash('error', $e->getMessage());
+            $this->redirect('sales_invoice', 'edit', ['id' => $id]);
         } catch (Throwable $e) {
-            $pdo->rollBack();
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
             error_log('SalesInvoice update error: ' . $e->getMessage());
             setFlash('error', 'Gagal memperbarui Invoice Keluar.');
             $this->redirect('sales_invoice', 'edit', ['id' => $id]);
@@ -879,18 +955,124 @@ class SalesInvoiceController extends Controller
     }
 
     /**
-     * Invoice yang diterbitkan dari Order Penjualan terikat ke jumlah barang yang sudah dikeluarkan
-     * (kolom sales_order_item_id) -- mengedit barisnya lewat form umum akan memutus ikatan itu dan
-     * bisa membuat penagihan melebihi barang yang dikirim. Koreksi: batalkan invoice di detail
-     * Order Penjualan lalu terbitkan ulang.
+     * Gerbang edit di backend. Aturan lengkap di SalesInvoice::editBlock(): Draft tanpa pembayaran boleh diedit
+     * langsung (termasuk yang berasal dari Order Penjualan); sudah ada pembayaran / dibatalkan / final dari Order ditolak.
      */
-    private function assertNotFromSalesOrder(array $invoice): void
+    private function assertEditable(array $invoice): void
     {
-        if (!empty($invoice['sales_order_id'])) {
-            setFlash('error', "Invoice {$invoice['invoice_number']} diterbitkan dari Order Penjualan, sehingga tidak bisa diedit dari sini. "
-                . 'Batalkan invoice di detail Order Penjualan lalu terbitkan ulang.');
+        $block = $this->invoiceModel->editBlock($invoice);
+        if ($block) {
+            setFlash('error', "{$block['title']}. {$block['message']}");
             $this->redirect('sales_invoice', 'detail', ['id' => (int) $invoice['id']]);
         }
+    }
+
+    /**
+     * Baris Order Penjualan yang boleh ditagih invoice ini, per sales_order_item_id. Batas qty = dikeluarkan -
+     * ditagih di invoice LAIN (qty invoice ini sendiri tidak dihitung dua kali); bila invoice terbit dari Surat Jalan,
+     * hanya barang pada Surat Jalan itu dan qty-nya dibatasi qty Surat Jalan. Harga selalu net_price order.
+     */
+    private function orderLinesForInvoice(array $invoice): array
+    {
+        $orderId = (int) $invoice['sales_order_id'];
+        $invoiceId = (int) $invoice['id'];
+        $dnQty = null;
+        if (!empty($invoice['delivery_note_id'])) {
+            $dnQty = [];
+            foreach ($this->deliveryNoteModel->invoiceLines((int) $invoice['delivery_note_id'], true) as $l) {
+                $dnQty[(int) $l['sales_order_item_id']] = (float) $l['qty'];
+            }
+        }
+        $lines = [];
+        foreach ($this->orderModel->itemsRaw($orderId) as $l) {
+            $lid = (int) $l['id'];
+            if ($dnQty !== null && !isset($dnQty[$lid])) {
+                continue;
+            }
+            $max = round($this->orderModel->fulfilledQty($lid) - $this->orderModel->invoicedQty($lid, $invoiceId), 2);
+            if ($dnQty !== null) {
+                $max = min($max, $dnQty[$lid]);
+            }
+            $desc = $l['item_name'] . (trim((string) ($l['specification'] ?? '')) !== '' ? ' - ' . preg_replace('/\s+/', ' ', trim($l['specification'])) : '');
+            $lines[$lid] = [
+                'so_item_id'  => $lid,
+                'item_id'     => $l['item_id'] ? (int) $l['item_id'] : null,
+                'item_name'   => $l['item_name'],
+                'description' => mb_substr($desc, 0, 255),
+                'unit'        => $l['unit'],
+                'unit_price'  => (float) $l['net_price'],
+                'max_qty'     => max(0.0, $max),
+            ];
+        }
+        return $lines;
+    }
+
+    /**
+     * Invoice dari Order Penjualan: tiap baris WAJIB tetap terikat ke baris order (sales_order_item_id), barang/satuan/harga
+     * diambil dari order, dan total qty per baris order tidak boleh melebihi yang sudah dikeluarkan dan belum ditagih invoice
+     * lain. Dipanggil dua kali (sebelum validasi, lalu diulang di bawah kunci transaksi).
+     * @throws DomainException
+     */
+    private function applyOrderLinkToItems(array $invoice, array &$items): void
+    {
+        $lines = $this->orderLinesForInvoice($invoice);
+        $perLine = [];
+        foreach ($items as &$it) {
+            $lid = (int) ($it['sales_order_item_id'] ?? 0);
+            if ($lid <= 0 || !isset($lines[$lid])) {
+                throw new DomainException("Baris '{$it['description']}' tidak terhubung ke barang pada Order Penjualan invoice ini. Tambahkan barang lewat tombol \"Tambah dari Order\".");
+            }
+            $it['item_id']    = $lines[$lid]['item_id'];
+            $it['unit']       = $lines[$lid]['unit'];
+            $it['unit_price'] = $lines[$lid]['unit_price'];
+            $it['subtotal']   = round($it['qty'] * $it['unit_price'], 2);
+            $perLine[$lid] = ($perLine[$lid] ?? 0.0) + $it['qty'];
+        }
+        unset($it);
+        foreach ($perLine as $lid => $sum) {
+            if ($sum > $lines[$lid]['max_qty'] + SalesOrder::EPS) {
+                throw new DomainException("Qty '{$lines[$lid]['item_name']}' (" . self::fmtQty($sum) . ') melebihi barang yang sudah dikeluarkan dan belum ditagih di invoice lain (tersisa '
+                    . self::fmtQty($lines[$lid]['max_qty']) . ').');
+            }
+        }
+    }
+
+    /** Ringkasan perubahan untuk Riwayat Aktivitas / Riwayat Order (total + baris barang yang berubah). */
+    private function describeChanges(array $before, array $oldItems, array $newItems, array $totals): string
+    {
+        $parts = [];
+        if (abs((float) $before['total_amount'] - (float) $totals['total']) > 0.004) {
+            $parts[] = 'total ' . formatRupiah((float) $before['total_amount']) . ' -> ' . formatRupiah((float) $totals['total']);
+        }
+        $key = fn(array $r) => !empty($r['sales_order_item_id']) ? 'so' . $r['sales_order_item_id'] : 'd' . mb_strtolower(trim((string) $r['description']));
+        $old = [];
+        $new = [];
+        $names = [];
+        foreach ($oldItems as $r) {
+            $old[$key($r)] = ($old[$key($r)] ?? 0.0) + (float) $r['qty'];
+            $names[$key($r)] = $r['description'];
+        }
+        foreach ($newItems as $r) {
+            $new[$key($r)] = ($new[$key($r)] ?? 0.0) + (float) $r['qty'];
+            $names[$key($r)] = $r['description'];
+        }
+        $diffs = [];
+        foreach (array_unique(array_merge(array_keys($old), array_keys($new))) as $k) {
+            $o = $old[$k] ?? null;
+            $n = $new[$k] ?? null;
+            $label = mb_substr((string) $names[$k], 0, 40);
+            if ($o === null) {
+                $diffs[] = "+ {$label} (" . self::fmtQty($n) . ')';
+            } elseif ($n === null) {
+                $diffs[] = "- {$label}";
+            } elseif (abs($o - $n) > 0.004) {
+                $diffs[] = "{$label}: qty " . self::fmtQty($o) . ' -> ' . self::fmtQty($n);
+            }
+        }
+        if ($diffs) {
+            $parts[] = 'barang: ' . implode('; ', array_slice($diffs, 0, 6)) . (count($diffs) > 6 ? '; dst.' : '');
+        }
+        return implode(', ', $parts);
     }
 
     /** Rumus Invoice Keluar -- lihat SalesInvoice::calculateTotals() (satu sumber, juga dipakai Order Penjualan). */

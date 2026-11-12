@@ -281,6 +281,77 @@ class SalesInvoice extends Model
     }
 
     /**
+     * Jumlah transaksi pembayaran/penagihan yang menempel di invoice ini. Saat ini satu-satunya
+     * dokumen keuangan yang mengikat Invoice Keluar adalah Tanda Terima (belum ada tabel pembayaran
+     * Kas/Bank yang menunjuk invoice), jadi nilainya = jumlah Tanda Terima aktif yang memuatnya.
+     * SATU-SATUNYA tempat definisi "sudah ada pembayaran": bila nanti ada tabel pembayaran invoice,
+     * cukup tambahkan di sini -- semua gerbang edit ikut berubah.
+     */
+    public function paymentCount(int $id): int
+    {
+        $row = $this->db->fetchOne(
+            "SELECT COUNT(*) AS n
+               FROM collection_receipt_items cri
+               JOIN collection_receipts cr ON cr.id = cri.collection_receipt_id AND cr.deleted_at IS NULL
+              WHERE cri.sales_invoice_id = :id",
+            ['id' => $id]
+        );
+        return (int) ($row['n'] ?? 0);
+    }
+
+    /** Baca baris invoice + KUNCI (SELECT ... FOR UPDATE). Hanya di dalam transaksi. Null bila tidak ada / sudah dihapus. */
+    public function lockForUpdate(int $id)
+    {
+        return $this->db->fetchOne("SELECT * FROM sales_invoices WHERE id = :id AND deleted_at IS NULL FOR UPDATE", ['id' => $id]);
+    }
+
+    /**
+     * Aturan edit Invoice Keluar -- SATU sumber kebenaran (dipakai edit(), update(), tombol di detail & list).
+     * Mengembalikan null bila boleh diedit, atau ['title' =>, 'message' =>, 'kind' =>] alasan ditolak:
+     *   - Sudah dibatalkan (dihapus / Order Penjualan dibatalkan)  -> tidak bisa diedit
+     *   - Sudah ada pembayaran (Tanda Terima) pada invoice Draft    -> tidak bisa diedit langsung
+     *   - Berasal dari Order Penjualan & sudah Final (diterbitkan)  -> prosedur koreksi: batalkan di Order lalu terbitkan ulang
+     *   - Draft, belum ada pembayaran                               -> boleh diedit langsung (juga bila dari Order Penjualan)
+     * Invoice Final non-Order tetap bisa diedit seperti sebelumnya.
+     */
+    public function editBlock(array $invoice): ?array
+    {
+        $id = (int) ($invoice['id'] ?? 0);
+        if (!empty($invoice['deleted_at'])) {
+            return ['kind' => 'cancelled', 'title' => 'Invoice sudah dibatalkan', 'message' => 'Invoice yang sudah dibatalkan tidak dapat diedit.'];
+        }
+        $isDraft = ($invoice['status'] ?? self::FINAL) === self::DRAFT;
+        $fromOrder = !empty($invoice['sales_order_id']);
+
+        if ($fromOrder) {
+            $order = $this->db->fetchOne("SELECT status FROM sales_orders WHERE id = :id", ['id' => (int) $invoice['sales_order_id']]);
+            if (!$order || $order['status'] === 'dibatalkan') {
+                return ['kind' => 'cancelled', 'title' => 'Order Penjualan sudah dibatalkan', 'message' => 'Order Penjualan asal invoice ini sudah dibatalkan, sehingga invoice tidak dapat diedit.'];
+            }
+        }
+
+        if (($isDraft || $fromOrder) && $this->paymentCount($id) > 0) {
+            return [
+                'kind'    => 'paid',
+                'title'   => 'Invoice tidak dapat diedit langsung',
+                'message' => $fromOrder
+                    ? 'Invoice ini sudah memiliki transaksi pembayaran. Untuk melakukan perubahan, silakan selesaikan proses pembatalan melalui Order Penjualan sesuai prosedur yang berlaku.'
+                    : 'Invoice ini sudah memiliki transaksi pembayaran. Untuk melakukan perubahan, silakan batalkan terlebih dahulu dokumen pembayaran (Tanda Terima) yang memuat invoice ini sesuai prosedur yang berlaku.',
+            ];
+        }
+
+        if ($fromOrder && !$isDraft) {
+            return [
+                'kind'    => 'final_order',
+                'title'   => 'Invoice tidak dapat diedit langsung',
+                'message' => 'Invoice ini sudah diterbitkan dari Order Penjualan dan jumlah barangnya terikat ke pemenuhan order. Untuk koreksi, batalkan invoice di detail Order Penjualan lalu terbitkan ulang.',
+            ];
+        }
+
+        return null;
+    }
+
+    /**
      * Invoice milik 1 client yang boleh dipilih untuk sebuah Tanda Terima:
      * belum pernah ditagih ($isBilled), ATAU sudah ditagih tapi di receipt yang
      * SEDANG diedit ($excludeReceiptId) -- dipakai form Edit Tanda Terima supaya

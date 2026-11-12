@@ -8,7 +8,7 @@
            class="btn btn-outline-dark" target="_blank">
             <i class="bi bi-printer"></i> Cetak Invoice
         </a>
-        <?php if (can('sales_invoice', 'edit') && empty($invoice['sales_order_id'])): ?>
+        <?php if (can('sales_invoice', 'edit') && empty($editBlock)): ?>
             <a href="<?= BASE_URL ?>/sales_invoice/edit/<?= (int) $invoice['id'] ?>" class="btn btn-outline-primary">
                 <i class="bi bi-pencil"></i> Edit
             </a>
@@ -23,15 +23,26 @@
     <div class="alert alert-secondary small mb-3">
         <i class="bi bi-bag-check"></i> Invoice ini diterbitkan dari Order Penjualan
         <a href="<?= BASE_URL ?>/sales_order/detail/<?= (int) $invoice['sales_order_id'] ?>" class="fw-semibold"><?= e($invoice['sales_order_number']) ?></a>
-        (PO Customer <strong><?= e($invoice['sales_order_po_number']) ?></strong>). Jumlah barangnya terikat ke pemenuhan order sehingga tidak diedit dari sini
-        &mdash; untuk koreksi, batalkan invoice di detail Order Penjualan lalu terbitkan ulang.
+        (PO Customer <strong><?= e($invoice['sales_order_po_number']) ?></strong>).
+        <?php if (($invoice['status'] ?? 'final') === 'draft' && empty($editBlock)): ?>
+            Selama masih Draft dan belum ada pembayaran, invoice bisa diedit langsung tanpa membatalkan Order Penjualan.
+        <?php else: ?>
+            Jumlah barangnya terikat ke pemenuhan order.
+        <?php endif; ?>
+    </div>
+<?php endif; ?>
+
+<?php if (!empty($editBlock) && can('sales_invoice', 'edit')): ?>
+    <div class="alert alert-warning small mb-3">
+        <i class="bi bi-lock-fill"></i> <strong><?= e($editBlock['title']) ?></strong><br>
+        <?= e($editBlock['message']) ?>
     </div>
 <?php endif; ?>
 
 <?php if (($invoice['status'] ?? 'final') === 'draft'): ?>
     <div class="alert alert-secondary small mb-3">
         <i class="bi bi-file-earmark"></i> Invoice ini masih <strong>Draft</strong> &mdash; belum dihitung sebagai tagihan dan belum bisa dibuatkan Tanda Terima.
-        <?php if (can('sales_invoice', 'edit') && empty($invoice['sales_order_id'])): ?>
+        <?php if (can('sales_invoice', 'edit') && empty($editBlock)): ?>
             Buka <a href="<?= BASE_URL ?>/sales_invoice/edit/<?= (int) $invoice['id'] ?>" class="fw-semibold">Edit</a> lalu klik <strong>Simpan &amp; Terbitkan</strong> untuk menerbitkannya.
         <?php endif; ?>
     </div>

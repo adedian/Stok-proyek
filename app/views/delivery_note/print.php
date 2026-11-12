@@ -96,30 +96,35 @@
         font-size: 12px;
         text-align: right;
     }
+    /* Tanda tangan: jarak antar kolom dilebarkan (12mm, sebelumnya 20px) dan tiap kolom diberi ruang tanda tangan
+       manual yang sama tinggi di kedua sisi, supaya nama & jabatan sejajar dan kolom tidak mepet/bertumpuk. */
     .sj-print-signoff-row {
         margin-top: auto;
         padding-top: 20px;
         display: flex;
         justify-content: space-between;
-        gap: 20px;
+        gap: 12mm;
     }
     .sj-print-signoff {
-        flex: 1 1 50%;
+        flex: 1 1 0;
+        min-width: 0;
+        padding: 0 3mm;
         text-align: center;
+        overflow-wrap: anywhere;
     }
     .sj-print-signoff-label {
-        margin-bottom: 44px;
+        margin-bottom: 8px;
     }
     .sj-signature-image-wrap {
-        height: 56px;
+        height: 84px;
         display: flex;
         align-items: flex-end;
         justify-content: center;
-        margin-bottom: 2px;
+        margin-bottom: 4px;
     }
     .sj-signature-image-wrap img {
-        max-height: 54px;
-        max-width: 170px;
+        max-height: 80px;
+        max-width: 100%;
         object-fit: contain;
     }
     .sj-signature-name {
@@ -243,6 +248,7 @@
         <div class="sj-print-signoff-row">
             <div class="sj-print-signoff">
                 <div class="sj-print-signoff-label">Penerima / Pembeli</div>
+                <div class="sj-signature-image-wrap"></div><?php /* ruang tanda tangan manual, setinggi sisi perusahaan */ ?>
                 <div class="sj-signature-name"><?= e($note['recipient_name'] ?: '.....................') ?></div>
             </div>
             <div class="sj-print-signoff">
@@ -254,6 +260,7 @@
                     <div class="sj-signature-name"><?= e($note['signature_name']) ?></div>
                     <div class="sj-signature-position"><?= e($note['signature_position']) ?></div>
                 <?php else: ?>
+                    <div class="sj-signature-image-wrap"></div>
                     <div class="sj-signature-name"><?= e($note['sender_name'] ?: '.....................') ?></div>
                 <?php endif; ?>
             </div>

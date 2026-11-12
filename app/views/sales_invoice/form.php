@@ -5,6 +5,7 @@ $items = $items ?? [];
 if (empty($items)) {
     $items = [['description' => '', 'qty' => '', 'unit' => '', 'unit_price' => '']];
 }
+$isDraftInvoice = $isEdit && ($invoice['status'] ?? 'final') === 'draft';
 $terms = $terms ?? [];
 if (empty($terms)) {
     $terms = [['label' => '', 'percentage' => '', 'dp_percentage_id' => null, 'due_date' => '']];
@@ -30,6 +31,13 @@ if (empty($terms)) {
     <?= csrfField() ?>
     <?php if ($isEdit): ?>
         <input type="hidden" name="id" value="<?= (int) $invoice['id'] ?>">
+    <?php endif; ?>
+
+    <?php if ($isDraftInvoice): ?>
+        <div class="alert alert-secondary small">
+            <i class="bi bi-file-earmark"></i> Invoice ini masih <strong>Draft</strong> &mdash; belum dihitung sebagai tagihan.
+            Lengkapi lalu klik <strong>Simpan &amp; Terbitkan</strong>, atau <strong>Simpan sebagai Draft</strong> untuk melanjutkan nanti.
+        </div>
     <?php endif; ?>
 
     <div class="card border-0 shadow-sm mb-3">
@@ -361,10 +369,18 @@ if (empty($terms)) {
         </div>
     </div>
 
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 flex-wrap">
+        <?php /* Tombol pertama = tombol bawaan saat tekan Enter, jadi harus "Simpan" (final), bukan Draft. */ ?>
         <button type="submit" class="btn btn-primary">
-            <i class="bi bi-save"></i> Simpan
+            <i class="bi bi-save"></i> <?= $isDraftInvoice ? 'Simpan &amp; Terbitkan' : 'Simpan' ?>
         </button>
+        <?php if (!$isEdit || $isDraftInvoice): ?>
+            <?php /* formnovalidate: draft boleh belum lengkap; Client & Tanggal tetap diperiksa server. */ ?>
+            <button type="submit" name="save_mode" value="draft" formnovalidate class="btn btn-outline-secondary"
+                    title="Simpan dulu tanpa menerbitkan: belum dihitung sebagai tagihan & belum bisa dibuatkan Tanda Terima">
+                <i class="bi bi-file-earmark"></i> Simpan sebagai Draft
+            </button>
+        <?php endif; ?>
         <a href="<?= BASE_URL ?>/sales_invoice" class="btn btn-light border">Batal</a>
     </div>
 </form>

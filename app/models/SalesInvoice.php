@@ -18,6 +18,10 @@ class SalesInvoice extends Model
     /** Termin milik invoice (FK RESTRICT) ikut terhapus saat invoice dihapus permanen dari Tempat Sampah. */
     protected array $ownedChildren = ['sales_invoice_terms' => 'sales_invoice_id'];
 
+    /** Status invoice: draft = belum diterbitkan (tidak dihitung sebagai tagihan), final = diterbitkan. */
+    public const DRAFT = 'draft';
+    public const FINAL = 'final';
+
     /**
      * Nomor invoice keluar dibuat OTOMATIS saat Tambah: "001/INV.HME/X/2026" (Project)
      * atau "001/FKT.HME/X/2026" (Lampu) atau, bila Jenis Dokumen = Proforma Invoice,
@@ -199,9 +203,14 @@ class SalesInvoice extends Model
             $params['date_to'] = $filters['date_to'];
         }
         if (!empty($filters['billing_status']) && in_array($filters['billing_status'], ['tertagih', 'belum_tertagih'], true)) {
+            // Draft belum diterbitkan, jadi bukan "belum tertagih".
             $sql .= $filters['billing_status'] === 'tertagih'
                 ? " AND " . self::TERTAGIH_EXISTS
-                : " AND NOT " . self::TERTAGIH_EXISTS;
+                : " AND si.status = 'final' AND NOT " . self::TERTAGIH_EXISTS;
+        }
+        if (!empty($filters['status']) && in_array($filters['status'], [self::DRAFT, self::FINAL], true)) {
+            $sql .= " AND si.status = :inv_status";
+            $params['inv_status'] = $filters['status'];
         }
         if (!empty($filters['ids']) && is_array($filters['ids'])) {
             $ids = array_values(array_unique(array_filter(array_map('intval', $filters['ids']), fn($id) => $id > 0)));
@@ -284,7 +293,7 @@ class SalesInvoice extends Model
         // collection_receipt_items) supaya invoice yang Tanda Terima-nya sudah
         // dihapus kembali muncul sebagai "belum ditagih" & bisa dipilih lagi.
         $sql = "SELECT si.* FROM sales_invoices si
-                WHERE si.deleted_at IS NULL AND si.client_id = :client_id
+                WHERE si.deleted_at IS NULL AND si.status = 'final' AND si.client_id = :client_id
                   AND NOT EXISTS (
                       SELECT 1 FROM collection_receipt_items cri
                       JOIN collection_receipts cr ON cr.id = cri.collection_receipt_id AND cr.deleted_at IS NULL

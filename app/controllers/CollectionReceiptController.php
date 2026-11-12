@@ -441,13 +441,13 @@ class CollectionReceiptController extends Controller
         $invoices = [];
         foreach ($ids as $id) {
             $inv = $this->invoiceModel->findWithRelations($id);
-            if ($inv && !$this->invoiceModel->isBilled($id)) {
+            if ($inv && ($inv['status'] ?? SalesInvoice::FINAL) === SalesInvoice::FINAL && !$this->invoiceModel->isBilled($id)) {
                 $invoices[] = $inv;
             }
         }
 
         if (empty($invoices)) {
-            return [[], 'Invoice yang dipilih tidak valid atau sudah tercatat di Tanda Terima lain.'];
+            return [[], 'Invoice yang dipilih tidak valid, masih berstatus Draft, atau sudah tercatat di Tanda Terima lain.'];
         }
 
         $clientId = $invoices[0]['client_id'];

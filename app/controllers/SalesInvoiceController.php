@@ -116,12 +116,15 @@ class SalesInvoiceController extends Controller
         verifyCsrf();
 
         [$data, $items, $terms] = $this->collectInput();
-        $errors = $this->validateInput($data, $items, $terms);
+        // "Simpan sebagai Draft" (save_mode=draft): validasi dilonggarkan & invoice belum dihitung sebagai tagihan.
+        $isDraft = $this->isDraftSave();
+        $errors = $this->validateInput($data, $items, $terms, null, $isDraft);
 
         if (!empty($errors)) {
             setFlash('error', implode(' ', $errors));
             $this->redirect('sales_invoice', 'create');
         }
+        $data['status'] = $isDraft ? SalesInvoice::DRAFT : SalesInvoice::FINAL;
 
         assertPeriodOpen('sales_invoice', $data['invoice_date'], 'sales_invoice', 'create');
 
@@ -166,30 +169,19 @@ class SalesInvoiceController extends Controller
             $this->saveItems($invoiceId, $items);
             $this->saveTerms($invoiceId, $totals['terms']);
 
-            $this->activityLog->log(currentUserId(), 'sales_invoice', 'create', "Invoice Keluar {$invoiceNumber} dibuat");
+            $this->activityLog->log(currentUserId(), 'sales_invoice', 'create',
+                "Invoice Keluar {$invoiceNumber} dibuat" . ($isDraft ? ' sebagai Draft' : ''));
 
             $pdo->commit();
 
-            // Push notification (best-effort, di luar transaction) -- SETIAP invoice
-            // baru otomatis "belum tertagih" (belum ada Tanda Terima), jadi ini aman
-            // dipicu 1x saat dibuat (bukan berulang seperti Stok Minimum yang butuh
-            // deteksi ambang batas). Penerima: yang BOLEH BUAT Tanda Terima
-            // (collection_receipt.create), bukan sekadar boleh lihat Invoice.
-            try {
-                if ((new SystemSetting())->getBool('notify_invoice_pending', true)) {
-                    sendPushToModuleViewers(
-                        'collection_receipt',
-                        'Invoice Belum Tertagih',
-                        "Invoice {$invoiceNumber} baru dibuat, belum ada Tanda Terima.",
-                        route('sales_invoice', 'index', ['billing_status' => 'belum_tertagih']),
-                        'create'
-                    );
-                }
-            } catch (Throwable $e) {
-                error_log('Push invoice_pending gagal: ' . $e->getMessage());
+            // Draft belum jadi tagihan, jadi notifikasi baru dikirim saat diterbitkan (lihat update()).
+            if (!$isDraft) {
+                $this->notifyInvoicePending($invoiceNumber);
             }
 
-            setFlash('success', 'Invoice Keluar berhasil disimpan.');
+            setFlash('success', $isDraft
+                ? "Invoice Keluar {$invoiceNumber} disimpan sebagai Draft. Lengkapi lalu simpan lewat Edit untuk menerbitkannya."
+                : 'Invoice Keluar berhasil disimpan.');
             $this->redirect('sales_invoice', 'detail', ['id' => $invoiceId]);
         } catch (DomainException $e) {
             if ($pdo->inTransaction()) {
@@ -272,12 +264,16 @@ class SalesInvoiceController extends Controller
         $this->assertNotFromSalesOrder($existing);
 
         [$data, $items, $terms] = $this->collectInput();
-        $errors = $this->validateInput($data, $items, $terms, $id);
+        // Hanya invoice yang masih Draft yang boleh disimpan sebagai Draft lagi; invoice final tidak bisa "diturunkan".
+        $wasDraft = ($existing['status'] ?? SalesInvoice::FINAL) === SalesInvoice::DRAFT;
+        $isDraft = $wasDraft && $this->isDraftSave();
+        $errors = $this->validateInput($data, $items, $terms, $id, $isDraft);
 
         if (!empty($errors)) {
             setFlash('error', implode(' ', $errors));
             $this->redirect('sales_invoice', 'edit', ['id' => $id]);
         }
+        $data['status'] = $isDraft ? SalesInvoice::DRAFT : SalesInvoice::FINAL;
 
         assertPeriodOpen('sales_invoice', $existing['invoice_date'], 'sales_invoice', 'edit', ['id' => $id]);
         assertPeriodOpen('sales_invoice', $data['invoice_date'], 'sales_invoice', 'edit', ['id' => $id]);
@@ -322,10 +318,23 @@ class SalesInvoiceController extends Controller
             $logMsg = $data['invoice_number'] !== $existing['invoice_number']
                 ? "Invoice Keluar {$existing['invoice_number']} diperbarui (nomor diubah menjadi {$data['invoice_number']})"
                 : "Invoice Keluar {$existing['invoice_number']} diperbarui";
+            if ($wasDraft && !$isDraft) {
+                $logMsg .= ' dan diterbitkan (Draft -> Final)';
+            } elseif ($isDraft) {
+                $logMsg .= ' (tetap Draft)';
+            }
             $this->activityLog->log(currentUserId(), 'sales_invoice', 'update', $logMsg);
 
             $pdo->commit();
-            setFlash('success', 'Invoice Keluar berhasil diperbarui.');
+
+            // Draft baru resmi jadi tagihan saat diterbitkan -> kirim notifikasi "belum tertagih" sekarang.
+            if ($wasDraft && !$isDraft) {
+                $this->notifyInvoicePending($data['invoice_number']);
+            }
+
+            setFlash('success', $isDraft
+                ? 'Draft Invoice Keluar berhasil disimpan.'
+                : ($wasDraft ? 'Invoice Keluar berhasil diterbitkan.' : 'Invoice Keluar berhasil diperbarui.'));
             $this->redirect('sales_invoice', 'detail', ['id' => $id]);
         } catch (Throwable $e) {
             $pdo->rollBack();
@@ -762,7 +771,42 @@ class SalesInvoiceController extends Controller
         return $date->format('Y-m-d');
     }
 
-    private function validateInput(array $data, array $items, array $terms, ?int $excludeId = null): array
+    /** Tombol "Simpan sebagai Draft" mengirim save_mode=draft; tombol "Simpan" tidak. */
+    private function isDraftSave(): bool
+    {
+        return ($_POST['save_mode'] ?? '') === 'draft';
+    }
+
+    /**
+     * Push notification (best-effort, di luar transaction) -- SETIAP invoice final
+     * otomatis "belum tertagih" (belum ada Tanda Terima), jadi ini aman dipicu 1x saat
+     * invoice diterbitkan (bukan berulang seperti Stok Minimum yang butuh deteksi
+     * ambang batas). Penerima: yang BOLEH BUAT Tanda Terima (collection_receipt.create),
+     * bukan sekadar boleh lihat Invoice.
+     */
+    private function notifyInvoicePending(string $invoiceNumber): void
+    {
+        try {
+            if ((new SystemSetting())->getBool('notify_invoice_pending', true)) {
+                sendPushToModuleViewers(
+                    'collection_receipt',
+                    'Invoice Belum Tertagih',
+                    "Invoice {$invoiceNumber} baru dibuat, belum ada Tanda Terima.",
+                    route('sales_invoice', 'index', ['billing_status' => 'belum_tertagih']),
+                    'create'
+                );
+            }
+        } catch (Throwable $e) {
+            error_log('Push invoice_pending gagal: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * $draft = true (Simpan sebagai Draft): hanya Client & Tanggal yang wajib; baris item/termin
+     * boleh kosong atau belum lengkap (qty, satuan, persen) -- semuanya diperiksa penuh saat diterbitkan.
+     * Batas wajar angka & total persen termin TETAP berlaku supaya data draft tidak merusak kolom.
+     */
+    private function validateInput(array $data, array $items, array $terms, ?int $excludeId = null, bool $draft = false): array
     {
         $errors = [];
 
@@ -794,16 +838,20 @@ class SalesInvoiceController extends Controller
         if ($data['ppn_percent'] < 0 || $data['ppn_percent'] > 100) {
             $errors[] = 'PPN harus antara 0 dan 100 persen.';
         }
-        if (empty($items)) {
+        if (empty($items) && !$draft) {
             $errors[] = 'Minimal 1 baris item invoice wajib diisi.';
         }
         foreach ($items as $item) {
-            if ($item['qty'] <= 0) {
+            if ($item['qty'] <= 0 && !$draft) {
                 $errors[] = 'Qty setiap baris item harus lebih dari 0.';
                 break;
             }
-            if ($item['unit'] === '') {
+            if ($item['unit'] === '' && !$draft) {
                 $errors[] = 'Satuan setiap baris item wajib diisi.';
+                break;
+            }
+            if ($item['qty'] < 0) {
+                $errors[] = 'Qty tidak boleh negatif.';
                 break;
             }
             if ($item['qty'] > INPUT_MAX_QTY || $item['unit_price'] > INPUT_MAX_PRICE || $item['subtotal'] > INPUT_MAX_LINE_TOTAL) {
@@ -812,12 +860,12 @@ class SalesInvoiceController extends Controller
             }
         }
 
-        if (empty($terms)) {
+        if (empty($terms) && !$draft) {
             $errors[] = 'Minimal 1 baris termin tagihan wajib diisi.';
         }
         $percentageSum = 0.0;
         foreach ($terms as $term) {
-            if ($term['percentage'] <= 0) {
+            if ($term['percentage'] < 0 || ($term['percentage'] <= 0 && !$draft)) {
                 $errors[] = 'Persentase setiap baris termin harus lebih dari 0%.';
                 break;
             }

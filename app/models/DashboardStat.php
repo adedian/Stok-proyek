@@ -104,7 +104,7 @@ class DashboardStat
     {
         return (int) ($this->db->fetchOne(
             "SELECT COUNT(*) AS total FROM sales_invoices si
-             WHERE si.deleted_at IS NULL
+             WHERE si.deleted_at IS NULL AND si.status = 'final'
              AND NOT EXISTS (
                  SELECT 1 FROM collection_receipt_items cri
                  JOIN collection_receipts cr ON cr.id = cri.collection_receipt_id AND cr.deleted_at IS NULL

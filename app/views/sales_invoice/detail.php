@@ -28,6 +28,15 @@
     </div>
 <?php endif; ?>
 
+<?php if (($invoice['status'] ?? 'final') === 'draft'): ?>
+    <div class="alert alert-secondary small mb-3">
+        <i class="bi bi-file-earmark"></i> Invoice ini masih <strong>Draft</strong> &mdash; belum dihitung sebagai tagihan dan belum bisa dibuatkan Tanda Terima.
+        <?php if (can('sales_invoice', 'edit') && empty($invoice['sales_order_id'])): ?>
+            Buka <a href="<?= BASE_URL ?>/sales_invoice/edit/<?= (int) $invoice['id'] ?>" class="fw-semibold">Edit</a> lalu klik <strong>Simpan &amp; Terbitkan</strong> untuk menerbitkannya.
+        <?php endif; ?>
+    </div>
+<?php endif; ?>
+
 <?php if ($isBilled): ?>
     <div class="alert alert-info small mb-3">
         <i class="bi bi-info-circle"></i> Invoice ini sudah tercatat di sebuah Tanda Terima.

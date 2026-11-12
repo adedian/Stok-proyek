@@ -155,7 +155,9 @@
                             <td class="text-center"><?= formatPercent($inv['dp_percentage']) ?>%</td>
                             <td class="text-end"><?= formatRupiah($inv['total_amount']) ?></td>
                             <td class="text-center">
-                                <?php if ((int) $inv['is_tertagih'] === 1): ?>
+                                <?php if (($inv['status'] ?? 'final') === 'draft'): ?>
+                                    <span class="badge text-bg-secondary" title="Belum diterbitkan: belum dihitung sebagai tagihan">Draft</span>
+                                <?php elseif ((int) $inv['is_tertagih'] === 1): ?>
                                     <span class="badge text-bg-success">Sudah Tertagih</span>
                                 <?php else: ?>
                                     <span class="badge text-bg-warning">Belum Tertagih</span>

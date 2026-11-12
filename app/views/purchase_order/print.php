@@ -101,6 +101,15 @@
         font-weight: 700;
         text-align: right;
     }
+    /* Ringkasan hanya selebar kolom Harga Satuan + Total: sel kosong di kiri (No..Satuan)
+       dan kanan (Kategori) tanpa garis & tanpa warna. */
+    .po-print-summary-row td.po-sum-blank {
+        border: 0;
+        background: transparent;
+    }
+    .po-print-summary-row td.po-sum-label {
+        white-space: normal;
+    }
     .po-print-notes {
         margin-top: 12px;
         font-size: 12px;
@@ -324,7 +333,7 @@
                     <th><?= $isService ? 'Deskripsi Jasa / Uraian Pekerjaan' : 'Nama Barang / Spesifikasi' ?></th>
                     <th class="num" style="width: 48px;">Qty</th>
                     <th style="width: 48px;">Satuan</th>
-                    <th class="num" style="width: 85px;">Harga Satuan</th>
+                    <th class="num" style="width: 105px;">Harga Satuan</th>
                     <th class="num" style="width: 95px;">Total</th>
                     <?php if (!$isService): ?><th style="width: 80px;">Kategori</th><?php endif; ?>
                 </tr>
@@ -378,9 +387,10 @@
                 <?php /* Ringkasan MENYATU di tabel item (baris colspan, border menyambung) -- pola sama dgn Invoice. */ ?>
                 <?php foreach ($sumRows as [$sLabel, $sValue, $sGrand]): ?>
                     <tr class="po-print-summary-row<?= $sGrand ? ' grand' : '' ?>">
-                        <td colspan="5" class="num"><?= e($sLabel) ?></td>
+                        <td colspan="4" class="po-sum-blank"></td>
+                        <td class="num po-sum-label"><?= e($sLabel) ?></td>
                         <td class="num"><?= $sValue ?></td>
-                        <?php if (!$isService): ?><td></td><?php endif; ?>
+                        <?php if (!$isService): ?><td class="po-sum-blank"></td><?php endif; ?>
                     </tr>
                 <?php endforeach; ?>
             </tbody>

@@ -94,6 +94,13 @@
         font-weight: 700;
         background: var(--brand-50, #F3F6FB);
     }
+    /* Ringkasan Sub Total / Diskon / PPN / Grand Total -- baris colspan di tabel item yang
+       sama, semuanya berwarna sama dengan baris TOTAL lama (.po-print-total-row). */
+    .po-print-summary-row td {
+        background: var(--brand-50, #F3F6FB);
+        font-weight: 700;
+        text-align: right;
+    }
     .po-print-notes {
         margin-top: 12px;
         font-size: 12px;
@@ -318,38 +325,64 @@
                     <th class="num" style="width: 48px;">Qty</th>
                     <th style="width: 48px;">Satuan</th>
                     <th class="num" style="width: 85px;">Harga Satuan</th>
-                    <th class="num" style="width: 40px;">Disc</th>
-                    <th class="num" style="width: 40px;">PPN</th>
                     <th class="num" style="width: 95px;">Total</th>
                     <?php if (!$isService): ?><th style="width: 80px;">Kategori</th><?php endif; ?>
                 </tr>
             </thead>
             <tbody>
+                <?php
+                // Diskon & PPN tidak lagi kolom per baris: kolom Total = Qty x Harga (kotor),
+                // lalu diskon/PPN dijumlah ke blok ringkasan di bawah tabel. PPN per baris
+                // diturunkan dari subtotal tersimpan (subtotal = setelah diskon + PPN) supaya
+                // Sub Total - Diskon + PPN + Biaya Tambahan selalu = Grand Total tersimpan.
+                $cur = $po['currency'] ?? 'IDR';
+                $sumGross = 0.0; $sumDisc = 0.0; $sumPpn = 0.0; $ppnRates = [];
+                ?>
                 <?php foreach ($po['items'] as $i => $item): ?>
+                    <?php
+                    $gross = (float) $item['qty_order'] * (float) $item['price'];
+                    $afterDisc = $gross * (1 - (float) ($item['discount_percent'] ?? 0) / 100);
+                    $sumGross += $gross;
+                    $sumDisc += $gross - $afterDisc;
+                    if (!empty($item['ppn_enabled'])) {
+                        $sumPpn += (float) $item['subtotal'] - $afterDisc;
+                        $ppnRates[(string) round((float) $item['ppn_percent'], 4)] = (float) $item['ppn_percent'];
+                    }
+                    ?>
                     <tr>
                         <td><?= $i + 1 ?></td>
                         <td><?= e($item['item_name']) ?></td>
                         <td class="num"><?= number_format((float) $item['qty_order'], 2, ',', '.') ?></td>
                         <td><?= e($item['unit']) ?></td>
-                        <td class="num"><?= formatMoney($item['price'], $po['currency'] ?? 'IDR') ?></td>
-                        <td class="num"><?= (float) ($item['discount_percent'] ?? 0) > 0 ? number_format((float) $item['discount_percent'], 0, ',', '.') . '%' : '-' ?></td>
-                        <td class="num"><?= !empty($item['ppn_enabled']) ? rtrim(rtrim(number_format((float) $item['ppn_percent'], 2, ',', '.'), '0'), ',') . '%' : '-' ?></td>
-                        <td class="num"><?= formatMoney($item['subtotal'], $po['currency'] ?? 'IDR') ?></td>
+                        <td class="num"><?= formatMoney($item['price'], $cur) ?></td>
+                        <td class="num"><?= formatMoney($gross, $cur) ?></td>
                         <?php if (!$isService): ?><td><?= e($item['category'] ?? '') ?></td><?php endif; ?>
                     </tr>
                 <?php endforeach; ?>
-                <?php foreach ($po['extraCosts'] ?? [] as $cost): ?>
-                    <tr>
-                        <td colspan="7" class="num">Biaya Tambahan: <?= e($cost['cost_name']) ?></td>
-                        <td class="num"><?= formatMoney($cost['amount'], $po['currency'] ?? 'IDR') ?></td>
+                <?php
+                // "PPN (12%)" bila semua baris ber-PPN memakai tarif sama; tarif campur -> "PPN" saja.
+                $ppnLabel = 'PPN';
+                if (count($ppnRates) === 1) {
+                    $ppnLabel .= ' (' . rtrim(rtrim(number_format(reset($ppnRates), 2, ',', '.'), '0'), ',') . '%)';
+                }
+                $sumRows = [
+                    ['Sub Total', formatMoney($sumGross, $cur), false],
+                    ['Diskon', $sumDisc > 0.004 ? formatMoney($sumDisc, $cur) : '-', false],
+                    [$ppnLabel, $sumPpn > 0.004 ? formatMoney($sumPpn, $cur) : '-', false],
+                ];
+                foreach ($po['extraCosts'] ?? [] as $cost) {
+                    $sumRows[] = ['Biaya Tambahan: ' . $cost['cost_name'], formatMoney($cost['amount'], $cur), false];
+                }
+                $sumRows[] = ['Grand Total', formatMoney($po['total_amount'], $cur), true];
+                ?>
+                <?php /* Ringkasan MENYATU di tabel item (baris colspan, border menyambung) -- pola sama dgn Invoice. */ ?>
+                <?php foreach ($sumRows as [$sLabel, $sValue, $sGrand]): ?>
+                    <tr class="po-print-summary-row<?= $sGrand ? ' grand' : '' ?>">
+                        <td colspan="5" class="num"><?= e($sLabel) ?></td>
+                        <td class="num"><?= $sValue ?></td>
                         <?php if (!$isService): ?><td></td><?php endif; ?>
                     </tr>
                 <?php endforeach; ?>
-                <tr class="po-print-total-row">
-                    <td colspan="7" class="num">TOTAL</td>
-                    <td class="num"><?= formatMoney($po['total_amount'], $po['currency'] ?? 'IDR') ?></td>
-                    <?php if (!$isService): ?><td></td><?php endif; ?>
-                </tr>
             </tbody>
         </table>
 

@@ -18,6 +18,16 @@
 
 Options -Indexes -MultiViews
 
+# --- Versi PHP: 8.3 (hosting LiteSpeed + CloudLinux alt-php) ---------------
+# Akun hosting tidak punya MultiPHP Manager, dan "Select PHP Version" berlaku
+# SATU AKUN (ikut mengubah situs WordPress di public_html). Handler per-folder
+# ini hanya memengaruhi folder public/ aplikasi ini. Blok di-bungkus
+# <IfModule LiteSpeed> supaya Apache lokal (XAMPP) mengabaikannya.
+# Rollback: hapus blok ini -> kembali ke versi PHP default akun (8.1).
+<IfModule LiteSpeed>
+    AddHandler application/x-httpd-alt-php83___lsphp .php .php8 .phtml
+</IfModule>
+
 <IfModule mod_rewrite.c>
     RewriteEngine On
 

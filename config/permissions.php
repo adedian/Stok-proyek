@@ -250,6 +250,16 @@ return [
         'delete' => [ROLE_SUPER_ADMIN],
     ],
 
+    // Label Pengiriman -- form alamat Kepada & Pengirim yang dicetak jadi dua kotak.
+    // Modul mandiri (tanpa efek ke stok/kas/PO), jadi dibuka ke semua role untuk lihat/buat/ubah/cetak;
+    // hapus (ke Tempat Sampah) khusus Super Admin seperti dokumen lain. Bisa diubah di Hak Akses.
+    'shipping_label' => [
+        'view'   => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT, ROLE_PROJECT_MANAGER],
+        'create' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT, ROLE_PROJECT_MANAGER],
+        'edit'   => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT, ROLE_PROJECT_MANAGER],
+        'delete' => [ROLE_SUPER_ADMIN],
+    ],
+
     // ================= KAS (Revisi 9) =================
     // 'view'   -> boleh buka modul Kas (isi list dibatasi per-PIC di controller).
     // 'delete' -> Accounting & Project Manager SENGAJA tidak ada. Purchase/PIC

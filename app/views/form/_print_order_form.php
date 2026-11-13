@@ -27,14 +27,14 @@ $ofMoney = fn($v) => number_format((float) $v, 2, '.', ',');
 
 <table class="of-table">
     <tr>
-        <td rowspan="2" style="width: 62%; height: 10mm;"><span class="of-label of-lbl">NAME</span><?= e($d['name'] ?? '') ?></td>
-        <td><span class="of-label of-lbl-sm">PHONE</span><?= e($d['phone'] ?? '') ?></td>
+        <td rowspan="2" style="width: 62%; height: 10mm;"><div class="of-field"><span class="of-label of-lbl">NAME</span><span class="of-col">:</span><span class="of-val"><?= e($d['name'] ?? '') ?></span></div></td>
+        <td><div class="of-field"><span class="of-label of-lbl-sm">PHONE</span><span class="of-col">:</span><span class="of-val"><?= e($d['phone'] ?? '') ?></span></div></td>
     </tr>
     <tr>
-        <td><span class="of-label of-lbl-sm">EMAIL</span><?= e($d['email'] ?? '') ?></td>
+        <td><div class="of-field"><span class="of-label of-lbl-sm">EMAIL</span><span class="of-col">:</span><span class="of-val"><?= e($d['email'] ?? '') ?></span></div></td>
     </tr>
     <tr>
-        <td colspan="2" style="height: 20mm;"><span class="of-label">ADDRESS</span><br><?= nl2br(e($d['address'] ?? '')) ?></td>
+        <td colspan="2" style="height: 20mm;"><div class="of-field"><span class="of-label of-lbl">ADDRESS</span><span class="of-col">:</span><span class="of-val"><?= nl2br(e($d['address'] ?? '')) ?></span></div></td>
     </tr>
 </table>
 <div class="of-gap"></div>

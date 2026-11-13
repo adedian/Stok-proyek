@@ -45,8 +45,12 @@
     .of-table td, .of-table th { border: 1px solid #000; padding: 2px 5px; vertical-align: top; }
     .of-table .of-label { font-weight: 400; }
     .of-gap { height: 3mm; }
-    .of-lbl { display: inline-block; width: 22mm; }      /* NAME: isi digeser ke kanan */
-    .of-lbl-sm { display: inline-block; width: 15mm; }   /* PHONE / EMAIL */
+    /* Baris isian: label | titik dua | isi -- NAME & ADDRESS memakai lebar label sama, jadi isinya sejajar. */
+    .of-field { display: flex; align-items: flex-start; }
+    .of-field .of-lbl { flex: 0 0 22mm; }
+    .of-field .of-lbl-sm { flex: 0 0 15mm; }   /* PHONE / EMAIL (kolom lebih sempit) */
+    .of-field .of-col { flex: 0 0 3mm; }
+    .of-field .of-val { flex: 1 1 auto; min-width: 0; }
     .of-head th { background: #000; color: #fff; text-align: center; font-weight: 400; padding: 3px 5px; }
     .of-num { width: 7mm; text-align: center; }
     .of-right { text-align: right; white-space: nowrap; }

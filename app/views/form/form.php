@@ -131,7 +131,7 @@ $today = date('Y-m-d');
                         <label class="form-label" for="kw_amount">Jumlah Uang (Rp) <span class="text-danger">*</span></label>
                         <input type="text" id="kw_amount" name="amount" class="form-control currency-input" inputmode="decimal" required
                                value="<?= e($fmtMoney($d['amount'] ?? '')) ?>">
-                        <div class="form-text">"Banyaknya uang" (terbilang) terisi otomatis dari jumlah ini saat dicetak.</div>
+                        <div class="form-text">Tulisan "Terbilang" terisi otomatis dari jumlah ini saat dicetak.</div>
                     </div>
                     <div class="col-12">
                         <label class="form-label" for="kw_purpose">Untuk pembayaran <span class="text-danger">*</span></label>

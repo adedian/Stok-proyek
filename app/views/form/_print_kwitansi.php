@@ -11,7 +11,7 @@ $kwPlace = (($d['city'] ?? '') !== '' ? $d['city'] . ', ' : '') . formatTanggal(
         <div class="kw-val"><?= e($d['received_from'] ?? '') ?></div>
     </div>
     <div class="kw-row" style="margin-top: 4mm;">
-        <div class="kw-label">Banyaknya uang</div><div class="kw-sep">:</div>
+        <div class="kw-label">Terbilang</div><div class="kw-sep">:</div>
         <div class="kw-val kw-italic kw-shade"><?= e($kwWords) ?></div>
     </div>
     <div class="kw-row" style="margin-top: 4mm;">

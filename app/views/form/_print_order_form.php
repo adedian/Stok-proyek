@@ -12,6 +12,12 @@ $ofRows = max(10, count($ofItems)); // minimal 10 baris, seperti form kosong
 $ofQty = fn($v) => rtrim(rtrim(number_format((float) $v, 2, ',', '.'), '0'), ',');
 $ofMoney = fn($v) => number_format((float) $v, 2, '.', ',');
 ?>
+<div class="bon-logo">
+    <?php if (!empty($company['company_logo'])): ?>
+        <img src="<?= BASE_URL ?>/<?= e($company['company_logo']) ?>" alt="Logo">
+    <?php endif; ?>
+</div>
+
 <div class="of-title">ORDER FORM</div>
 
 <div class="of-meta">
@@ -21,11 +27,11 @@ $ofMoney = fn($v) => number_format((float) $v, 2, '.', ',');
 
 <table class="of-table">
     <tr>
-        <td rowspan="2" style="width: 62%; height: 10mm;"><span class="of-label">NAME</span> <?= e($d['name'] ?? '') ?></td>
-        <td><span class="of-label">PHONE</span> <?= e($d['phone'] ?? '') ?></td>
+        <td rowspan="2" style="width: 62%; height: 10mm;"><span class="of-label of-lbl">NAME</span><?= e($d['name'] ?? '') ?></td>
+        <td><span class="of-label of-lbl-sm">PHONE</span><?= e($d['phone'] ?? '') ?></td>
     </tr>
     <tr>
-        <td><span class="of-label">EMAIL</span> <?= e($d['email'] ?? '') ?></td>
+        <td><span class="of-label of-lbl-sm">EMAIL</span><?= e($d['email'] ?? '') ?></td>
     </tr>
     <tr>
         <td colspan="2" style="height: 20mm;"><span class="of-label">ADDRESS</span><br><?= nl2br(e($d['address'] ?? '')) ?></td>

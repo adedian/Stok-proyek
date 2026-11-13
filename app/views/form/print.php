@@ -17,14 +17,16 @@
     .fm-print-sheet > .fm-item:first-child { break-before: auto; }
 
     /* ---------- Pengiriman Dokumen ---------- */
-    .sl-print-label { width: 100mm; margin-left: 10mm; } /* digeser ke kanan */
+    .sl-print-label { width: 120mm; margin-left: 10mm; } /* kotak diperlebar & digeser ke kanan */
     .sl-print-box {
-        border: 1px solid #000; padding: 6mm 8mm; font-size: 13px; line-height: 1.6; word-break: break-word;
+        border: 1px solid #000; padding: 6mm 8mm; font-size: 14px; line-height: 1.6; word-break: break-word;
     }
     .sl-print-box + .sl-print-box { margin-top: 18mm; } /* jarak Kepada -> Pengirim */
     .fm-item-pengiriman + .fm-item { margin-top: 23mm; } /* jarak antar label pengiriman */
-    .sl-print-box .sl-name-main { font-size: 17px; font-weight: 700; line-height: 1.5; }
-    .sl-print-box .sl-name-company { font-size: 15px; font-weight: 700; line-height: 1.5; }
+    .sl-print-box .sl-name-main { font-size: 18px; font-weight: 700; line-height: 1.5; text-decoration: underline; }
+    .sl-print-box .sl-name-company { font-size: 16px; font-weight: 700; line-height: 1.5; }
+    /* Pengiriman memakai halaman bernama: margin atas 0 supaya kotak bisa mulai ~1 baris (5mm) dari tepi atas kertas. */
+    .fm-item-pengiriman { page: pengiriman; }
     .fm-bold { font-weight: 700; }
 
     /* ---------- Kwitansi ---------- */
@@ -80,11 +82,14 @@
     .bon-place { text-align: right; margin-top: 8mm; font-size: 12.5px; }
 
     @page { size: A4; margin: 10mm; }
+    @page pengiriman { size: A4; margin: 0 10mm 10mm 10mm; }
     @media print {
         .fm-print-sheet {
-            border: none; margin: 0; max-width: none; padding: 4mm 6mm;
+            border: none; margin: 0; max-width: none; padding: 0 6mm 4mm;
             -webkit-print-color-adjust: exact; print-color-adjust: exact;
         }
+        .fm-print-sheet > .fm-item:first-child { padding-top: 4mm; }
+        .fm-print-sheet > .fm-item-pengiriman:first-child { padding-top: 5mm; }
     }
 </style>
 

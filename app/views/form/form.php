@@ -370,12 +370,12 @@ $today = date('Y-m-d');
     .fm-section[disabled] { display: none; }
     .sl-form-preview { display: flex; flex-wrap: wrap; gap: 14px; }
     .sl-form-preview .sl-box {
-        flex: 1 1 260px; max-width: 340px; border: 1px solid #212529; border-radius: 0;
-        padding: 14px 20px; font-size: 14px; line-height: 1.55; background: #fff; color: #212529;
+        flex: 1 1 260px; max-width: 400px; border: 1px solid #212529; border-radius: 0;
+        padding: 14px 20px; font-size: 15px; line-height: 1.55; background: #fff; color: #212529;
     }
     .sl-form-preview .sl-title { font-weight: 700; }
-    .sl-form-preview .sl-name-main { font-weight: 700; font-size: 17px; }
-    .sl-form-preview .sl-name-company { font-weight: 700; font-size: 15px; }
+    .sl-form-preview .sl-name-main { font-weight: 700; font-size: 18px; text-decoration: underline; }
+    .sl-form-preview .sl-name-company { font-weight: 700; font-size: 16px; }
     .sl-form-preview .sl-box > div:empty { display: none; }
 </style>
 

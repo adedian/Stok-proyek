@@ -4,8 +4,8 @@ $actionUrl = $isEdit ? 'update' : 'store';
 
 // Dua kotak isian, urutan & isinya mengikuti hasil cetak: Kepada lalu Pengirim.
 $parties = [
-    'to'   => ['title' => 'Kepada',   'icon' => 'bi-box-arrow-in-down', 'nameHint' => 'mis. Bapak Ade',          'addrHint' => 'mis. Jl. Sambikerep no 10', 'cityHint' => 'mis. Sambikerep - Surabaya'],
-    'from' => ['title' => 'Pengirim', 'icon' => 'bi-box-arrow-up',      'nameHint' => 'mis. Bapak Yudi Setiawan', 'addrHint' => 'mis. Jl. Babatan no 20',    'cityHint' => 'mis. Wiyung - Surabaya'],
+    'to'   => ['title' => 'Kepada',   'icon' => 'bi-box-arrow-in-down'],
+    'from' => ['title' => 'Pengirim', 'icon' => 'bi-box-arrow-up'],
 ];
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -36,31 +36,31 @@ $parties = [
                             <div class="col-12">
                                 <label class="form-label" for="<?= $p ?>_name">Nama <span class="text-danger">*</span></label>
                                 <input type="text" id="<?= $p ?>_name" name="<?= $p ?>_name" class="form-control" maxlength="150"
-                                       value="<?= e($label[$p . '_name'] ?? '') ?>" placeholder="<?= e($cfg['nameHint']) ?>" required
+                                       value="<?= e($label[$p . '_name'] ?? '') ?>" required
                                        data-preview="<?= $p ?>-name" <?= $p === 'to' ? 'autofocus' : '' ?>>
                             </div>
                             <div class="col-12">
                                 <label class="form-label" for="<?= $p ?>_address">Alamat <span class="text-danger">*</span></label>
                                 <input type="text" id="<?= $p ?>_address" name="<?= $p ?>_address" class="form-control" maxlength="255"
-                                       value="<?= e($label[$p . '_address'] ?? '') ?>" placeholder="<?= e($cfg['addrHint']) ?>" required
+                                       value="<?= e($label[$p . '_address'] ?? '') ?>" required
                                        data-preview="<?= $p ?>-address">
                             </div>
                             <div class="col-12">
                                 <label class="form-label" for="<?= $p ?>_city">Kelurahan / Kota</label>
                                 <input type="text" id="<?= $p ?>_city" name="<?= $p ?>_city" class="form-control" maxlength="150"
-                                       value="<?= e($label[$p . '_city'] ?? '') ?>" placeholder="<?= e($cfg['cityHint']) ?>"
+                                       value="<?= e($label[$p . '_city'] ?? '') ?>"
                                        data-preview="<?= $p ?>-city">
                             </div>
                             <div class="col-6">
                                 <label class="form-label" for="<?= $p ?>_postal_code">Kode Pos</label>
                                 <input type="text" id="<?= $p ?>_postal_code" name="<?= $p ?>_postal_code" class="form-control" maxlength="20"
-                                       inputmode="numeric" value="<?= e($label[$p . '_postal_code'] ?? '') ?>" placeholder="mis. 60000"
+                                       inputmode="numeric" value="<?= e($label[$p . '_postal_code'] ?? '') ?>"
                                        data-preview="<?= $p ?>-postal">
                             </div>
                             <div class="col-6">
                                 <label class="form-label" for="<?= $p ?>_phone">No. Telp</label>
                                 <input type="text" id="<?= $p ?>_phone" name="<?= $p ?>_phone" class="form-control" maxlength="50"
-                                       inputmode="tel" value="<?= e($label[$p . '_phone'] ?? '') ?>" placeholder="mis. 080000000"
+                                       inputmode="tel" value="<?= e($label[$p . '_phone'] ?? '') ?>"
                                        data-preview="<?= $p ?>-phone">
                             </div>
                         </div>

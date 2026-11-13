@@ -17,11 +17,14 @@
     .fm-print-sheet > .fm-item:first-child { break-before: auto; }
 
     /* ---------- Pengiriman Dokumen ---------- */
-    .sl-print-label { width: 100mm; }
+    .sl-print-label { width: 100mm; margin-left: 10mm; } /* digeser ke kanan */
     .sl-print-box {
         border: 1px solid #000; padding: 6mm 8mm; font-size: 13px; line-height: 1.6; word-break: break-word;
     }
-    .sl-print-box + .sl-print-box { margin-top: 7mm; }
+    .sl-print-box + .sl-print-box { margin-top: 18mm; } /* jarak Kepada -> Pengirim */
+    .fm-item-pengiriman + .fm-item { margin-top: 23mm; } /* jarak antar label pengiriman */
+    .sl-print-box .sl-name-main { font-size: 17px; font-weight: 700; line-height: 1.5; }
+    .sl-print-box .sl-name-company { font-size: 15px; font-weight: 700; line-height: 1.5; }
     .fm-bold { font-weight: 700; }
 
     /* ---------- Kwitansi ---------- */

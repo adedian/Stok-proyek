@@ -12,6 +12,7 @@ require_once ROOT_PATH . '/app/models/ActivityLog.php';
  *   kwitansi      : sudah terima dari, jumlah uang (+terbilang), untuk pembayaran
  *   order_form    : data pemesan, pembayaran, daftar barang, pajak, total
  *   bon_sementara : pengajuan bon, rincian estimasi pengeluaran, kolom tanda tangan
+ *   tanda_terima  : Kepada + Alamat + daftar dokumen (jenis, jumlah, keterangan)
  * Isian disimpan sebagai JSON (forms.data); jenis tidak bisa diganti setelah dibuat.
  * Modul mandiri -- tanpa efek ke stok/kas/PO/invoice.
  */
@@ -259,6 +260,7 @@ class FormController extends Controller
             case 'kwitansi':      return $this->readKwitansi();
             case 'order_form':    return $this->readOrderForm();
             case 'bon_sementara': return $this->readBonSementara();
+            case 'tanda_terima':  return $this->readTandaTerima();
             default:              return $this->readPengiriman();
         }
     }
@@ -397,6 +399,45 @@ class FormController extends Controller
             'items'        => $items,
         ];
         return [$data, mb_substr($data['name'] . ' - ' . formatRupiah($total), 0, 255)];
+    }
+
+    private function readTandaTerima(): array
+    {
+        $doc = (array) ($_POST['td_item'] ?? []);
+        $qty = (array) ($_POST['td_qty'] ?? []);
+        $note = (array) ($_POST['td_note'] ?? []);
+
+        $items = [];
+        for ($i = 0, $n = max(count($doc), count($qty), count($note)); $i < $n; $i++) {
+            $row = [
+                'document' => $this->flat($doc[$i] ?? ''),
+                'qty'      => $this->flat($qty[$i] ?? ''),
+                'note'     => $this->flat($note[$i] ?? ''),
+            ];
+            if ($row['document'] === '' && $row['qty'] === '' && $row['note'] === '') {
+                continue; // baris kosong diabaikan
+            }
+            if ($row['document'] === '') {
+                throw new InvalidArgumentException('Jenis Dokumen wajib diisi pada setiap baris yang terisi.');
+            }
+            if (mb_strlen($row['document']) > 255 || mb_strlen($row['qty']) > 50 || mb_strlen($row['note']) > 255) {
+                throw new InvalidArgumentException('Isian dokumen terlalu panjang (Jenis maks 255, Jumlah maks 50, Keterangan maks 255 karakter).');
+            }
+            $items[] = $row;
+        }
+        if (empty($items)) {
+            throw new InvalidArgumentException('Minimal 1 dokumen harus diisi.');
+        }
+        if (count($items) > self::MAX_ROWS) {
+            throw new InvalidArgumentException('Maksimal ' . self::MAX_ROWS . ' baris dokumen.');
+        }
+
+        $data = [
+            'to_name' => $this->text('to_name', 200, 'Kepada', true),
+            'address' => $this->text('address', 500, 'Alamat', false, true),
+            'items'   => $items,
+        ];
+        return [$data, mb_substr($data['to_name'] . ' (' . count($items) . ' dokumen)', 0, 255)];
     }
 
     // ---- util baca input ----

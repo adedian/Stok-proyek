@@ -15,6 +15,7 @@ $parties = [
 // Baris awal rincian: yang tersimpan, atau 3 baris kosong untuk form baru.
 $orderItems = !empty($d['items']) && $type === 'order_form' ? $d['items'] : array_fill(0, 3, ['qty' => '', 'description' => '', 'price' => '']);
 $bonItems   = !empty($d['items']) && $type === 'bon_sementara' ? $d['items'] : array_fill(0, 3, ['description' => '', 'amount' => '']);
+$tdItems    = !empty($d['items']) && $type === 'tanda_terima' ? $d['items'] : array_fill(0, 3, ['document' => '', 'qty' => '', 'note' => '']);
 $today = date('Y-m-d');
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -357,6 +358,64 @@ $today = date('Y-m-d');
                 </div>
             </div>
         </div>
+    </fieldset>
+
+    <!-- ================= TANDA TERIMA DOKUMEN ================= -->
+    <fieldset class="fm-section" data-type="tanda_terima">
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-white fw-semibold"><i class="bi bi-journal-check"></i> Tanda Terima Dokumen</div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label" for="td_to">Kepada <span class="text-danger">*</span></label>
+                        <input type="text" id="td_to" name="to_name" class="form-control" maxlength="200" required value="<?= e($d['to_name'] ?? '') ?>">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="td_address">Alamat</label>
+                        <textarea id="td_address" name="address" class="form-control" rows="2" maxlength="500"><?= e($d['address'] ?? '') ?></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <span class="fw-semibold"><i class="bi bi-list-ol"></i> Daftar Dokumen</span>
+                <button type="button" class="btn btn-sm btn-outline-primary js-fm-add" data-target="#tdRows"><i class="bi bi-plus-lg"></i> Tambah Baris</button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0 entry-cards">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Jenis Dokumen</th>
+                                <th style="width: 160px;">Jumlah</th>
+                                <th style="width: 260px;">Keterangan</th>
+                                <th style="width: 50px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="tdRows" data-template="#tdRowTpl">
+                            <?php foreach ($tdItems as $it): ?>
+                                <tr class="fm-row">
+                                    <td data-label="Jenis Dokumen"><input type="text" name="td_item[]" class="form-control form-control-sm" maxlength="255" value="<?= e($it['document']) ?>"></td>
+                                    <td data-label="Jumlah"><input type="text" name="td_qty[]" class="form-control form-control-sm" maxlength="50" value="<?= e($it['qty']) ?>"></td>
+                                    <td data-label="Keterangan"><input type="text" name="td_note[]" class="form-control form-control-sm" maxlength="255" value="<?= e($it['note']) ?>"></td>
+                                    <td><button type="button" class="btn btn-sm btn-outline-danger js-fm-remove" title="Hapus baris"><i class="bi bi-x-lg"></i></button></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <template id="tdRowTpl">
+            <tr class="fm-row">
+                <td data-label="Jenis Dokumen"><input type="text" name="td_item[]" class="form-control form-control-sm" maxlength="255"></td>
+                <td data-label="Jumlah"><input type="text" name="td_qty[]" class="form-control form-control-sm" maxlength="50"></td>
+                <td data-label="Keterangan"><input type="text" name="td_note[]" class="form-control form-control-sm" maxlength="255"></td>
+                <td><button type="button" class="btn btn-sm btn-outline-danger js-fm-remove" title="Hapus baris"><i class="bi bi-x-lg"></i></button></td>
+            </tr>
+        </template>
     </fieldset>
 
     <div class="d-flex gap-2">

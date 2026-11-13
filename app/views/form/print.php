@@ -82,6 +82,29 @@
     .bon-sign-space { height: 22mm; }
     .bon-place { text-align: right; margin-top: 8mm; font-size: 12.5px; }
 
+    /* ---------- Tanda Terima Dokumen (format 1/2 F4 = 215 x 165mm: tinggi isi dijaga <= ~145mm) ---------- */
+    .tt-doc { display: flex; flex-direction: column; min-height: 140mm; font-size: 12px; }
+    .tt-header { border-bottom: 3px solid #1E3C72; padding-bottom: 6px; margin-bottom: 8px; }
+    .tt-header img { display: block; height: 20mm; max-width: 100%; object-fit: contain; object-position: left; }
+    .tt-company-name { font-size: 20px; font-weight: 800; color: #1E3C72; margin: 0; }
+    .tt-title { text-align: center; font-size: 14px; font-weight: 700; text-decoration: underline; margin: 2px 0 8px; }
+    .tt-info td { padding: 1px 6px 1px 0; vertical-align: top; }
+    .tt-info td:first-child { width: 24mm; }
+    .tt-info td:nth-child(2) { width: 4mm; }
+    .tt-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    .tt-table th, .tt-table td { border: 1px solid #adb5bd; padding: 3px 8px; }
+    .tt-table th { text-align: left; font-weight: 700; }
+    .tt-table tr.tt-row td { height: 6.5mm; }
+    .tt-spacer { flex: 1 1 auto; min-height: 4mm; }
+    .tt-signoff { display: flex; border: 1px solid #adb5bd; }
+    .tt-signoff > div { flex: 1 1 50%; padding: 6px 12px 8px; }
+    .tt-signoff > div:first-child { border-right: 1px solid #adb5bd; }
+    .tt-signoff-label { font-weight: 700; margin-bottom: 12mm; }
+    .tt-signoff-caption { font-size: 11px; color: #495057; }
+    .tt-note { margin-top: 6px; font-size: 11px; color: #495057; }
+    .tt-footer { display: flex; justify-content: space-between; gap: 20px; border-top: 1px solid #dee2e6; margin-top: 6px; padding-top: 5px; font-size: 10.5px; color: #495057; line-height: 1.45; }
+    .tt-footer > div:last-child { border-left: 1px solid #adb5bd; padding-left: 14px; white-space: nowrap; }
+
     /* Semua cetak Form mulai di paling atas kertas: margin atas halaman 0, jarak ~1 baris (5mm) diberi lewat padding.
        Ukuran kertas SENGAJA tidak dipaksa (tanpa "size: A4") supaya mengikuti kertas yang dipilih di dialog cetak
        (A4/F4/Legal) -- dulu dipaksa A4 sehingga di kertas lebih besar isinya jadi turun/tidak di paling atas. */

@@ -3,7 +3,7 @@ require_once ROOT_PATH . '/core/Model.php';
 
 /**
  * FormDocument -- menu "Form": satu tabel `forms` untuk beberapa jenis form
- * (Pengiriman Dokumen, Kwitansi, Order Form, Pengajuan Bon Sementara).
+ * (Pengiriman Dokumen, Kwitansi, Order Form, Pengajuan Bon Sementara, Tanda Terima Dokumen).
  * Isian spesifik jenis disimpan sebagai JSON di kolom `data`; validasi per jenis
  * ada di FormController. Berdiri sendiri: tanpa efek ke stok/kas/PO/invoice.
  */
@@ -20,6 +20,7 @@ class FormDocument extends Model
             'kwitansi'      => 'Kwitansi',
             'order_form'    => 'Order Form',
             'bon_sementara' => 'Pengajuan Bon Sementara',
+            'tanda_terima'  => 'Tanda Terima Dokumen',
         ];
     }
 

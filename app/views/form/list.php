@@ -4,12 +4,13 @@ $typeBadge = [
     'kwitansi'      => 'bg-success-subtle text-success-emphasis',
     'order_form'    => 'bg-warning-subtle text-warning-emphasis',
     'bon_sementara' => 'bg-info-subtle text-info-emphasis',
+    'tanda_terima'  => 'bg-secondary-subtle text-secondary-emphasis',
 ];
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h4 class="mb-0">Form</h4>
-        <small class="text-muted">Form Pengiriman Dokumen, Kwitansi, Order Form, dan Pengajuan Bon Sementara</small>
+        <small class="text-muted">Pengiriman Dokumen, Kwitansi, Order Form, Pengajuan Bon Sementara, dan Tanda Terima Dokumen</small>
     </div>
     <?php if (can('form', 'create')): ?>
         <a href="<?= BASE_URL ?>/form/create" class="btn btn-primary">

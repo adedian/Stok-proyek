@@ -13,6 +13,9 @@
 require_once dirname(__DIR__, 2) . '/config/config.php';
 require_once ROOT_PATH . '/config/database.php';
 
+// Dibungkus closure: bin/migrate.php me-require file ini di scope-nya sendiri, jadi variabel lokal
+// (mis. $ins) TIDAK boleh bocor dan menimpa variabel runner.
+(function () {
 $pdo = getPDO();
 
 $pdo->exec(
@@ -90,3 +93,4 @@ foreach (($matrix['form'] ?? []) as $action => $allowedRoles) {
 }
 
 echo "Form: tabel forms siap. Label lama dipindah: {$moved}. Izin baru di-seed: {$seeded}\n";
+})();

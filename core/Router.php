@@ -43,7 +43,7 @@ class Router
         'sales_invoice'      => 'SalesInvoiceController',
         'delivery_note'      => 'DeliveryNoteController',
         'collection_receipt' => 'CollectionReceiptController',
-        'shipping_label'     => 'ShippingLabelController',
+        'form'               => 'FormController',
         'dp_percentage'      => 'DpPercentageController',
         'trash'              => 'TrashController',
         'cash'               => 'CashController',

@@ -250,10 +250,10 @@ return [
         'delete' => [ROLE_SUPER_ADMIN],
     ],
 
-    // Label Pengiriman -- form alamat Kepada & Pengirim yang dicetak jadi dua kotak.
-    // Modul mandiri (tanpa efek ke stok/kas/PO), jadi dibuka ke semua role untuk lihat/buat/ubah/cetak;
-    // hapus (ke Tempat Sampah) khusus Super Admin seperti dokumen lain. Bisa diubah di Hak Akses.
-    'shipping_label' => [
+    // Form -- satu menu, beberapa jenis form (Pengiriman Dokumen, Kwitansi, Order Form, Pengajuan Bon Sementara)
+    // yang dicetak dari isian. Modul mandiri (tanpa efek ke stok/kas/PO/invoice), jadi dibuka ke semua role
+    // untuk lihat/buat/ubah/cetak; hapus (ke Tempat Sampah) khusus Super Admin. Bisa diubah di Hak Akses.
+    'form' => [
         'view'   => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT, ROLE_PROJECT_MANAGER],
         'create' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT, ROLE_PROJECT_MANAGER],
         'edit'   => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT, ROLE_PROJECT_MANAGER],

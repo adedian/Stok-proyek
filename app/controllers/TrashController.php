@@ -24,7 +24,7 @@ require_once ROOT_PATH . '/app/models/CashTransaction.php';
 require_once ROOT_PATH . '/app/models/BankTransaction.php';
 require_once ROOT_PATH . '/app/models/CashCategory.php';
 require_once ROOT_PATH . '/app/models/Information.php';
-require_once ROOT_PATH . '/app/models/ShippingLabel.php';
+require_once ROOT_PATH . '/app/models/FormDocument.php';
 
 /**
  * TrashController
@@ -137,10 +137,10 @@ class TrashController extends Controller
                 'model' => new CollectionReceipt(),
                 'display' => fn(array $r) => $r['receipt_number'] ?? '-',
             ],
-            'shipping_label' => [
-                'label' => 'Label Pengiriman',
-                'model' => new ShippingLabel(),
-                'display' => fn(array $r) => trim(($r['to_name'] ?? '') . ' (dari ' . ($r['from_name'] ?? '-') . ')'),
+            'form' => [
+                'label' => 'Form',
+                'model' => new FormDocument(),
+                'display' => fn(array $r) => FormDocument::typeLabel($r['form_type'] ?? null) . ' - ' . ($r['summary'] ?? '-'),
             ],
             'cash' => [
                 'label' => 'Kas',

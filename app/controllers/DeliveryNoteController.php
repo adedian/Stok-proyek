@@ -134,7 +134,7 @@ class DeliveryNoteController extends Controller
             $this->redirect('delivery_note', 'select', ['ids' => implode(',', $ids)]);
         }
 
-        $deliveryDate = $_POST['delivery_date'] ?: date('Y-m-d');
+        $deliveryDate = ($_POST['delivery_date'] ?? '') ?: date('Y-m-d');
         if (!isValidDateString($deliveryDate)) {
             setFlash('error', 'Tanggal Surat Jalan tidak valid.');
             $this->redirect('delivery_note', 'select', ['ids' => implode(',', $ids)]);
@@ -256,7 +256,7 @@ class DeliveryNoteController extends Controller
         $destinationName = trim($_POST['destination_name'] ?? '');
 
         $error = null;
-        $deliveryDate = $_POST['delivery_date'] ?: date('Y-m-d');
+        $deliveryDate = ($_POST['delivery_date'] ?? '') ?: date('Y-m-d');
         $numberRaw = $_POST['delivery_number'] ?? '';
         $deliveryNumber = is_string($numberRaw) ? trim(preg_replace('/\s+/', ' ', $numberRaw)) : '';
 

@@ -579,9 +579,9 @@ class SalesOrderController extends Controller
         $order = $this->loadOrder($id);
         $this->assertProcessable($order);
 
-        $number = trim((string) preg_replace('/\s+/', ' ', is_string($_POST['invoice_number'] ?? '') ? $_POST['invoice_number'] : ''));
+        $number = trim((string) preg_replace('/\s+/', ' ', is_string($numberRaw = $_POST['invoice_number'] ?? '') ? $numberRaw : ''));
         $date = (string) ($_POST['invoice_date'] ?? '');
-        $tempoRaw = trim((string) (is_string($_POST['tempo'] ?? '') ? $_POST['tempo'] : ''));
+        $tempoRaw = trim((string) (is_string($tempoIn = $_POST['tempo'] ?? '') ? $tempoIn : ''));
         $tempo = ($tempoRaw !== '' && ctype_digit($tempoRaw) && strlen($tempoRaw) <= 4 && (int) $tempoRaw <= INPUT_MAX_TEMPO_DAYS) ? (int) $tempoRaw : null;
         $ppn = (float) ($_POST['ppn_percent'] ?? $order['ppn_percent']);
         $invoiceType = in_array($_POST['invoice_type'] ?? '', ['project', 'lampu'], true) ? $_POST['invoice_type'] : 'project';
@@ -960,17 +960,17 @@ class SalesOrderController extends Controller
 
     private function collectInput(): array
     {
-        $str = fn($k, $max = 255) => mb_substr(trim((string) (is_string($_POST[$k] ?? '') ? $_POST[$k] : '')), 0, $max);
+        $str = fn($k, $max = 255) => mb_substr(trim((string) (is_string($v = $_POST[$k] ?? '') ? $v : '')), 0, $max);
 
         $data = [
             'order_date'       => is_string($_POST['order_date'] ?? '') ? (string) ($_POST['order_date'] ?? '') : '',
             'client_id'        => (int) ($_POST['client_id'] ?? 0),
-            'customer_address' => trim((string) (is_string($_POST['customer_address'] ?? '') ? $_POST['customer_address'] : '')) ?: null,
+            'customer_address' => trim((string) (is_string($addr = $_POST['customer_address'] ?? '') ? $addr : '')) ?: null,
             'customer_phone'   => $str('customer_phone', 30) ?: null,
             'po_number'        => preg_replace('/\s+/', ' ', $str('po_number', 100)),
             'po_date'          => is_string($_POST['po_date'] ?? '') ? (string) ($_POST['po_date'] ?? '') : '',
             'ppn_percent'      => (float) ($_POST['ppn_percent'] ?? 0),
-            'notes'            => trim((string) (is_string($_POST['notes'] ?? '') ? $_POST['notes'] : '')) ?: null,
+            'notes'            => trim((string) (is_string($notesIn = $_POST['notes'] ?? '') ? $notesIn : '')) ?: null,
         ];
 
         $lines = [];

@@ -85,23 +85,34 @@
 <div class="small text-muted mb-2 no-print" id="soSelectHint"></div>
 <?php endif; ?>
 
+<style>
+    /* Desktop/tablet: kolom diberi lebar wajar & kolom pendek tidak dipecah ke banyak baris (tabel scroll ke samping bila sempit). HP tetap tampilan kartu. */
+    @media (min-width: 768px) {
+        table.so-list { min-width: 1800px; }
+        table.so-list .so-nw { white-space: nowrap; }
+        table.so-list .so-barang { min-width: 200px; }
+        table.so-list .so-proj { min-width: 270px; }
+        table.so-list .so-tujuan { min-width: 440px; }
+    }
+</style>
+
 <div class="card border-0 shadow-sm">
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0 so-list">
                 <thead class="table-light">
                     <tr>
                         <?php if (can('delivery_note', 'view')): ?>
                             <th class="no-print" style="width: 36px;"></th>
                         <?php endif; ?>
-                        <th>No. Dokumen</th>
-                        <th>Tanggal</th>
-                        <th>Barang</th>
-                        <th class="text-end">Qty</th>
-                        <th>Project / Client</th>
-                        <th>Tujuan</th>
-                        <th>PIC</th>
-                        <th>Surat Jalan</th>
+                        <th class="so-nw">No. Dokumen</th>
+                        <th class="so-nw">Tanggal</th>
+                        <th class="so-barang">Barang</th>
+                        <th class="text-end so-nw">Qty</th>
+                        <th class="so-proj">Project / Client</th>
+                        <th class="so-tujuan">Tujuan</th>
+                        <th class="so-nw">PIC</th>
+                        <th class="so-nw">Surat Jalan</th>
                         <th>Validasi</th>
                         <th class="text-center">Aksi</th>
                     </tr>
@@ -143,10 +154,10 @@
                                            <?php endif; ?>>
                                 </td>
                             <?php endif; ?>
-                            <td><?= e($so['stock_out_number'] ?? '-') ?></td>
-                            <td><?= formatTanggal($so['out_date']) ?></td>
-                            <td><?= e($so['item_name']) ?></td>
-                            <td class="text-end"><?= number_format((float) $so['qty'], 2, ',', '.') ?> <?= e($so['unit']) ?></td>
+                            <td class="so-nw"><?= e($so['stock_out_number'] ?? '-') ?></td>
+                            <td class="so-nw"><?= formatTanggal($so['out_date']) ?></td>
+                            <td class="so-barang"><?= e($so['item_name']) ?></td>
+                            <td class="text-end so-nw"><?= number_format((float) $so['qty'], 2, ',', '.') ?> <?= e($so['unit']) ?></td>
                             <td>
                                 <?php if ($so['destination_type'] === 'client'): ?>
                                     <span class="badge text-bg-info text-dark"><?= e($so['client_name'] ?? '-') ?></span>
@@ -162,8 +173,8 @@
                                     <?= e($so['project_name']) ?>
                                 <?php endif; ?>
                             </td>
-                            <td><?= e($so['destination']) ?></td>
-                            <td><?= e($so['pic_name']) ?></td>
+                            <td class="so-tujuan"><?= e($so['destination']) ?></td>
+                            <td class="so-nw"><?= e($so['pic_name']) ?></td>
                             <td>
                                 <?php if (!empty($so['delivery_number'])): ?>
                                     <a href="<?= BASE_URL ?>/delivery_note/print/<?= (int) $so['delivery_note_id'] ?>" target="_blank" class="badge bg-info text-dark text-decoration-none">

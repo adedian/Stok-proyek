@@ -13,6 +13,7 @@ $subModules = [
     ['label' => 'Kategori Biaya', 'module' => 'cash_category', 'icon' => 'bi-cash-stack', 'desc' => 'Kategori biaya untuk transaksi Kas & Purchase Order (Material Proyek, Inventory Kantor, dst)'],
     ['label' => 'PIC Kas', 'module' => 'user_pic', 'icon' => 'bi-person-badge', 'desc' => 'Kaitkan user ke PIC untuk pembatasan akses Kas'],
     ['label' => 'Master Rekening', 'module' => 'master_rekening', 'icon' => 'bi-safe', 'desc' => 'Rekening untuk transaksi Kas (beda dari Master Bank)'],
+    ['label' => 'Master Rekening Tujuan', 'module' => 'master_rekening_tujuan', 'icon' => 'bi-person-vcard', 'desc' => 'Penerima pembayaran (nama, bank, no. rekening) untuk Pengajuan Budget'],
     ['label' => 'Master Bank', 'module' => 'master_bank', 'icon' => 'bi-bank2', 'desc' => 'Rekening sumber (Loan/HR/Kas) untuk modul Bank & filter Kas/Bank'],
     ['label' => 'Master Kode', 'module' => 'master_kode', 'icon' => 'bi-upc-scan', 'desc' => 'Atur prefix & nomor otomatis kode Barang/Supplier/Client/Gudang/Project'],
 ];

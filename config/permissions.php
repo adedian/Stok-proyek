@@ -476,6 +476,41 @@ return [
         'export' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
     ],
 
+    // Pengajuan Budget (Permintaan Otorisasi) -- daftar rencana pembayaran lintas rekening sumber
+    // (Master Bank), modul MANDIRI (tidak menyentuh transaksi Bank/Kas/PO; saldo hanya dibaca).
+    // AKSES SENGAJA TIDAK DIBERIKAN LEWAT ROLE: hanya akun Purwati & Nissa lewat IZIN PER AKUN
+    // (user_permissions, lihat migrasi 2026_11_16_b_pengajuan_budget_permissions.php) -- role
+    // Accounting/Finance lain (mis. akun "accounting") TIDAK ikut. Super Admin: semua.
+    //   realize = tandai Direalisasikan (setelah itu pengajuan terkunci, tidak bisa dihapus/dibatalkan).
+    //   cancel  = batalkan pengajuan (Draft/Diajukan) -- tetap tercatat di histori.
+    'pengajuan_budget' => [
+        'view'    => [ROLE_SUPER_ADMIN],
+        'create'  => [ROLE_SUPER_ADMIN],
+        'edit'    => [ROLE_SUPER_ADMIN],
+        'delete'  => [ROLE_SUPER_ADMIN],
+        'submit'  => [ROLE_SUPER_ADMIN],
+        'realize' => [ROLE_SUPER_ADMIN],
+        'cancel'  => [ROLE_SUPER_ADMIN],
+    ],
+
+    // Laporan Pengajuan Budget (Permintaan Otorisasi) -- akses sama: Purwati & Nissa saja.
+    'pengajuan_budget_report' => [
+        'view'   => [ROLE_SUPER_ADMIN],
+        'print'  => [ROLE_SUPER_ADMIN],
+        'export' => [ROLE_SUPER_ADMIN],
+    ],
+
+    // Master Rekening Tujuan (Master Data) -- penerima pembayaran untuk kolom Rekening Tujuan Pengajuan Budget.
+    // Sama seperti Pengajuan Budget: akses HANYA lewat izin per akun (Purwati & Nissa) + Super Admin;
+    // hapus khusus Super Admin. Lihat migrasi 2026_11_16_e_master_rekening_tujuan_permissions.php.
+    'master_rekening_tujuan' => [
+        'view'      => [ROLE_SUPER_ADMIN],
+        'create'    => [ROLE_SUPER_ADMIN],
+        'edit'      => [ROLE_SUPER_ADMIN],
+        'delete'    => [ROLE_SUPER_ADMIN],
+        'quick_add' => [ROLE_SUPER_ADMIN],
+    ],
+
     // Tempat Sampah -- administratif lintas modul, khusus Super Admin.
     'trash' => [
         'view'         => [ROLE_SUPER_ADMIN],

@@ -168,6 +168,28 @@ class BankTransaction extends Model
     }
 
     /**
+     * Saldo aktual PER REKENING (bank_id) sampai dengan $asOfDate (inklusif, 'Y-m-d').
+     * Sama dgn balancesByBank() tetapi dibatasi tanggal -- dipakai Laporan Pengajuan Budget
+     * (blok "Saldo ... tgl."). HANYA MEMBACA. Rekening tanpa transaksi tidak muncul (saldo 0).
+     * @return array<int,float> bank_id => saldo
+     */
+    public function balancesByBankAsOf(string $asOfDate): array
+    {
+        $out = [];
+        foreach ($this->db->fetchAll(
+            "SELECT bank_id,
+                    COALESCE(SUM(CASE WHEN mutasi='masuk' THEN amount ELSE -amount END), 0) AS saldo
+               FROM bank_transactions
+              WHERE deleted_at IS NULL AND trx_date <= :d
+              GROUP BY bank_id",
+            ['d' => $asOfDate]
+        ) as $r) {
+            $out[(int) $r['bank_id']] = (float) $r['saldo'];
+        }
+        return $out;
+    }
+
+    /**
      * Saldo rekening SETELAH tiap transaksi (urut tanggal lalu id, per rekening) -- BUKAN nominal
      * transaksi. Dihitung dari seluruh riwayat rekening, tidak terpengaruh filter tampilan.
      * @return array<int,float> bank_transaction_id => saldo rekening setelah transaksi itu

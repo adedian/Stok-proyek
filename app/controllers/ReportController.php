@@ -205,6 +205,11 @@ class ReportController extends Controller
             $out[] = ['key' => 'requestBudget', 'label' => 'Request Budget', 'icon' => 'bi-wallet2', 'url' => route('request_budget_report')];
         }
 
+        // Laporan Pengajuan Budget (Permintaan Otorisasi): izin modul terpisah (hanya akun yang diberi izin, mis. Purwati & Nissa).
+        if (can('pengajuan_budget_report', 'view')) {
+            $out[] = ['key' => 'pengajuanBudget', 'label' => 'Pengajuan Budget', 'icon' => 'bi-file-earmark-bar-graph', 'url' => route('pengajuan_budget_report')];
+        }
+
         if (can('period_lock', 'view')) {
             $out[] = ['key' => 'periodLock', 'label' => 'Tutup Bulan', 'icon' => 'bi-lock', 'url' => route('period_lock')];
         }

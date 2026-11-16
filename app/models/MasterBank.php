@@ -42,6 +42,42 @@ class MasterBank extends Model
         return $base;
     }
 
+    /**
+     * Palet warna otomatis Permintaan Otorisasi (urutan = kuning, hijau, peach, oranye seperti
+     * spreadsheet referensi, lalu warna lain) -- dipakai bila kolom `warna` rekening kosong,
+     * sehingga rekening BARU otomatis dapat warna sendiri (berdasarkan id, stabil).
+     */
+    public const AUTO_COLORS = ['#FFFF00', '#92D050', '#FCE4D6', '#F4B084', '#BDD7EE', '#D9C3E8', '#FFD966', '#C6E0B4', '#F8CBAD', '#B4C7E7'];
+
+    public static function reportColor(array $bank): string
+    {
+        $w = (string) ($bank['warna'] ?? '');
+        if (preg_match('/^#[0-9a-fA-F]{6}$/', $w)) {
+            return strtoupper($w);
+        }
+        $idx = max(0, ((int) ($bank['id'] ?? 1)) - 1) % count(self::AUTO_COLORS);
+        return self::AUTO_COLORS[$idx];
+    }
+
+    /** Warna teks (hitam/putih) yang terbaca di atas latar $hex. */
+    public static function textColorOn(string $hex): string
+    {
+        $hex = ltrim($hex, '#');
+        if (strlen($hex) !== 6) {
+            return '#000000';
+        }
+        $lum = 0.299 * hexdec(substr($hex, 0, 2)) + 0.587 * hexdec(substr($hex, 2, 2)) + 0.114 * hexdec(substr($hex, 4, 2));
+        return $lum < 140 ? '#FFFFFF' : '#000000';
+    }
+
+    /** Label rekening untuk laporan: "No. Rekening - Nama Bank" bila nomor ada, selain itu "Nama Bank". */
+    public static function reportLabel(array $bank): string
+    {
+        $no = trim((string) ($bank['no_rekening'] ?? ''));
+        $name = (string) ($bank['bank_name'] ?? '');
+        return $no !== '' ? $name . ' - ' . $no : $name;
+    }
+
     public function activeList(): array
     {
         return $this->db->fetchAll(

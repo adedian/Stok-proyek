@@ -87,6 +87,11 @@
                     <input type="text" name="prefix_pay_kkp" class="form-control" value="<?= e($numbering['prefix_pay_kkp'] ?? 'KKP.HME') ?>">
                     <div class="form-text">Contoh: 001/<?= e($numbering['prefix_pay_kkp'] ?? 'KKP.HME') ?>/VIII/2026</div>
                 </div>
+                <div class="col-md-4">
+                    <label class="form-label">Kode Pengajuan Budget</label>
+                    <input type="text" name="prefix_pb" class="form-control" value="<?= e($numbering['prefix_pb'] ?? 'PB.HME') ?>">
+                    <div class="form-text">Contoh: 001/<?= e($numbering['prefix_pb'] ?? 'PB.HME') ?>/XI/2026</div>
+                </div>
             </div>
             <button type="submit" class="btn btn-primary mt-3"><i class="bi bi-save"></i> Simpan Penomoran</button>
         </form>

@@ -17,6 +17,8 @@ class Router
         'request_budget'  => 'RequestBudgetController',
         'request_budget_report' => 'RequestBudgetReportController',
         'request_po'      => 'RequestPoController',
+        'pengajuan_budget' => 'PengajuanBudgetController',
+        'pengajuan_budget_report' => 'PengajuanBudgetReportController',
         'purchase_order'  => 'PurchaseOrderController',
         'payment'         => 'PaymentController',
         'goods_receipt'   => 'GoodsReceiptController',
@@ -55,6 +57,7 @@ class Router
         'bank'               => 'BankController',
         'master_bank'        => 'MasterBankController',
         'master_rekening'    => 'MasterRekeningController',
+        'master_rekening_tujuan' => 'MasterRekeningTujuanController',
     ];
 
     public function dispatch(): void

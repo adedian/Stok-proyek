@@ -50,6 +50,7 @@ class DocumentNumber extends Model
         'payment_bk'          => 'Pembayaran - Bank',
         'payment_kk'          => 'Pembayaran - Kas Kecil',
         'payment_kkp'         => 'Pembayaran - Kas Project',
+        'pengajuan_budget'    => 'Pengajuan Budget (Permintaan Otorisasi)',
     ];
 
     /** Doc type yang pakai counter bergaya lain (tanpa bulan/tahun pada nomor) -- hanya No. Urut yang bisa diubah. */
@@ -75,6 +76,7 @@ class DocumentNumber extends Model
         'payment_bk'          => ['prefix_pay_bk',  'BK.HME'],
         'payment_kk'          => ['prefix_pay_kk',  'KK.HME'],
         'payment_kkp'         => ['prefix_pay_kkp', 'KKP.HME'],
+        'pengajuan_budget'    => ['prefix_pb',      'PB.HME'],
     ];
 
     public static function label(string $docType): string

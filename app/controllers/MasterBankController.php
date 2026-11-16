@@ -188,7 +188,18 @@ class MasterBankController extends Controller
             'jenis'      => in_array($jenis, array_keys($this->model->jenisLabels), true) ? $jenis : '',
             'is_active'  => !empty($_POST['is_active']) ? 1 : 0,
             'keterangan' => trim($_POST['keterangan'] ?? '') ?: null,
+            // Atribut Permintaan Otorisasi (Pengajuan Budget): nomor rekening, warna, catatan di blok saldo.
+            'no_rekening'   => mb_substr(trim($_POST['no_rekening'] ?? ''), 0, 60) ?: null,
+            'warna'         => $this->cleanColor($_POST['warna'] ?? ''),
+            'catatan_saldo' => mb_substr(trim($_POST['catatan_saldo'] ?? ''), 0, 255) ?: null,
         ];
+    }
+
+    /** Warna hex #RRGGBB atau null (kosong/tidak valid = pakai warna otomatis di laporan). */
+    private function cleanColor($v): ?string
+    {
+        $v = is_string($v) ? trim($v) : '';
+        return preg_match('/^#[0-9a-fA-F]{6}$/', $v) ? strtoupper($v) : null;
     }
 
     private function validate(array $d, ?int $excludeId = null): array

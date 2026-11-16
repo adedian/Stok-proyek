@@ -12,6 +12,24 @@ $nf = function ($v) {
     return ($v < 0 ? '-' : '') . $s;
 };
 $saldoDateLabel = date('d/m/Y', strtotime($report['saldo_date']));
+// Tombol Edit Saldo / Riwayat hanya di layar (tidak ikut Cetak & Excel).
+$canEditSaldo = !$print && can('pengajuan_budget_report', 'edit_saldo');
+$rq = [];
+foreach (['tanggal', 'date_from', 'date_to'] as $k) {
+    if (!empty($filters[$k])) { $rq['r_' . $k] = $filters[$k]; }
+}
+$saldoBtns = function (array $s) use ($print, $canEditSaldo, $rq, $report) {
+    if ($print) { return ''; }
+    $h = '<div class="d-flex gap-1 justify-content-end align-items-center po-btns no-print">';
+    if (!empty($s['manual_date'])) {
+        $h .= '<span class="badge bg-light text-secondary border" title="Saldo dari catatan manual">manual ' . e(date('d/m/Y', strtotime($s['manual_date']))) . '</span>';
+    }
+    if ($canEditSaldo && in_array($s['jenis'], ['loan', 'hr'], true)) {
+        $h .= '<a class="btn btn-sm btn-outline-primary py-0" href="' . e(BASE_URL . '/index.php?' . http_build_query(['module' => 'pengajuan_budget_report', 'action' => 'editSaldo', 'bank_id' => $s['bank_id'], 'date' => $report['saldo_date']] + $rq)) . '"><i class="bi bi-pencil-square"></i> Edit Saldo</a>';
+    }
+    $h .= '<a class="btn btn-sm btn-outline-secondary py-0" href="' . e(BASE_URL . '/index.php?' . http_build_query(['module' => 'pengajuan_budget_report', 'action' => 'saldoHistory', 'bank_id' => $s['bank_id']] + $rq)) . '"><i class="bi bi-clock-history"></i> Riwayat</a>';
+    return $h . '</div>';
+};
 $bg = fn(string $c, string $t) => 'background-color:' . e($c) . ';color:' . e($t) . ';';
 ?>
 <table class="po-table<?= $print ? ' po-print' : '' ?>">
@@ -65,9 +83,14 @@ $bg = fn(string $c, string $t) => 'background-color:' . e($c) . ';color:' . e($t
 
         <?php if ($report['saldo']): ?>
             <tr class="po-gap"><td colspan="8"></td></tr>
+            <tr>
+                <td colspan="3" class="nob"></td>
+                <td colspan="2" class="nob" style="font-weight:700;font-size:1.05em">Saldo Bank sebelum pembayaran</td>
+                <td colspan="3" class="nob"></td>
+            </tr>
             <?php foreach ($report['saldo'] as $s): $style = $bg($s['color'], $s['text_color']); ?>
                 <tr class="po-saldo">
-                    <td colspan="3" class="nob"></td>
+                    <td colspan="3" class="nob"><?= $saldoBtns($s) ?></td>
                     <td style="<?= $style ?>">Saldo <?= e($s['bank_name']) ?> tgl. <?= e($saldoDateLabel) ?></td>
                     <td class="num po-red" style="<?= $style ?>"><?= e($nf($s['saldo'])) ?></td>
                     <?php if ($s['note'] !== ''): ?>

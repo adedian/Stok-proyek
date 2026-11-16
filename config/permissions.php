@@ -498,6 +498,8 @@ return [
         'view'   => [ROLE_SUPER_ADMIN],
         'print'  => [ROLE_SUPER_ADMIN],
         'export' => [ROLE_SUPER_ADMIN],
+        // Edit saldo bank MANUAL (catatan terpisah dari ledger Kas/Bank, ada audit trail). Per akun: Purwati & Nissa.
+        'edit_saldo' => [ROLE_SUPER_ADMIN],
     ],
 
     // Master Rekening Tujuan (Master Data) -- penerima pembayaran untuk kolom Rekening Tujuan Pengajuan Budget.

@@ -27,6 +27,7 @@ $qs = http_build_query($filterQuery);
         <?php if (can('pengajuan_budget', 'view')): ?>
             <a href="<?= BASE_URL ?>/pengajuan_budget" class="btn btn-outline-secondary"><i class="bi bi-file-earmark-plus"></i> Form Pengajuan</a>
         <?php endif; ?>
+        <a href="<?= BASE_URL ?>/index.php?<?= e(http_build_query(['module' => 'pengajuan_budget_report', 'action' => 'saldoHistory'] + array_combine(array_map(fn($k) => 'r_' . $k, array_keys($filterQuery)), array_values($filterQuery)))) ?>" class="btn btn-outline-secondary"><i class="bi bi-clock-history"></i> Riwayat Saldo</a>
         <?php if ($canPrint): ?>
             <a href="<?= BASE_URL ?>/index.php?module=pengajuan_budget_report&action=print&<?= e($qs) ?>" target="_blank" rel="noopener" class="btn btn-dark"><i class="bi bi-printer"></i> Cetak</a>
         <?php endif; ?>

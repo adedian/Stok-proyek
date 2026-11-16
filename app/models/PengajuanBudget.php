@@ -3,6 +3,7 @@ require_once ROOT_PATH . '/core/Model.php';
 require_once ROOT_PATH . '/app/models/DocumentNumber.php';
 require_once ROOT_PATH . '/app/models/MasterBank.php';
 require_once ROOT_PATH . '/app/models/BankTransaction.php';
+require_once ROOT_PATH . '/app/models/BankBalanceAdjustment.php';
 
 /**
  * PengajuanBudget -- "Permintaan Otorisasi": daftar rencana pembayaran lintas rekening sumber
@@ -454,51 +455,48 @@ class PengajuanBudget extends Model
         }
 
         // --- Blok saldo ---
+        // Rekening yang ditampilkan: SEMUA Master Bank aktif berjenis Loan & HR (dinamis; rekening baru otomatis ikut)
+        // + rekening lain yang punya pengajuan di laporan. Filter Rekening Sumber mempersempit ke rekening itu saja.
+        // Saldo = saldo manual terbaru (bila ada, sesuai tanggal berlaku) + mutasi Bank sesudahnya; tanpa saldo manual
+        // = saldo ledger Bank. Dihitung per rekening (tidak pernah dicampur antar rekening).
         $saldoDate = $f['saldo_date'] ?? date('Y-m-d');
-        $balances = (new BankTransaction())->balancesByBankAsOf($saldoDate);
-        $bankIds = array_keys($groups);
-        if (empty($f['bank_id'])) {
-            foreach (array_keys($balances) as $bid) {
-                $bankIds[] = $bid;
-            }
-            // rekening yang pernah bertransaksi tapi saldonya persis 0 pada tanggal itu juga ikut
-            foreach ($this->db->fetchAll("SELECT DISTINCT bank_id FROM bank_transactions WHERE deleted_at IS NULL AND trx_date <= :d", ['d' => $saldoDate]) as $r) {
-                $bankIds[] = (int) $r['bank_id'];
-            }
-        } else {
-            $bankIds[] = (int) $f['bank_id'];
-        }
-        $bankIds = array_values(array_unique(array_map('intval', $bankIds)));
-
+        $balances = (new BankBalanceAdjustment())->balancesAsOf($saldoDate);
         $saldo = [];
-        if ($bankIds) {
+        if (!empty($f['bank_id'])) {
+            $banks = $this->db->fetchAll("SELECT * FROM master_banks WHERE id = :id", ['id' => (int) $f['bank_id']]);
+        } else {
             $in = [];
             $p = [];
-            foreach ($bankIds as $i => $id) {
-                $in[] = ":b{$i}";
-                $p["b{$i}"] = $id;
+            foreach (array_keys($groups) as $i => $id) {
+                $in[] = ":g{$i}";
+                $p["g{$i}"] = (int) $id;
             }
             $banks = $this->db->fetchAll(
-                "SELECT * FROM master_banks WHERE id IN (" . implode(',', $in) . ") AND (deleted_at IS NULL OR id IN (SELECT DISTINCT bank_id FROM bank_transactions)) ORDER BY bank_name ASC, id ASC",
+                "SELECT * FROM master_banks
+                  WHERE (deleted_at IS NULL AND is_active = 1 AND jenis IN ('loan','hr'))"
+                . ($in ? " OR id IN (" . implode(',', $in) . ")" : "")
+                . " ORDER BY FIELD(jenis,'loan','hr','kas'), bank_name ASC, id ASC",
                 $p
             );
-            foreach ($banks as $b) {
-                $bid = (int) $b['id'];
-                $g = $groups[$bid] ?? null;
-                $color = MasterBank::reportColor($b);
-                $awal = (float) ($balances[$bid] ?? 0);
-                $outstanding = $g ? $g['outstanding'] : 0.0;
-                $saldo[] = [
-                    'bank' => $b, 'label' => MasterBank::reportLabel($b), 'bank_name' => $b['bank_name'],
-                    'color' => $color, 'text_color' => MasterBank::textColorOn($color),
-                    'note' => (string) ($b['catatan_saldo'] ?? ''),
-                    'saldo' => $awal,
-                    'outstanding' => $outstanding,
-                    'realized' => $g ? $g['realized'] : 0.0,
-                    'sisa' => $awal - $outstanding,
-                    'has_pengajuan' => $g !== null,
-                ];
-            }
+        }
+        foreach ($banks as $b) {
+            $bid = (int) $b['id'];
+            $g = $groups[$bid] ?? null;
+            $color = MasterBank::reportColor($b);
+            $bal = $balances[$bid] ?? ['saldo' => 0.0, 'manual' => null];
+            $awal = (float) $bal['saldo'];
+            $outstanding = $g ? $g['outstanding'] : 0.0;
+            $saldo[] = [
+                'bank' => $b, 'bank_id' => $bid, 'jenis' => $b['jenis'], 'label' => MasterBank::reportLabel($b), 'bank_name' => $b['bank_name'],
+                'color' => $color, 'text_color' => MasterBank::textColorOn($color),
+                'note' => (string) ($b['catatan_saldo'] ?? ''),
+                'saldo' => $awal,
+                'manual_date' => $bal['manual']['effective_date'] ?? null,
+                'outstanding' => $outstanding,
+                'realized' => $g ? $g['realized'] : 0.0,
+                'sisa' => $awal - $outstanding,
+                'has_pengajuan' => $g !== null,
+            ];
         }
 
         return [

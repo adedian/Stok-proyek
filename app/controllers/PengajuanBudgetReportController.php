@@ -3,6 +3,7 @@ require_once ROOT_PATH . '/core/Controller.php';
 require_once ROOT_PATH . '/core/Middleware.php';
 require_once ROOT_PATH . '/app/models/PengajuanBudget.php';
 require_once ROOT_PATH . '/app/models/MasterBank.php';
+require_once ROOT_PATH . '/app/models/BankBalanceAdjustment.php';
 require_once ROOT_PATH . '/app/models/SystemSetting.php';
 require_once ROOT_PATH . '/app/models/ActivityLog.php';
 
@@ -89,6 +90,152 @@ class PengajuanBudgetReportController extends Controller
             'Export Excel Permintaan Otorisasi ' . self::periodLabel($f) . ' (' . $report['item_count'] . ' baris)');
         require_once ROOT_PATH . '/app/helpers/excel_pengajuan_budget_helper.php';
         streamPermintaanOtorisasi($report, self::periodLabel($f), $this->filterNote($f), 'Permintaan_Otorisasi_' . date('Ymd_His'));
+    }
+
+    // =================== Saldo bank manual ===================
+
+    /** Rekening yang boleh diedit saldonya: Master Bank aktif berjenis Loan/HR. */
+    private function editableBank(int $id): ?array
+    {
+        $b = $id > 0 ? (new MasterBank())->find($id) : null;
+        return ($b && (int) $b['is_active'] === 1 && in_array($b['jenis'], ['loan', 'hr'], true)) ? $b : null;
+    }
+
+    /** Query kembali ke laporan (tanggal/filter yang sedang dilihat). */
+    private function backQuery(): array
+    {
+        $in = $_POST + $_GET;
+        $q = [];
+        foreach (['tanggal', 'date_from', 'date_to'] as $k) {
+            $v = is_string($in['r_' . $k] ?? null) ? $in['r_' . $k] : '';
+            if ($v !== '' && isValidDateString($v)) {
+                $q[$k] = $v;
+            }
+        }
+        return $q;
+    }
+
+    public function editSaldo()
+    {
+        Middleware::requirePermission('pengajuan_budget_report', 'edit_saldo');
+        $bank = $this->editableBank((int) ($_GET['bank_id'] ?? 0));
+        if (!$bank) {
+            setFlash('error', 'Rekening tidak ditemukan atau bukan rekening Loan/HR yang aktif.');
+            $this->redirect('pengajuan_budget_report', 'index', $this->backQuery());
+        }
+        $date = is_string($_GET['date'] ?? null) && isValidDateString($_GET['date']) ? $_GET['date'] : date('Y-m-d');
+        if ($date > date('Y-m-d')) {
+            $date = date('Y-m-d');
+        }
+        $cur = (new BankBalanceAdjustment())->balanceAt((int) $bank['id'], $date);
+        $this->view('pengajuan_budget_report/edit_saldo', [
+            'pageTitle' => 'Edit Saldo Bank',
+            'activeModuleOverride' => 'report',
+            'bank'      => $bank,
+            'date'      => $date,
+            'current'   => $cur,
+            'posted'    => null,
+            'backQuery' => $this->backQuery(),
+        ]);
+    }
+
+    /** AJAX: saldo rekening pada tanggal berlaku yang dipilih (untuk kolom "Saldo Saat Ini"). */
+    public function balanceAt()
+    {
+        Middleware::requirePermission('pengajuan_budget_report', 'edit_saldo');
+        $bank = $this->editableBank((int) ($_GET['bank_id'] ?? 0));
+        $date = $_GET['date'] ?? '';
+        if (!$bank || !is_string($date) || !isValidDateString($date)) {
+            $this->json(['error' => 'Parameter tidak valid.'], 422);
+        }
+        $cur = (new BankBalanceAdjustment())->balanceAt((int) $bank['id'], $date);
+        $this->json(['saldo' => $cur['saldo'], 'manual_date' => $cur['manual']['effective_date'] ?? null]);
+    }
+
+    public function saveSaldo()
+    {
+        Middleware::requirePermission('pengajuan_budget_report', 'edit_saldo');
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('pengajuan_budget_report', 'index');
+        }
+        verifyCsrf();
+
+        $bankId = (int) ($_POST['bank_id'] ?? 0);
+        $bank = $this->editableBank($bankId);
+        $back = $this->backQuery();
+        if (!$bank) {
+            setFlash('error', 'Rekening tidak ditemukan atau bukan rekening Loan/HR yang aktif.');
+            $this->redirect('pengajuan_budget_report', 'index', $back);
+        }
+        $date = is_string($_POST['effective_date'] ?? null) ? trim($_POST['effective_date']) : '';
+        $note = is_string($_POST['note'] ?? null) ? trim($_POST['note']) : '';
+        $rawNew = is_string($_POST['new_balance'] ?? null) ? trim($_POST['new_balance']) : '';
+        $newBalance = parseCurrencyInput($rawNew);
+
+        $errors = [];
+        if (!isValidDateString($date)) {
+            $errors[] = 'Tanggal Berlaku tidak valid.';
+        } elseif ($date > date('Y-m-d')) {
+            $errors[] = 'Tanggal Berlaku tidak boleh melewati hari ini.';
+        }
+        if ($rawNew === '' || !preg_match('/^-?[0-9][0-9,]*(\.[0-9]{1,2})?$/', $rawNew)) {
+            $errors[] = 'Saldo Baru harus berupa angka (contoh: 423,198,660).';
+        } elseif (abs($newBalance) > BankBalanceAdjustment::MAX_ABS) {
+            $errors[] = 'Saldo Baru terlalu besar.';
+        }
+        if (mb_strlen($note) < 3 || mb_strlen($note) > 500) {
+            $errors[] = 'Keterangan perubahan wajib diisi (3-500 karakter).';
+        }
+        if (empty($_POST['confirmed'])) {
+            $errors[] = 'Perubahan saldo harus dikonfirmasi sebelum disimpan.';
+        }
+
+        $model = new BankBalanceAdjustment();
+        if (!$errors) {
+            $old = $model->balanceAt($bankId, $date)['saldo'];
+            if (round($old, 2) === round($newBalance, 2)) {
+                $errors[] = 'Saldo Baru sama dengan Saldo Saat Ini pada tanggal tersebut -- tidak ada yang diubah.';
+            }
+        }
+        if ($errors) {
+            setFlash('error', implode(' ', $errors));
+            $this->view('pengajuan_budget_report/edit_saldo', [
+                'pageTitle' => 'Edit Saldo Bank',
+                'activeModuleOverride' => 'report',
+                'bank'      => $bank,
+                'date'      => isValidDateString($date) ? $date : date('Y-m-d'),
+                'current'   => $model->balanceAt($bankId, isValidDateString($date) ? $date : date('Y-m-d')),
+                'posted'    => ['new_balance' => $rawNew, 'note' => $note],
+                'backQuery' => $back,
+            ]);
+            return;
+        }
+
+        try {
+            $oldBalance = $model->balanceAt($bankId, $date)['saldo'];
+            $model->record($bankId, $date, $newBalance, $note, currentUserId());
+        } catch (Throwable $e) {
+            error_log('BankBalanceAdjustment record error: ' . $e->getMessage());
+            setFlash('error', 'Gagal menyimpan saldo. Silakan coba lagi.');
+            $this->redirect('pengajuan_budget_report', 'editSaldo', ['bank_id' => $bankId, 'date' => $date] + $back);
+        }
+        (new ActivityLog())->log(currentUserId(), 'pengajuan_budget_report', 'edit_saldo',
+            "Saldo manual {$bank['bank_name']} berlaku {$date}: " . number_format($oldBalance, 2, '.', ',') . ' -> ' . number_format($newBalance, 2, '.', ',') . " ({$note})");
+        setFlash('success', "Saldo {$bank['bank_name']} berhasil diperbarui. Transaksi Kas/Bank tidak diubah.");
+        $this->redirect('pengajuan_budget_report', 'index', $back);
+    }
+
+    public function saldoHistory()
+    {
+        $bankId = (int) ($_GET['bank_id'] ?? 0);
+        $bank = $bankId > 0 ? (new MasterBank())->find($bankId) : null;
+        $this->view('pengajuan_budget_report/saldo_history', [
+            'pageTitle' => 'Riwayat Saldo Bank',
+            'activeModuleOverride' => 'report',
+            'bank'      => $bank,
+            'rows'      => (new BankBalanceAdjustment())->history($bank ? (int) $bank['id'] : null),
+            'backQuery' => $this->backQuery(),
+        ]);
     }
 
     /** "TGL. 29 Oktober 2026" (satu hari) atau "PERIODE 01 Oktober 2026 s/d 29 Oktober 2026". */

@@ -113,6 +113,9 @@ function streamPermintaanOtorisasi(array $report, string $periodLabel, string $f
     $saldoRows = [];
     if ($report['saldo']) {
         $dLabel = date('d/m/Y', strtotime($report['saldo_date']));
+        $sheet->setCellValue("D{$r}", 'Saldo Bank sebelum pembayaran');
+        $sheet->getStyle("D{$r}")->getFont()->setBold(true)->setSize(12);
+        $r++;
         foreach ($report['saldo'] as $i => $s) {
             $sheet->setCellValueExplicit("D{$r}", 'Saldo ' . $s['bank_name'] . ' tgl. ' . $dLabel, DataType::TYPE_STRING);
             $sheet->setCellValue("E{$r}", (float) $s['saldo']);

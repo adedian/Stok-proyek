@@ -139,6 +139,7 @@ class DeliveryNoteController extends Controller
             setFlash('error', 'Tanggal Surat Jalan tidak valid.');
             $this->redirect('delivery_note', 'select', ['ids' => implode(',', $ids)]);
         }
+        BackDate::enforce('delivery_note', $deliveryDate, null, 'delivery_note', 'select', ['ids' => implode(',', $ids)]);
 
         $data = [
             'delivery_number'  => $this->deliveryNoteModel->generateDeliveryNumber($deliveryDate),
@@ -277,6 +278,7 @@ class DeliveryNoteController extends Controller
             setFlash('error', $error);
             $this->redirect('delivery_note', 'edit', ['id' => $id]);
         }
+        BackDate::enforce('delivery_note', $deliveryDate, $existing['delivery_date'], 'delivery_note', 'edit', ['id' => $id]);
 
         $data = [
             'delivery_number'  => $deliveryNumber,
@@ -611,6 +613,7 @@ class DeliveryNoteController extends Controller
         }
         // Pengeluaran stok ikut tanggal Surat Jalan -> periode Pengeluaran Barang harus masih terbuka.
         assertPeriodOpen('stock_out', $deliveryDate, 'delivery_note', 'createFromOrder', ['order_id' => $orderId]);
+        BackDate::enforce('delivery_note', $deliveryDate, null, 'delivery_note', 'createFromOrder', ['order_id' => $orderId]);
 
         $lineIds = $_POST['line_id'] ?? [];
         $qtys = $_POST['qty'] ?? [];

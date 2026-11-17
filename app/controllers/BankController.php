@@ -155,6 +155,7 @@ class BankController extends Controller
             setFlash('error', implode(' ', $errors));
             $this->redirect('bank', 'create');
         }
+        BackDate::enforce('bank_' . $data['mutasi'], $data['trx_date'], null, 'bank', 'create');
 
         $total = $this->sumItems($items);
         $uraianConcat = implode('; ', array_column($items, 'uraian'));
@@ -240,6 +241,7 @@ class BankController extends Controller
             setFlash('error', implode(' ', $errors));
             $this->redirect('bank', 'edit', ['id' => $id]);
         }
+        BackDate::enforce('bank_' . $data['mutasi'], $data['trx_date'], $existing['trx_date'], 'bank', 'edit', ['id' => $id]);
 
         $total = $this->sumItems($items);
         $uraianConcat = implode('; ', array_column($items, 'uraian'));

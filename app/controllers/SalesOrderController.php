@@ -103,6 +103,7 @@ class SalesOrderController extends Controller
             setFlash('error', implode(' ', $errors));
             $this->redirect('sales_order', 'create');
         }
+        BackDate::enforce('sales_order', $data['order_date'], null, 'sales_order', 'create');
 
         $status = (($_POST['save_mode'] ?? '') === 'draft') ? SalesOrder::DRAFT : SalesOrder::ACTIVE;
         $totals = SalesOrder::calcTotals($lines, $data['ppn_percent']);
@@ -220,6 +221,7 @@ class SalesOrderController extends Controller
             setFlash('error', implode(' ', $errors));
             $this->redirect('sales_order', 'edit', ['id' => $id]);
         }
+        BackDate::enforce('sales_order', $data['order_date'], $existing['order_date'], 'sales_order', 'edit', ['id' => $id]);
 
         $pdo = getPDO();
         try {
@@ -456,6 +458,7 @@ class SalesOrderController extends Controller
             $this->redirect('sales_order', 'process', ['id' => $id]);
         }
         assertPeriodOpen('stock_out', $date, 'sales_order', 'process', ['id' => $id]);
+        BackDate::enforce('sales_order_fulfillment', $date, null, 'sales_order', 'process', ['id' => $id]);
 
         $lineIds = $_POST['line_id'] ?? [];
         $qtys = $_POST['qty'] ?? [];
@@ -673,6 +676,7 @@ class SalesOrderController extends Controller
             $this->redirect('sales_order', 'invoice', ['id' => $id]);
         }
         assertPeriodOpen('sales_invoice', $date, 'sales_order', 'invoice', ['id' => $id]);
+        BackDate::enforce('sales_invoice', $date, null, 'sales_order', 'invoice', ['id' => $id]);
 
         $pdo = getPDO();
         try {

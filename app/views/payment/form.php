@@ -30,7 +30,7 @@ $selectedPoId = $selectedPo['id'] ?? ($payment['purchase_order_id'] ?? '');
             <div class="row g-3">
                 <div class="col-md-6">
                     <label class="form-label">Purchase Order <span class="text-danger">*</span></label>
-                    <select name="purchase_order_id" id="poSelect" class="form-select" required>
+                    <select name="purchase_order_id" id="poSelect" class="form-select" required <?= $isEdit ? 'disabled' : '' ?>>
                         <option value="">-- Pilih Purchase Order --</option>
                         <?php foreach ($poList as $po): ?>
                             <option value="<?= (int) $po['id'] ?>" data-currency="<?= e(normalizeCurrency($po['currency'] ?? 'IDR')) ?>" <?= (string) $selectedPoId === (string) $po['id'] ? 'selected' : '' ?>>
@@ -38,28 +38,60 @@ $selectedPoId = $selectedPo['id'] ?? ($payment['purchase_order_id'] ?? '');
                             </option>
                         <?php endforeach; ?>
                     </select>
+                    <?php if ($isEdit): ?>
+                        <input type="hidden" name="purchase_order_id" value="<?= (int) $selectedPoId ?>">
+                        <div class="form-text">PO pada pembayaran tidak dapat diubah (nomor termin melekat pada PO ini).</div>
+                    <?php endif; ?>
                     <div class="form-text" id="remainingInfo">
                         <?php if ($remaining !== null && $progress !== null): ?>
                             Sisa tagihan PO ini: <strong><?= formatMoney($remaining, $selectedPo['currency'] ?? 'IDR') ?></strong>
-                            &middot; Sudah dibayar: <strong><?= number_format($progress['percentage'], 1, ',', '.') ?>%</strong>
+                            &middot; Sudah dibayar: <strong><?= e($progress['percentage_text']) ?>%</strong>
                         <?php endif; ?>
                     </div>
-                    <?php $progressPct = $progress['percentage'] ?? 0.0; ?>
+                    <?php $progressBar = $progress['percentage_bar'] ?? 0.0; $progressStatus = $progress['status'] ?? 'pending'; ?>
                     <div class="progress mt-1" style="height: 6px;">
-                        <div class="progress-bar bg-<?= $progressPct >= 100 ? 'success' : 'primary' ?>" id="remainingProgressBar"
-                             role="progressbar" style="width: <?= (float) $progressPct ?>%"
-                             aria-valuenow="<?= (float) $progressPct ?>" aria-valuemin="0" aria-valuemax="100"></div>
+                        <div class="progress-bar bg-<?= $progressStatus === 'paid' ? 'success' : ($progressStatus === 'overpaid' ? 'danger' : 'primary') ?>" id="remainingProgressBar"
+                             role="progressbar" style="width: <?= (float) $progressBar ?>%"
+                             aria-valuenow="<?= (float) $progressBar ?>" aria-valuemin="0" aria-valuemax="100"></div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Termin Ke- <span class="text-danger">*</span></label>
-                    <input type="number" name="termin" class="form-control" min="1"
-                           value="<?= e($payment['termin'] ?? 1) ?>" required>
+                    <label class="form-label">Jenis Pembayaran <span class="text-danger">*</span></label>
+                    <?php if ($isEdit): ?>
+                        <input type="text" class="form-control" value="<?= e(($payment['payment_type'] ?? 'termin') === 'pelunasan' ? 'Pelunasan' : 'Termin ' . (int) $payment['termin']) ?>" readonly tabindex="-1">
+                        <input type="hidden" name="payment_type" id="paymentTypeHidden" value="<?= e($paymentType) ?>">
+                        <div class="form-text">Jenis & nomor tidak dapat diubah.</div>
+                    <?php else: ?>
+                        <div class="btn-group w-100" role="group" aria-label="Jenis Pembayaran">
+                            <?php foreach ($typeLabels as $tKey => $tLabel): ?>
+                                <input type="radio" class="btn-check" name="payment_type" id="ptype_<?= e($tKey) ?>" value="<?= e($tKey) ?>" autocomplete="off" <?= $paymentType === $tKey ? 'checked' : '' ?>>
+                                <label class="btn btn-outline-primary" for="ptype_<?= e($tKey) ?>"><?= e($tLabel) ?></label>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Tanggal Bayar <span class="text-danger">*</span></label>
-                    <input type="date" name="payment_date" class="form-control"
+                    <input type="date" name="payment_date" <?= !$isEdit ? BackDate::minAttr('payment') : '' ?> class="form-control"
                            value="<?= e($payment['payment_date'] ?? date('Y-m-d')) ?>" required>
+                </div>
+                <div class="col-12">
+                    <div id="terminInfoBox" class="alert alert-light border small mb-0 d-none">
+                        <i class="bi bi-hash"></i> Nomor termin dibuat otomatis oleh sistem.
+                        Pembayaran ini akan tercatat sebagai <strong id="terminNextLabel">Termin <?= (int) ($nextTermin ?? 1) ?></strong>.
+                    </div>
+                    <div id="pelunasanInfoBox" class="card border-success d-none">
+                        <div class="card-body py-2">
+                            <div class="fw-semibold text-success mb-2"><i class="bi bi-check2-circle"></i> Pelunasan &mdash; seluruh sisa tagihan PO</div>
+                            <div class="row g-2 small">
+                                <div class="col-6 col-md-3"><div class="text-muted">Total PO</div><div class="fw-semibold" id="plTotal">-</div></div>
+                                <div class="col-6 col-md-3"><div class="text-muted">Total Pembayaran Sebelumnya</div><div class="fw-semibold" id="plPaid">-</div></div>
+                                <div class="col-6 col-md-3"><div class="text-muted">Sisa Tagihan</div><div class="fw-semibold text-danger" id="plRemaining">-</div></div>
+                                <div class="col-6 col-md-3"><div class="text-muted">Jenis Pembayaran</div><div class="fw-semibold">Pelunasan</div></div>
+                            </div>
+                            <div class="form-text mt-2 mb-0">Nominal pelunasan diisi otomatis = sisa tagihan (tanpa pembulatan) dan dihitung ulang server saat disimpan. Jika sisa berubah karena pembayaran lain, simpan akan ditolak agar Anda memeriksa ulang.</div>
+                        </div>
+                    </div>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Melalui <span class="text-danger">*</span></label>
@@ -72,7 +104,7 @@ $selectedPoId = $selectedPo['id'] ?? ($payment['purchase_order_id'] ?? '');
                     <div class="form-text">Bank = kode BK, Kas Kecil = kode KK, Kas Project = kode KKP (nomor urut terpisah per sumber dana).</div>
                 </div>
                 <div class="col-md-6" id="paymentMethodWrap">
-                    <label class="form-label">Jenis Pembayaran <span class="text-danger">*</span></label>
+                    <label class="form-label">Metode Pembayaran <span class="text-danger">*</span></label>
                     <div class="input-group">
                         <select name="payment_method_id" id="payment_method_id" class="form-select">
                             <option value="">-- Pilih Jenis (Cek/Giro/Transfer Bank/Tunai) --</option>
@@ -161,6 +193,34 @@ $selectedPoId = $selectedPo['id'] ?? ($payment['purchase_order_id'] ?? '');
     const isEditMode = <?= $isEdit ? 'true' : 'false' ?>;
     // Sisa tagihan PO dalam mata uang PO (dari server) -- dasar isi otomatis Nominal Pembayaran.
     let remainingForeign = <?= $remaining !== null ? (float) $remaining : 'null' ?>;
+    // Sisa/total/dibayar sebagai STRING desimal persis dari server (tanpa float) -- dipakai isi
+    // nominal Pelunasan & panel info. Persentase/status TIDAK dihitung di JS (selalu dari server).
+    let remainingExact = <?= $remaining !== null ? json_encode((string) $remaining) : 'null' ?>;
+    let totalExact = <?= $progress !== null ? json_encode((string) $progress['total_amount']) : 'null' ?>;
+    let paidExact = <?= $progress !== null ? json_encode((string) $progress['total_paid']) : 'null' ?>;
+    let nextTermin = <?= (int) ($nextTermin ?? 1) ?>;
+    const currencyPrefixes = <?= json_encode(array_combine(poCurrencies(), array_map('currencyPrefix', poCurrencies()))) ?>;
+
+    // "2029028.15" -> "2,029,028.15" tanpa float (pemisah ribuan koma, desimal titik -- format input nominal).
+    function fmtExact(str) {
+        if (str === null || str === undefined) { return ''; }
+        const parts = String(str).split('.');
+        const neg = parts[0].charAt(0) === '-';
+        const int = parts[0].replace('-', '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        return (neg ? '-' : '') + int + '.' + ((parts[1] || '') + '00').slice(0, 2);
+    }
+    function moneyLabel(str, code) {
+        return (currencyPrefixes[code] || code) + ' ' + fmtExact(str);
+    }
+    function currentType() {
+        const checked = document.querySelector('input[name="payment_type"]:checked');
+        if (checked) { return checked.value; }
+        const hidden = document.getElementById('paymentTypeHidden');
+        return hidden ? hidden.value : 'termin';
+    }
+    function currentCode() {
+        return (document.getElementById('paymentCurrency').value || 'IDR');
+    }
 
     // Jenis Pembayaran (Cek/Giro/Transfer Bank/Tunai) HANYA relevan kalau
     // "Melalui" = Bank -- backend (PaymentController::collectInput/validateInput)
@@ -220,11 +280,18 @@ $selectedPoId = $selectedPo['id'] ?? ($payment['purchase_order_id'] ?? '');
     const amountInput = document.getElementById('amountInput');
     let amountTouched = isEditMode;
     function autoFillAmount() {
-        if (amountTouched && amountInput.value.trim() !== '') { return; }
-        const kurs = parseFloat((kursInput.value || '').replace(/\./g, '').replace(',', '.'));
-        if (remainingForeign === null || isNaN(kurs) || kurs <= 0 || remainingForeign <= 0) { return; }
-        amountInput.value = (Math.round(remainingForeign * kurs * 100) / 100)
-            .toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const pelunasan = currentType() === 'pelunasan';
+        if (!pelunasan && amountTouched && amountInput.value.trim() !== '') { return; }
+        if (remainingExact === null || parseFloat(remainingExact) <= 0) { return; }
+        if (currentCode() === 'IDR') {
+            // IDR: isi dari string sisa persis (tanpa float) -> desimal Pelunasan tidak berubah.
+            amountInput.value = fmtExact(remainingExact);
+        } else {
+            const kurs = parseFloat((kursInput.value || '').replace(/\./g, '').replace(',', '.'));
+            if (isNaN(kurs) || kurs <= 0 || remainingForeign === null) { return; }
+            amountInput.value = (Math.round(remainingForeign * kurs * 100) / 100)
+                .toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
         amountTouched = false;
     }
     amountInput.addEventListener('input', function (e) {
@@ -239,12 +306,45 @@ $selectedPoId = $selectedPo['id'] ?? ($payment['purchase_order_id'] ?? '');
     applyCurrencyState(selectedPoCurrency());
     poSelect.addEventListener('change', function () { applyCurrencyState(selectedPoCurrency()); });
 
-    function formatPercentage(bar, percentage) {
+    function formatPercentage(bar, barWidth, status) {
         if (!bar) { return; }
-        bar.style.width = percentage + '%';
-        bar.classList.toggle('bg-success', percentage >= 100);
-        bar.classList.toggle('bg-primary', percentage < 100);
+        bar.style.width = barWidth + '%';
+        bar.classList.toggle('bg-success', status === 'paid');
+        bar.classList.toggle('bg-danger', status === 'overpaid');
+        bar.classList.toggle('bg-primary', status !== 'paid' && status !== 'overpaid');
     }
+
+    // Jenis Pembayaran: Termin (nomor otomatis) / Pelunasan (nominal = sisa tagihan, terkunci).
+    const terminBox = document.getElementById('terminInfoBox');
+    const pelunasanBox = document.getElementById('pelunasanInfoBox');
+    function applyTypeState() {
+        const pelunasan = currentType() === 'pelunasan';
+        terminBox.classList.toggle('d-none', pelunasan || isEditMode);
+        pelunasanBox.classList.toggle('d-none', !pelunasan);
+        amountInput.readOnly = pelunasan;
+        if (pelunasan) {
+            const code = currentCode();
+            document.getElementById('plTotal').textContent = totalExact === null ? '-' : moneyLabel(totalExact, code);
+            document.getElementById('plPaid').textContent = paidExact === null ? '-' : moneyLabel(paidExact, code);
+            document.getElementById('plRemaining').textContent = remainingExact === null ? '-' : moneyLabel(remainingExact, code);
+            autoFillAmount();
+            updateForeign();
+        }
+        document.getElementById('terminNextLabel').textContent = 'Termin ' + nextTermin;
+    }
+    document.querySelectorAll('input[name="payment_type"]').forEach(function (r) {
+        r.addEventListener('change', applyTypeState);
+    });
+    kursInput.addEventListener('input', function () { if (currentType() === 'pelunasan') { autoFillAmount(); updateForeign(); } });
+
+    // Konfirmasi Pelunasan sebelum simpan (nominal ditampilkan sekali lagi).
+    amountInput.form.addEventListener('submit', function (e) {
+        if (currentType() === 'pelunasan' && !isEditMode) {
+            const ok = confirm('Konfirmasi PELUNASAN?\n\nNominal: IDR ' + amountInput.value
+                + '\nSeluruh sisa tagihan PO akan dibayar dan PO menjadi LUNAS.');
+            if (!ok) { e.preventDefault(); }
+        }
+    });
 
     // AJAX: setiap kali user ganti pilihan PO, ambil sisa tagihan + persentase terbaru dari server
     poSelect.addEventListener('change', function () {
@@ -267,16 +367,24 @@ $selectedPoId = $selectedPo['id'] ?? ($payment['purchase_order_id'] ?? '');
                     return;
                 }
                 remainingInfo.innerHTML = 'Sisa tagihan PO ini: <strong>' + data.remaining_formatted + '</strong>'
-                    + ' &middot; Sudah dibayar: <strong>' + data.percentage.toString().replace('.', ',') + '%</strong>';
-                formatPercentage(progressBar, data.percentage);
+                    + ' &middot; Sudah dibayar: <strong>' + data.percentage_text + '%</strong>'
+                    + ' &middot; <span class="badge bg-secondary">' + data.payment_status_label + '</span>';
+                formatPercentage(progressBar, data.percentage_bar, data.payment_status);
                 remainingForeign = data.remaining;
+                remainingExact = data.remaining_exact;
+                totalExact = data.total_amount_exact;
+                paidExact = data.total_paid_exact;
+                nextTermin = data.next_termin;
+                applyCurrencyState(data.currency);
                 autoFillAmount();
                 updateForeign();
-                applyCurrencyState(data.currency);
+                applyTypeState();
             })
             .catch(function () {
                 remainingInfo.textContent = 'Gagal memuat sisa tagihan.';
             });
     });
+
+    applyTypeState();
 })();
 </script>

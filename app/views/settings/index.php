@@ -3,6 +3,7 @@ $tabs = [
     'company'      => 'Profil Perusahaan',
     'bank'         => 'Rekening Bank',
     'numbering'    => 'Penomoran Dokumen',
+    'backdate'     => 'Back Date',
     'session'      => 'Session',
     'notification' => 'Notifikasi',
     'permissions'  => 'Hak Akses',

@@ -24,7 +24,7 @@ $backUrl = BASE_URL . '/request_po' . ($isEdit ? '/detail/' . (int) $rp['id'] : 
             <div class="row g-3">
                 <div class="col-md-4">
                     <label class="form-label">Tanggal Request <span class="text-danger">*</span></label>
-                    <input type="date" name="request_date" class="form-control" required
+                    <input type="date" name="request_date" <?= !$isEdit ? BackDate::minAttr('request_po') : '' ?> class="form-control" required
                            value="<?= e($rp['request_date'] ?? date('Y-m-d')) ?>">
                 </div>
                 <div class="col-md-4">

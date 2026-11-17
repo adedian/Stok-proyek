@@ -145,7 +145,7 @@ $hideUnlessType = function (string $type) use ($isEdit, $receiptType): string {
             <div class="row g-3 mt-0">
                 <div class="col-md-3">
                     <label class="form-label">Tanggal Datang <span class="text-danger">*</span></label>
-                    <input type="date" name="receipt_date" class="form-control"
+                    <input type="date" name="receipt_date" <?= !$isEdit ? BackDate::minAttr('goods_receipt') : '' ?> class="form-control"
                            value="<?= e($receipt['receipt_date'] ?? date('Y-m-d')) ?>" required>
                 </div>
                 <div class="col-md-4">

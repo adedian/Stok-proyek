@@ -98,6 +98,7 @@ class FormController extends Controller
             setFlash('error', $e->getMessage());
             $this->redirect('form', 'create', ['type' => $type]);
         }
+        BackDate::enforce('form', $this->docDate($data), null, 'form', 'create', ['type' => $type]);
 
         try {
             $id = $this->formModel->create([
@@ -161,6 +162,8 @@ class FormController extends Controller
             setFlash('error', $e->getMessage());
             $this->redirect('form', 'edit', ['id' => $id]);
         }
+        $oldData = json_decode((string) ($existing['data'] ?? ''), true);
+        BackDate::enforce('form', $this->docDate($data), is_array($oldData) ? $this->docDate($oldData) : null, 'form', 'edit', ['id' => $id]);
 
         try {
             $this->formModel->updateById($id, [
@@ -253,6 +256,17 @@ class FormController extends Controller
     // =====================================================================
     // Baca & validasi isian per jenis. Return [data, summary]; gagal -> InvalidArgumentException.
     // =====================================================================
+
+    /** Tanggal dokumen sebuah Form (kolom tanggalnya beda per jenis): form_date / order_date / request_date. */
+    private function docDate(array $data): ?string
+    {
+        foreach (['form_date', 'order_date', 'request_date'] as $k) {
+            if (!empty($data[$k]) && is_string($data[$k])) {
+                return $data[$k];
+            }
+        }
+        return null;
+    }
 
     private function readInput(string $type): array
     {

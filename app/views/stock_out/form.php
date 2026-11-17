@@ -98,7 +98,7 @@ if (!$canClientDest) {
 
                 <div class="col-md-4">
                     <label class="form-label">Tanggal Keluar <span class="text-danger">*</span></label>
-                    <input type="date" name="out_date" class="form-control"
+                    <input type="date" name="out_date" <?= !$isEdit ? BackDate::minAttr('stock_out') : '' ?> class="form-control"
                            value="<?= e($stockOut['out_date'] ?? date('Y-m-d')) ?>" required>
                 </div>
                 <div class="col-md-4">

@@ -40,7 +40,7 @@ $lockedClient = $isEdit && !empty($isProcessed);
             <div class="row g-3">
                 <div class="col-md-3">
                     <label class="form-label">Tanggal Order Penjualan <span class="text-danger">*</span></label>
-                    <input type="date" name="order_date" class="form-control" required value="<?= e($order['order_date'] ?? date('Y-m-d')) ?>">
+                    <input type="date" name="order_date" <?= !$isEdit ? BackDate::minAttr('sales_order') : '' ?> class="form-control" required value="<?= e($order['order_date'] ?? date('Y-m-d')) ?>">
                 </div>
                 <div class="col-md-5">
                     <label class="form-label">Nama Customer <span class="text-danger">*</span></label>

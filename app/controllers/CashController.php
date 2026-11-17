@@ -799,6 +799,7 @@ class CashController extends Controller
         }
 
         assertPeriodOpen('cash', $data['trx_date'], 'cash', 'create');
+        BackDate::enforce('cash_' . $data['mutasi'], $data['trx_date'], null, 'cash', 'create');
 
         // Prefix Kas WAJIB ada di PIC terpilih (server yang menentukan, bukan
         // input user). validateInput() sudah mengecek ini, tapi ambil ulang di
@@ -970,6 +971,7 @@ class CashController extends Controller
         }
 
         assertPeriodOpen('cash', $trxDate, 'cash', 'transferCreate');
+        BackDate::enforce(['cash_transfer', 'bank_keluar', 'cash_masuk'], $trxDate, null, 'cash', 'transferCreate');
 
         $pdo = getPDO();
         try {
@@ -1125,6 +1127,7 @@ class CashController extends Controller
 
         assertPeriodOpen('cash', $existing['trx_date'], 'cash', 'edit', ['id' => $id]);
         assertPeriodOpen('cash', $data['trx_date'], 'cash', 'edit', ['id' => $id]);
+        BackDate::enforce('cash_' . $data['mutasi'], $data['trx_date'], $existing['trx_date'], 'cash', 'edit', ['id' => $id]);
 
         // Bukti foto/dokumen: file baru menggantikan yang lama; centang "hapus bukti" tanpa
         // file baru = kosongkan. File lama baru dibuang SETELAH transaksi DB sukses commit.

@@ -104,6 +104,7 @@ class CollectionReceiptController extends Controller
             setFlash('error', 'Tanggal Tanda Terima tidak valid.');
             $this->redirect('sales_invoice', 'index');
         }
+        BackDate::enforce('collection_receipt', $receiptDate, null, 'sales_invoice', 'index');
 
         $data = [
             'receipt_number' => $this->receiptModel->generateReceiptNumber($receiptDate),
@@ -236,6 +237,7 @@ class CollectionReceiptController extends Controller
             setFlash('error', 'Tanggal Tanda Terima tidak valid.');
             $this->redirect('collection_receipt', 'edit', ['id' => $id]);
         }
+        BackDate::enforce('collection_receipt', ($_POST['receipt_date'] ?? '') ?: $existing['receipt_date'], $existing['receipt_date'], 'collection_receipt', 'edit', ['id' => $id]);
 
         $updateData = [
             'receipt_date'   => ($_POST['receipt_date'] ?? '') ?: $existing['receipt_date'],

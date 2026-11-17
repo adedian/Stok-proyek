@@ -180,6 +180,7 @@ class InventoryController extends Controller
         }
 
         assertPeriodOpen('stock_opname', $opnameDate, 'inventory', 'opnameCreate', ['stock_type' => $stockType, 'project_id' => $projectId]);
+        BackDate::enforce('stock_opname', $opnameDate, null, 'inventory', 'opnameCreate', ['stock_type' => $stockType, 'project_id' => $projectId]);
 
         $pdo = getPDO();
         try {

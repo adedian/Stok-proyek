@@ -31,7 +31,7 @@ $openLines = array_values(array_filter($items, fn($it) => (float) $it['remaining
             <div class="row g-3">
                 <div class="col-md-3">
                     <label class="form-label">Tanggal Pengeluaran <span class="text-danger">*</span></label>
-                    <input type="date" name="fulfillment_date" class="form-control" required value="<?= e(date('Y-m-d')) ?>">
+                    <input type="date" name="fulfillment_date" class="form-control" <?= BackDate::minAttr('sales_order_fulfillment') ?> required value="<?= e(date('Y-m-d')) ?>">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">PIC Pengeluaran</label>

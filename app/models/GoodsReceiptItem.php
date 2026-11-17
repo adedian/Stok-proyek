@@ -447,6 +447,7 @@ class GoodsReceiptItem extends Model
                        COALESCE(gri.actual_unit, poi.unit, opi.unit) AS unit,
                        gr.receipt_number, gr.receipt_type, gr.stock_scope, gr.stock_type, gr.receipt_date,
                        gr.created_by AS receipt_created_by, po.receiver_user_id AS po_receiver_user_id,
+                       gr.deleted_at AS receipt_deleted_at,
                        COALESCE(gr.project_id, po.project_id, op.project_id) AS project_id,
                        gr.purchase_order_id, po.po_number,
                        gr.offline_purchase_id, op.purchase_number
@@ -458,5 +459,79 @@ class GoodsReceiptItem extends Model
                 LEFT JOIN offline_purchases op ON op.id = gr.offline_purchase_id
                 WHERE gri.id = :id";
         return $this->db->fetchOne($sql, ['id' => $id]);
+    }
+
+    /**
+     * Item yang BOLEH ikut Validasi Sesuai Semua (massal): belum pernah divalidasi, hasil
+     * perbandingan otomatisnya 'sesuai' (qty diterima = qty PO, barang sama), dan penerimaannya
+     * masih aktif. Item dengan selisih (kurang/lebih/barang lain) wajib divalidasi SATU PER SATU
+     * karena butuh catatan. Hak validator & kunci periode dicek terpisah oleh pemanggil.
+     * $row butuh kunci: validated_at, comparison_status, (opsional) receipt_deleted_at.
+     */
+    public function isBulkEligible(array $row): bool
+    {
+        return empty($row['validated_at'])
+            && ($row['comparison_status'] ?? '') === 'sesuai'
+            && empty($row['receipt_deleted_at']);
+    }
+
+    /** Alasan item TIDAK bisa ikut validasi massal (untuk tooltip checkbox), null bila memenuhi syarat. */
+    public function bulkIneligibleReason(array $row): ?string
+    {
+        if (!empty($row['validated_at'])) {
+            return 'Sudah divalidasi';
+        }
+        if (!empty($row['receipt_deleted_at'])) {
+            return 'Penerimaan sudah dihapus';
+        }
+        if (($row['comparison_status'] ?? '') !== 'sesuai') {
+            return 'Ada selisih -- validasi satuan (wajib catatan)';
+        }
+        return null;
+    }
+
+    /**
+     * Catat satu peristiwa validasi ke riwayat (append-only). Dipanggil dalam transaksi yang sama
+     * dengan validateItem() supaya riwayat & hasil selalu konsisten. Riwayat sebelumnya TIDAK
+     * ditimpa -- validasi ulang menambah baris baru.
+     */
+    public function logValidation(array $item, string $newStatus, string $notes, int $userId, string $mode, ?string $batchId): void
+    {
+        $this->db->insert('goods_receipt_item_validations', [
+            'goods_receipt_item_id' => (int) $item['id'],
+            'receipt_number'        => $item['receipt_number'] ?? null,
+            'item_name'             => $item['item_name'] ?? null,
+            'qty_received'          => $item['qty_received'] ?? null,
+            'previous_status'       => !empty($item['validated_at']) ? ($item['comparison_status'] ?? null) : null,
+            'new_status'            => $newStatus,
+            'notes'                 => $notes !== '' ? $notes : null,
+            'mode'                  => $mode,
+            'batch_id'              => $batchId,
+            'validated_by'          => $userId,
+            'validated_at'          => date('Y-m-d H:i:s'),
+        ]);
+    }
+
+    /** Riwayat validasi untuk sekumpulan item sekaligus: [item_id => [baris terbaru dulu, ...]]. */
+    public function validationHistoryFor(array $itemIds): array
+    {
+        $itemIds = array_values(array_unique(array_map('intval', $itemIds)));
+        if (empty($itemIds)) {
+            return [];
+        }
+        $ph = implode(',', array_fill(0, count($itemIds), '?'));
+        $rows = $this->db->fetchAll(
+            "SELECT v.*, u.full_name AS validator_name
+               FROM goods_receipt_item_validations v
+               LEFT JOIN users u ON u.id = v.validated_by
+              WHERE v.goods_receipt_item_id IN ({$ph})
+              ORDER BY v.validated_at DESC, v.id DESC",
+            $itemIds
+        );
+        $out = [];
+        foreach ($rows as $r) {
+            $out[(int) $r['goods_receipt_item_id']][] = $r;
+        }
+        return $out;
     }
 }

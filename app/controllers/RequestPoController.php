@@ -87,6 +87,7 @@ class RequestPoController extends Controller
             setFlash('error', implode(' ', $errors));
             $this->redirect('request_po', 'create');
         }
+        BackDate::enforce('request_po', $data['request_date'], null, 'request_po', 'create');
 
         $submitNow = !empty($_POST['submit_after']) && can('request_po', 'submit');
         $items = RequestPo::normalizeItems($data['items']);
@@ -179,6 +180,7 @@ class RequestPoController extends Controller
             setFlash('error', implode(' ', $errors));
             $this->redirect('request_po', 'edit', ['id' => $id]);
         }
+        BackDate::enforce('request_po', $data['request_date'], $rp['request_date'], 'request_po', 'edit', ['id' => $id]);
 
         $submitNow = !empty($_POST['submit_after']) && can('request_po', 'submit');
         $items = RequestPo::normalizeItems($data['items']);

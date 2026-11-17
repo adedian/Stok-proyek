@@ -195,6 +195,7 @@ class GoodsReceiptController extends Controller
         }
 
         assertPeriodOpen('goods_receipt', $data['receipt_date'], 'goods_receipt', 'create', ['po_id' => $data['purchase_order_id']]);
+        BackDate::enforce('goods_receipt', $data['receipt_date'], null, 'goods_receipt', 'create', ['po_id' => $data['purchase_order_id']]);
 
         try {
             $photoGoods = handleFileUpload('photo_goods', 'foto_barang', ['jpg', 'jpeg', 'png', 'webp'], 5);
@@ -435,6 +436,7 @@ class GoodsReceiptController extends Controller
 
         assertPeriodOpen('goods_receipt', $existing['receipt_date'], 'goods_receipt', 'edit', ['id' => $id]);
         assertPeriodOpen('goods_receipt', $data['receipt_date'], 'goods_receipt', 'edit', ['id' => $id]);
+        BackDate::enforce('goods_receipt', $data['receipt_date'], $existing['receipt_date'], 'goods_receipt', 'edit', ['id' => $id]);
 
         try {
             $photoGoods = handleFileUpload('photo_goods', 'foto_barang', ['jpg', 'jpeg', 'png', 'webp'], 5);

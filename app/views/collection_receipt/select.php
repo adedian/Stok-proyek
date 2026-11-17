@@ -61,7 +61,7 @@
             <div class="row g-3">
                 <div class="col-md-4">
                     <label class="form-label">Tanggal Tanda Terima</label>
-                    <input type="date" name="receipt_date" class="form-control" value="<?= e(date('Y-m-d')) ?>" required>
+                    <input type="date" name="receipt_date" class="form-control" value="<?= e(date('Y-m-d')) ?>" required <?= BackDate::minAttr('collection_receipt') ?>>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Nama Penerima <span class="text-muted small">(opsional)</span></label>

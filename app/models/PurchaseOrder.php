@@ -2,6 +2,7 @@
 require_once ROOT_PATH . '/core/Model.php';
 require_once ROOT_PATH . '/app/models/SystemSetting.php';
 require_once ROOT_PATH . '/app/models/DocumentNumber.php';
+require_once ROOT_PATH . '/app/helpers/money_helper.php';
 
 class PurchaseOrder extends Model
 {
@@ -347,14 +348,16 @@ class PurchaseOrder extends Model
         $paidByPo = array_column($paymentRows, 'total_paid', 'purchase_order_id');
 
         foreach ($rows as &$row) {
-            $nilai = (float) $row['total_amount'];
-            $dibayar = (float) ($paidByPo[$row['id']] ?? 0);
-            $sisa = max($nilai - $dibayar, 0);
+            // Semua dihitung per sen (Money) -- sisa Rp0,15 dari PO jutaan tidak hilang karena float/pembulatan.
+            $nilaiStr = Money::fromCents(Money::cents($row['total_amount']));
+            $dibayarStr = Money::fromCents(Money::cents($paidByPo[$row['id']] ?? 0));
+            $sisaStr = Money::remaining($nilaiStr, $dibayarStr);
 
-            $row['nilai_po'] = $nilai;
-            $row['total_dibayar'] = $dibayar;
-            $row['sisa_belum_dibayar'] = $sisa;
-            $row['pct_belum_dibayar'] = $nilai > 0 ? round($sisa / $nilai * 100, 2) : 0;
+            $row['nilai_po'] = (float) $nilaiStr;
+            $row['total_dibayar'] = (float) $dibayarStr;
+            $row['sisa_belum_dibayar'] = (float) $sisaStr;
+            // % Belum Bayar = sisa / nilai x 100, presisi penuh (string; format 'percent_full').
+            $row['pct_belum_dibayar'] = Money::percent($sisaStr, $nilaiStr)['value'];
         }
 
         return $rows;
@@ -490,8 +493,8 @@ class PurchaseOrder extends Model
      */
     public function payablePoList(int $keepPoId = 0): array
     {
-        // PO yang sudah LUNAS (total pembayaran >= total PO, toleransi 1 sen untuk pembulatan)
-        // tidak ditawarkan lagi. $keepPoId = PO yang sedang diedit pembayarannya: tetap tampil
+        // PO yang sudah LUNAS (total pembayaran >= total PO, TANPA toleransi: sisa Rp0,01 pun masih
+        // bisa dibayar -- status Lunas hanya untuk nominal yang persis sama) tidak ditawarkan lagi. $keepPoId = PO yang sedang diedit pembayarannya: tetap tampil
         // supaya pilihan di form Edit tidak kosong meski PO-nya sudah lunas.
         $sql = "SELECT po.id, po.po_number, po.po_category, po.currency, po.total_amount, s.supplier_name
                 FROM purchase_orders po
@@ -503,7 +506,7 @@ class PurchaseOrder extends Model
                         OR po.total_amount - COALESCE((
                             SELECT SUM(p.amount) FROM payments p
                             WHERE p.purchase_order_id = po.id AND p.deleted_at IS NULL
-                        ), 0) > 0.01
+                        ), 0) > 0
                   )
                 ORDER BY po.created_at DESC";
         return $this->db->fetchAll($sql, ['keep_id' => $keepPoId]);

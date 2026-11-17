@@ -45,17 +45,17 @@
                             <td class="text-end"><?= formatMoney($row['total_amount'], $row['currency'] ?? 'IDR') ?></td>
                             <td class="text-end">
                                 <?= formatMoney($row['total_paid'], $row['currency'] ?? 'IDR') ?>
-                                <span class="text-muted small">/ <?= number_format($row['percentage'], 1, ',', '.') ?>%</span>
+                                <span class="text-muted small">/ <?= e($row['percentage_text']) ?>%</span>
                                 <?php if (normalizeCurrency($row['currency'] ?? 'IDR') !== 'IDR' && (float) ($row['total_paid_idr'] ?? 0) > 0): ?>
                                     <div class="text-muted small">&asymp; <?= formatRupiah($row['total_paid_idr']) ?></div>
                                 <?php endif; ?>
                             </td>
                             <td class="text-end fw-semibold" style="min-width: 110px;">
-                                <?= number_format($row['percentage'], 1, ',', '.') ?>%
+                                <?= e($row['percentage_text']) ?>%
                                 <div class="progress mt-1" style="height: 6px;">
-                                    <div class="progress-bar bg-<?= $row['percentage'] >= 100 ? 'success' : 'primary' ?>"
-                                         role="progressbar" style="width: <?= (float) $row['percentage'] ?>%"
-                                         aria-valuenow="<?= (float) $row['percentage'] ?>" aria-valuemin="0" aria-valuemax="100"></div>
+                                    <div class="progress-bar bg-<?= $row['payment_status'] === 'paid' ? 'success' : ($row['payment_status'] === 'overpaid' ? 'danger' : 'primary') ?>"
+                                         role="progressbar" style="width: <?= (float) $row['percentage_bar'] ?>%"
+                                         aria-valuenow="<?= (float) $row['percentage_bar'] ?>" aria-valuemin="0" aria-valuemax="100"></div>
                                 </div>
                             </td>
                             <td class="text-end"><?= formatMoney($row['remaining'], $row['currency'] ?? 'IDR') ?></td>
@@ -65,13 +65,13 @@
                                 </span>
                             </td>
                             <td class="text-center">
-                                <?php if ($row['remaining'] > 0): ?>
+                                <?php if (Money::cents($row['remaining']) > 0): ?>
                                     <a href="<?= BASE_URL ?>/payment/create?po_id=<?= (int) $row['id'] ?>"
                                        class="btn btn-sm btn-outline-primary" title="Bayar">
                                         <i class="bi bi-plus-circle"></i> Bayar
                                     </a>
                                 <?php else: ?>
-                                    <span class="text-muted small">Lunas</span>
+                                    <span class="text-muted small"><?= $row['payment_status'] === 'overpaid' ? 'Kelebihan ' . formatMoney($row['overpaid_amount'], $row['currency'] ?? 'IDR') : 'Lunas' ?></span>
                                 <?php endif; ?>
                             </td>
                         </tr>

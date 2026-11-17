@@ -101,6 +101,11 @@ function streamExcelReport(string $title, string $companyName, string $periodTex
                     $sheet->setCellValue($cell, $value !== null ? (float) $value : 0);
                     $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('0.00"%"');
                     break;
+                case 'percent_full':
+                    // Teks (bukan angka) supaya presisi penuh tidak dipotong format sel: "99,9999926%".
+                    $sheet->setCellValueExplicit($cell, formatReportValue($value, 'percent_full'), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                    $sheet->getStyle($cell)->getAlignment()->setHorizontal('right');
+                    break;
                 case 'idr':
                     // Selalu Rupiah (nilai hasil konversi kurs), bukan mata uang baris.
                     $sheet->setCellValue($cell, $value !== null ? (float) $value : 0);

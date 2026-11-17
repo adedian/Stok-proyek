@@ -147,8 +147,13 @@ $categoryLocked = $isEdit && !empty($categoryLockReasons);
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Tanggal PO <span class="text-danger">*</span></label>
+                    <?php $backDateLocked = BackDate::isActive('purchase_order'); ?>
                     <input type="date" name="po_date" class="form-control"
-                           value="<?= e($po['po_date'] ?? date('Y-m-d')) ?>" required>
+                           value="<?= e($po['po_date'] ?? date('Y-m-d')) ?>" required
+                           <?= empty($po) ? BackDate::minAttr('purchase_order') : '' ?>>
+                    <?php if ($backDateLocked): ?>
+                        <div class="form-text text-warning-emphasis"><i class="bi bi-lock"></i> Back date dibatasi: tanggal PO tidak boleh sebelum hari ini.</div>
+                    <?php endif; ?>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Pembuat PO <span class="text-danger">*</span></label>

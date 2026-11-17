@@ -58,6 +58,9 @@ class ValidationController extends Controller
             'statusLabels'     => $this->itemModel->statusLabels,
             'statusBadgeClass' => $this->itemModel->statusBadgeClass,
             'canValidateItem'  => $this->canValidateItemFn(),
+            'bulkReason'       => $this->bulkReasonFn(),
+            'validationHistory' => $this->itemModel->validationHistoryFor(array_column($items, 'id')),
+            'bulkReturn'       => 'index',
         ]);
     }
 
@@ -69,6 +72,231 @@ class ValidationController extends Controller
     {
         $full = can('validation', 'validate');
         return fn(array $item): bool => $full || $this->itemModel->canSelfValidateLamp($item);
+    }
+
+    /**
+     * Penentu checkbox "Pilih" per item untuk view: mengembalikan null bila item BOLEH ikut Validasi
+     * Sesuai Semua, atau string alasan (tooltip) bila checkbox harus dinonaktifkan. Cuma tampilan --
+     * bulkValidate() mengecek ulang semuanya di backend.
+     */
+    private function bulkReasonFn(): callable
+    {
+        $canValidate = $this->canValidateItemFn();
+        return function (array $item) use ($canValidate): ?string {
+            if ($reason = $this->itemModel->bulkIneligibleReason($item)) {
+                return $reason;
+            }
+            if (!$canValidate($item)) {
+                return 'Anda tidak berwenang memvalidasi barang ini';
+            }
+            if (isPeriodClosed('validation', (string) ($item['receipt_date'] ?? ''))) {
+                return 'Periode sudah ditutup';
+            }
+            return null;
+        };
+    }
+
+    /**
+     * Inti validasi SATU item -- dipakai bersama oleh validateItem() (satuan) dan bulkValidate()
+     * (massal). WAJIB dipanggil di dalam transaksi pemanggil. Menyimpan hasil + riwayat, mengkredit/
+     * membalik stok, menyegarkan status penerimaan PO/Offline dan mencatat riwayat PO.
+     * $item = hasil findFullById() SEBELUM validasi (dipakai membaca status lama & kunci stok).
+     */
+    private function applyValidation(array $item, string $status, string $notes, string $mode, ?string $batchId): void
+    {
+        $id = (int) $item['id'];
+
+        // Riwayat dicatat dengan status LAMA item (sebelum diubah) -- append-only.
+        $this->itemModel->logValidation($item, $status, $notes, (int) currentUserId(), $mode, $batchId);
+        $this->itemModel->validateItem($id, $status, $notes, currentUserId());
+
+        // ROOT FIX bug "barang lain tapi stok tetap Aman": stok baru dikreditkan
+        // ke inventory begitu item DIVALIDASI dengan hasil yang valid (sesuai/kurang/
+        // lebih), bukan saat penerimaan disimpan. stock_posted_at menjaga supaya
+        // kredit/reverse ini idempotent walau item divalidasi ulang berkali-kali
+        // (mis. validator awalnya salah pilih status, lalu dikoreksi).
+        $wasPosted = !empty($item['stock_posted_at']);
+        $isNowValid = in_array($status, self::STOCK_VALID_STATUSES, true);
+
+        if ($isNowValid && !$wasPosted) {
+            // Jenis Stok = ikut master Barang (cocokkan nama); barang bebas /
+            // "Barang Lain" tanpa master -> pakai pilihan Jenis Stok di header
+            // Penerimaan (gr.stock_type), fallback terakhir dari stock_scope.
+            $stockType = $this->itemMasterModel->stockTypeByName($item['item_name'])
+                ?? ($item['stock_type']
+                    ?? (($item['stock_scope'] ?? 'proyek') === 'kantor' ? 'inventory_kantor' : 'stok_proyek'));
+
+            $this->inventoryModel->creditStock(
+                $item['item_name'],
+                $item['unit'],
+                $item['project_id'] !== null ? (int) $item['project_id'] : null,
+                (float) $item['qty_received'],
+                'goods_receipt_validation',
+                (int) $item['goods_receipt_id'],
+                date('Y-m-d'),
+                currentUserId(),
+                $item['stock_scope'],
+                $stockType
+            );
+            $this->itemModel->markStockPosted($id, true);
+        } elseif (!$isNowValid && $wasPosted) {
+            $this->inventoryModel->reverseCredit(
+                $item['item_name'],
+                $item['unit'],
+                $item['project_id'] !== null ? (int) $item['project_id'] : null,
+                (float) $item['qty_received'],
+                'goods_receipt_validation',
+                (int) $item['goods_receipt_id'],
+                currentUserId(),
+                $item['stock_scope']
+            );
+            $this->itemModel->markStockPosted($id, false);
+        }
+
+        if ($item['purchase_order_id']) {
+            $this->poModel->refreshReceiptStatus((int) $item['purchase_order_id']);
+
+            $this->historyModel->log(
+                (int) $item['purchase_order_id'],
+                'validation',
+                "Item '{$item['item_name']}' pada {$item['receipt_number']} divalidasi: "
+                    . $this->itemModel->statusLabels[$status]
+                    . ($notes ? " ({$notes})" : '')
+                    . ($mode === 'bulk' ? ' [validasi massal]' : ''),
+                currentUserId()
+            );
+        } elseif ($item['offline_purchase_id']) {
+            $this->offlinePurchaseModel->refreshReceiptStatus((int) $item['offline_purchase_id']);
+        }
+    }
+
+    /**
+     * VALIDASI SEMUA (massal): memvalidasi "Sesuai" barang-barang yang DICENTANG user.
+     *
+     * Aturan keras (semuanya dicek di backend -- checkbox/modal di frontend hanya UX):
+     *  - hanya id yang dikirim (centang) yang diproses; tidak pernah "semua yang tampil";
+     *  - tiap item dikunci (FOR UPDATE) & dibaca ulang: sudah divalidasi / ada selisih / penerimaan
+     *    dihapus / periode ditutup / user tak berwenang -> DILEWATI, tidak dipaksa;
+     *  - satu transaksi: bila ada error sistem (mis. stok), SEMUA dibatalkan;
+     *  - tiap item mencatat riwayat validasi (batch_id sama) + pengguna & waktu.
+     */
+    public function bulkValidate()
+    {
+        $fullValidate = can('validation', 'validate');
+        if (!$fullValidate && !can('validation', 'validate_lamp')) {
+            Middleware::requirePermission('validation', 'validate'); // -> 403 standar
+        }
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('validation', 'index');
+        }
+        verifyCsrf();
+
+        $back = (($_POST['return'] ?? '') === 'problem') ? 'problem' : 'index';
+
+        if (($_POST['mode'] ?? '') !== 'sesuai') {
+            setFlash('error', 'Jenis validasi massal tidak dikenal.');
+            $this->redirect('validation', $back);
+        }
+
+        $rawIds = $_POST['ids'] ?? [];
+        $ids = [];
+        if (is_array($rawIds)) {
+            foreach ($rawIds as $v) {
+                if (is_scalar($v) && ctype_digit((string) $v) && (int) $v > 0) {
+                    $ids[(int) $v] = true;
+                }
+            }
+        }
+        $ids = array_keys($ids);
+        sort($ids); // urutan kunci konsisten -> tidak saling deadlock bila dua orang memvalidasi bersamaan
+        if (empty($ids)) {
+            setFlash('error', 'Belum ada barang yang dipilih. Centang barang yang akan divalidasi terlebih dahulu.');
+            $this->redirect('validation', $back);
+        }
+        if (count($ids) > 300) {
+            setFlash('error', 'Terlalu banyak barang dalam satu kali validasi (maksimal 300). Kurangi pilihan Anda.');
+            $this->redirect('validation', $back);
+        }
+
+        $batchId = date('YmdHis') . '-' . bin2hex(random_bytes(4));
+        $done = [];
+        $skipped = []; // alasan => jumlah
+
+        $pdo = getPDO();
+        try {
+            $pdo->beginTransaction();
+
+            foreach ($ids as $id) {
+                $state = $this->itemModel->lockValidationState($id); // kunci baris item
+                $item = $state ? $this->itemModel->findFullById($id) : null;
+                if (!$item) {
+                    $skipped['Item tidak ditemukan'] = ($skipped['Item tidak ditemukan'] ?? 0) + 1;
+                    continue;
+                }
+
+                $reason = $this->itemModel->bulkIneligibleReason($item);
+                if ($reason === null && !$fullValidate && !$this->itemModel->canSelfValidateLamp($item)) {
+                    $reason = 'Anda tidak berwenang memvalidasi barang ini';
+                }
+                if ($reason === null && isPeriodClosed('validation', (string) ($item['receipt_date'] ?? ''))) {
+                    $reason = 'Periode sudah ditutup';
+                }
+                if ($reason !== null) {
+                    $skipped[$reason] = ($skipped[$reason] ?? 0) + 1;
+                    continue;
+                }
+
+                $this->applyValidation($item, 'sesuai', '', 'bulk', $batchId);
+                $done[] = $item;
+            }
+
+            if (empty($done)) {
+                $pdo->rollBack();
+                setFlash('warning', 'Tidak ada barang yang divalidasi. ' . $this->skipSummary($skipped));
+                $this->redirect('validation', $back);
+            }
+
+            $pdo->commit();
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            error_log('Bulk validation error: ' . $e->getMessage());
+            setFlash('error', $e instanceof InsufficientStockException
+                ? $e->getMessage()
+                : 'Validasi massal gagal dan dibatalkan seluruhnya. Tidak ada barang yang berubah. Silakan coba lagi.');
+            $this->redirect('validation', $back);
+        }
+
+        require_once ROOT_PATH . '/app/models/ActivityLog.php';
+        $names = array_map(fn($i) => $i['item_name'] . ' (' . $i['receipt_number'] . ')', array_slice($done, 0, 10));
+        (new ActivityLog())->log(
+            currentUserId(),
+            'validation',
+            'validate',
+            (currentUserName() ?: 'User') . ' melakukan validasi massal "Sesuai" ' . count($done) . ' barang [batch ' . $batchId . ']: '
+                . implode(', ', $names) . (count($done) > 10 ? ', dst.' : '')
+        );
+
+        $msg = count($done) . ' barang berhasil divalidasi Sesuai.';
+        if (!empty($skipped)) {
+            $msg .= ' ' . $this->skipSummary($skipped);
+        }
+        setFlash('success', $msg);
+        $this->redirect('validation', $back);
+    }
+
+    /** "3 barang dilewati: 2 Sudah divalidasi, 1 Ada selisih ..." */
+    private function skipSummary(array $skipped): string
+    {
+        if (empty($skipped)) {
+            return '';
+        }
+        $parts = [];
+        foreach ($skipped as $reason => $n) {
+            $parts[] = "{$n} {$reason}";
+        }
+        return array_sum($skipped) . ' barang dilewati (tidak diproses): ' . implode('; ', $parts) . '.';
     }
 
     /**
@@ -143,65 +371,7 @@ class ValidationController extends Controller
                 }
             }
 
-            $this->itemModel->validateItem($id, $status, $notes, currentUserId());
-
-            // ROOT FIX bug "barang lain tapi stok tetap Aman": stok baru dikreditkan
-            // ke inventory begitu item DIVALIDASI dengan hasil yang valid (sesuai/kurang/
-            // lebih), bukan saat penerimaan disimpan. stock_posted_at menjaga supaya
-            // kredit/reverse ini idempotent walau item divalidasi ulang berkali-kali
-            // (mis. validator awalnya salah pilih status, lalu dikoreksi).
-            $wasPosted = !empty($item['stock_posted_at']);
-            $isNowValid = in_array($status, self::STOCK_VALID_STATUSES, true);
-
-            if ($isNowValid && !$wasPosted) {
-                // Jenis Stok = ikut master Barang (cocokkan nama); barang bebas /
-                // "Barang Lain" tanpa master -> pakai pilihan Jenis Stok di header
-                // Penerimaan (gr.stock_type), fallback terakhir dari stock_scope.
-                $stockType = $this->itemMasterModel->stockTypeByName($item['item_name'])
-                    ?? ($item['stock_type']
-                        ?? (($item['stock_scope'] ?? 'proyek') === 'kantor' ? 'inventory_kantor' : 'stok_proyek'));
-
-                $this->inventoryModel->creditStock(
-                    $item['item_name'],
-                    $item['unit'],
-                    $item['project_id'] !== null ? (int) $item['project_id'] : null,
-                    (float) $item['qty_received'],
-                    'goods_receipt_validation',
-                    (int) $item['goods_receipt_id'],
-                    date('Y-m-d'),
-                    currentUserId(),
-                    $item['stock_scope'],
-                    $stockType
-                );
-                $this->itemModel->markStockPosted($id, true);
-            } elseif (!$isNowValid && $wasPosted) {
-                $this->inventoryModel->reverseCredit(
-                    $item['item_name'],
-                    $item['unit'],
-                    $item['project_id'] !== null ? (int) $item['project_id'] : null,
-                    (float) $item['qty_received'],
-                    'goods_receipt_validation',
-                    (int) $item['goods_receipt_id'],
-                    currentUserId(),
-                    $item['stock_scope']
-                );
-                $this->itemModel->markStockPosted($id, false);
-            }
-
-            if ($item['purchase_order_id']) {
-                $this->poModel->refreshReceiptStatus((int) $item['purchase_order_id']);
-
-                $this->historyModel->log(
-                    (int) $item['purchase_order_id'],
-                    'validation',
-                    "Item '{$item['item_name']}' pada {$item['receipt_number']} divalidasi: "
-                        . $this->itemModel->statusLabels[$status]
-                        . ($notes ? " ({$notes})" : ''),
-                    currentUserId()
-                );
-            } elseif ($item['offline_purchase_id']) {
-                $this->offlinePurchaseModel->refreshReceiptStatus((int) $item['offline_purchase_id']);
-            }
+            $this->applyValidation($item, $status, $notes, 'single', null);
 
             $pdo->commit();
         } catch (Throwable $e) {
@@ -252,6 +422,9 @@ class ValidationController extends Controller
             'statusLabels'     => $this->itemModel->statusLabels,
             'statusBadgeClass' => $this->itemModel->statusBadgeClass,
             'canValidateItem'  => $this->canValidateItemFn(),
+            'bulkReason'       => $this->bulkReasonFn(),
+            'validationHistory' => $this->itemModel->validationHistoryFor(array_column($items, 'id')),
+            'bulkReturn'       => 'problem',
             'isProblemView'    => true,
         ]);
     }

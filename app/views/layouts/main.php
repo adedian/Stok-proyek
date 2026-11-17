@@ -17,6 +17,7 @@ require ROOT_PATH . '/app/views/layouts/sidebar.php';
             document.addEventListener('DOMContentLoaded', function () {
                 var type = <?= json_encode($flash['type']) ?>;
                 var message = <?= json_encode($flash['message']) ?>;
+                var flashTitle = <?= json_encode($flash['title'] ?? null) ?>;
                 var icon = type === 'error' ? 'error' : (type === 'success' ? 'success' : (type === 'warning' ? 'warning' : 'info'));
                 if (window.Swal) {
                     Swal.mixin({
@@ -31,11 +32,11 @@ require ROOT_PATH . '/app/views/layouts/sidebar.php';
                             t.addEventListener('mouseenter', Swal.stopTimer);
                             t.addEventListener('mouseleave', Swal.resumeTimer);
                         }
-                    }).fire({ icon: icon, title: message });
+                    }).fire(flashTitle ? { icon: icon, title: flashTitle, text: message } : { icon: icon, title: message });
                 } else {
                     var wrap = document.createElement('div');
                     wrap.className = 'alert alert-' + (type === 'error' ? 'danger' : type) + ' alert-dismissible fade show';
-                    wrap.textContent = message;
+                    wrap.textContent = (flashTitle ? flashTitle + '. ' : '') + message;
                     var mainContent = document.querySelector('.main-content');
                     if (mainContent) { mainContent.insertBefore(wrap, mainContent.firstChild); }
                 }

@@ -84,8 +84,8 @@ class PurchaseOrderController extends Controller
 
         $paidTotals = $this->paymentModel->paidTotalsByPoIds(array_column($purchaseOrders, 'id'));
         foreach ($purchaseOrders as &$po) {
-            $paid = $paidTotals[$po['id']] ?? 0.0;
-            $po['payment_status'] = $this->paymentModel->resolveStatus((float) $po['total_amount'], $paid);
+            $paid = $paidTotals[$po['id']] ?? '0.00';
+            $po['payment_status'] = $this->paymentModel->resolveStatus($po['total_amount'], $paid);
         }
         unset($po);
 
@@ -118,7 +118,7 @@ class PurchaseOrderController extends Controller
         $items = $this->itemModel->itemsByPo($id);
         $extraCosts = $this->extraCostModel->itemsByPo($id);
         $history = $this->historyModel->timelineByPo($id);
-        $paymentInfo = $this->paymentModel->poPaymentInfo($id, (float) $po['total_amount']);
+        $paymentInfo = $this->paymentModel->poPaymentInfo($id, $po['total_amount']);
 
         $this->view('purchase_order/detail', [
             'pageTitle' => 'Detail PO',
@@ -127,6 +127,8 @@ class PurchaseOrderController extends Controller
             'extraCosts' => $extraCosts,
             'history'   => $history,
             'paymentInfo' => $paymentInfo,
+            'paymentHistory' => $this->paymentModel->historyByPo($id),
+            'paymentTypeLabels' => $this->paymentModel->typeLabels,
             'statusLabels'     => $this->poModel->statusLabels,
             'statusBadgeClass' => $this->poModel->statusBadgeClass,
             'paymentStatusLabels'     => $this->paymentModel->statusLabels,
@@ -191,6 +193,7 @@ class PurchaseOrderController extends Controller
         }
 
         assertPeriodOpen('purchase_order', $data['po_date'], 'purchase_order', 'create');
+        BackDate::enforce('purchase_order', $data['po_date'], null, 'purchase_order', 'create');
 
         $pdo = getPDO();
         try {
@@ -360,6 +363,7 @@ class PurchaseOrderController extends Controller
         // Tolak kalau tanggal LAMA atau BARU berada di periode yang sudah ditutup.
         assertPeriodOpen('purchase_order', $existing['po_date'], 'purchase_order', 'edit', ['id' => $id]);
         assertPeriodOpen('purchase_order', $data['po_date'], 'purchase_order', 'edit', ['id' => $id]);
+        BackDate::enforce('purchase_order', $data['po_date'], $existing['po_date'], 'purchase_order', 'edit', ['id' => $id]);
 
         // PO yang item-nya sudah punya penerimaan barang TIDAK BOLEH item-nya
         // dihapus/diganti -- FK fk_gri_poi akan menolak DELETE-nya (goods_receipt_items

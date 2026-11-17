@@ -101,7 +101,7 @@ $renderRow = function (array $it) use ($tujuanSelect, $bankSelect, $jenisSelect,
             <div class="row g-3">
                 <div class="col-md-3">
                     <label class="form-label">Tanggal <span class="text-danger">*</span></label>
-                    <input type="date" name="pengajuan_date" class="form-control" required value="<?= e($dateVal) ?>">
+                    <input type="date" name="pengajuan_date" <?= !$isEdit ? BackDate::minAttr('pengajuan_budget') : '' ?> class="form-control" required value="<?= e($dateVal) ?>">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Pengaju</label>

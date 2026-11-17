@@ -135,7 +135,7 @@
                     </div>
                     <div class="col-md-3 col-6">
                         <div class="text-muted small">Persentase</div>
-                        <div class="fw-semibold"><?= number_format($paymentInfo['percentage'], 1, ',', '.') ?>%</div>
+                        <div class="fw-semibold" title="Dihitung dari nominal aktual; hanya 100% bila dibayar persis sama dengan total PO"><?= e($paymentInfo['percentage_text']) ?>%</div>
                     </div>
                 </div>
                 <?php if (normalizeCurrency($po['currency'] ?? 'IDR') !== 'IDR' && (float) ($paymentInfo['total_paid_idr'] ?? 0) > 0): ?>
@@ -146,20 +146,75 @@
                     </div>
                 <?php endif; ?>
                 <div class="progress" style="height: 8px;">
-                    <div class="progress-bar bg-<?= $paymentInfo['percentage'] >= 100 ? 'success' : 'primary' ?>"
-                         role="progressbar" style="width: <?= (float) $paymentInfo['percentage'] ?>%"
-                         aria-valuenow="<?= (float) $paymentInfo['percentage'] ?>" aria-valuemin="0" aria-valuemax="100"></div>
+                    <div class="progress-bar bg-<?= $paymentInfo['status'] === 'paid' ? 'success' : ($paymentInfo['status'] === 'overpaid' ? 'danger' : 'primary') ?>"
+                         role="progressbar" style="width: <?= (float) $paymentInfo['percentage_bar'] ?>%"
+                         aria-valuenow="<?= (float) $paymentInfo['percentage_bar'] ?>" aria-valuemin="0" aria-valuemax="100"></div>
                 </div>
-                <?php if ($paymentInfo['remaining'] > 0 && canCreate('payment')): ?>
-                    <div class="mt-3">
+                <?php if ($paymentInfo['status'] === 'overpaid'): ?>
+                    <div class="alert alert-danger small mt-3 mb-0">
+                        <i class="bi bi-exclamation-octagon-fill"></i>
+                        <strong>Kelebihan pembayaran <?= formatMoney($paymentInfo['overpaid_amount'], $po['currency'] ?? 'IDR') ?></strong>
+                        &mdash; total pembayaran melebihi nilai PO. Periksa riwayat pembayaran di bawah dan koreksi bila perlu
+                        (status Lunas hanya diberikan bila nominal persis sama dengan total PO).
+                    </div>
+                <?php endif; ?>
+                <?php if (Money::cents($paymentInfo['remaining']) > 0 && canCreate('payment')): ?>
+                    <div class="mt-3 d-flex flex-wrap gap-2">
                         <a href="<?= BASE_URL ?>/payment/create?po_id=<?= (int) $po['id'] ?>"
                            class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-plus-circle"></i> Tambah Pembayaran
+                        </a>
+                        <a href="<?= BASE_URL ?>/payment/create?po_id=<?= (int) $po['id'] ?>&amp;type=pelunasan"
+                           class="btn btn-sm btn-success">
+                            <i class="bi bi-check2-circle"></i> Pelunasan (<?= formatMoney($paymentInfo['remaining'], $po['currency'] ?? 'IDR') ?>)
                         </a>
                     </div>
                 <?php endif; ?>
             </div>
         </div>
+
+        <?php if (!empty($paymentHistory)): ?>
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+                <h6 class="mb-3"><i class="bi bi-clock-history"></i> Riwayat Pembayaran</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>No.</th>
+                                <th>Jenis Pembayaran</th>
+                                <th>Nomor</th>
+                                <th>No. Pembayaran</th>
+                                <th>Tanggal</th>
+                                <th class="text-end">Nominal</th>
+                                <th class="text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($paymentHistory as $i => $ph): ?>
+                                <tr class="<?= $ph['is_cancelled'] ? 'text-muted' : '' ?>">
+                                    <td><?= $i + 1 ?></td>
+                                    <td><?= e($paymentTypeLabels[$ph['payment_type'] ?? 'termin'] ?? 'Termin') ?></td>
+                                    <td><?= e($ph['type_number_label']) ?></td>
+                                    <td><?= e($ph['payment_number']) ?></td>
+                                    <td><?= formatTanggal($ph['payment_date']) ?></td>
+                                    <td class="text-end <?= $ph['is_cancelled'] ? 'text-decoration-line-through' : '' ?>"><?= formatMoney($ph['amount'], $ph['currency'] ?? 'IDR') ?></td>
+                                    <td class="text-center">
+                                        <?php if ($ph['is_cancelled']): ?>
+                                            <span class="badge bg-secondary" title="Dibatalkan <?= e(formatTanggal(substr((string) $ph['deleted_at'], 0, 10))) ?><?= !empty($ph['deleted_by_name']) ? ' oleh ' . e($ph['deleted_by_name']) : '' ?> -- tidak dihitung dalam total pembayaran">Dibatalkan</span>
+                                        <?php else: ?>
+                                            <span class="badge bg-success">Dibayar</span>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="form-text mt-2">Pembayaran yang dibatalkan tetap tampil sebagai histori; nomor terminnya tidak dipakai ulang dan nominalnya tidak masuk total pembayaran.</div>
+            </div>
+        </div>
+        <?php endif; ?>
 
         <div class="card border-0 shadow-sm">
             <div class="card-body p-0">

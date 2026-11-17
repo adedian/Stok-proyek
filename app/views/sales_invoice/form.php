@@ -187,7 +187,7 @@ if (empty($terms)) {
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Tanggal Invoice <span class="text-danger">*</span></label>
-                    <input type="date" name="invoice_date" id="invoiceDate" class="form-control"
+                    <input type="date" name="invoice_date" <?= !$isEdit ? BackDate::minAttr('sales_invoice') : '' ?> id="invoiceDate" class="form-control"
                            value="<?= e($invoice['invoice_date'] ?? date('Y-m-d')) ?>" required>
                 </div>
                 <div class="col-md-2">

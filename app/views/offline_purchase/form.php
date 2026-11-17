@@ -56,7 +56,7 @@ $itemsLocked = $itemsLocked ?? false;
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Tanggal Pembelian <span class="text-danger">*</span></label>
-                    <input type="date" name="purchase_date" class="form-control"
+                    <input type="date" name="purchase_date" <?= !$isEdit ? BackDate::minAttr('offline_purchase') : '' ?> class="form-control"
                            value="<?= e($purchase['purchase_date'] ?? date('Y-m-d')) ?>" required>
                 </div>
                 <div class="col-md-6">

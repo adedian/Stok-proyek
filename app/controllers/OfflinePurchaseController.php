@@ -115,6 +115,7 @@ class OfflinePurchaseController extends Controller
         }
 
         assertPeriodOpen('offline_purchase', $data['purchase_date'], 'offline_purchase', 'create');
+        BackDate::enforce('offline_purchase', $data['purchase_date'], null, 'offline_purchase', 'create');
 
         try {
             $proofFile = handleFileUpload('proof_file', 'bukti_pembelian', ['jpg', 'jpeg', 'png', 'webp', 'pdf'], 5);
@@ -214,6 +215,7 @@ class OfflinePurchaseController extends Controller
 
         assertPeriodOpen('offline_purchase', $existing['purchase_date'], 'offline_purchase', 'edit', ['id' => $id]);
         assertPeriodOpen('offline_purchase', $data['purchase_date'], 'offline_purchase', 'edit', ['id' => $id]);
+        BackDate::enforce('offline_purchase', $data['purchase_date'], $existing['purchase_date'], 'offline_purchase', 'edit', ['id' => $id]);
 
         try {
             $proofFile = handleFileUpload('proof_file', 'bukti_pembelian', ['jpg', 'jpeg', 'png', 'webp', 'pdf'], 5);

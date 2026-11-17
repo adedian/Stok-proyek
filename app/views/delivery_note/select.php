@@ -22,7 +22,7 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label">Tanggal Surat Jalan</label>
-                            <input type="date" name="delivery_date" class="form-control" value="<?= e(date('Y-m-d')) ?>" required>
+                            <input type="date" name="delivery_date" class="form-control" value="<?= e(date('Y-m-d')) ?>" required <?= BackDate::minAttr('delivery_note') ?>>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Tujuan Pengiriman</label>

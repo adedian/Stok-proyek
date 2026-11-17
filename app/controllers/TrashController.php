@@ -239,7 +239,31 @@ class TrashController extends Controller
         $pdo = getPDO();
         try {
             $pdo->beginTransaction();
+
+            // Pembayaran PO: pulihkan HANYA bila total pembayaran aktif tidak melebihi nilai PO
+            // (mis. Termin dibatalkan lalu Pelunasan dibuat -> memulihkan Termin itu = bayar ganda).
+            // PO dikunci dulu supaya hitungan sisa tidak berubah di tengah jalan.
+            $payPo = null;
+            if ($module === 'payment') {
+                require_once ROOT_PATH . '/app/models/Payment.php';
+                $payModel = new Payment();
+                $payPo = $payModel->lockPo((int) $row['purchase_order_id']);
+                if ($payPo) {
+                    $after = Money::add($payModel->totalPaidByPo((int) $payPo['id']), $row['amount']);
+                    if (Money::cmp($after, $payPo['total_amount']) > 0) {
+                        $pdo->rollBack();
+                        setFlash('error', 'Pembayaran tidak dapat dipulihkan: total pembayaran PO ' . $payPo['po_number']
+                            . ' akan melebihi nilai PO (' . formatMoney($payPo['total_amount'], $payPo['currency'] ?? 'IDR')
+                            . '). Pembayaran lain sudah menutup tagihan ini.');
+                        $this->redirect('trash', 'index');
+                    }
+                }
+            }
+
             $cfg['model']->restoreById($id);
+            if ($payPo) {
+                (new Payment())->syncStatusForPo((int) $payPo['id'], $payPo['total_amount']);
+            }
 
             // Kas dengan baris ber-kategori stok: stok dikembalikan saat masuk
             // Tempat Sampah, jadi saat DIPULIHKAN stok dikreditkan lagi

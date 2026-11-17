@@ -316,9 +316,10 @@ function verifyCsrf(): void
 /**
  * Simpan flash message ke session untuk ditampilkan sekali di halaman berikutnya
  */
-function setFlash(string $type, string $message): void
+function setFlash(string $type, string $message, ?string $title = null): void
 {
-    $_SESSION['flash'] = ['type' => $type, 'message' => $message];
+    // $title (opsional): judul toast, pesan tampil sebagai teks di bawahnya (mis. penolakan Back Date).
+    $_SESSION['flash'] = ['type' => $type, 'message' => $message] + ($title !== null ? ['title' => $title] : []);
 }
 
 function getFlash(): ?array
@@ -616,6 +617,10 @@ function formatReportValue($value, string $format = 'text', ?array $row = null):
             return formatTanggal(substr((string) $value, 0, 10)) . ' ' . substr((string) $value, 11, 5);
         case 'percent':
             return formatPercent($value) . '%';
+        case 'percent_full':
+            // Persentase presisi penuh dari Money::percent() (string titik) -> tampil koma Indonesia,
+            // tanpa pembulatan ke 2 desimal: selisih kecil tetap terlihat (99,9999926%, bukan 100%).
+            return str_replace('.', ',', (string) $value) . '%';
         case 'kurs':
             return formatKurs($value); // format Indonesia (16.500 / 12,75)
         case 'idr':

@@ -129,6 +129,7 @@ class SalesInvoiceController extends Controller
         $data['status'] = $isDraft ? SalesInvoice::DRAFT : SalesInvoice::FINAL;
 
         assertPeriodOpen('sales_invoice', $data['invoice_date'], 'sales_invoice', 'create');
+        BackDate::enforce('sales_invoice', $data['invoice_date'], null, 'sales_invoice', 'create');
 
         // Jenis Lampu: invoice boleh diterbitkan dari sebuah Surat Jalan (relasi + validasi barang/qty).
         $linkErrors = $this->prepareDeliveryNoteLink($data, $items);
@@ -327,6 +328,7 @@ class SalesInvoiceController extends Controller
 
         assertPeriodOpen('sales_invoice', $existing['invoice_date'], 'sales_invoice', 'edit', ['id' => $id]);
         assertPeriodOpen('sales_invoice', $data['invoice_date'], 'sales_invoice', 'edit', ['id' => $id]);
+        BackDate::enforce('sales_invoice', $data['invoice_date'], $existing['invoice_date'], 'sales_invoice', 'edit', ['id' => $id]);
 
         $postedVersion = is_string($_POST['row_version'] ?? null) ? (string) $_POST['row_version'] : '';
 

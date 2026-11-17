@@ -638,7 +638,7 @@ class ReportController extends Controller
                         ['field' => 'project_name', 'label' => 'Project'],
                         ['field' => 'supplier_name', 'label' => 'Supplier'],
                         ['field' => 'payment_date', 'label' => 'Tanggal', 'format' => 'date'],
-                        ['field' => 'termin', 'label' => 'Termin'],
+                        ['field' => 'type_number_label', 'label' => 'Jenis / Nomor'],
                         ['field' => 'funding_source_label', 'label' => 'Sumber Dana'],
                         ['field' => 'method_name', 'label' => 'Metode'],
                         ['field' => 'status_label', 'label' => 'Status'],
@@ -957,7 +957,7 @@ class ReportController extends Controller
             ['field' => 'nilai_po', 'label' => 'Nilai PO', 'format' => 'rupiah', 'align' => 'end', 'width' => 18, 'sum' => true],
             ['field' => 'total_dibayar', 'label' => 'Total Dibayar', 'format' => 'rupiah', 'align' => 'end', 'width' => 18, 'sum' => true],
             ['field' => 'sisa_belum_dibayar', 'label' => 'Sisa Belum Dibayar', 'format' => 'rupiah', 'align' => 'end', 'width' => 20, 'sum' => true],
-            ['field' => 'pct_belum_dibayar', 'label' => '% Belum Bayar', 'format' => 'percent', 'align' => 'end', 'width' => 14],
+            ['field' => 'pct_belum_dibayar', 'label' => '% Belum Bayar', 'format' => 'percent_full', 'align' => 'end', 'width' => 14],
         ];
     }
 

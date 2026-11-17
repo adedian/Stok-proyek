@@ -44,7 +44,7 @@
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Tanggal Opname <span class="text-danger">*</span></label>
-                    <input type="date" name="opname_date" class="form-control" value="<?= date('Y-m-d') ?>" required>
+                    <input type="date" name="opname_date" class="form-control" value="<?= date('Y-m-d') ?>" required <?= BackDate::minAttr('stock_opname') ?>>
                 </div>
                 <div class="col-12">
                     <label class="form-label">Catatan</label>

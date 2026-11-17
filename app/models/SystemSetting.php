@@ -70,4 +70,55 @@ class SystemSetting extends Model
         }
         return $row['setting_value'] === '1';
     }
+
+    /**
+     * Simpan setting SEKALIGUS mencatat histori perubahan (siapa, kapan, nilai lama -> baru) ke
+     * system_setting_history. Histori hanya ditulis bila nilainya BENAR-BENAR berubah. Atomik:
+     * setting & histori disimpan dalam satu transaksi. Mengembalikan true bila ada perubahan.
+     */
+    public function setLogged(string $key, string $value, string $group, ?int $userId, ?string $userName): bool
+    {
+        $old = $this->db->fetchOne("SELECT setting_value FROM system_settings WHERE setting_key = :k", ['k' => $key]);
+        $oldValue = $old['setting_value'] ?? null;
+        if ($oldValue !== null && (string) $oldValue === $value) {
+            return false;
+        }
+        $manageTx = !$this->db->inTransaction();
+        if ($manageTx) {
+            $this->db->beginTransaction();
+        }
+        try {
+            $this->set($key, $value, $group, $userId);
+            $this->db->insert('system_setting_history', [
+                'setting_key'     => $key,
+                'old_value'       => $oldValue,
+                'new_value'       => $value,
+                'changed_by'      => $userId,
+                'changed_by_name' => $userName,
+            ]);
+            if ($manageTx) {
+                $this->db->commit();
+            }
+        } catch (Throwable $e) {
+            if ($manageTx && $this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $e;
+        }
+        return true;
+    }
+
+    /** Riwayat perubahan satu setting (terbaru dulu). */
+    public function history(string $key, int $limit = 20): array
+    {
+        return $this->db->fetchAll(
+            "SELECT h.*, COALESCE(u.full_name, h.changed_by_name) AS actor
+               FROM system_setting_history h
+               LEFT JOIN users u ON u.id = h.changed_by
+              WHERE h.setting_key = :k
+              ORDER BY h.changed_at DESC, h.id DESC
+              LIMIT " . (int) $limit,
+            ['k' => $key]
+        );
+    }
 }

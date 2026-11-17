@@ -30,6 +30,7 @@ require_once ROOT_PATH . '/app/helpers/push_helper.php';
 require_once ROOT_PATH . '/app/helpers/kas_auth_helper.php';
 require_once ROOT_PATH . '/app/helpers/menu_helper.php';
 require_once ROOT_PATH . '/app/helpers/period_helper.php';
+require_once ROOT_PATH . '/app/helpers/backdate_helper.php';
 require_once ROOT_PATH . '/app/helpers/range_delete_helper.php';
 
 require_once ROOT_PATH . '/core/Router.php';

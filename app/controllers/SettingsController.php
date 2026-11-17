@@ -7,6 +7,7 @@ require_once ROOT_PATH . '/app/models/CompanyBankAccount.php';
 require_once ROOT_PATH . '/app/models/ActivityLog.php';
 require_once ROOT_PATH . '/app/models/RolePermission.php';
 require_once ROOT_PATH . '/app/models/DocumentNumber.php';
+require_once ROOT_PATH . '/app/models/BackDateSetting.php';
 
 class SettingsController extends Controller
 {
@@ -41,6 +42,10 @@ class SettingsController extends Controller
             'notification'     => $this->settingModel->getGroup('notification'),
             'backups'          => $this->backupModel->recent(20),
             'bankAccounts'     => $this->bankAccountModel->all(),
+            'backDateCatalog'  => BackDate::catalog(),
+            'backDateActive'   => (new BackDateSetting())->activeMap(),
+            'backDateRows'     => (new BackDateSetting())->rowsByCode(),
+            'backDateHistory'  => (new BackDateSetting())->history(50),
         ]);
     }
 
@@ -317,6 +322,60 @@ class SettingsController extends Controller
         $this->activityLog->log(currentUserId(), 'settings', 'update', "Timeout session diubah menjadi {$minutes} menit");
         setFlash('success', 'Pengaturan session berhasil disimpan.');
         $this->redirect('settings', 'index', ['tab' => 'session']);
+    }
+
+    /**
+     * Simpan pengaturan Back Date: SATU toggle per menu transaksi (BackDate::catalog()). KHUSUS Super
+     * Admin -- dicek eksplisit selain gerbang izin modul settings. Menu yang tidak dicentang = nonaktif.
+     * Hanya menu yang BERUBAH yang ditulis; tiap perubahan dicatat ke histori (siapa & kapan).
+     */
+    public function saveBackDate()
+    {
+        Middleware::requirePermission('settings', 'edit');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('settings', 'index');
+        }
+        verifyCsrf();
+
+        if (!hasRole([ROLE_SUPER_ADMIN])) {
+            denyAccess('Hanya Super Admin yang dapat mengubah pengaturan Back Date.');
+        }
+
+        $posted = $_POST['backdate'] ?? [];
+        if (!is_array($posted)) {
+            $posted = [];
+        }
+        $names = BackDate::names();
+        $desired = [];
+        foreach ($names as $code => $name) {
+            // Hanya kode katalog yang dikenal; kode asing di request diabaikan.
+            $desired[$code] = !empty($posted[$code]);
+        }
+
+        try {
+            $changes = (new BackDateSetting())->saveAll($desired, $names, currentUserId(), currentUserName());
+        } catch (Throwable $e) {
+            error_log('Back Date save error: ' . $e->getMessage());
+            setFlash('error', 'Gagal menyimpan pengaturan Back Date. Tidak ada yang berubah.');
+            $this->redirect('settings', 'index', ['tab' => 'backdate']);
+        }
+        BackDate::reset();
+
+        if (empty($changes)) {
+            setFlash('info', 'Tidak ada perubahan pada pengaturan Back Date.');
+        } else {
+            $on = array_column(array_filter($changes, fn($c) => $c['new']), 'name');
+            $off = array_column(array_filter($changes, fn($c) => !$c['new']), 'name');
+            $this->activityLog->log(
+                currentUserId(), 'settings', 'update',
+                'Pengaturan Back Date diubah.'
+                    . ($on ? ' DIKUNCI: ' . implode(', ', $on) . '.' : '')
+                    . ($off ? ' DIBUKA: ' . implode(', ', $off) . '.' : '')
+            );
+            setFlash('success', 'Pengaturan Back Date berhasil disimpan dan langsung berlaku (' . count($changes) . ' menu berubah).');
+        }
+        $this->redirect('settings', 'index', ['tab' => 'backdate']);
     }
 
     public function saveNotifications()

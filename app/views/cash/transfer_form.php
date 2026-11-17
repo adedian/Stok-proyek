@@ -23,7 +23,7 @@ $projects = $projects ?? [];
             <div class="row g-3">
                 <div class="col-md-3">
                     <label class="form-label">Tanggal <span class="text-danger">*</span></label>
-                    <input type="date" name="trx_date" class="form-control" value="<?= e(date('Y-m-d')) ?>" required>
+                    <input type="date" name="trx_date" class="form-control" value="<?= e(date('Y-m-d')) ?>" required <?= BackDate::minAttr(['cash_transfer', 'bank_keluar', 'cash_masuk']) ?>>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Bank Sumber <span class="text-danger">*</span></label>

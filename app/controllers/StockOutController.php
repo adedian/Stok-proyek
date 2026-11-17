@@ -107,6 +107,7 @@ class StockOutController extends Controller
         }
 
         assertPeriodOpen('stock_out', $data['out_date'], 'stock_out', 'create', ['project_id' => $data['project_id']]);
+        BackDate::enforce('stock_out', $data['out_date'], null, 'stock_out', 'create', ['project_id' => $data['project_id']]);
 
         $pdo = getPDO();
         try {
@@ -291,6 +292,7 @@ class StockOutController extends Controller
 
         assertPeriodOpen('stock_out', $existing['out_date'], 'stock_out', 'edit', ['id' => $id]);
         assertPeriodOpen('stock_out', $data['out_date'], 'stock_out', 'edit', ['id' => $id]);
+        BackDate::enforce('stock_out', $data['out_date'], $existing['out_date'], 'stock_out', 'edit', ['id' => $id]);
 
         $pdo = getPDO();
         try {

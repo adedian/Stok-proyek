@@ -95,7 +95,7 @@
         $kpis[] = [
             'icon' => 'bi-credit-card', 'color' => 'purple', 'label' => 'Sisa Tagihan PO',
             'value' => formatRupiah($paymentProgress['remaining']),
-            'percent' => $paymentProgress['percentage'],
+            'percent' => $paymentProgress['percentage_text'],
             'url' => route('payment', 'summary'),
         ];
     }
@@ -136,7 +136,7 @@
                         <span class="kpi-trend flat"><i class="bi bi-dash"></i> Sama seperti kemarin</span>
                     <?php endif; ?>
                 <?php elseif (isset($kpi['percent'])): ?>
-                    <span class="kpi-trend flat"><i class="bi bi-percent"></i> <?= number_format($kpi['percent'], 1, ',', '.') ?>% dari total PO sudah dibayar</span>
+                    <span class="kpi-trend flat"><i class="bi bi-percent"></i> <?= e($kpi['percent']) ?>% dari total PO sudah dibayar</span>
                 <?php endif; ?>
             </a>
         </div>

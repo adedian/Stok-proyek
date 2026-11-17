@@ -88,7 +88,7 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label">Tanggal Surat Jalan <span class="text-danger">*</span></label>
-                            <input type="date" name="delivery_date" class="form-control" value="<?= e(date('Y-m-d')) ?>" required>
+                            <input type="date" name="delivery_date" class="form-control" <?= BackDate::minAttr('delivery_note') ?> value="<?= e(date('Y-m-d')) ?>" required>
                             <div class="form-text">Tanggal ini juga menjadi tanggal Pengeluaran Barang.</div>
                         </div>
                         <div class="col-12">

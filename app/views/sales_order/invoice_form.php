@@ -31,7 +31,7 @@ $fqIn = fn($n) => rtrim(rtrim(number_format((float) $n, 2, ',', ''), '0'), ',') 
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Tanggal Invoice <span class="text-danger">*</span></label>
-                    <input type="date" name="invoice_date" id="soInvDate" class="form-control" required value="<?= e(date('Y-m-d')) ?>">
+                    <input type="date" name="invoice_date" id="soInvDate" class="form-control" <?= BackDate::minAttr('sales_invoice') ?> required value="<?= e(date('Y-m-d')) ?>">
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">Tempo <span class="text-muted small">(hari)</span></label>

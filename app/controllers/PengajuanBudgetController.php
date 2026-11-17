@@ -71,6 +71,10 @@ class PengajuanBudgetController extends Controller
         $this->requirePost();
 
         [$data, $items, $errors] = $this->collectAndValidate([]);
+        if ($msg = BackDate::error('pengajuan_budget', $data['pengajuan_date'], null)) {
+            $errors[] = $msg;
+            BackDate::rejectLog('pengajuan_budget', (string) $data['pengajuan_date']);
+        }
         if ($errors) {
             setFlash('error', implode(' ', $errors));
             $this->renderForm('create', null, $items, $data);
@@ -159,6 +163,10 @@ class PengajuanBudgetController extends Controller
 
         $oldItems = $this->model->items($id);
         [$data, $items, $errors] = $this->collectAndValidate($oldItems);
+        if ($msg = BackDate::error('pengajuan_budget', $data['pengajuan_date'], $pb['pengajuan_date'])) {
+            $errors[] = $msg;
+            BackDate::rejectLog('pengajuan_budget', (string) $data['pengajuan_date']);
+        }
         if ($errors) {
             setFlash('error', implode(' ', $errors));
             $this->renderForm('edit', $pb, $items, $data);

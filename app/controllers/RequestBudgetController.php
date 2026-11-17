@@ -111,6 +111,7 @@ class RequestBudgetController extends Controller
             setFlash('error', implode(' ', $errors));
             $this->redirect('request_budget', 'create');
         }
+        BackDate::enforce('request_budget', $data['request_date'], null, 'request_budget', 'create');
 
         $submitNow = !empty($_POST['submit_after']) && can('request_budget', 'submit');
         [$items, $total] = RequestBudget::computeItems($data['items']);
@@ -217,6 +218,7 @@ class RequestBudgetController extends Controller
             setFlash('error', implode(' ', $errors));
             $this->redirect('request_budget', 'edit', ['id' => $id]);
         }
+        BackDate::enforce('request_budget', $data['request_date'], $rb['request_date'], 'request_budget', 'edit', ['id' => $id]);
 
         $submitNow = !empty($_POST['submit_after']) && can('request_budget', 'submit');
         [$items, $total] = RequestBudget::computeItems($data['items']);

@@ -54,6 +54,16 @@
             </div>
         </div>
     </div>
+    <?php if (!empty($summary['overpaid'])): ?>
+    <div class="col-12">
+        <div class="alert alert-danger mb-0 small">
+            <i class="bi bi-exclamation-octagon-fill"></i>
+            Ada <strong><?= (int) $summary['overpaid'] ?></strong> PO dengan <strong>Kelebihan Bayar</strong>
+            (total pembayaran melebihi nilai PO) &mdash; lihat di
+            <a href="<?= BASE_URL ?>/payment?status=overpaid" class="alert-link">daftar berstatus Kelebihan Bayar</a>.
+        </div>
+    </div>
+    <?php endif; ?>
 </div>
 
 <?php if (hasRole([ROLE_SUPER_ADMIN])): ?>
@@ -108,7 +118,7 @@
                         <th class="text-center">Kategori</th>
                         <th>Pembuat PO</th>
                         <th>Supplier</th>
-                        <th class="text-center">Termin</th>
+                        <th class="text-center">Jenis / Nomor</th>
                         <th>Sumber Dana</th>
                         <th>Metode</th>
                         <th class="text-end">Nominal Asli</th>
@@ -147,7 +157,11 @@
                             </td>
                             <td><?= e($pay['pembuat_po'] ?? '-') ?></td>
                             <td><?= e($pay['supplier_name']) ?></td>
-                            <td class="text-center">Ke-<?= (int) $pay['termin'] ?></td>
+                            <td class="text-center">
+                                <span class="badge bg-<?= ($pay['payment_type'] ?? 'termin') === 'pelunasan' ? 'success' : 'light text-dark border' ?>">
+                                    <?= e($pay['type_number_label']) ?>
+                                </span>
+                            </td>
                             <td>
                                 <span class="badge text-bg-light border">
                                     <?= e($fundingSourceLabels[$pay['funding_source']] ?? $pay['funding_source']) ?>
@@ -175,12 +189,12 @@
                             <td>
                                 <div class="d-flex justify-content-between small mb-1">
                                     <span class="text-muted"><?= formatMoney($pay['po_total_paid'], $pay['po_currency'] ?? 'IDR') ?> / <?= formatMoney($pay['total_amount'], $pay['po_currency'] ?? 'IDR') ?></span>
-                                    <span class="fw-semibold"><?= number_format($pay['po_payment_percentage'], 1, ',', '.') ?>%</span>
+                                    <span class="fw-semibold"><?= e($pay['po_payment_percentage_text']) ?>%</span>
                                 </div>
                                 <div class="progress" style="height: 6px;">
-                                    <div class="progress-bar bg-<?= $pay['po_payment_percentage'] >= 100 ? 'success' : 'primary' ?>"
-                                         role="progressbar" style="width: <?= (float) $pay['po_payment_percentage'] ?>%"
-                                         aria-valuenow="<?= (float) $pay['po_payment_percentage'] ?>" aria-valuemin="0" aria-valuemax="100"></div>
+                                    <div class="progress-bar bg-<?= $pay['status'] === 'paid' ? 'success' : ($pay['status'] === 'overpaid' ? 'danger' : 'primary') ?>"
+                                         role="progressbar" style="width: <?= (float) $pay['po_payment_percentage_bar'] ?>%"
+                                         aria-valuenow="<?= (float) $pay['po_payment_percentage_bar'] ?>" aria-valuemin="0" aria-valuemax="100"></div>
                                 </div>
                             </td>
                             <td class="text-center">

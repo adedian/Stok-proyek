@@ -68,7 +68,7 @@
                         <span class="badge bg-<?= e($statusBadgeClass[$po['status']] ?? 'secondary') ?>">
                             <?= e($statusLabels[$po['status']] ?? $po['status']) ?>
                         </span>
-                        <?php if (!empty($po['approved_at'])): ?>
+                        <?php if (!empty($po['approved_at']) && PurchaseOrder::isApprovalLocked($po)): ?>
                             <div class="small text-muted mt-1">
                                 <i class="bi bi-lock-fill"></i> Disetujui <?= e($po['approved_by_name'] ?? '-') ?>,
                                 <?= formatTanggal(substr($po['approved_at'], 0, 10)) ?> <?= substr($po['approved_at'], 11, 5) ?>

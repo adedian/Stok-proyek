@@ -184,7 +184,7 @@ $categoryLocked = $isEdit && !empty($categoryLockReasons);
                 <div class="col-md-4">
                     <label class="form-label">Status</label>
                     <?php
-                    $statusLocked = $po && (!empty($po['approved_at']) || in_array($po['status'] ?? '', ['approved', 'partial_received', 'completed'], true))
+                    $statusLocked = $po && PurchaseOrder::isApprovalLocked($po)
                         && !hasRole([ROLE_SUPER_ADMIN]);
                     ?>
                     <select name="status" class="form-select" <?= $statusLocked ? 'disabled' : '' ?>>
@@ -213,7 +213,7 @@ $categoryLocked = $isEdit && !empty($categoryLockReasons);
                     <?php elseif (!$canApprove): ?>
                         <div class="form-text">Ubah ke "Disetujui" lewat tombol Setujui PO di halaman Detail.</div>
                     <?php endif; ?>
-                    <?php if (!empty($po['approved_at']) && hasRole([ROLE_SUPER_ADMIN])): ?>
+                    <?php if ($po && PurchaseOrder::isApprovalLocked($po) && hasRole([ROLE_SUPER_ADMIN])): ?>
                         <div class="form-text text-warning">
                             <i class="bi bi-lock-fill"></i> PO ini sudah disetujui &mdash; Anda mengubah status sebagai Super Admin.
                         </div>

@@ -426,7 +426,9 @@ class PurchaseOrderController extends Controller
                 'signature_id' => $data['signature_id'],
                 'quote_number' => $data['quote_number'],
                 'quote_date'   => $data['quote_date'],
-            ] + ($data['status'] === 'approved' && $existing['status'] !== 'approved' && empty($existing['approved_at']) ? $this->approvalStamp() : []));
+            ] + ($data['status'] === 'approved' && $existing['status'] !== 'approved' && empty($existing['approved_at']) ? $this->approvalStamp() : [])
+              // Dikembalikan ke Draft/Menunggu Approval: stempel persetujuan lama dihapus (PO perlu disetujui ulang).
+              + (in_array($data['status'], ['draft', 'waiting_approval'], true) && !empty($existing['approved_at']) ? ['approved_by' => null, 'approved_at' => null] : []));
 
             if (!$itemsLocked) {
                 $this->itemModel->deleteByPo($id);

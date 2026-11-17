@@ -388,11 +388,22 @@ class PurchaseOrder extends Model
         return $this->db->fetchOne($sql, ['id' => $id]);
     }
 
-    /** PO terkunci: pernah disetujui (approved_at) ATAU statusnya sudah Disetujui/Sebagian/Selesai. */
+    /**
+     * PO terkunci: statusnya Disetujui/Sebagian/Selesai, ATAU pernah disetujui (approved_at) dan statusnya
+     * masih di luar Draft/Menunggu Approval (mis. Dibatalkan). Kalau Super Admin mengembalikan status ke
+     * Draft atau Menunggu Approval, kunci TERLEPAS -- PO bisa diedit lagi oleh Purchase (stempel approved_at
+     * lama yang tersisa tidak lagi mengunci).
+     */
     public static function isApprovalLocked(array $po): bool
     {
-        return !empty($po['approved_at'])
-            || in_array($po['status'] ?? '', ['approved', 'partial_received', 'completed'], true);
+        $status = $po['status'] ?? '';
+        if (in_array($status, ['approved', 'partial_received', 'completed'], true)) {
+            return true;
+        }
+        if (in_array($status, ['draft', 'waiting_approval'], true)) {
+            return false;
+        }
+        return !empty($po['approved_at']);
     }
 
     /** PO yang sudah disetujui TIDAK BOLEH diedit siapa pun kecuali Super Admin. */

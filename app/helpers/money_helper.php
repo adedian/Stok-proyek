@@ -124,8 +124,8 @@ final class Money
      *   exact  true bila dibayar == total (hanya saat itu value = "100")
      *
      * Aturan: normalnya 2 desimal (dibulatkan half-up). Pembulatan TIDAK BOLEH membuat nominal
-     * yang belum lunas tampil 100% (atau yang sudah > 0 tampil 0%): bila terjadi, presisi
-     * dinaikkan (sampai 30 desimal, dipotong) hingga selisihnya terlihat.
+     * yang belum lunas tampil 100% (atau yang sudah > 0 tampil 0%): bila terjadi, tampilan
+     * dipaksa 99,99 / 0,01 (maksimal tetap 2 desimal); kelebihan bayar minimal 100,01.
      */
     public static function percent($paid, $total): array
     {
@@ -171,20 +171,14 @@ final class Money
         }
 
         if ($needMore) {
-            // Naikkan presisi (potong, tanpa pembulatan) sampai angkanya tak lagi "polos".
-            $avoid = $p < $t ? '9' : '0';   // di bawah 100 -> hindari deretan 9; di atas/0 -> hindari deretan 0
-            $len = $D;
-            while ($len < 30 && substr($digits, 0, $len) === str_repeat($avoid, $len)) {
-                $len++;
-            }
-            $rounded = self::trimDecimal((string) $intPart, substr($digits, 0, $len));
-            // Kasus 0,0000...: digit awal nol -> naikkan sampai ada digit non-nol.
-            if ($intPart === 0) {
-                $len = $D;
-                while ($len < 30 && substr($digits, 0, $len) === str_repeat('0', $len)) {
-                    $len++;
-                }
-                $rounded = self::trimDecimal('0', substr($digits, 0, $len));
+            // Tampilan TETAP maksimal 2 desimal, tapi tidak boleh menyesatkan:
+            //   belum lunas yang terbulat jadi 100  -> 99,99 (dipotong ke bawah)
+            //   kelebihan yang terbulat jadi 100    -> 100,01
+            //   sudah dibayar tapi terbulat jadi 0  -> 0,01
+            if ($p < $t) {
+                $rounded = $rounded === '100' ? '99.99' : '0.01';
+            } else {
+                $rounded = '100.01';
             }
         }
 

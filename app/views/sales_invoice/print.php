@@ -146,7 +146,7 @@
         object-fit: contain;
     }
     .inv-signature-placeholder {
-        height: 64px;
+        height: 96px;   /* lebih tinggi -> titik-titik turun mendekati garis footer */
         display: flex;
         align-items: flex-end;
         margin-bottom: 2px;
@@ -166,7 +166,7 @@
         align-items: center;
         gap: 20px;
         border-top: 1px solid #dee2e6;
-        margin-top: 30px;
+        margin-top: 10px;
         padding-top: 8px;
         font-size: 10.5px;
         color: #495057;
@@ -343,7 +343,7 @@
                 <div class="inv-signature-name"><?= e($inv['signature_name']) ?></div>
                 <div class="inv-signature-position"><?= e($inv['signature_position']) ?></div>
             <?php else: ?>
-                <div class="inv-signature-placeholder">(.....................)</div>
+                <div class="inv-signature-placeholder">(............................................................)</div>
             <?php endif; ?>
         </div>
 

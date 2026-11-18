@@ -224,16 +224,19 @@
         width: auto;
         max-width: none;
     }
+    /* size: auto = halaman mengikuti kertas yang dipilih di dialog cetak. Dengan "size: A4" dan kertas dialog yang
+       lebih tinggi (Legal/F4), Chrome menaruh halaman A4 di TENGAH lembar sehingga logo turun ~28mm dari tepi atas.
+       Margin atas 5mm (~1 baris teks): logo mulai ~1 spasi dari batas atas kertas. */
     @page {
-        size: A4;
-        margin: 10mm;
+        size: auto;
+        margin: 5mm 10mm 10mm 10mm;
     }
     @media print {
         .po-print-page {
             border: none;
             margin: 0;
             max-width: none;
-            /* Atas 0: jarak dari tepi atas kertas = margin @page 10mm saja (~2 baris teks), bukan 10mm + 8mm seperti sebelumnya. */
+            /* Atas 0: jarak dari tepi atas kertas = margin @page atas saja (5mm), tanpa tambahan padding. */
             padding: 0 12mm 8mm 12mm;
             /* Tinggi 1 halaman A4 dikurangi margin @page (10mm atas+bawah) --
                supaya .po-print-signoff (margin-top: auto) punya ruang kosong
@@ -242,7 +245,7 @@
                (min-height, bukan height) dan lanjut ke halaman berikutnya
                seperti biasa, tidak terpotong.
             */
-            min-height: 277mm;
+            min-height: 281mm; /* A4 297mm - margin @page atas 5mm - bawah 10mm = 282mm; dikurangi 1mm cadangan pembulatan */
             /* Browser (Chrome/Edge) secara default TIDAK mencetak warna
                background sama sekali kecuali user mencentang "Background
                graphics" di dialog cetak -- makanya header tabel kuning

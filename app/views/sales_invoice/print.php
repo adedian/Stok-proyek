@@ -135,20 +135,21 @@
         font-weight: 700;
         margin-bottom: 4px;
     }
-    /* Jarak nama perusahaan -> nama penandatangan dilebarkan (ruang TTD/stempel): 64px -> 112px. */
+    /* Jarak nama perusahaan -> nama penandatangan dilebarkan (ruang TTD/stempel): 64px -> 131px
+       (112px + 1 spasi ~19px: titik-titik/nama penandatangan & footer di bawahnya turun 1 spasi). */
     .inv-signature-image-wrap {
-        height: 112px;
+        height: 131px;
         display: flex;
         align-items: flex-end;
         margin-bottom: 2px;
     }
     .inv-signature-image-wrap img {
-        max-height: 108px;
+        max-height: 127px;
         max-width: 200px;
         object-fit: contain;
     }
     .inv-signature-placeholder {
-        height: 112px;
+        height: 131px;
         display: flex;
         align-items: flex-end;
         margin-bottom: 2px;
@@ -178,17 +179,19 @@
         border-left: 1px solid #adb5bd;
         padding-left: 16px;
     }
+    /* size: auto = halaman mengikuti kertas dialog cetak (A4 dipaksa + kertas dialog lebih tinggi => Chrome menaruh
+       halaman di tengah lembar & logo turun jauh). Margin atas 15mm = jarak logo dari tepi atas kertas (sama dgn PO). */
     @page {
-        size: A4;
-        margin: 10mm;
+        size: auto;
+        margin: 15mm 10mm 10mm 10mm;
     }
     @media print {
         .inv-print-page {
             border: none;
             margin: 0;
             max-width: none;
-            padding: 8mm 12mm;
-            min-height: 277mm;
+            padding: 0 12mm 8mm 12mm;   /* atas 0: jarak atas = margin @page saja */
+            min-height: 271mm;           /* A4 297 - 15 (atas) - 10 (bawah) = 272mm, dikurangi 1mm cadangan */
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
             color-adjust: exact;

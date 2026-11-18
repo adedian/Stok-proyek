@@ -88,7 +88,8 @@ $discountTotal = round($grossTotal - (float) $order['subtotal'], 2);
     .op-taxnote { position: absolute; right: 0; top: 0; font-size: 8px; font-weight: 400; }
     .op-pageno { text-align: right; font-weight: 700; margin-top: 28px; }
     /* "Halaman X dari Y" dihitung browser saat cetak (Chrome/Edge terbaru); tidak tampil di layar. */
-    @page { size: A4; margin: 8mm 8mm 12mm 8mm; @bottom-right { content: "Halaman " counter(page) " dari " counter(pages); font: bold 11px Arial, Helvetica, sans-serif; } }
+    /* size: auto = ikut kertas dialog cetak (lihat catatan di cetak PO); margin atas 15mm = jarak dari tepi atas kertas, sama dgn PO/Invoice/Tanda Terima. */
+    @page { size: auto; margin: 15mm 8mm 12mm 8mm; @bottom-right { content: "Halaman " counter(page) " dari " counter(pages); font: bold 11px Arial, Helvetica, sans-serif; } }
     @media print {
         .op-print-page { border: none; margin: 0; max-width: none; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }

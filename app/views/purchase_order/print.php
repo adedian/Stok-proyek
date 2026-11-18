@@ -233,7 +233,8 @@
             border: none;
             margin: 0;
             max-width: none;
-            padding: 8mm 12mm;
+            /* Atas 0: jarak dari tepi atas kertas = margin @page 10mm saja (~2 baris teks), bukan 10mm + 8mm seperti sebelumnya. */
+            padding: 0 12mm 8mm 12mm;
             /* Tinggi 1 halaman A4 dikurangi margin @page (10mm atas+bawah) --
                supaya .po-print-signoff (margin-top: auto) punya ruang kosong
                untuk didorong ke bawah kalau isi PO pendek. PO yang isinya

@@ -273,20 +273,56 @@
                     // backend (SalesInvoiceController::calculateTotals()) -- tidak
                     // ada perhitungan ulang di view ini.
                 ?>
-                <tr class="inv-print-summary-row">
-                    <td colspan="4">Jumlah</td>
-                    <td class="num"><?= formatRupiah($inv['subtotal']) ?></td>
-                </tr>
-                <?php foreach ($inv['terms'] as $t): ?>
+                <?php
+                    // Perlakuan PPN tersimpan per invoice (sales_invoices.ppn_mode) -- cetak SELALU mengikutinya:
+                    //   'tambah'   = format LAMA (invoice yang sudah ada / dari Order Penjualan) -> tata letak lama persis.
+                    //   'termasuk' = Subtotal/DPP, PPN (%), Nominal PPN, Total.
+                    //   'tanpa'    = hanya Subtotal & Total -- TIDAK ada baris/persen/nominal/keterangan PPN sama sekali.
+                    $ppnMode = $inv['ppn_mode'] ?? 'tambah';
+                    $singleFullTerm = count($inv['terms']) === 1 && abs((float) $inv['terms'][0]['percentage'] - 100) < 0.01;
+                ?>
+                <?php if ($ppnMode === 'tambah'): ?>
                     <tr class="inv-print-summary-row">
-                        <td colspan="4"><?= e($t['label']) ?> (<?= formatPercent($t['percentage']) ?>%)</td>
-                        <td class="num"><?= formatRupiah($t['amount']) ?></td>
+                        <td colspan="4">Jumlah</td>
+                        <td class="num"><?= formatRupiah($inv['subtotal']) ?></td>
                     </tr>
-                <?php endforeach; ?>
-                <tr class="inv-print-summary-row">
-                    <td colspan="4">PPN</td>
-                    <td class="num"><?= formatRupiah($inv['ppn_amount']) ?></td>
-                </tr>
+                    <?php foreach ($inv['terms'] as $t): ?>
+                        <tr class="inv-print-summary-row">
+                            <td colspan="4"><?= e($t['label']) ?> (<?= formatPercent($t['percentage']) ?>%)</td>
+                            <td class="num"><?= formatRupiah($t['amount']) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    <tr class="inv-print-summary-row">
+                        <td colspan="4">PPN</td>
+                        <td class="num"><?= formatRupiah($inv['ppn_amount']) ?></td>
+                    </tr>
+                <?php else: ?>
+                    <?php $inclusive = $ppnMode === 'termasuk'; ?>
+                    <?php if ($singleFullTerm): ?>
+                        <?php /* Satu termin 100%: baris Jumlah & termin identik -> cukup satu baris Subtotal (/ DPP). */ ?>
+                        <tr class="inv-print-summary-row">
+                            <td colspan="4"><?= $inclusive ? 'Subtotal / DPP' : 'Subtotal' ?></td>
+                            <td class="num"><?= formatRupiah($inclusive ? $inv['dpp_amount'] : $inv['subtotal']) ?></td>
+                        </tr>
+                    <?php else: ?>
+                        <tr class="inv-print-summary-row">
+                            <td colspan="4"><?= $inclusive ? 'Jumlah (Harga Termasuk PPN)' : 'Subtotal' ?></td>
+                            <td class="num"><?= formatRupiah($inv['subtotal']) ?></td>
+                        </tr>
+                        <?php foreach ($inv['terms'] as $t): ?>
+                            <tr class="inv-print-summary-row">
+                                <td colspan="4"><?= e($t['label']) ?> (<?= formatPercent($t['percentage']) ?>%)<?= $inclusive ? ' - DPP' : '' ?></td>
+                                <td class="num"><?= formatRupiah($t['amount']) ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                    <?php if ($inclusive): ?>
+                        <tr class="inv-print-summary-row">
+                            <td colspan="4">PPN (<?= formatPercent($inv['ppn_percent']) ?>%)</td>
+                            <td class="num"><?= formatRupiah($inv['ppn_amount']) ?></td>
+                        </tr>
+                    <?php endif; ?>
+                <?php endif; ?>
                 <tr class="inv-print-summary-row grand">
                     <td colspan="4">Total</td>
                     <td class="num"><?= formatRupiah($inv['total_amount']) ?></td>

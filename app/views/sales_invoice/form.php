@@ -208,10 +208,35 @@ if (empty($terms)) {
                     <label class="form-label">No. Faktur Pajak <span class="text-muted small">(opsional)</span></label>
                     <input type="text" name="tax_invoice_number" class="form-control" value="<?= e($invoice['tax_invoice_number'] ?? '') ?>">
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label">PPN (%)</label>
+                <?php
+                    // Perlakuan PPN: hanya 2 pilihan. Baru -> default Termasuk PPN. Edit invoice berformat LAMA ('tambah',
+                    // PPN ditambahkan di atas harga) -> tidak ada yang terpilih & format lama dipertahankan sampai dipilih.
+                    $storedMode = $invoice['ppn_mode'] ?? null;
+                    $ppnMode = $storedMode === null ? 'termasuk' : ($storedMode === 'tambah' ? '' : $storedMode);
+                    $legacyPpn = $isEdit && $storedMode === 'tambah';
+                    $ppnValue = (float) ($invoice['ppn_percent'] ?? 11);
+                    if ($ppnValue <= 0) { $ppnValue = 11; }
+                ?>
+                <div class="col-md-5">
+                    <label class="form-label d-block">Perlakuan PPN <span class="text-danger">*</span></label>
+                    <div class="btn-group" role="group" aria-label="Perlakuan PPN" id="ppnModeGroup">
+                        <input type="radio" class="btn-check" name="ppn_mode" id="ppnModeIncl" value="termasuk" autocomplete="off" <?= $ppnMode === 'termasuk' ? 'checked' : '' ?>>
+                        <label class="btn btn-outline-primary" for="ppnModeIncl">Harga Termasuk PPN</label>
+                        <input type="radio" class="btn-check" name="ppn_mode" id="ppnModeExcl" value="tanpa" autocomplete="off" <?= $ppnMode === 'tanpa' ? 'checked' : '' ?>>
+                        <label class="btn btn-outline-primary" for="ppnModeExcl">Harga Tidak Termasuk PPN</label>
+                    </div>
+                    <div class="form-text" id="ppnModeHint">
+                        <?php if ($legacyPpn): ?>
+                            Invoice ini berformat lama (PPN ditambahkan di atas harga). Biarkan tanpa pilihan untuk mempertahankannya, atau pilih salah satu untuk mengubahnya.
+                        <?php else: ?>
+                            Termasuk: harga sudah memuat PPN (DPP &amp; PPN dihitung dari harga). Tidak termasuk: PPN tidak dihitung &amp; tidak dicetak.
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <div class="col-md-3" id="ppnPercentWrap">
+                    <label class="form-label" for="ppnPercent">PPN (%)</label>
                     <input type="number" name="ppn_percent" id="ppnPercent" class="form-control"
-                           value="<?= e($invoice['ppn_percent'] ?? '11.00') ?>" min="0" step="0.01">
+                           value="<?= e(rtrim(rtrim(number_format($ppnValue, 2, '.', ''), '0'), '.')) ?>" min="0" max="100" step="0.01" <?= $ppnMode === 'tanpa' ? 'disabled' : '' ?>>
                     <div class="form-text">Berlaku untuk semua baris termin di bawah.</div>
                 </div>
             </div>
@@ -355,8 +380,8 @@ if (empty($terms)) {
                             <th style="width: 130px;">Persentase</th>
                             <th style="width: 180px;">Label</th>
                             <th style="width: 140px;">Jatuh Tempo</th>
-                            <th style="width: 130px;" class="text-end">Nominal</th>
-                            <th style="width: 120px;" class="text-end">PPN</th>
+                            <th style="width: 130px;" class="text-end" id="thTermAmount">Nominal</th>
+                            <th style="width: 120px;" class="text-end ppn-col">PPN</th>
                             <th style="width: 130px;" class="text-end">Total</th>
                             <th style="width: 40px;"></th>
                         </tr>
@@ -368,7 +393,7 @@ if (empty($terms)) {
                                 <td><input type="text" name="term_label[]" class="form-control form-control-sm term-label-input" value="<?= e($term['label'] ?? '') ?>" placeholder="mis. Termin 1, Pelunasan" required></td>
                                 <td><input type="date" name="term_due_date[]" class="form-control form-control-sm term-duedate-input" value="<?= e($term['due_date'] ?? '') ?>" readonly tabindex="-1"></td>
                                 <td class="text-end term-amount-cell">Rp 0.00</td>
-                                <td class="text-end term-ppn-cell">Rp 0.00</td>
+                                <td class="text-end term-ppn-cell ppn-col">Rp 0.00</td>
                                 <td class="text-end fw-semibold term-total-cell">Rp 0.00</td>
                                 <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger btn-remove-term"><i class="bi bi-trash"></i></button></td>
                             </tr>
@@ -378,7 +403,7 @@ if (empty($terms)) {
                         <tr class="table-light">
                             <td colspan="3" class="text-end fw-bold">Total Keseluruhan</td>
                             <td class="text-end fw-bold" id="sumTermAmount">Rp 0.00</td>
-                            <td class="text-end fw-bold" id="sumTermPpn">Rp 0.00</td>
+                            <td class="text-end fw-bold ppn-col" id="sumTermPpn">Rp 0.00</td>
                             <td class="text-end fw-bold" id="sumTermTotal">Rp 0.00</td>
                             <td></td>
                         </tr>
@@ -386,6 +411,15 @@ if (empty($terms)) {
                 </table>
             </div>
             <div id="termPercentWarning" class="small mt-2"></div>
+
+            <?php /* Ringkasan perhitungan (realtime). Baris DPP & PPN hanya tampil bila PPN dihitung. */ ?>
+            <div class="d-flex justify-content-end mt-3">
+                <table class="table table-sm mb-0" style="max-width: 340px;" id="invoiceSummary">
+                    <tr class="ppn-col"><td class="text-muted">DPP</td><td class="text-end" id="sumDpp">Rp 0.00</td></tr>
+                    <tr class="ppn-col"><td class="text-muted" id="sumPpnLabel">PPN</td><td class="text-end" id="sumPpnNominal">Rp 0.00</td></tr>
+                    <tr class="fw-bold"><td>Total Invoice</td><td class="text-end" id="sumInvoiceTotal">Rp 0.00</td></tr>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -448,6 +482,31 @@ if (empty($terms)) {
     const ppnInput = document.getElementById('ppnPercent');
     const invoiceDateInput = document.getElementById('invoiceDate');
     const tempoInput = document.getElementById('invoiceTempo');
+
+    function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
+
+    // ---------- Perlakuan PPN ----------
+    // 'termasuk' | 'tanpa' | '' (invoice lama berformat "PPN ditambahkan", belum memilih -> hitungan lama dipertahankan).
+    // Rumus (SATU sumber di backend: SalesInvoice::calculateTotals(); angka di layar hanya preview):
+    //   termasuk : Nominal = DPP = harga/(1+PPN%); PPN = harga - DPP; Total = harga (tidak ditambah PPN lagi)
+    //   tanpa    : PPN tidak dihitung & disembunyikan; Total = harga
+    //   ''       : format lama -- PPN = Nominal x PPN%, Total = Nominal + PPN
+    const ppnModeRadios = document.querySelectorAll('input[name="ppn_mode"]');
+    function ppnMode() {
+        const checked = document.querySelector('input[name="ppn_mode"]:checked');
+        return checked ? checked.value : '';
+    }
+    function applyPpnMode() {
+        const mode = ppnMode();
+        // Field PPN hanya aktif bila PPN dihitung. disabled = tidak ikut terkirim (backend memaksa 0 untuk 'tanpa').
+        ppnInput.disabled = (mode === 'tanpa');
+        if (mode === 'termasuk' && (parseFloat(ppnInput.value) || 0) <= 0) { ppnInput.value = '11'; }
+        // Kolom/baris PPN di tabel termin & ringkasan disembunyikan untuk 'tanpa'.
+        document.querySelectorAll('.ppn-col').forEach(function (el) { el.classList.toggle('d-none', mode === 'tanpa'); });
+        document.getElementById('thTermAmount').textContent = (mode === 'termasuk') ? 'Nominal (DPP)' : 'Nominal';
+        recalcAll();
+    }
+    ppnModeRadios.forEach(function (r) { r.addEventListener('change', applyPpnMode); });
 
     function formatRupiah(num) {
         return 'Rp ' + Number(num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -517,15 +576,24 @@ if (empty($terms)) {
         });
         document.getElementById('sumSubtotal').textContent = formatRupiah(subtotal);
 
-        const ppnPercent = parseFloat(ppnInput.value) || 0;
+        const mode = ppnMode();
+        const ppnPercent = mode === 'tanpa' ? 0 : (parseFloat(ppnInput.value) || 0);
         let sumAmount = 0, sumPpn = 0, sumTotal = 0;
 
         let sumPercentage = 0;
         termTableBody.querySelectorAll('.term-row').forEach(function (row) {
             const pct = parseFloat(row.querySelector('.term-percentage-input').value) || 0;
-            const amount = subtotal * pct / 100;
-            const ppnAmount = amount * ppnPercent / 100;
-            const total = amount + ppnAmount;
+            const gross = round2(subtotal * pct / 100);
+            let amount, ppnAmount, total;
+            if (mode === 'termasuk') {
+                amount = round2(gross / (1 + ppnPercent / 100));   // DPP
+                ppnAmount = round2(gross - amount);
+                total = gross;                                       // PPN sudah di dalam harga -> tidak ditambah lagi
+            } else {
+                amount = gross;
+                ppnAmount = round2(amount * ppnPercent / 100);      // 0 bila 'tanpa'; format lama bila mode kosong
+                total = round2(amount + ppnAmount);
+            }
 
             row.querySelector('.term-amount-cell').textContent = formatRupiah(amount);
             row.querySelector('.term-ppn-cell').textContent = formatRupiah(ppnAmount);
@@ -540,6 +608,11 @@ if (empty($terms)) {
         document.getElementById('sumTermAmount').textContent = formatRupiah(sumAmount);
         document.getElementById('sumTermPpn').textContent = formatRupiah(sumPpn);
         document.getElementById('sumTermTotal').textContent = formatRupiah(sumTotal);
+
+        document.getElementById('sumDpp').textContent = formatRupiah(sumAmount);
+        document.getElementById('sumPpnNominal').textContent = formatRupiah(sumPpn);
+        document.getElementById('sumPpnLabel').textContent = 'PPN (' + (Math.round(ppnPercent * 100) / 100) + '%)';
+        document.getElementById('sumInvoiceTotal').textContent = formatRupiah(sumTotal);
 
         // Peringatan total persentase -- SOFT warning kalau belum 100% (boleh
         // simpan, backend tidak menolak), error tegas kalau lebih dari 100%
@@ -594,7 +667,7 @@ if (empty($terms)) {
             '<td><input type="text" name="term_label[]" class="form-control form-control-sm term-label-input" placeholder="mis. Termin 1, Pelunasan" required></td>' +
             '<td><input type="date" name="term_due_date[]" class="form-control form-control-sm term-duedate-input" readonly tabindex="-1"></td>' +
             '<td class="text-end term-amount-cell">Rp 0.00</td>' +
-            '<td class="text-end term-ppn-cell">Rp 0.00</td>' +
+            '<td class="text-end term-ppn-cell ppn-col">Rp 0.00</td>' +
             '<td class="text-end fw-semibold term-total-cell">Rp 0.00</td>' +
             '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger btn-remove-term"><i class="bi bi-trash"></i></button></td>';
         termTableBody.appendChild(tr);
@@ -887,7 +960,7 @@ if (empty($terms)) {
         });
     }
 
-    recalcAll();
+    applyPpnMode();   // sinkronkan field/kolom PPN dengan pilihan tersimpan + hitung awal
     refreshDueDate();
 })();
 </script>

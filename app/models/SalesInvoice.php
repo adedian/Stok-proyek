@@ -86,8 +86,32 @@ class SalesInvoice extends Model
      * Selalu dihitung ulang di backend; angka dari browser tidak pernah dipercaya.
      * Kolom agregat (dp_percentage/dp_amount/ppn_amount/total_amount) = SUM seluruh termin.
      */
-    public static function calculateTotals(array $items, array $terms, float $ppnPercent): array
+    /**
+     * Perlakuan PPN. Form hanya menawarkan PPN_TERMASUK & PPN_TANPA; PPN_TAMBAH = format lama
+     * (PPN ditambahkan di atas harga) -- hanya untuk invoice yang sudah ada / terbit dari Order Penjualan.
+     */
+    public const PPN_TAMBAH   = 'tambah';
+    public const PPN_TERMASUK = 'termasuk';
+    public const PPN_TANPA    = 'tanpa';
+
+    /** Apakah invoice ini mencetak/menampilkan PPN (semua mode kecuali 'tanpa'). */
+    public static function showsPpn(array $invoice): bool
     {
+        return ($invoice['ppn_mode'] ?? self::PPN_TAMBAH) !== self::PPN_TANPA;
+    }
+
+    /**
+     * Per mode (nominal termin = harga x %termin disebut "bruto"):
+     *   tambah   : Nominal = bruto;               PPN = Nominal x PPN%;  Total = Nominal + PPN   (format lama)
+     *   termasuk : Nominal = DPP = bruto/(1+PPN%); PPN = bruto - DPP;     Total = bruto          (PPN tidak ditambah dua kali)
+     *   tanpa    : Nominal = bruto;               PPN = 0 (tidak dihitung); Total = bruto
+     * Kolom 'dpp' hasil = SUM nominal (DPP) seluruh termin.
+     */
+    public static function calculateTotals(array $items, array $terms, float $ppnPercent, string $ppnMode = self::PPN_TAMBAH): array
+    {
+        if ($ppnMode === self::PPN_TANPA) {
+            $ppnPercent = 0.0;
+        }
         $subtotal = 0.0;
         foreach ($items as $item) {
             $subtotal += $item['subtotal'];
@@ -101,9 +125,16 @@ class SalesInvoice extends Model
         $sumTotal = 0.0;
 
         foreach ($terms as $i => $term) {
-            $amount = round($subtotal * $term['percentage'] / 100, 2);
-            $ppnAmount = round($amount * $ppnPercent / 100, 2);
-            $total = round($amount + $ppnAmount, 2);
+            $gross = round($subtotal * $term['percentage'] / 100, 2);
+            if ($ppnMode === self::PPN_TERMASUK) {
+                $amount = round($gross / (1 + $ppnPercent / 100), 2);   // DPP
+                $ppnAmount = round($gross - $amount, 2);
+                $total = $gross;                                          // = DPP + PPN, tanpa menambah PPN lagi
+            } else {
+                $amount = $gross;
+                $ppnAmount = round($amount * $ppnPercent / 100, 2);       // 0 bila 'tanpa' (persen dipaksa 0 di atas)
+                $total = round($amount + $ppnAmount, 2);
+            }
 
             $computedTerms[] = [
                 'term_no'          => $i + 1,
@@ -129,6 +160,8 @@ class SalesInvoice extends Model
             'dp_percentage_id' => count($computedTerms) === 1 ? $computedTerms[0]['dp_percentage_id'] : null,
             'dp_percentage'    => round($sumPercentage, 2),
             'dp_amount'        => round($sumAmount, 2),
+            'dpp'              => round($sumAmount, 2),
+            'ppn_percent'      => $ppnPercent,
             'ppn_amount'       => round($sumPpn, 2),
             'total'            => round($sumTotal, 2),
         ];

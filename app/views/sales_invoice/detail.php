@@ -114,6 +114,22 @@
                         <div class="text-muted small">No. Faktur Pajak</div>
                         <div class="fw-semibold"><?= e($invoice['tax_invoice_number'] ?? '-') ?></div>
                     </div>
+                    <?php
+                        $ppnMode = $invoice['ppn_mode'] ?? 'tambah';
+                        $showPpn = $ppnMode !== 'tanpa';
+                    ?>
+                    <div class="col-md-4">
+                        <div class="text-muted small">Perlakuan PPN</div>
+                        <div class="fw-semibold">
+                            <?php if ($ppnMode === 'termasuk'): ?>
+                                Harga Termasuk PPN (<?= e(formatPercent($invoice['ppn_percent'])) ?>%)
+                            <?php elseif ($ppnMode === 'tanpa'): ?>
+                                Harga Tidak Termasuk PPN
+                            <?php else: ?>
+                                PPN <?= e(formatPercent($invoice['ppn_percent'])) ?>% ditambahkan di atas harga
+                            <?php endif; ?>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="table-responsive mt-2">
@@ -164,8 +180,8 @@
                                 <th>Label</th>
                                 <th class="text-end">%</th>
                                 <th>Jatuh Tempo</th>
-                                <th class="text-end">Nominal</th>
-                                <th class="text-end">PPN</th>
+                                <th class="text-end"><?= $ppnMode === 'termasuk' ? 'Nominal (DPP)' : 'Nominal' ?></th>
+                                <?php if ($showPpn): ?><th class="text-end">PPN</th><?php endif; ?>
                                 <th class="text-end">Total</th>
                             </tr>
                         </thead>
@@ -176,7 +192,7 @@
                                     <td class="text-end"><?= formatPercent($t['percentage']) ?>%</td>
                                     <td><?= !empty($t['due_date']) ? formatTanggal($t['due_date']) : '-' ?></td>
                                     <td class="text-end"><?= formatRupiah($t['amount']) ?></td>
-                                    <td class="text-end"><?= formatRupiah($t['ppn_amount']) ?></td>
+                                    <?php if ($showPpn): ?><td class="text-end"><?= formatRupiah($t['ppn_amount']) ?></td><?php endif; ?>
                                     <td class="text-end fw-semibold"><?= formatRupiah($t['total_amount']) ?></td>
                                 </tr>
                             <?php endforeach; ?>

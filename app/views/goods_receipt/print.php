@@ -84,12 +84,18 @@
     .gr-signature-position {
         color: #495057;
     }
+    /* Sama dengan cetak PO/Invoice/Surat Jalan: halaman mengikuti kertas dialog cetak (size: auto) dan jarak atas dari
+       tepi kertas = margin @page atas 15mm saja (padding atas 0). Sebelumnya tanpa @page => margin bawaan browser + padding. */
+    @page {
+        size: auto;
+        margin: 15mm 10mm 10mm 10mm;
+    }
     @media print {
         .gr-print-page {
             border: none;
             margin: 0;
             max-width: none;
-            padding: 10mm 12mm;
+            padding: 0 12mm 10mm 12mm;
         }
     }
 </style>

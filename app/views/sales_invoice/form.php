@@ -209,11 +209,9 @@ if (empty($terms)) {
                     <input type="text" name="tax_invoice_number" class="form-control" value="<?= e($invoice['tax_invoice_number'] ?? '') ?>">
                 </div>
                 <?php
-                    // Perlakuan PPN: hanya 2 pilihan. Baru -> default Termasuk PPN. Edit invoice berformat LAMA ('tambah',
-                    // PPN ditambahkan di atas harga) -> tidak ada yang terpilih & format lama dipertahankan sampai dipilih.
-                    $storedMode = $invoice['ppn_mode'] ?? null;
-                    $ppnMode = $storedMode === null ? 'termasuk' : ($storedMode === 'tambah' ? '' : $storedMode);
-                    $legacyPpn = $isEdit && $storedMode === 'tambah';
+                    // Perlakuan PPN: hanya 2 pilihan. Baru -> default Tidak Termasuk PPN (PPN ditambahkan, seperti
+                    // perilaku aplikasi sebelumnya). Termasuk PPN = harga sudah memuat PPN -> PPN tidak dihitung/dicetak.
+                    $ppnMode = $invoice['ppn_mode'] ?? 'tidak_termasuk';
                     $ppnValue = (float) ($invoice['ppn_percent'] ?? 11);
                     if ($ppnValue <= 0) { $ppnValue = 11; }
                 ?>
@@ -222,21 +220,17 @@ if (empty($terms)) {
                     <div class="btn-group" role="group" aria-label="Perlakuan PPN" id="ppnModeGroup">
                         <input type="radio" class="btn-check" name="ppn_mode" id="ppnModeIncl" value="termasuk" autocomplete="off" <?= $ppnMode === 'termasuk' ? 'checked' : '' ?>>
                         <label class="btn btn-outline-primary" for="ppnModeIncl">Harga Termasuk PPN</label>
-                        <input type="radio" class="btn-check" name="ppn_mode" id="ppnModeExcl" value="tanpa" autocomplete="off" <?= $ppnMode === 'tanpa' ? 'checked' : '' ?>>
+                        <input type="radio" class="btn-check" name="ppn_mode" id="ppnModeExcl" value="tidak_termasuk" autocomplete="off" <?= $ppnMode === 'tidak_termasuk' ? 'checked' : '' ?>>
                         <label class="btn btn-outline-primary" for="ppnModeExcl">Harga Tidak Termasuk PPN</label>
                     </div>
                     <div class="form-text" id="ppnModeHint">
-                        <?php if ($legacyPpn): ?>
-                            Invoice ini berformat lama (PPN ditambahkan di atas harga). Biarkan tanpa pilihan untuk mempertahankannya, atau pilih salah satu untuk mengubahnya.
-                        <?php else: ?>
-                            Termasuk: harga sudah memuat PPN (DPP &amp; PPN dihitung dari harga). Tidak termasuk: PPN tidak dihitung &amp; tidak dicetak.
-                        <?php endif; ?>
+                        Termasuk: harga sudah memuat PPN &mdash; PPN tidak dihitung &amp; tidak dicetak. Tidak termasuk: PPN dihitung &amp; ditambahkan di atas harga.
                     </div>
                 </div>
                 <div class="col-md-3" id="ppnPercentWrap">
                     <label class="form-label" for="ppnPercent">PPN (%)</label>
                     <input type="number" name="ppn_percent" id="ppnPercent" class="form-control"
-                           value="<?= e(rtrim(rtrim(number_format($ppnValue, 2, '.', ''), '0'), '.')) ?>" min="0" max="100" step="0.01" <?= $ppnMode === 'tanpa' ? 'disabled' : '' ?>>
+                           value="<?= e(rtrim(rtrim(number_format($ppnValue, 2, '.', ''), '0'), '.')) ?>" min="0" max="100" step="0.01" <?= $ppnMode === 'termasuk' ? 'disabled' : '' ?>>
                     <div class="form-text">Berlaku untuk semua baris termin di bawah.</div>
                 </div>
             </div>
@@ -380,7 +374,7 @@ if (empty($terms)) {
                             <th style="width: 130px;">Persentase</th>
                             <th style="width: 180px;">Label</th>
                             <th style="width: 140px;">Jatuh Tempo</th>
-                            <th style="width: 130px;" class="text-end" id="thTermAmount">Nominal</th>
+                            <th style="width: 130px;" class="text-end">Nominal</th>
                             <th style="width: 120px;" class="text-end ppn-col">PPN</th>
                             <th style="width: 130px;" class="text-end">Total</th>
                             <th style="width: 40px;"></th>
@@ -415,7 +409,7 @@ if (empty($terms)) {
             <?php /* Ringkasan perhitungan (realtime). Baris DPP & PPN hanya tampil bila PPN dihitung. */ ?>
             <div class="d-flex justify-content-end mt-3">
                 <table class="table table-sm mb-0" style="max-width: 340px;" id="invoiceSummary">
-                    <tr class="ppn-col"><td class="text-muted">DPP</td><td class="text-end" id="sumDpp">Rp 0.00</td></tr>
+                    <tr class="ppn-col"><td class="text-muted">Subtotal / DPP</td><td class="text-end" id="sumDpp">Rp 0.00</td></tr>
                     <tr class="ppn-col"><td class="text-muted" id="sumPpnLabel">PPN</td><td class="text-end" id="sumPpnNominal">Rp 0.00</td></tr>
                     <tr class="fw-bold"><td>Total Invoice</td><td class="text-end" id="sumInvoiceTotal">Rp 0.00</td></tr>
                 </table>
@@ -486,24 +480,22 @@ if (empty($terms)) {
     function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
 
     // ---------- Perlakuan PPN ----------
-    // 'termasuk' | 'tanpa' | '' (invoice lama berformat "PPN ditambahkan", belum memilih -> hitungan lama dipertahankan).
+    // 'termasuk' (Harga Termasuk PPN) | 'tidak_termasuk' (Harga Tidak Termasuk PPN).
     // Rumus (SATU sumber di backend: SalesInvoice::calculateTotals(); angka di layar hanya preview):
-    //   termasuk : Nominal = DPP = harga/(1+PPN%); PPN = harga - DPP; Total = harga (tidak ditambah PPN lagi)
-    //   tanpa    : PPN tidak dihitung & disembunyikan; Total = harga
-    //   ''       : format lama -- PPN = Nominal x PPN%, Total = Nominal + PPN
+    //   termasuk       : harga sudah memuat PPN -> PPN tidak dihitung/ditampilkan; Total = harga
+    //   tidak_termasuk : PPN = Nominal x PPN%, Total = Nominal + PPN
     const ppnModeRadios = document.querySelectorAll('input[name="ppn_mode"]');
     function ppnMode() {
         const checked = document.querySelector('input[name="ppn_mode"]:checked');
-        return checked ? checked.value : '';
+        return checked ? checked.value : 'tidak_termasuk';
     }
     function applyPpnMode() {
         const mode = ppnMode();
-        // Field PPN hanya aktif bila PPN dihitung. disabled = tidak ikut terkirim (backend memaksa 0 untuk 'tanpa').
-        ppnInput.disabled = (mode === 'tanpa');
-        if (mode === 'termasuk' && (parseFloat(ppnInput.value) || 0) <= 0) { ppnInput.value = '11'; }
-        // Kolom/baris PPN di tabel termin & ringkasan disembunyikan untuk 'tanpa'.
-        document.querySelectorAll('.ppn-col').forEach(function (el) { el.classList.toggle('d-none', mode === 'tanpa'); });
-        document.getElementById('thTermAmount').textContent = (mode === 'termasuk') ? 'Nominal (DPP)' : 'Nominal';
+        // Field PPN hanya aktif bila PPN dihitung. disabled = tidak ikut terkirim (backend memaksa 0 untuk Termasuk PPN).
+        ppnInput.disabled = (mode === 'termasuk');
+        if (mode === 'tidak_termasuk' && (parseFloat(ppnInput.value) || 0) <= 0) { ppnInput.value = '11'; }
+        // Kolom/baris PPN di tabel termin & ringkasan disembunyikan untuk Termasuk PPN.
+        document.querySelectorAll('.ppn-col').forEach(function (el) { el.classList.toggle('d-none', mode === 'termasuk'); });
         recalcAll();
     }
     ppnModeRadios.forEach(function (r) { r.addEventListener('change', applyPpnMode); });
@@ -577,23 +569,16 @@ if (empty($terms)) {
         document.getElementById('sumSubtotal').textContent = formatRupiah(subtotal);
 
         const mode = ppnMode();
-        const ppnPercent = mode === 'tanpa' ? 0 : (parseFloat(ppnInput.value) || 0);
+        // Termasuk PPN: PPN tidak dihitung sama sekali. Tidak Termasuk PPN: PPN = Nominal x PPN%, ditambahkan di atas harga.
+        const ppnPercent = mode === 'termasuk' ? 0 : (parseFloat(ppnInput.value) || 0);
         let sumAmount = 0, sumPpn = 0, sumTotal = 0;
 
         let sumPercentage = 0;
         termTableBody.querySelectorAll('.term-row').forEach(function (row) {
             const pct = parseFloat(row.querySelector('.term-percentage-input').value) || 0;
-            const gross = round2(subtotal * pct / 100);
-            let amount, ppnAmount, total;
-            if (mode === 'termasuk') {
-                amount = round2(gross / (1 + ppnPercent / 100));   // DPP
-                ppnAmount = round2(gross - amount);
-                total = gross;                                       // PPN sudah di dalam harga -> tidak ditambah lagi
-            } else {
-                amount = gross;
-                ppnAmount = round2(amount * ppnPercent / 100);      // 0 bila 'tanpa'; format lama bila mode kosong
-                total = round2(amount + ppnAmount);
-            }
+            const amount = round2(subtotal * pct / 100);
+            const ppnAmount = round2(amount * ppnPercent / 100);
+            const total = round2(amount + ppnAmount);
 
             row.querySelector('.term-amount-cell').textContent = formatRupiah(amount);
             row.querySelector('.term-ppn-cell').textContent = formatRupiah(ppnAmount);

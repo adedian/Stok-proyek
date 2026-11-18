@@ -726,7 +726,7 @@ class SalesOrderController extends Controller
                 'contract_number'    => $locked['po_number'],
                 'contract_date'      => $locked['po_date'],
                 'ppn_percent'        => $ppn,
-                'ppn_mode'           => SalesInvoice::PPN_TAMBAH,   // Order Penjualan: harga net + PPN ditambahkan (format lama)
+                'ppn_mode'           => SalesInvoice::PPN_TIDAK_TERMASUK,   // Order Penjualan: harga net + PPN ditambahkan di atas harga
                 'dpp_amount'         => $totals['dpp'],
                 'subtotal'           => $totals['subtotal'],
                 'dp_percentage_id'   => $totals['dp_percentage_id'],

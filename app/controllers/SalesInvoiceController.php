@@ -118,8 +118,7 @@ class SalesInvoiceController extends Controller
         verifyCsrf();
 
         [$data, $items, $terms] = $this->collectInput();
-        // Invoice baru WAJIB memilih salah satu dari 2 perlakuan PPN (format lama 'tambah' tidak tersedia untuk invoice baru).
-        // Mode kosong dibiarkan -> validateInput() menolak dengan pesan yang jelas.
+        // Perlakuan PPN wajib salah satu dari 2 pilihan; mode kosong/tidak dikenal ditolak validateInput() dengan pesan jelas.
         // "Simpan sebagai Draft" (save_mode=draft): validasi dilonggarkan & invoice belum dihitung sebagai tagihan.
         $isDraft = $this->isDraftSave();
         $errors = $this->validateInput($data, $items, $terms, null, $isDraft);
@@ -160,7 +159,7 @@ class SalesInvoiceController extends Controller
             $this->lockAndRecheckDeliveryNoteLink($data, $items);
 
             $totals = $this->calculateTotals($items, $terms, $data['ppn_percent'], $data['ppn_mode']);
-            $data['ppn_percent'] = $totals['ppn_percent'];   // 0 untuk 'tanpa'
+            $data['ppn_percent'] = $totals['ppn_percent'];   // 0 untuk Termasuk PPN
 
             $invoiceId = $this->invoiceModel->create(array_merge($data, [
                 'dpp_amount'      => $totals['dpp'],
@@ -295,11 +294,6 @@ class SalesInvoiceController extends Controller
         // asli. Field-nya di form.php memang <select disabled> (tidak terkirim),
         // ini lapisan pertahanan kedua supaya tidak bisa dipalsukan lewat request manual.
         $data['invoice_type'] = $existing['invoice_type'];
-        // Invoice lama berformat 'tambah' (PPN ditambahkan di atas harga): bila pengguna TIDAK memilih salah satu dari
-        // 2 pilihan baru, format lama dipertahankan (hitungan & cetaknya tidak berubah). Memilih = pindah ke format baru.
-        if ($data['ppn_mode'] === '' && ($existing['ppn_mode'] ?? '') === SalesInvoice::PPN_TAMBAH) {
-            $data['ppn_mode'] = SalesInvoice::PPN_TAMBAH;
-        }
         // Invoice yang diterbitkan dari Surat Jalan wajib tetap Invoice Barang (field di form juga dikunci).
         if (!empty($existing['delivery_note_id']) || $soLinked) {
             $data['invoice_category'] = 'barang';
@@ -366,7 +360,7 @@ class SalesInvoiceController extends Controller
 
             $oldItems = $this->itemModel->itemsByInvoice($id);
             $totals = $this->calculateTotals($items, $terms, $data['ppn_percent'], $data['ppn_mode']);
-            $data['ppn_percent'] = $totals['ppn_percent'];   // 0 untuk 'tanpa'
+            $data['ppn_percent'] = $totals['ppn_percent'];   // 0 untuk Termasuk PPN
 
             $this->invoiceModel->updateById($id, array_merge($data, [
                 'dpp_amount'       => $totals['dpp'],
@@ -770,9 +764,8 @@ class SalesInvoiceController extends Controller
             'jatuh_tempo'      => $this->computeDueDate($invoiceDate, $tempo),
             'contract_number'  => trim($_POST['contract_number'] ?? '') ?: null,
             'contract_date'    => trim($_POST['contract_date'] ?? '') ?: null,
-            // Perlakuan PPN: hanya 'termasuk' / 'tanpa' yang diterima dari form; selain itu '' (store menolak,
-            // update mempertahankan format lama untuk invoice lama -- lihat resolvePpnMode()).
-            'ppn_mode'         => in_array($_POST['ppn_mode'] ?? '', [SalesInvoice::PPN_TERMASUK, SalesInvoice::PPN_TANPA], true) ? $_POST['ppn_mode'] : '',
+            // Perlakuan PPN: hanya 'termasuk' / 'tidak_termasuk' yang diterima; selain itu '' (ditolak validateInput()).
+            'ppn_mode'         => in_array($_POST['ppn_mode'] ?? '', [SalesInvoice::PPN_TERMASUK, SalesInvoice::PPN_TIDAK_TERMASUK], true) ? $_POST['ppn_mode'] : '',
             'ppn_percent'      => is_numeric($_POST['ppn_percent'] ?? null) ? (float) $_POST['ppn_percent'] : 0.0,
             'tax_invoice_number' => trim($_POST['tax_invoice_number'] ?? '') ?: null,
             'signature_id'     => !empty($_POST['signature_id']) ? (int) $_POST['signature_id'] : null,
@@ -927,15 +920,11 @@ class SalesInvoiceController extends Controller
         if ($tempoSubmitted !== '' && $data['tempo'] === null) {
             $errors[] = 'Tempo harus berupa angka hari (0 sampai ' . INPUT_MAX_TEMPO_DAYS . '), tanpa huruf/simbol.';
         }
-        if (!in_array($data['ppn_mode'], [SalesInvoice::PPN_TERMASUK, SalesInvoice::PPN_TANPA, SalesInvoice::PPN_TAMBAH], true)) {
+        if (!in_array($data['ppn_mode'], [SalesInvoice::PPN_TERMASUK, SalesInvoice::PPN_TIDAK_TERMASUK], true)) {
             $errors[] = 'Pilih perlakuan PPN: Harga Termasuk PPN atau Harga Tidak Termasuk PPN.';
-        } elseif ($data['ppn_mode'] !== SalesInvoice::PPN_TANPA) {
-            // PPN hanya relevan (dan hanya divalidasi) bila PPN dihitung.
-            if ($data['ppn_percent'] < 0 || $data['ppn_percent'] > 100) {
-                $errors[] = 'PPN harus antara 0 dan 100 persen.';
-            } elseif ($data['ppn_mode'] === SalesInvoice::PPN_TERMASUK && $data['ppn_percent'] <= 0 && !$draft) {
-                $errors[] = 'Isi persentase PPN (lebih dari 0), atau pilih "Harga Tidak Termasuk PPN".';
-            }
+        } elseif ($data['ppn_mode'] === SalesInvoice::PPN_TIDAK_TERMASUK && ($data['ppn_percent'] < 0 || $data['ppn_percent'] > 100)) {
+            // Persentase PPN hanya relevan (dan hanya divalidasi) bila PPN dihitung.
+            $errors[] = 'PPN harus antara 0 dan 100 persen.';
         }
         if (empty($items) && !$draft) {
             $errors[] = 'Minimal 1 baris item invoice wajib diisi.';

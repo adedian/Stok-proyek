@@ -87,30 +87,26 @@ class SalesInvoice extends Model
      * Kolom agregat (dp_percentage/dp_amount/ppn_amount/total_amount) = SUM seluruh termin.
      */
     /**
-     * Perlakuan PPN. Form hanya menawarkan PPN_TERMASUK & PPN_TANPA; PPN_TAMBAH = format lama
-     * (PPN ditambahkan di atas harga) -- hanya untuk invoice yang sudah ada / terbit dari Order Penjualan.
+     * Perlakuan PPN (kolom sales_invoices.ppn_mode) -- form menawarkan tepat 2 pilihan:
+     *   PPN_TERMASUK       "Harga Termasuk PPN"       : harga sudah memuat PPN -> PPN TIDAK dihitung, TIDAK ditambahkan,
+     *                                                   TIDAK dicetak; total = harga; persentase PPN disimpan 0.
+     *   PPN_TIDAK_TERMASUK "Harga Tidak Termasuk PPN" : PPN dihitung & ditambahkan di atas harga (format asli semua
+     *                                                   invoice lama & invoice dari Order Penjualan).
+     * Kolom 'dpp' hasil = SUM nominal termin (DPP / dasar pengenaan PPN).
      */
-    public const PPN_TAMBAH   = 'tambah';
-    public const PPN_TERMASUK = 'termasuk';
-    public const PPN_TANPA    = 'tanpa';
+    public const PPN_TERMASUK       = 'termasuk';
+    public const PPN_TIDAK_TERMASUK = 'tidak_termasuk';
 
-    /** Apakah invoice ini mencetak/menampilkan PPN (semua mode kecuali 'tanpa'). */
+    /** Apakah invoice ini menghitung & mencetak PPN (hanya mode "Tidak Termasuk PPN"). */
     public static function showsPpn(array $invoice): bool
     {
-        return ($invoice['ppn_mode'] ?? self::PPN_TAMBAH) !== self::PPN_TANPA;
+        return ($invoice['ppn_mode'] ?? self::PPN_TIDAK_TERMASUK) === self::PPN_TIDAK_TERMASUK;
     }
 
-    /**
-     * Per mode (nominal termin = harga x %termin disebut "bruto"):
-     *   tambah   : Nominal = bruto;               PPN = Nominal x PPN%;  Total = Nominal + PPN   (format lama)
-     *   termasuk : Nominal = DPP = bruto/(1+PPN%); PPN = bruto - DPP;     Total = bruto          (PPN tidak ditambah dua kali)
-     *   tanpa    : Nominal = bruto;               PPN = 0 (tidak dihitung); Total = bruto
-     * Kolom 'dpp' hasil = SUM nominal (DPP) seluruh termin.
-     */
-    public static function calculateTotals(array $items, array $terms, float $ppnPercent, string $ppnMode = self::PPN_TAMBAH): array
+    public static function calculateTotals(array $items, array $terms, float $ppnPercent, string $ppnMode = self::PPN_TIDAK_TERMASUK): array
     {
-        if ($ppnMode === self::PPN_TANPA) {
-            $ppnPercent = 0.0;
+        if ($ppnMode === self::PPN_TERMASUK) {
+            $ppnPercent = 0.0;   // harga sudah termasuk PPN -> tidak ada PPN yang dihitung
         }
         $subtotal = 0.0;
         foreach ($items as $item) {
@@ -125,16 +121,9 @@ class SalesInvoice extends Model
         $sumTotal = 0.0;
 
         foreach ($terms as $i => $term) {
-            $gross = round($subtotal * $term['percentage'] / 100, 2);
-            if ($ppnMode === self::PPN_TERMASUK) {
-                $amount = round($gross / (1 + $ppnPercent / 100), 2);   // DPP
-                $ppnAmount = round($gross - $amount, 2);
-                $total = $gross;                                          // = DPP + PPN, tanpa menambah PPN lagi
-            } else {
-                $amount = $gross;
-                $ppnAmount = round($amount * $ppnPercent / 100, 2);       // 0 bila 'tanpa' (persen dipaksa 0 di atas)
-                $total = round($amount + $ppnAmount, 2);
-            }
+            $amount = round($subtotal * $term['percentage'] / 100, 2);
+            $ppnAmount = round($amount * $ppnPercent / 100, 2);   // 0 bila Termasuk PPN (persen dipaksa 0 di atas)
+            $total = round($amount + $ppnAmount, 2);
 
             $computedTerms[] = [
                 'term_no'          => $i + 1,

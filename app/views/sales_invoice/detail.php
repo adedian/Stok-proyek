@@ -115,18 +115,16 @@
                         <div class="fw-semibold"><?= e($invoice['tax_invoice_number'] ?? '-') ?></div>
                     </div>
                     <?php
-                        $ppnMode = $invoice['ppn_mode'] ?? 'tambah';
-                        $showPpn = $ppnMode !== 'tanpa';
+                        $ppnMode = $invoice['ppn_mode'] ?? 'tidak_termasuk';
+                        $showPpn = $ppnMode !== 'termasuk';
                     ?>
                     <div class="col-md-4">
                         <div class="text-muted small">Perlakuan PPN</div>
                         <div class="fw-semibold">
                             <?php if ($ppnMode === 'termasuk'): ?>
-                                Harga Termasuk PPN (<?= e(formatPercent($invoice['ppn_percent'])) ?>%)
-                            <?php elseif ($ppnMode === 'tanpa'): ?>
-                                Harga Tidak Termasuk PPN
+                                Harga Termasuk PPN
                             <?php else: ?>
-                                PPN <?= e(formatPercent($invoice['ppn_percent'])) ?>% ditambahkan di atas harga
+                                Harga Tidak Termasuk PPN (PPN <?= e(formatPercent($invoice['ppn_percent'])) ?>%)
                             <?php endif; ?>
                         </div>
                     </div>
@@ -180,7 +178,7 @@
                                 <th>Label</th>
                                 <th class="text-end">%</th>
                                 <th>Jatuh Tempo</th>
-                                <th class="text-end"><?= $ppnMode === 'termasuk' ? 'Nominal (DPP)' : 'Nominal' ?></th>
+                                <th class="text-end">Nominal</th>
                                 <?php if ($showPpn): ?><th class="text-end">PPN</th><?php endif; ?>
                                 <th class="text-end">Total</th>
                             </tr>

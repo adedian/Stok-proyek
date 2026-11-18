@@ -56,7 +56,9 @@ $periode = trim((string) ($rb['period_label'] ?? ''));
     .rb-sign .sig img { max-height: 54px; max-width: 120px; }
     .rb-sign .sig-ph { color: #999; }
     .rb-status-note { margin-top: 10px; font-size: 9px; color: #555; }
-    @page { size: A4; margin: 10mm; }
+    /* size: auto = ikut kertas dialog cetak (lihat catatan di cetak PO); margin atas 15mm = jarak dari tepi atas kertas,
+       sama dengan PO/Invoice/Surat Jalan. Padding area cetak sudah 0, jadi jarak atas = margin ini saja. */
+    @page { size: auto; margin: 15mm 10mm 10mm 10mm; }
     @media print {
         .rb-print-page { border: none; margin: 0; max-width: none; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
     }

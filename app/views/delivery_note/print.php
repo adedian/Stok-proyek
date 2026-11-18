@@ -150,17 +150,20 @@
         border-left: 1px solid #adb5bd;
         padding-left: 16px;
     }
+    /* size: auto = halaman mengikuti kertas dialog cetak (A4 dipaksa + kertas dialog lebih tinggi => Chrome menaruh
+       halaman di tengah lembar & logo turun jauh). Margin atas 15mm = jarak logo dari tepi atas kertas;
+       bawah 5mm = blok tanda tangan + footer turun 1 spasi. Sama dengan cetak PO. */
     @page {
-        size: A4;
-        margin: 10mm;
+        size: auto;
+        margin: 15mm 10mm 5mm 10mm;
     }
     @media print {
         .sj-print-page {
             border: none;
             margin: 0;
             max-width: none;
-            padding: 8mm 12mm;
-            min-height: 277mm;
+            padding: 0 12mm 8mm 12mm;   /* atas 0: jarak atas = margin @page saja */
+            min-height: 276mm;           /* A4 297 - 15 (atas) - 5 (bawah) = 277mm, dikurangi 1mm cadangan */
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
             color-adjust: exact;

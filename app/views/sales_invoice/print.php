@@ -123,9 +123,10 @@
     .inv-print-notes-body {
         margin-left: 40px;
     }
+    /* Blok tanda tangan mengalir tepat di bawah Note (tidak lagi ditekan ke dasar halaman), footer menyusul di bawahnya. */
     .inv-print-signoff {
-        margin-top: auto;
-        padding-top: 34px;
+        margin-top: 0;
+        padding-top: 52px;
     }
     .inv-print-signoff-company {
         /* Hanya teks nama perusahaan yang naik 1 baris (~18px); area TTD/"(.....)" tetap di posisi semula. */
@@ -134,19 +135,20 @@
         font-weight: 700;
         margin-bottom: 4px;
     }
+    /* Jarak nama perusahaan -> nama penandatangan dilebarkan (ruang TTD/stempel): 64px -> 112px. */
     .inv-signature-image-wrap {
-        height: 64px;
+        height: 112px;
         display: flex;
         align-items: flex-end;
         margin-bottom: 2px;
     }
     .inv-signature-image-wrap img {
-        max-height: 62px;
+        max-height: 108px;
         max-width: 200px;
         object-fit: contain;
     }
     .inv-signature-placeholder {
-        height: 64px;
+        height: 112px;
         display: flex;
         align-items: flex-end;
         margin-bottom: 2px;

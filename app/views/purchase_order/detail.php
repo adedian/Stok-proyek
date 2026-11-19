@@ -277,7 +277,7 @@
                                     <?= substr($h['created_at'], 11, 5) ?>
                                     &middot; <?= e($h['full_name'] ?? 'Sistem') ?>
                                 </div>
-                                <div><?= e($h['description']) ?></div>
+                                <div style="white-space:pre-line;overflow-wrap:anywhere"><?= e($h['description']) ?></div>
                             </li>
                         <?php endforeach; ?>
                     </ul>

@@ -392,6 +392,11 @@ class PurchaseOrderController extends Controller
             }
         }
 
+        // Rincian perubahan untuk Histori Perubahan: foto kondisi LAMA diambil sebelum item/biaya diganti.
+        $oldItemsSnap = $this->itemModel->itemsByPo($id);
+        $oldExtraSnap = $this->extraCostModel->itemsByPo($id);
+        $oldFieldsSnap = $this->poDisplayFields($existing, $existing['cost_category_name'] ?? null);
+
         $pdo = getPDO();
         try {
             $pdo->beginTransaction();
@@ -463,7 +468,18 @@ class PurchaseOrderController extends Controller
                 }
             }
 
-            $this->historyModel->log($id, 'updated', 'Data Purchase Order & item diperbarui', currentUserId());
+            // Rincian perubahan: "apa" berubah dari "apa" ke "apa" (nomor/kategori PO/status punya entri sendiri di bawah).
+            $newFields = $this->poDisplayFields($data + ['po_number' => $newNumber], $costCat['name']);
+            $oldFields = $oldFieldsSnap;
+            if ($movedRows > 0) {
+                unset($oldFields['Project'], $newFields['Project']); // sudah tercatat bersama pemindahan stok
+            }
+            $changeLines = PurchaseOrderHistory::diffFields($oldFields, $newFields);
+            if (!$itemsLocked) {
+                $changeLines = array_merge($changeLines, PurchaseOrderHistory::diffItems($oldItemsSnap, $data['items'], (string) $existing['currency'], (string) $data['currency']));
+            }
+            $changeLines = array_merge($changeLines, PurchaseOrderHistory::diffExtraCosts($oldExtraSnap, $data['extra_costs'], (string) $existing['currency'], (string) $data['currency']));
+            $this->historyModel->log($id, 'updated', PurchaseOrderHistory::composeChangeDescription($changeLines), currentUserId());
             if ($numberChanged) {
                 $this->historyModel->log($id, 'updated', "Nomor PO diubah: {$existing['po_number']} -> {$newNumber}", currentUserId());
             }
@@ -722,6 +738,33 @@ class PurchaseOrderController extends Controller
         if ($this->isApprovalLocked($po) && currentUserRole() !== ROLE_SUPER_ADMIN) {
             denyAccess("Purchase Order '{$po['po_number']}' sudah disetujui -- tidak bisa diubah/dihapus. Hubungi Super Admin bila perlu koreksi.");
         }
+    }
+
+    /**
+     * Nilai tampilan data umum PO (label => teks) untuk membandingkan sebelum/sesudah di riwayat.
+     * $src = baris PO dari database ATAU hasil collectPoInput() (keduanya memakai kunci yang sama).
+     * Status, Nomor PO, dan Kategori PO sengaja tidak ikut: masing-masing sudah punya entri riwayat sendiri.
+     */
+    private function poDisplayFields(array $src, ?string $costCategoryName): array
+    {
+        $nonProject = !empty($src['is_non_project']);
+        $supplier = !empty($src['supplier_id']) ? ($this->supplierModel->find((int) $src['supplier_id'])['supplier_name'] ?? '') : '';
+        $project = $nonProject ? 'Non Project' : (!empty($src['project_id']) ? ($this->projectModel->find((int) $src['project_id'])['project_name'] ?? '') : '');
+        $receiver = !empty($src['receiver_user_id']) ? ($this->userModel->find((int) $src['receiver_user_id'])['full_name'] ?? '') : '';
+        $delivery = !empty($src['delivery_location_id']) ? ($this->warehouseModel->find((int) $src['delivery_location_id'])['warehouse_name'] ?? '') : '';
+        return [
+            'Supplier'         => $supplier,
+            'Project'          => $project,
+            'Kategori Biaya'   => (string) $costCategoryName,
+            'Penerima Barang'  => $receiver,
+            'Lokasi Pengiriman' => $delivery,
+            'Tanggal PO'       => !empty($src['po_date']) ? formatTanggal($src['po_date']) : '',
+            'Mata Uang'        => (string) ($src['currency'] ?? ''),
+            'Pembuat PO'       => (string) ($src['pembuat_po'] ?? ''),
+            'No. Penawaran'    => (string) ($src['quote_number'] ?? ''),
+            'Tanggal Penawaran' => !empty($src['quote_date']) ? formatTanggal($src['quote_date']) : '',
+            'Catatan'          => (string) ($src['notes'] ?? ''),
+        ];
     }
 
     private function collectPoInput(): array

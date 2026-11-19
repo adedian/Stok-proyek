@@ -93,7 +93,7 @@ $qs = http_build_query($filterQuery);
                 <a href="<?= BASE_URL ?>/pengajuan_budget_report" class="btn btn-sm btn-outline-secondary w-100"><i class="bi bi-x-circle"></i> Reset</a>
             </div>
         </form>
-        <div class="form-text mt-2">Bila semua tanggal dikosongkan, laporan menampilkan <strong>hari ini</strong>. Saldo diambil sampai tanggal akhir (atau tanggal tertentu).</div>
+        <div class="form-text mt-2">Bila semua tanggal dikosongkan, laporan menampilkan <strong>bulan berjalan</strong> (tanggal 1 sampai hari ini). Saldo diambil sampai tanggal akhir (atau tanggal tertentu).</div>
     </div>
 </div>
 

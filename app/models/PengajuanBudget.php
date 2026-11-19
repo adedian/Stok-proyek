@@ -323,7 +323,7 @@ class PengajuanBudget extends Model
 
     /**
      * Normalisasi filter laporan dari input mentah ($_GET). Aturan tanggal:
-     *   tanggal (tertentu) menang atas dari/sampai; tanpa satu pun -> HARI INI.
+     *   tanggal (tertentu) menang atas dari/sampai; tanpa satu pun -> 1 BULAN BERJALAN (tgl 1 s/d hari ini).
      * Tanggal tidak valid dibuang (bukan 0000-00-00). Hasil juga memuat 'saldo_date'
      * = tanggal acuan saldo (tanggal tertentu / "sampai" / hari ini).
      */
@@ -338,8 +338,10 @@ class PengajuanBudget extends Model
         if ($tanggal !== '') {
             $from = $to = $tanggal;
         } elseif ($from === '' && $to === '') {
-            $from = $to = $today;
-            $tanggal = $today;
+            // Bawaan: 1 bulan berjalan s/d hari ini (bukan hanya hari ini) agar pengajuan
+            // beberapa hari terakhir tidak "hilang" dari laporan saat filter belum diisi.
+            $from = date('Y-m-01');
+            $to = $today;
         } elseif ($from !== '' && $to !== '' && $from > $to) {
             [$from, $to] = [$to, $from];
         }

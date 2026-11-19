@@ -154,13 +154,17 @@ textarea {
     display: none !important;
 }
 
-/* Tombol ini "mengambang" di atas konten (position: fixed) -- tanpa ruang
-   ekstra di bawah, ia menimpa baris terakhir halaman (mis. kartu KPI
-   dashboard). Beri jarak aman otomatis SELAMA tombolnya ada; begitu
-   ditutup/terpasang (elemen dihapus dari DOM oleh pwa.js) jarak ini
+/* Tombol ini "mengambang" (position: fixed) di pojok kanan-bawah. Footer
+   copyright harus SELALU jadi elemen paling bawah halaman, jadi JANGAN beri
+   padding-bottom pada <body> (itu menyisakan strip kosong di bawah footer).
+   Saat halaman discroll mentok, tombol cuma menimpa footer -- bukan baris
+   terakhir konten -- sehingga yang perlu dijaga hanya teks footer: beri
+   ruang kiri-kanan SIMETRIS (tetap rata tengah) agar tak tertutup tombol.
+   Begitu tombol ditutup/terpasang (dihapus dari DOM oleh pwa.js) ruang ini
    otomatis hilang lagi. */
-body:has(.pwa-install-fab) {
-    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+body:has(.pwa-install-fab) .app-footer {
+    padding-left: calc(48px + 1.5rem);
+    padding-right: calc(48px + 1.5rem);
 }
 
 @media print {

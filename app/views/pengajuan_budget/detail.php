@@ -38,8 +38,17 @@ $actionForm = function (string $action, string $label, string $icon, string $btn
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
         <div class="card-section-title mb-2">Daftar Pembayaran</div>
+        <style>
+            /* Baris ringkas satu baris; kolom panjang digeser ke kanan (scroll horizontal), bukan menumpuk */
+            .pb-detail-table { min-width: 1500px; }
+            .pb-detail-table th, .pb-detail-table td { white-space: nowrap; }
+            .pb-detail-table td { padding-top: .3rem; padding-bottom: .3rem; }
+            .pb-detail-table td.pb-keterangan { white-space: nowrap; }
+            .pb-detail-table thead th:first-child, .pb-detail-table tbody td:first-child { position: sticky; left: 0; z-index: 1; background: var(--bs-body-bg, #fff); }
+            .pb-detail-table thead th:first-child { background: var(--bs-light, #f8f9fa); }
+        </style>
         <div class="table-responsive">
-            <table class="table table-sm align-middle mb-0">
+            <table class="table table-sm align-middle mb-0 pb-detail-table" data-no-cards>
                 <thead class="table-light">
                     <tr><th style="width:40px">No</th><th>Rekening Sumber</th><th>Jenis Transaksi</th><th>Rekening Tujuan</th><th class="text-end">Jumlah</th><th>Keterangan</th><th>Kategori</th><th>Project</th></tr>
                 </thead>
@@ -51,7 +60,7 @@ $actionForm = function (string $action, string $label, string $icon, string $btn
                             <td data-label="Jenis"><?= e($it['jenis_transaksi']) ?></td>
                             <td data-label="Tujuan"><?= e($it['tujuan']) ?></td>
                             <td data-label="Jumlah" class="text-end"><?= e(formatRupiah($it['amount'])) ?></td>
-                            <td data-label="Keterangan" style="white-space:pre-line"><?= e($it['keterangan']) ?></td>
+                            <td data-label="Keterangan" class="pb-keterangan"><?= e($it['keterangan']) ?></td>
                             <td data-label="Kategori"><?= e($it['category_name'] ?? '-') ?></td>
                             <td data-label="Project"><?= e($it['project_name'] ?? '-') ?></td>
                         </tr>

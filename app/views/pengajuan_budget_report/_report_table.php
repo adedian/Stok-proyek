@@ -35,14 +35,16 @@ $bg = fn(string $c, string $t) => 'background-color:' . e($c) . ';color:' . e($t
 <table class="po-table<?= $print ? ' po-print' : '' ?>">
     <thead>
         <tr>
-            <th style="width:38px">No</th>
-            <th style="width:17%">Rekening Sumber</th>
-            <th style="width:11%">Jenis Transaksi</th>
-            <th style="width:22%">Rekening Tujuan</th>
-            <th style="width:12%">Jumlah Pembayaran</th>
-            <th>Keterangan</th>
-            <th style="width:11%">Kategori</th>
-            <th style="width:12%">Project</th>
+            <?php /* Lebar kolom (total 100%): Keterangan paling lebar karena paling banyak teks;
+                     Rekening Sumber / Jenis / Jumlah dibuat ringkas mengikuti isinya. */ ?>
+            <th style="width:3.5%">No</th>
+            <th style="width:9%">Rekening Sumber</th>
+            <th style="width:8%">Jenis Transaksi</th>
+            <th style="width:19%">Rekening Tujuan</th>
+            <th style="width:11%">Jumlah Pembayaran</th>
+            <th style="width:30%">Keterangan</th>
+            <th style="width:9.5%">Kategori</th>
+            <th style="width:10%">Project</th>
         </tr>
     </thead>
     <tbody>

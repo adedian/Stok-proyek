@@ -6,7 +6,7 @@ $qs = http_build_query($filterQuery);
 ?>
 <style>
     .po-wrap { overflow-x: auto; }
-    .po-table { width: 100%; min-width: 980px; border-collapse: collapse; font-size: 13px; background: #fff; }
+    .po-table { width: 100%; min-width: 1150px; border-collapse: collapse; font-size: 13px; background: #fff; }
     .po-table th { background: #B4E5A2; border: 1px solid #000; padding: 4px 6px; text-align: center; font-weight: 700; color: #000; }
     .po-table td { border: 1px solid #000; padding: 3px 6px; vertical-align: top; color: #000; }
     .po-table td.c { text-align: center; }

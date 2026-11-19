@@ -37,9 +37,9 @@ $bg = fn(string $c, string $t) => 'background-color:' . e($c) . ';color:' . e($t
         <tr>
             <?php /* Lebar kolom (total 100%): Keterangan paling lebar karena paling banyak teks;
                      Rekening Sumber / Jenis / Jumlah dibuat ringkas mengikuti isinya. */ ?>
-            <th style="width:3.5%">No</th>
-            <th style="width:9%">Rekening Sumber</th>
-            <th style="width:8%">Jenis Transaksi</th>
+            <th style="width:2.5%">No</th>
+            <th style="width:10.5%">Rekening Sumber</th>
+            <th style="width:7.5%">Jenis Transaksi</th>
             <th style="width:19%">Rekening Tujuan</th>
             <th style="width:11%">Jumlah Pembayaran</th>
             <th style="width:30%">Keterangan</th>

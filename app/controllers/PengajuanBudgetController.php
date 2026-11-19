@@ -17,7 +17,10 @@ require_once ROOT_PATH . '/app/models/ActivityLog.php';
  *
  * Status: draft -> diajukan -> direalisasikan | dibatalkan. Perpindahan status memakai
  * UPDATE bersyarat (PengajuanBudget::transition()) sehingga aman dari klik ganda / request
- * basi. direalisasikan terkunci: tidak bisa diedit, dibatalkan, ataupun dihapus.
+ * basi. direalisasikan terkunci: tidak bisa diedit, dibatalkan, ataupun dihapus -- KECUALI Super Admin yang
+ * dapat membatalkan realisasinya (unrealize(): alasan wajib, log terpisah, status kembali ke status
+ * sebelum realisasi, transaksi Bank terkait menghalangi).
+ * Baris pembayaran boleh ditautkan ke PO (poInfo() = ringkasan PO baca-saja; PO asli tak pernah diubah).
  * Semua perubahan dicatat di pengajuan_budget_history + activity log. Semua POST wajib CSRF
  * dan memakai prepared statement + transaksi DB.
  */
@@ -70,7 +73,7 @@ class PengajuanBudgetController extends Controller
         Middleware::requirePermission('pengajuan_budget', 'create');
         $this->requirePost();
 
-        [$data, $items, $errors] = $this->collectAndValidate([]);
+        [$data, $items, $errors] = $this->collectAndValidate([], 0);
         if ($msg = BackDate::error('pengajuan_budget', $data['pengajuan_date'], null)) {
             $errors[] = $msg;
             BackDate::rejectLog('pengajuan_budget', (string) $data['pengajuan_date']);
@@ -99,7 +102,7 @@ class PengajuanBudgetController extends Controller
             $this->model->replaceItems($id, $items);
             $total = array_sum(array_column($items, 'amount'));
             $this->model->addHistory($id, currentUserId(), 'create', null, PengajuanBudget::DRAFT,
-                "Pengajuan {$number} dibuat (" . count($items) . ' baris, total ' . formatRupiah($total) . ')');
+                "Pengajuan {$number} dibuat (" . count($items) . ' baris, total ' . formatRupiah($total) . ')' . $this->poNote($items));
             if ($submitNow) {
                 $this->model->addHistory($id, currentUserId(), 'submit', PengajuanBudget::DRAFT, $status, 'Pengajuan diajukan');
             }
@@ -162,7 +165,7 @@ class PengajuanBudgetController extends Controller
         }
 
         $oldItems = $this->model->items($id);
-        [$data, $items, $errors] = $this->collectAndValidate($oldItems);
+        [$data, $items, $errors] = $this->collectAndValidate($oldItems, $id);
         if ($msg = BackDate::error('pengajuan_budget', $data['pengajuan_date'], $pb['pengajuan_date'])) {
             $errors[] = $msg;
             BackDate::rejectLog('pengajuan_budget', (string) $data['pengajuan_date']);
@@ -184,7 +187,7 @@ class PengajuanBudgetController extends Controller
         if ((string) ($pb['notes'] ?? '') !== $data['notes']) {
             $changes[] = 'catatan diubah';
         }
-        $sig = fn(array $r) => implode('|', [(int) $r['source_bank_id'], $r['jenis_transaksi'], $r['tujuan'], number_format((float) $r['amount'], 2, '.', ''), (string) ($r['keterangan'] ?? ''), (int) ($r['category_id'] ?? 0), (int) ($r['project_id'] ?? 0), (int) ($r['tujuan_id'] ?? 0)]);
+        $sig = fn(array $r) => implode('|', [(int) $r['source_bank_id'], $r['jenis_transaksi'], $r['tujuan'], number_format((float) $r['amount'], 2, '.', ''), (string) ($r['keterangan'] ?? ''), (int) ($r['category_id'] ?? 0), (int) ($r['project_id'] ?? 0), (int) ($r['tujuan_id'] ?? 0), (int) ($r['purchase_order_id'] ?? 0)]);
         $oldSigs = array_map($sig, $oldItems);
         $newSigs = array_map($sig, $items);
         if ($oldSigs !== $newSigs) {
@@ -208,7 +211,7 @@ class PengajuanBudgetController extends Controller
             }
             $this->model->replaceItems($id, $items);
             $this->model->addHistory($id, currentUserId(), 'update', PengajuanBudget::DRAFT, PengajuanBudget::DRAFT,
-                $changes ? 'Diubah: ' . implode('; ', $changes) : 'Disimpan tanpa perubahan data');
+                ($changes ? 'Diubah: ' . implode('; ', $changes) : 'Disimpan tanpa perubahan data') . $this->poNote($items));
             if ($submitNow) {
                 if (!$this->model->transition($id, [PengajuanBudget::DRAFT], PengajuanBudget::DIAJUKAN, ['submitted_at' => date('Y-m-d H:i:s')])) {
                     throw new RuntimeException('status-berubah');
@@ -289,6 +292,90 @@ class PengajuanBudgetController extends Controller
             ['cancelled_at' => date('Y-m-d H:i:s'), 'cancelled_by' => (int) currentUserId(), 'cancel_reason' => $reason], 'dibatalkan');
     }
 
+    /**
+     * Batalkan status Direalisasikan (KHUSUS Super Admin; dicek di backend, bukan hanya tombol disembunyikan).
+     * Status kembali ke status sebelum realisasi (dibaca dari histori). Tidak menghapus pengajuan maupun
+     * catatan realisasi lama (histori tetap; jejaknya disalin ke pengajuan_budget_unrealize_log).
+     * Bila baris tertaut ke transaksi Bank aktif, pembatalan otomatis DITOLAK dengan penjelasan.
+     * Semuanya dalam 1 transaksi DB; UPDATE bersyarat + UNIQUE log mencegah pembatalan ganda.
+     */
+    public function unrealize()
+    {
+        Middleware::requireRole([ROLE_SUPER_ADMIN]);
+        $this->requirePost();
+        $pb = $this->load((int) ($_POST['id'] ?? 0));
+        $id = (int) $pb['id'];
+        $back = fn() => $this->redirect('pengajuan_budget', 'detail', ['id' => $id]);
+
+        $reason = is_string($_POST['unrealize_reason'] ?? null) ? trim($_POST['unrealize_reason']) : '';
+        if (mb_strlen($reason) < 3 || mb_strlen($reason) > 500) {
+            setFlash('error', 'Alasan pembatalan realisasi wajib diisi (3-500 karakter).');
+            $back();
+        }
+        if ($pb['status'] !== PengajuanBudget::DIREALISASIKAN) {
+            setFlash('error', 'Hanya pengajuan berstatus Direalisasikan yang realisasinya bisa dibatalkan.');
+            $back();
+        }
+        if ($blockers = $this->model->unrealizeBlockers($id)) {
+            setFlash('error', 'Realisasi tidak bisa dibatalkan otomatis. ' . implode(' ', $blockers));
+            $back();
+        }
+
+        $pdo = getPDO();
+        $after = PengajuanBudget::DIAJUKAN;
+        try {
+            $pdo->beginTransaction();
+            $lock = $pdo->prepare("SELECT status, realized_at, realized_by FROM pengajuan_budgets WHERE id = :id AND deleted_at IS NULL FOR UPDATE");
+            $lock->execute(['id' => $id]);
+            $cur = $lock->fetch();
+            if (!$cur || $cur['status'] !== PengajuanBudget::DIREALISASIKAN) {
+                throw new RuntimeException('status-berubah');
+            }
+            $after = $this->model->statusBeforeLastRealize($id);
+            $extra = ['realized_at' => null, 'realized_by' => null];
+            if ($after === PengajuanBudget::DRAFT) {
+                $extra['submitted_at'] = null;
+            }
+            if (!$this->model->transition($id, [PengajuanBudget::DIREALISASIKAN], $after, $extra)) {
+                throw new RuntimeException('status-berubah');
+            }
+            $this->model->logUnrealize($id, (int) currentUserId(), $reason, PengajuanBudget::DIREALISASIKAN, $after,
+                $cur['realized_at'], $cur['realized_by'] !== null ? (int) $cur['realized_by'] : null,
+                'Tidak ada transaksi Kas/Bank yang dibuat oleh realisasi ini (modul Pengajuan Budget tidak menulis ke Kas/Bank); saldo tidak diubah.');
+            $this->model->addHistory($id, currentUserId(), 'unrealize', PengajuanBudget::DIREALISASIKAN, $after, 'Realisasi dibatalkan: ' . $reason);
+            $pdo->commit();
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            if ($e->getMessage() === 'status-berubah' || (string) $e->getCode() === '23000') {
+                setFlash('error', 'Realisasi pengajuan ini sudah dibatalkan / statusnya sudah berubah. Muat ulang halaman.');
+            } else {
+                error_log('PengajuanBudget unrealize error: ' . $e->getMessage());
+                setFlash('error', 'Gagal membatalkan realisasi. Silakan coba lagi.');
+            }
+            $back();
+        }
+
+        $this->logAct('unrealize', $id, $pb['pengajuan_number'], 'realisasi dibatalkan -> ' . PengajuanBudget::statusLabel($after) . " (alasan: {$reason})");
+        setFlash('success', "Realisasi Pengajuan Budget {$pb['pengajuan_number']} dibatalkan. Status kembali ke " . PengajuanBudget::statusLabel($after) . '.');
+        $back();
+    }
+
+    /** AJAX (form): ringkasan PO baca-saja untuk "Ambil Data dari PO". Tidak mengubah PO. */
+    public function poInfo()
+    {
+        if (!can('pengajuan_budget', 'create') && !can('pengajuan_budget', 'edit')) {
+            $this->json(['error' => 'Tidak diizinkan.'], 403);
+        }
+        $poId = (int) ($_GET['id'] ?? 0);
+        $summary = $poId > 0 ? $this->model->poSummary($poId, (int) ($_GET['exclude'] ?? 0)) : null;
+        if (!$summary) {
+            $this->json(['error' => 'PO tidak ditemukan, masih Draft, atau sudah Dibatalkan.'], 404);
+        }
+        $this->json(['po' => $summary, 'can_view_po' => can('purchase_order', 'view')]);
+    }
+
     public function delete()
     {
         Middleware::requirePermission('pengajuan_budget', 'delete');
@@ -343,6 +430,8 @@ class PengajuanBudgetController extends Controller
             $a['cancel'] = can('pengajuan_budget', 'cancel');
         } elseif ($s === PengajuanBudget::DIBATALKAN) {
             $a['delete'] = can('pengajuan_budget', 'delete');
+        } elseif ($s === PengajuanBudget::DIREALISASIKAN) {
+            $a['unrealize'] = currentUserRole() === ROLE_SUPER_ADMIN; // tombol saja; unrealize() memvalidasi ulang
         }
         return array_filter($a);
     }
@@ -373,6 +462,13 @@ class PengajuanBudgetController extends Controller
         $this->logAct($action, $id, $pb['pengajuan_number'], $verb);
         setFlash('success', "Pengajuan Budget {$pb['pengajuan_number']} {$verb}.");
         $this->redirect('pengajuan_budget', 'detail', ['id' => $id]);
+    }
+
+    /** Tambahan catatan histori: nomor PO yang tertaut di baris pengajuan (kosong bila tidak ada). */
+    private function poNote(array $items): string
+    {
+        $nums = array_values(array_unique(array_filter(array_column($items, 'po_number'))));
+        return $nums ? ' | PO: ' . implode(', ', $nums) : '';
     }
 
     private function load(int $id): array
@@ -435,15 +531,18 @@ class PengajuanBudgetController extends Controller
             'tujuanList' => (new MasterRekeningTujuan())->activeListWith(array_map(fn($r) => (int) ($r['tujuan_id'] ?? 0), $items)),
             'canAddTujuan' => can('master_rekening_tujuan', 'quick_add'),
             'canSubmit'  => can('pengajuan_budget', 'submit'),
+            'poList'     => $this->model->poOptions(),
+            'canViewPo'  => can('purchase_order', 'view'),
         ]);
     }
 
     /**
      * Baca & validasi input form (SELURUH validasi di backend; JS di form hanya kemudahan).
      * @param array $oldItems baris lama (saat edit) -- nilai lama yang sudah nonaktif di master tetap boleh.
+     * @param int $excludeId pengajuan yang sedang diedit (tidak dihitung sebagai "sudah diajukan" saat cek PO).
      * @return array [$data, $items, $errors]
      */
-    private function collectAndValidate(array $oldItems): array
+    private function collectAndValidate(array $oldItems, int $excludeId = 0): array
     {
         $date = is_string($_POST['pengajuan_date'] ?? null) ? trim($_POST['pengajuan_date']) : '';
         $notes = is_string($_POST['notes'] ?? null) ? trim($_POST['notes']) : '';
@@ -469,7 +568,19 @@ class PengajuanBudgetController extends Controller
         $catIn = $col('category_id');
         $projIn = $col('project_id');
         $tidIn = $col('tujuan_id');
-        $n = max(count($banks), count($jenisIn), count($tujuanIn), count($amountIn), count($ketIn), count($catIn), count($projIn), count($tidIn));
+        $poIn = $col('purchase_order_id');
+        $n = max(count($banks), count($jenisIn), count($tujuanIn), count($amountIn), count($ketIn), count($catIn), count($projIn), count($tidIn), count($poIn));
+
+        // Snapshot PO lama (edit): baris yang MASIH tertaut ke PO yang sama mempertahankan snapshot-nya,
+        // supaya histori pengajuan tidak berubah otomatis bila PO diedit setelah pengajuan dibuat.
+        $oldPo = [];
+        foreach ($oldItems as $o) {
+            if (!empty($o['purchase_order_id']) && !empty($o['po_snapshot']) && empty($oldPo[(int) $o['purchase_order_id']])) {
+                $oldPo[(int) $o['purchase_order_id']] = ['po_number' => $o['po_number'], 'po_snapshot' => $o['po_snapshot']];
+            }
+        }
+        $poLive = [];    // cache ringkasan PO terkini (validasi + batas nominal)
+        $poFormSum = []; // total nominal form per PO (cek tidak melebihi nilai PO)
 
         // himpunan nilai master yang sah
         $validBank = [];
@@ -524,9 +635,11 @@ class PengajuanBudgetController extends Controller
             $proj = (int) $s($projIn);
             $tidRaw = $s($tidIn);
             $tid = ctype_digit($tidRaw) ? (int) $tidRaw : 0; // 'manual'/kosong = ketik manual
+            $poRaw = $s($poIn);
+            $poId = ctype_digit($poRaw) ? (int) $poRaw : 0;
 
             // baris benar-benar kosong -> abaikan
-            if ($bank === 0 && $jenis === '' && $tujuan === '' && ($tidRaw === '' || $tidRaw === 'manual') && $amountRaw === '' && $ket === '' && $cat === 0 && $proj === 0) {
+            if ($bank === 0 && $jenis === '' && $tujuan === '' && ($tidRaw === '' || $tidRaw === 'manual') && $amountRaw === '' && $ket === '' && $cat === 0 && $proj === 0 && $poId === 0) {
                 continue;
             }
             $amount = parseCurrencyInput($amountRaw);
@@ -538,10 +651,26 @@ class PengajuanBudgetController extends Controller
                 $errors[] = "Baris {$line}: Rekening Tujuan master tidak valid.";
                 $tid = 0;
             }
+            // Tautan PO (opsional): ID divalidasi ke database; nomor & snapshot SELALU diambil server dari PO
+            // (bukan dari input form), jadi tidak bisa dipalsukan dan PO asli tidak tersentuh.
+            $poFields = ['purchase_order_id' => null, 'po_number' => null, 'po_snapshot' => null];
+            if ($poId > 0) {
+                if (!array_key_exists($poId, $poLive)) {
+                    $poLive[$poId] = $this->model->poSummary($poId, $excludeId);
+                }
+                if (isset($oldPo[$poId])) {
+                    $poFields = ['purchase_order_id' => $poId] + $oldPo[$poId];
+                } elseif ($poLive[$poId]) {
+                    $poFields = ['purchase_order_id' => $poId, 'po_number' => $poLive[$poId]['po_number'], 'po_snapshot' => PengajuanBudget::buildPoSnapshot($poLive[$poId])];
+                } else {
+                    $errors[] = "Baris {$line}: PO tidak valid (tidak ditemukan, masih Draft, atau Dibatalkan).";
+                }
+                $poFormSum[$poId] = ($poFormSum[$poId] ?? 0) + max(0.0, $amount);
+            }
             $items[] = [
                 'source_bank_id' => $bank, 'jenis_transaksi' => $jenis, 'tujuan' => $tujuan, 'tujuan_id' => $tid ?: null,
                 'amount' => $amount, 'keterangan' => $ket, 'category_id' => $cat ?: null, 'project_id' => $proj ?: null,
-            ];
+            ] + $poFields;
 
             if ($bank <= 0 || empty($validBank[$bank])) {
                 $errors[] = "Baris {$line}: Rekening Sumber wajib dipilih dari Master Bank aktif.";
@@ -567,6 +696,21 @@ class PengajuanBudgetController extends Controller
             }
             if ($proj !== 0 && empty($validProj[$proj])) {
                 $errors[] = "Baris {$line}: Project tidak valid.";
+            }
+        }
+        // Satu PO boleh punya beberapa pengajuan (mis. DP lalu pelunasan), tapi TOTAL seluruh pengajuan aktifnya
+        // tidak boleh melebihi nilai PO -- mencegah nominal PO terhitung dua kali. Hanya PO berkurs IDR
+        // (PO mata uang asing nilainya bukan Rupiah, tidak bisa dibandingkan langsung).
+        foreach ($poFormSum as $poId => $sum) {
+            $live = $poLive[$poId] ?? null;
+            if (!$live || $live['currency'] !== 'IDR') {
+                continue;
+            }
+            if ((int) round(($live['proposed_total'] + $sum) * 100) > (int) round((float) $live['total_amount'] * 100)) {
+                $errors[] = 'PO ' . $live['po_number'] . ': total pengajuan ' . formatRupiah($live['proposed_total'] + $sum)
+                    . ' melebihi nilai PO ' . formatRupiah($live['total_amount'])
+                    . ($live['proposed_total'] > 0 ? ' (sudah diajukan di ' . implode(', ', $live['proposed_numbers']) . ' sebesar ' . formatRupiah($live['proposed_total']) . ', sisa ' . formatRupiah($live['remaining']) . ')' : '')
+                    . '.';
             }
         }
         if (!$items) {

@@ -59,6 +59,7 @@ $canCreate = can('pengajuan_budget', 'create');
                         <th>No. Pengajuan</th>
                         <th>Tanggal</th>
                         <th>Pengaju</th>
+                        <th>No. PO</th>
                         <th class="text-end">Baris</th>
                         <th class="text-end">Total</th>
                         <th>Status</th>
@@ -67,7 +68,7 @@ $canCreate = can('pengajuan_budget', 'create');
                 </thead>
                 <tbody>
                     <?php if (empty($rows)): ?>
-                        <tr><td colspan="8" class="p-0">
+                        <tr><td colspan="9" class="p-0">
                             <div class="empty-state">
                                 <i class="bi bi-file-earmark-text empty-icon"></i>
                                 <div class="empty-title"><?= array_filter($filters) ? 'Tidak ada pengajuan yang sesuai dengan pencarian.' : 'Belum ada Pengajuan Budget.' ?></div>
@@ -83,6 +84,18 @@ $canCreate = can('pengajuan_budget', 'create');
                             <td data-label="No. Pengajuan"><a href="<?= BASE_URL ?>/pengajuan_budget/detail/<?= $id ?>" class="fw-semibold text-decoration-none"><?= e($r['pengajuan_number']) ?></a></td>
                             <td data-label="Tanggal"><?= e(formatTanggal($r['pengajuan_date'])) ?></td>
                             <td data-label="Pengaju"><?= e($r['created_by_name']) ?></td>
+                            <td data-label="No. PO"><?php
+                                if (!empty($r['po_refs'])) {
+                                    $links = [];
+                                    foreach (explode(';;', $r['po_refs']) as $ref) {
+                                        [$pid, $pno] = array_pad(explode('|', $ref, 2), 2, '');
+                                        $links[] = can('purchase_order', 'view')
+                                            ? '<a href="' . BASE_URL . '/purchase_order/detail/' . (int) $pid . '" class="text-decoration-none">' . e($pno) . '</a>'
+                                            : e($pno);
+                                    }
+                                    echo implode(', ', $links);
+                                } else { echo '<span class="text-muted">-</span>'; }
+                            ?></td>
                             <td data-label="Baris" class="text-end"><?= (int) $r['item_count'] ?></td>
                             <td data-label="Total" class="text-end"><?= e(formatRupiah($r['total_amount'])) ?></td>
                             <td data-label="Status"><span class="badge bg-<?= e(PengajuanBudget::statusBadge($r['status'])) ?>"><?= e(PengajuanBudget::statusLabel($r['status'])) ?></span></td>

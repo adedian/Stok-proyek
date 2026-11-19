@@ -177,7 +177,9 @@ class PengajuanBudget extends Model
         return $this->db->fetchAll(
             "SELECT pb.*, cu.full_name AS created_by_name,
                     (SELECT COUNT(*) FROM pengajuan_budget_items i WHERE i.pengajuan_id = pb.id) AS item_count,
-                    (SELECT COALESCE(SUM(i.amount),0) FROM pengajuan_budget_items i WHERE i.pengajuan_id = pb.id) AS total_amount
+                    (SELECT COALESCE(SUM(i.amount),0) FROM pengajuan_budget_items i WHERE i.pengajuan_id = pb.id) AS total_amount,
+                    (SELECT GROUP_CONCAT(DISTINCT CONCAT(i.purchase_order_id, '|', i.po_number) ORDER BY i.id SEPARATOR ';;')
+                       FROM pengajuan_budget_items i WHERE i.pengajuan_id = pb.id AND i.purchase_order_id IS NOT NULL) AS po_refs
                FROM pengajuan_budgets pb
                LEFT JOIN users cu ON cu.id = pb.created_by
               {$w}
@@ -209,8 +211,172 @@ class PengajuanBudget extends Model
                 'keterangan'      => $it['keterangan'] !== '' ? $it['keterangan'] : null,
                 'category_id'     => $it['category_id'] ?: null,
                 'project_id'      => $it['project_id'] ?: null,
+                'purchase_order_id' => !empty($it['purchase_order_id']) ? (int) $it['purchase_order_id'] : null,
+                'po_number'       => !empty($it['purchase_order_id']) ? ($it['po_number'] ?? null) : null,
+                'po_snapshot'     => !empty($it['purchase_order_id']) ? ($it['po_snapshot'] ?? null) : null,
             ]);
         }
+    }
+
+    // ------------------------------------------------------------------
+    // Integrasi PO (ambil data PO -> baris pengajuan; PO asli TIDAK pernah diubah)
+    // ------------------------------------------------------------------
+
+    /** Status PO yang tidak boleh dijadikan sumber pengajuan (belum disetujui / dibatalkan). */
+    private const PO_EXCLUDED_STATUSES = "('draft','cancelled')";
+
+    /** Daftar PO untuk dropdown "Ambil Data dari PO" (identitas lengkap supaya tidak salah pilih). */
+    public function poOptions(): array
+    {
+        return $this->db->fetchAll(
+            "SELECT po.id, po.po_number, po.po_date, po.status, po.currency, po.total_amount,
+                    s.supplier_name, IF(po.is_non_project = 1, 'Non Project', p.project_name) AS project_name
+               FROM purchase_orders po
+               JOIN suppliers s ON s.id = po.supplier_id
+               LEFT JOIN projects p ON p.id = po.project_id
+              WHERE po.deleted_at IS NULL AND po.status NOT IN " . self::PO_EXCLUDED_STATUSES . "
+           ORDER BY po.po_date DESC, po.id DESC"
+        );
+    }
+
+    /**
+     * Total nominal yang SUDAH diajukan untuk sebuah PO di pengajuan lain yang masih aktif
+     * (bukan dibatalkan / dihapus). $excludePengajuanId = pengajuan yang sedang diedit.
+     * @return array ['total' => float, 'numbers' => string[]]
+     */
+    public function poProposed(int $poId, int $excludePengajuanId = 0): array
+    {
+        $rows = $this->db->fetchAll(
+            "SELECT pb.pengajuan_number, SUM(i.amount) AS amt
+               FROM pengajuan_budget_items i
+               JOIN pengajuan_budgets pb ON pb.id = i.pengajuan_id AND pb.deleted_at IS NULL AND pb.status <> 'dibatalkan'
+              WHERE i.purchase_order_id = :po AND pb.id <> :ex
+           GROUP BY pb.id, pb.pengajuan_number
+           ORDER BY pb.id ASC",
+            ['po' => $poId, 'ex' => $excludePengajuanId]
+        );
+        $total = 0.0;
+        $nums = [];
+        foreach ($rows as $r) {
+            $total += (float) $r['amt'];
+            $nums[] = $r['pengajuan_number'];
+        }
+        return ['total' => $total, 'numbers' => $nums];
+    }
+
+    /**
+     * Ringkasan PO (baca saja) untuk form: identitas, rincian item, total, dan sisa yang belum diajukan.
+     * Null bila PO tidak ada / draft / dibatalkan.
+     */
+    public function poSummary(int $poId, int $excludePengajuanId = 0): ?array
+    {
+        $po = $this->db->fetchOne(
+            "SELECT po.id, po.po_number, po.po_date, po.po_category, po.status, po.currency, po.total_amount, po.notes,
+                    po.project_id, po.cost_category_id, s.supplier_name,
+                    IF(po.is_non_project = 1, 'Non Project', p.project_name) AS project_name,
+                    COALESCE(cc.category_name, po.cost_category_name) AS cost_category_name
+               FROM purchase_orders po
+               JOIN suppliers s ON s.id = po.supplier_id
+               LEFT JOIN projects p ON p.id = po.project_id
+               LEFT JOIN cash_categories cc ON cc.id = po.cost_category_id
+              WHERE po.id = :id AND po.deleted_at IS NULL AND po.status NOT IN " . self::PO_EXCLUDED_STATUSES,
+            ['id' => $poId]
+        );
+        if (!$po) {
+            return null;
+        }
+        $po['items'] = $this->db->fetchAll(
+            "SELECT item_name, unit, qty_order, price, discount_percent, ppn_enabled, ppn_percent, subtotal
+               FROM purchase_order_items WHERE purchase_order_id = :id ORDER BY id ASC",
+            ['id' => $poId]
+        );
+        $po['extra_costs'] = $this->db->fetchAll(
+            "SELECT * FROM purchase_order_extra_costs WHERE purchase_order_id = :id ORDER BY id ASC",
+            ['id' => $poId]
+        );
+        $prop = $this->poProposed($poId, $excludePengajuanId);
+        $po['proposed_total'] = $prop['total'];
+        $po['proposed_numbers'] = $prop['numbers'];
+        $po['remaining'] = max(0.0, (float) $po['total_amount'] - $prop['total']);
+        return $po;
+    }
+
+    /** Snapshot (JSON) data PO yang disimpan di baris pengajuan -- tidak berubah walau PO diedit kemudian. */
+    public static function buildPoSnapshot(array $po): string
+    {
+        $items = [];
+        foreach ($po['items'] ?? [] as $it) {
+            $items[] = [
+                'name' => $it['item_name'], 'unit' => $it['unit'], 'qty' => (float) $it['qty_order'],
+                'price' => (float) $it['price'], 'discount_percent' => (float) $it['discount_percent'],
+                'ppn_percent' => !empty($it['ppn_enabled']) ? (float) $it['ppn_percent'] : 0.0,
+                'subtotal' => (float) $it['subtotal'],
+            ];
+        }
+        return json_encode([
+            'po_id' => (int) $po['id'], 'po_number' => $po['po_number'], 'po_date' => $po['po_date'],
+            'category' => $po['po_category'], 'supplier' => $po['supplier_name'], 'project' => $po['project_name'],
+            'cost_category' => $po['cost_category_name'] ?? null, 'currency' => $po['currency'],
+            'total' => (float) $po['total_amount'], 'items' => $items, 'snapshot_at' => date('Y-m-d H:i:s'),
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
+    // ------------------------------------------------------------------
+    // Pembatalan Realisasi (Super Admin)
+    // ------------------------------------------------------------------
+
+    /**
+     * Status SEBELUM realisasi terakhir, dibaca dari histori (aksi 'realize'). Realisasi hanya mungkin
+     * dari Diajukan, jadi fallback-nya Diajukan bila histori lama tidak lengkap.
+     */
+    public function statusBeforeLastRealize(int $pengajuanId): string
+    {
+        $r = $this->db->fetchOne(
+            "SELECT old_status FROM pengajuan_budget_history
+              WHERE pengajuan_id = :id AND action = 'realize' ORDER BY id DESC LIMIT 1",
+            ['id' => $pengajuanId]
+        );
+        $s = $r['old_status'] ?? '';
+        return in_array($s, [self::DRAFT, self::DIAJUKAN], true) ? $s : self::DIAJUKAN;
+    }
+
+    /**
+     * Hal yang MENGHALANGI pembatalan otomatis: baris yang tertaut ke transaksi Bank (bank_transaction_id)
+     * yang masih aktif. Modul ini sendiri tidak membuat transaksi Bank, tapi kolomnya disiapkan untuk
+     * pencatatan realisasi -- bila terisi, transaksi itu harus dikoreksi dulu lewat menu Kas/Bank.
+     * @return string[] alasan (kosong = boleh dibatalkan)
+     */
+    public function unrealizeBlockers(int $pengajuanId): array
+    {
+        $rows = $this->db->fetchAll(
+            "SELECT i.line_no, bt.id AS bt_id, bt.no_bukti AS transaction_number
+               FROM pengajuan_budget_items i
+               JOIN bank_transactions bt ON bt.id = i.bank_transaction_id AND bt.deleted_at IS NULL
+              WHERE i.pengajuan_id = :id ORDER BY i.line_no ASC",
+            ['id' => $pengajuanId]
+        );
+        $out = [];
+        foreach ($rows as $r) {
+            $out[] = 'Baris ' . (int) $r['line_no'] . ' sudah tercatat sebagai transaksi Bank '
+                . ($r['transaction_number'] ?: '#' . $r['bt_id'])
+                . ' -- batalkan/koreksi transaksi Bank tersebut lebih dulu lewat menu Kas / Bank, lalu ulangi.';
+        }
+        return $out;
+    }
+
+    /** Catat pembatalan realisasi di log terpisah (dipanggil dalam transaksi pemanggil). */
+    public function logUnrealize(int $pengajuanId, int $userId, string $reason, string $before, string $after, ?string $realizedAt, ?int $realizedBy, string $financialNote): void
+    {
+        $this->db->insert('pengajuan_budget_unrealize_log', [
+            'pengajuan_id'   => $pengajuanId,
+            'cancelled_by'   => $userId,
+            'reason'         => $reason,
+            'status_before'  => $before,
+            'status_after'   => $after,
+            'realized_at'    => $realizedAt,
+            'realized_by'    => $realizedBy,
+            'financial_note' => $financialNote,
+        ]);
     }
 
     /**

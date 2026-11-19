@@ -136,7 +136,7 @@ function activityLogActionLabel(string $slug): string
         'purge' => 'Bersihkan Log', 'validate' => 'Validasi', 'upload' => 'Unggah Lampiran',
         'cancel' => 'Batalkan', 'process' => 'Proses Pemenuhan', 'reverse' => 'Koreksi Pemenuhan',
         'check_stock' => 'Periksa Stok', 'issue_invoice' => 'Terbitkan Invoice', 'void_invoice' => 'Batalkan Invoice',
-        'backdate_reject' => 'Tanggal Mundur Ditolak',
+        'backdate_reject' => 'Tanggal Mundur Ditolak', 'unrealize' => 'Batalkan Realisasi',
     ];
     return $map[$slug] ?? ucwords(str_replace('_', ' ', $slug));
 }

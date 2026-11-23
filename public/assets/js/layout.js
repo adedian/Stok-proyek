@@ -94,3 +94,16 @@ document.addEventListener('submit', function (e) {
         btn.disabled = true;
     }
 });
+
+// Tombol Simpan yang sudah dimatikan oleh handler di atas HARUS hidup lagi kalau halaman
+// dipulihkan dari cache browser (tombol Back / Forward, atau submit yang gagal di jaringan).
+// Tanpa ini form tampil normal tapi tombol Simpan-nya mati ("tidak bisa diklik") sampai di-refresh.
+window.addEventListener('pageshow', function (e) {
+    if (!e.persisted) {
+        return;
+    }
+    Array.prototype.forEach.call(document.querySelectorAll('button.is-loading'), function (btn) {
+        btn.classList.remove('is-loading');
+        btn.disabled = false;
+    });
+});

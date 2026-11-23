@@ -219,7 +219,7 @@ $fqIn = fn($n) => rtrim(rtrim(number_format((float) $n, 2, ',', ''), '0'), ',') 
         document.getElementById('soTermSumTot').textContent = rp(st);
         var w = document.getElementById('soTermWarn'); pct = Math.round(pct * 100) / 100;
         if (pct > 100.01) { w.className = 'small mt-2 text-danger fw-semibold'; w.textContent = 'Total persentase termin ' + pct + '% -- melebihi 100%.'; ok = false; }
-        else if (pct < 99.99) { w.className = 'small mt-2 text-warning-emphasis fw-semibold'; w.textContent = 'Total persentase termin baru ' + pct + '% (belum 100%).'; }
+        else if (pct < 99.99) { w.className = 'small mt-2 text-warning-emphasis fw-semibold'; w.textContent = 'Total persentase termin invoice ini ' + pct + '%. Hanya informasi, tetap bisa disimpan (sisanya bisa ditagih di invoice lain).'; }
         else { w.className = 'small mt-2 text-success'; w.textContent = 'Total persentase termin 100%.'; }
         return ok;
     }

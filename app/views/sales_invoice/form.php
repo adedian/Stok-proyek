@@ -611,7 +611,7 @@ if (empty($terms)) {
             warningEl.textContent = 'Total persentase termin ' + pctRounded + '% -- melebihi 100%, tidak bisa disimpan.';
         } else if (pctRounded < 99.99) {
             warningEl.className = 'small mt-2 text-warning-emphasis fw-semibold';
-            warningEl.textContent = 'Total persentase termin baru ' + pctRounded + '% (belum 100%).';
+            warningEl.textContent = 'Total persentase termin invoice ini ' + pctRounded + '%. Hanya informasi, tetap bisa disimpan (sisanya bisa ditagih di invoice lain).';
         } else {
             warningEl.className = 'small mt-2 text-success';
             warningEl.textContent = 'Total persentase termin 100%.';

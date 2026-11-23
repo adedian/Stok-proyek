@@ -56,6 +56,32 @@ class GoodsReceiptItem extends Model
     }
 
     /**
+     * Penerimaan AKTIF (belum dihapus) yang sudah ada untuk sebuah PO, satu baris per penerimaan, beserta
+     * berapa item-nya yang sudah divalidasi. Dipakai peringatan "PO ini sudah punya penerimaan" di form
+     * Tambah Penerimaan supaya input dobel (mis. dua orang menginput PO yang sama) kelihatan sebelum disimpan.
+     */
+    public function existingReceiptsForPo(int $poId, ?int $excludeReceiptId = null): array
+    {
+        $sql = "SELECT gr.id, gr.receipt_number, gr.receipt_date, gr.receiver_name, gr.created_at,
+                       u.full_name AS created_by_name,
+                       COUNT(gri.id) AS item_count,
+                       SUM(CASE WHEN gri.validated_at IS NOT NULL THEN 1 ELSE 0 END) AS validated_count
+                FROM goods_receipts gr
+                JOIN goods_receipt_items gri ON gri.goods_receipt_id = gr.id
+                LEFT JOIN users u ON u.id = gr.created_by
+                WHERE gr.purchase_order_id = :po_id AND gr.deleted_at IS NULL"
+                . ($excludeReceiptId ? " AND gr.id != :exclude_id" : "") . "
+                GROUP BY gr.id, gr.receipt_number, gr.receipt_date, gr.receiver_name, gr.created_at, u.full_name
+                ORDER BY gr.id ASC";
+
+        $params = ['po_id' => $poId];
+        if ($excludeReceiptId) {
+            $params['exclude_id'] = $excludeReceiptId;
+        }
+        return $this->db->fetchAll($sql, $params);
+    }
+
+    /**
      * Ambil semua item Pembelian Offline untuk satu offline_purchase_id, dilengkapi info:
      * - qty_order (dari offline_purchase_items.qty)
      * - qty_received_before (total sudah diterima di receipt2 SEBELUMNYA, exclude $excludeReceiptId)

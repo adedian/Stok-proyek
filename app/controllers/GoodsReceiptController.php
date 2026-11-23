@@ -135,6 +135,7 @@ class GoodsReceiptController extends Controller
         }
         $selectedPo = $poId ? $this->poModel->findWithRelations($poId) : null;
         $poItems = $poId ? $this->receiptItemModel->poItemsForReceipt($poId) : [];
+        $existingReceipts = $poId ? $this->receiptItemModel->existingReceiptsForPo($poId) : [];
         $selectedOfflinePurchase = $offlinePurchaseId ? $this->offlinePurchaseModel->findWithRelations($offlinePurchaseId) : null;
         $offlineItems = $offlinePurchaseId ? $this->receiptItemModel->offlineItemsForReceipt($offlinePurchaseId) : [];
         $defaultReceiptType = $offlinePurchaseId ? 'offline_purchase' : 'purchase_order';
@@ -147,6 +148,7 @@ class GoodsReceiptController extends Controller
             'poList'         => $this->poModel->receivablePoList((int) currentUserId(), currentUserRole()),
             'selectedPo'     => $selectedPo,
             'poItems'        => $poItems,
+            'existingReceipts' => $existingReceipts,
             'offlinePurchaseList' => $this->offlinePurchaseModel->receivableList(),
             'selectedOfflinePurchase' => $selectedOfflinePurchase,
             'offlineItems'   => $offlineItems,
@@ -787,7 +789,14 @@ class GoodsReceiptController extends Controller
         }
         $html = ob_get_clean();
 
-        $this->json(['html' => $html, 'count' => count($items)]);
+        // Peringatan input dobel: penerimaan lain yang sudah ada untuk PO ini (kosong bila belum ada).
+        $poItems = $items;
+        $existingReceipts = $this->receiptItemModel->existingReceiptsForPo($poId);
+        ob_start();
+        include ROOT_PATH . '/app/views/goods_receipt/_po_existing_receipts.php';
+        $warningHtml = ob_get_clean();
+
+        $this->json(['html' => $html, 'count' => count($items), 'warning_html' => $warningHtml]);
     }
 
     /**

@@ -18,6 +18,7 @@ $currentQty = $poItem['qty_received_current'] ?? '';
     </td>
     <td style="width: 140px;">
         <input type="text" inputmode="decimal" name="qty_received[]" class="form-control form-control-sm"
+               data-remaining="<?= e((string) $poItem['qty_remaining']) ?>" data-item-name="<?= e($poItem['item_name']) ?>"
                value="<?= e($currentQty) ?>" placeholder="0">
     </td>
 </tr>

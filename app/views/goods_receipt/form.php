@@ -216,6 +216,10 @@ $hideUnlessType = function (string $type) use ($isEdit, $receiptType): string {
     <div class="card border-0 shadow-sm mb-3" id="poItemsCard" <?= $isEdit ? $hideUnlessType('purchase_order') : ($receiptType !== 'purchase_order' ? 'style="display:none;"' : '') ?>>
         <div class="card-body">
             <h6 class="mb-3">Item Barang &amp; Qty Diterima</h6>
+            <?php /* Peringatan input dobel -- diisi server saat halaman dibuka dgn PO terpilih, lalu diganti lewat AJAX saat PO diganti. */ ?>
+            <div id="poDupWarningWrap" class="mb-3">
+                <?php $existingReceipts = $existingReceipts ?? []; include ROOT_PATH . '/app/views/goods_receipt/_po_existing_receipts.php'; ?>
+            </div>
             <div id="poItemsWrapper">
                 <?php if (empty($poItems)): ?>
                     <p class="text-muted small" id="poItemsEmptyMsg">Pilih Purchase Order terlebih dahulu untuk menampilkan daftar item.</p>
@@ -595,6 +599,8 @@ $hideUnlessType = function (string $type) use ($isEdit, $receiptType): string {
     poSelect.addEventListener('change', function () {
         const poId = this.value;
         poItemsBody.innerHTML = '';
+        const dupWrap = document.getElementById('poDupWarningWrap');
+        if (dupWrap) dupWrap.innerHTML = '';
 
         if (!poId) {
             poItemsTable.classList.add('d-none');
@@ -611,6 +617,7 @@ $hideUnlessType = function (string $type) use ($isEdit, $receiptType): string {
                     return;
                 }
                 poItemsBody.innerHTML = data.html;
+                if (dupWrap) dupWrap.innerHTML = data.warning_html || '';
                 if (data.count > 0) {
                     poItemsTable.classList.remove('d-none');
                     if (emptyMsg) emptyMsg.classList.add('d-none');
@@ -626,6 +633,39 @@ $hideUnlessType = function (string $type) use ($isEdit, $receiptType): string {
                 alert('Gagal memuat item PO. Silakan coba lagi.');
             });
     });
+
+    // Konfirmasi sebelum simpan bila qty yang diisi MELEBIHI sisa PO (penyebab umum input dobel).
+    // Hanya untuk penerimaan dari PO; tidak memblokir -- penerimaan lebih yang sah tetap bisa disimpan.
+    const grForm = document.getElementById('grForm');
+    let overQtyConfirmed = false;
+    function parseQty(raw) {
+        let s = String(raw || '').trim().replace(/\s/g, '');
+        if (s === '') return 0;
+        if (s.indexOf(',') !== -1) { s = s.replace(/\./g, '').replace(',', '.'); }
+        const n = parseFloat(s);
+        return isNaN(n) ? 0 : n;
+    }
+    if (grForm) {
+        grForm.addEventListener('submit', function (e) {
+            if (overQtyConfirmed) return;
+            const over = [];
+            grForm.querySelectorAll('#poItemsBody input[name="qty_received[]"][data-remaining]').forEach(function (inp) {
+                const qty = parseQty(inp.value);
+                const remaining = parseQty(inp.dataset.remaining.replace('.', ','));
+                if (qty > 0 && qty > remaining + 0.0001) {
+                    over.push((inp.dataset.itemName || 'Barang') + ': diisi ' + qty + ', sisa PO ' + remaining);
+                }
+            });
+            if (!over.length) return;
+            e.preventDefault();
+            const msg = 'Qty melebihi sisa PO. Mungkin ini input dobel.\n\n' + over.join('\n') + '\n\nTetap simpan?';
+            const proceed = function (ok) {
+                if (ok) { overQtyConfirmed = true; grForm.requestSubmit ? grForm.requestSubmit(e.submitter || undefined) : grForm.submit(); }
+            };
+            if (typeof confirmAction === 'function') { confirmAction(msg, 'Ya, tetap simpan').then(proceed); }
+            else { proceed(window.confirm(msg)); }
+        });
+    }
 })();
 </script>
 <script>

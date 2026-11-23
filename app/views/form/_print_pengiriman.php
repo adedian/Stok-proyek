@@ -1,4 +1,7 @@
 <div class="sl-print-label">
+    <?php if (!empty($f['form_number'])): ?>
+        <div class="fm-docno">No. : <?= e($f['form_number']) ?></div>
+    <?php endif; ?>
     <?php foreach (['to' => 'Kepada', 'from' => 'Pengirim'] as $p => $title): ?>
         <div class="sl-print-box">
             <div class="fm-bold"><?= e($title) ?> :</div>

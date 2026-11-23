@@ -5,8 +5,8 @@ require_once ROOT_PATH . '/app/models/DocumentNumber.php';
 /**
  * FormDocument -- menu "Form": satu tabel `forms` untuk beberapa jenis form
  * (Pengiriman Dokumen, Kwitansi, Form Order Barang, Pengajuan Bon Sementara, Tanda Terima Dokumen).
- * Kwitansi, Bon Sementara, Tanda Terima Dokumen & Form Order Barang bernomor otomatis
- * (forms.form_number, mis. 001/KWT.HME/XI/2026); Pengiriman Dokumen tidak bernomor.
+ * Semua jenis form bernomor otomatis (forms.form_number, mis. 001/KWT.HME/XI/2026);
+ * kode per jenis ada di DocumentNumber::DOC_TYPE_CODE.
  * Isian spesifik jenis disimpan sebagai JSON di kolom `data`; validasi per jenis
  * ada di FormController. Berdiri sendiri: tanpa efek ke stok/kas/PO/invoice.
  */
@@ -39,7 +39,8 @@ class FormDocument extends Model
 
     /** slug jenis form => doc_type counter di DocumentNumber (jenis yang tidak ada di sini tidak bernomor). */
     private const NUMBER_DOC_TYPE = [
-        'kwitansi'      => 'form_kwitansi',
+        'pengiriman'    => 'form_pengiriman',
+        'kwitansi'     => 'form_kwitansi',
         'bon_sementara' => 'form_bon_sementara',
         'tanda_terima'  => 'form_tanda_terima',
         'order_form'    => 'form_order_barang',

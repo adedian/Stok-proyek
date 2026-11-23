@@ -23,6 +23,8 @@
     .sl-print-box .sl-name-main { font-size: 18px; font-weight: 700; line-height: 1.5; text-decoration: underline; }
     .sl-print-box .sl-name-company { font-size: 16px; font-weight: 700; line-height: 1.5; }
     .fm-bold { font-weight: 700; }
+    /* Nomor dokumen otomatis (mis. 001/KWT.HME/XI/2026), di bawah judul tiap form bernomor. */
+    .fm-docno { font-weight: 700; font-size: 12.5px; margin-bottom: 4mm; }
 
     /* ---------- Kwitansi ---------- */
     .kw-box { border: 1px solid #000; padding: 6mm 8mm 5mm; font-size: 13px; }
@@ -38,7 +40,7 @@
     .kw-amount-box { border: 1px solid #000; background: #e4e4e4; padding: 3px 10px; font-weight: 700; font-size: 14px; min-width: 62mm; display: flex; justify-content: space-between; gap: 12px; }
     .kw-amount-box .kw-num { font-style: italic; font-size: 16px; }
 
-    /* ---------- Order Form ---------- */
+    /* ---------- Form Order Barang ---------- */
     .of-title { text-align: center; font-size: 19px; font-weight: 700; margin-bottom: 4mm; }
     .of-meta { display: flex; justify-content: space-between; font-weight: 700; font-size: 12.5px; margin-bottom: 1mm; }
     .of-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }

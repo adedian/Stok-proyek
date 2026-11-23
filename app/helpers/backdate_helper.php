@@ -59,7 +59,7 @@ class BackDate
                 'collection_receipt'      => ['Tanda Terima', 'Tanggal Tanda Terima'],
             ],
             'Dokumen' => [
-                'form' => ['Form (Kwitansi, Order Form, Pengajuan Bon Sementara)', 'Tanggal dokumen pada Form'],
+                'form' => ['Form (Kwitansi, Form Order Barang, Pengajuan Bon Sementara)', 'Tanggal dokumen pada Form'],
             ],
         ];
     }

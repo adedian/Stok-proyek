@@ -14,7 +14,11 @@ $bonPlace = (($d['city'] ?? '') !== '' ? $d['city'] . ', ' : '') . formatTanggal
     <?php endif; ?>
 </div>
 
-<div class="bon-title">PENGAJUAN BON SEMENTARA</div>
+<?php $bonHasNo = !empty($f['form_number']); ?>
+<div class="bon-title"<?= $bonHasNo ? ' style="margin-bottom: 3mm;"' : '' ?>>PENGAJUAN BON SEMENTARA</div>
+<?php if ($bonHasNo): ?>
+    <div class="fm-docno" style="margin-bottom: 5mm;">No. : <?= e($f['form_number']) ?></div>
+<?php endif; ?>
 
 <div class="bon-head">
     <table>

@@ -1,9 +1,12 @@
 <?php
 require_once ROOT_PATH . '/core/Model.php';
+require_once ROOT_PATH . '/app/models/DocumentNumber.php';
 
 /**
  * FormDocument -- menu "Form": satu tabel `forms` untuk beberapa jenis form
- * (Pengiriman Dokumen, Kwitansi, Order Form, Pengajuan Bon Sementara, Tanda Terima Dokumen).
+ * (Pengiriman Dokumen, Kwitansi, Form Order Barang, Pengajuan Bon Sementara, Tanda Terima Dokumen).
+ * Kwitansi, Bon Sementara, Tanda Terima Dokumen & Form Order Barang bernomor otomatis
+ * (forms.form_number, mis. 001/KWT.HME/XI/2026); Pengiriman Dokumen tidak bernomor.
  * Isian spesifik jenis disimpan sebagai JSON di kolom `data`; validasi per jenis
  * ada di FormController. Berdiri sendiri: tanpa efek ke stok/kas/PO/invoice.
  */
@@ -18,7 +21,7 @@ class FormDocument extends Model
         return [
             'pengiriman'    => 'Form Pengiriman Dokumen',
             'kwitansi'      => 'Kwitansi',
-            'order_form'    => 'Order Form',
+            'order_form'    => 'Form Order Barang',
             'bon_sementara' => 'Pengajuan Bon Sementara',
             'tanda_terima'  => 'Tanda Terima Dokumen',
         ];
@@ -32,6 +35,63 @@ class FormDocument extends Model
     public static function isValidType($type): bool
     {
         return is_string($type) && array_key_exists($type, self::types());
+    }
+
+    /** slug jenis form => doc_type counter di DocumentNumber (jenis yang tidak ada di sini tidak bernomor). */
+    private const NUMBER_DOC_TYPE = [
+        'kwitansi'      => 'form_kwitansi',
+        'bon_sementara' => 'form_bon_sementara',
+        'tanda_terima'  => 'form_tanda_terima',
+        'order_form'    => 'form_order_barang',
+    ];
+
+    public static function isNumbered(?string $type): bool
+    {
+        return isset(self::NUMBER_DOC_TYPE[$type ?? '']);
+    }
+
+    /** Nomor berikutnya (hanya tampilan di form, counter TIDAK naik); null untuk jenis tak bernomor. */
+    public function previewNumber(string $type, ?string $date = null): ?string
+    {
+        if (!self::isNumbered($type)) {
+            return null;
+        }
+        $docType = self::NUMBER_DOC_TYPE[$type];
+        [$settingKey, $defaultCode] = DocumentNumber::DOC_TYPE_CODE[$docType];
+        return (new DocumentNumber())->preview($docType, $settingKey, $date, $defaultCode);
+    }
+
+    /**
+     * Simpan form baru; untuk jenis bernomor nomor dibuat di transaksi yang SAMA dengan INSERT-nya,
+     * jadi kalau simpan gagal nomornya tidak ikut terbakar. Tanggal nomor = tanggal dokumen.
+     */
+    public function createNumbered(array $row, ?string $docDate = null): int
+    {
+        $type = (string) ($row['form_type'] ?? '');
+        if (!self::isNumbered($type)) {
+            return $this->create($row);
+        }
+
+        $docType = self::NUMBER_DOC_TYPE[$type];
+        [$settingKey, $defaultCode] = DocumentNumber::DOC_TYPE_CODE[$docType];
+
+        $manageTx = !$this->db->inTransaction();
+        if ($manageTx) {
+            $this->db->beginTransaction();
+        }
+        try {
+            $row['form_number'] = (new DocumentNumber())->next($docType, $settingKey, $docDate, $defaultCode);
+            $id = $this->create($row);
+            if ($manageTx) {
+                $this->db->commit();
+            }
+            return $id;
+        } catch (Throwable $e) {
+            if ($manageTx && $this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $e;
+        }
     }
 
     /** Tambah kunci 'd' (isian ter-decode) ke baris hasil query. */
@@ -55,7 +115,7 @@ class FormDocument extends Model
             $params['ftype'] = $filters['type'];
         }
         if (!empty($filters['keyword'])) {
-            [$ssSql, $ssParams] = SmartSearch::clause($filters['keyword'], ['f.summary', 'f.data'], [], 'fkw');
+            [$ssSql, $ssParams] = SmartSearch::clause($filters['keyword'], ['f.form_number', 'f.summary', 'f.data'], [], 'fkw');
             if ($ssSql !== '') {
                 $sql .= " AND {$ssSql}";
                 $params += $ssParams;

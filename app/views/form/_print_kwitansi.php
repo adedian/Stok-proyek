@@ -4,7 +4,11 @@ $kwWords = ucwords(terbilang($kwAmount)) . ' Rupiah';
 $kwPlace = (($d['city'] ?? '') !== '' ? $d['city'] . ', ' : '') . formatTanggal($d['form_date'] ?? null);
 ?>
 <div class="kw-box">
-    <div class="kw-title">KWITANSI</div>
+    <?php $kwHasNo = !empty($f['form_number']); ?>
+    <div class="kw-title"<?= $kwHasNo ? ' style="margin-bottom: 3mm;"' : '' ?>>KWITANSI</div>
+    <?php if ($kwHasNo): ?>
+        <div class="fm-docno">No. : <?= e($f['form_number']) ?></div>
+    <?php endif; ?>
 
     <div class="kw-row">
         <div class="kw-label">Sudah terima dari</div><div class="kw-sep">:</div>

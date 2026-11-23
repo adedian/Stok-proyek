@@ -10,10 +10,12 @@ require_once ROOT_PATH . '/app/models/ActivityLog.php';
  * Satu menu, beberapa jenis form yang dipilih lewat dropdown saat Tambah:
  *   pengiriman    : alamat Kepada + Pengirim (dua kotak)
  *   kwitansi      : sudah terima dari, jumlah uang (+terbilang), untuk pembayaran
- *   order_form    : data pemesan, pembayaran, daftar barang, pajak, total
+ *   order_form    : "Form Order Barang" -- data pemesan, pembayaran, daftar barang, pajak, total
  *   bon_sementara : pengajuan bon, rincian estimasi pengeluaran, kolom tanda tangan
  *   tanda_terima  : Kepada + Alamat + daftar dokumen (jenis, jumlah, keterangan)
  * Isian disimpan sebagai JSON (forms.data); jenis tidak bisa diganti setelah dibuat.
+ * Kwitansi / Bon Sementara / Tanda Terima Dokumen / Form Order Barang dapat nomor otomatis saat
+ * pertama disimpan (forms.form_number, lihat FormDocument::createNumbered) dan nomornya tetap selamanya.
  * Modul mandiri -- tanpa efek ke stok/kas/PO/invoice.
  */
 class FormController extends Controller
@@ -21,7 +23,7 @@ class FormController extends Controller
     private FormDocument $formModel;
     private ActivityLog $activityLog;
 
-    /** Batas jumlah baris rincian (Order Form / Bon Sementara) & nominal maksimum. */
+    /** Batas jumlah baris rincian (Form Order Barang / Bon Sementara) & nominal maksimum. */
     private const MAX_ROWS = 30;
     private const MAX_AMOUNT = 999999999999.99;
 
@@ -74,7 +76,21 @@ class FormController extends Controller
             'type'      => FormDocument::isValidType($type) ? $type : 'pengiriman',
             'types'     => FormDocument::types(),
             'd'         => [],
+            'numberPreviews' => $this->numberPreviews(),
         ]);
+    }
+
+    /** Pratinjau nomor berikutnya per jenis bernomor (hanya tampilan; counter tidak naik). */
+    private function numberPreviews(): array
+    {
+        $out = [];
+        foreach (array_keys(FormDocument::types()) as $slug) {
+            $n = $this->formModel->previewNumber($slug);
+            if ($n !== null) {
+                $out[$slug] = $n;
+            }
+        }
+        return $out;
     }
 
     public function store()
@@ -101,14 +117,15 @@ class FormController extends Controller
         BackDate::enforce('form', $this->docDate($data), null, 'form', 'create', ['type' => $type]);
 
         try {
-            $id = $this->formModel->create([
+            $id = $this->formModel->createNumbered([
                 'form_type'  => $type,
                 'summary'    => $summary,
                 'data'       => json_encode($data, JSON_UNESCAPED_UNICODE),
                 'created_by' => currentUserId(),
-            ]);
+            ], $this->docDate($data));
+            $number = (string) ($this->formModel->find($id)['form_number'] ?? '');
             $this->activityLog->log(currentUserId(), 'form', 'create',
-                FormDocument::typeLabel($type) . " dibuat: {$summary}");
+                FormDocument::typeLabel($type) . ($number !== '' ? " {$number}" : '') . " dibuat: {$summary}");
             setFlash('success', FormDocument::typeLabel($type) . ' berhasil disimpan.');
             $this->redirect('form', 'print', ['id' => $id]);
         } catch (PDOException $e) {
@@ -163,6 +180,10 @@ class FormController extends Controller
             $this->redirect('form', 'edit', ['id' => $id]);
         }
         $oldData = json_decode((string) ($existing['data'] ?? ''), true);
+        // Form Order Barang lama (sebelum bernomor otomatis) punya "Order Number" ketikan sendiri -- jangan hilang saat diedit.
+        if ($type === 'order_form' && empty($existing['form_number']) && is_array($oldData) && !empty($oldData['order_number'])) {
+            $data['order_number'] = $oldData['order_number'];
+        }
         BackDate::enforce('form', $this->docDate($data), is_array($oldData) ? $this->docDate($oldData) : null, 'form', 'edit', ['id' => $id]);
 
         try {
@@ -171,7 +192,7 @@ class FormController extends Controller
                 'data'    => json_encode($data, JSON_UNESCAPED_UNICODE),
             ]);
             $this->activityLog->log(currentUserId(), 'form', 'update',
-                FormDocument::typeLabel($type) . " diperbarui: {$summary}");
+                FormDocument::typeLabel($type) . (!empty($existing['form_number']) ? " {$existing['form_number']}" : '') . " diperbarui: {$summary}");
             setFlash('success', FormDocument::typeLabel($type) . ' berhasil diperbarui.');
             $this->redirect('form', 'print', ['id' => $id]);
         } catch (PDOException $e) {
@@ -352,7 +373,6 @@ class FormController extends Controller
         $payment = $_POST['payment'] ?? '';
         $data = [
             'order_date'   => $this->date('order_date', 'Date'),
-            'order_number' => $this->text('order_number', 50, 'Order Number'),
             'name'         => $this->text('name', 150, 'Name', true),
             'phone'        => $this->text('phone', 50, 'Phone'),
             'email'        => $this->text('email', 150, 'Email'),
@@ -362,8 +382,7 @@ class FormController extends Controller
             'items'        => $items,
             'tax_percent'  => $taxPercent,
         ];
-        $summary = $data['name'] . ($data['order_number'] !== null ? ' (No. ' . $data['order_number'] . ')' : '');
-        return [$data, mb_substr($summary, 0, 255)];
+        return [$data, mb_substr($data['name'], 0, 255)];
     }
 
     private function readBonSementara(): array

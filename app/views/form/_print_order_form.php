@@ -18,11 +18,11 @@ $ofMoney = fn($v) => number_format((float) $v, 2, '.', ',');
     <?php endif; ?>
 </div>
 
-<div class="of-title">ORDER FORM</div>
+<div class="of-title">FORM ORDER BARANG</div>
 
 <div class="of-meta">
     <div>DATE : <?= !empty($d['order_date']) ? e(date('d/m/Y', strtotime($d['order_date']))) : '' ?></div>
-    <div style="width: 50%;">ORDER NUMBER : <?= e($d['order_number'] ?? '') ?></div>
+    <div style="width: 50%;">ORDER NUMBER : <?= e(($f['form_number'] ?? '') !== '' ? $f['form_number'] : ($d['order_number'] ?? '')) ?></div>
 </div>
 
 <table class="of-table">

@@ -14,6 +14,9 @@ $ttRows = max(3, count($ttItems)); // minimal 3 baris (data + baris kosong) supa
     <div class="tt-title">Tanda Terima Dokumen</div>
 
     <table class="tt-info">
+        <?php if (!empty($f['form_number'])): ?>
+            <tr><td>No.</td><td>:</td><td><strong><?= e($f['form_number']) ?></strong></td></tr>
+        <?php endif; ?>
         <tr><td>Kepada</td><td>:</td><td><strong><?= e($d['to_name'] ?? '') ?></strong></td></tr>
         <tr><td>Alamat</td><td>:</td><td><?= nl2br(e($d['address'] ?? '')) ?></td></tr>
     </table>

@@ -51,6 +51,10 @@ class DocumentNumber extends Model
         'payment_kk'          => 'Pembayaran - Kas Kecil',
         'payment_kkp'         => 'Pembayaran - Kas Project',
         'pengajuan_budget'    => 'Pengajuan Budget (Permintaan Otorisasi)',
+        'form_kwitansi'       => 'Form - Kwitansi',
+        'form_bon_sementara'  => 'Form - Pengajuan Bon Sementara',
+        'form_tanda_terima'   => 'Form - Tanda Terima Dokumen',
+        'form_order_barang'   => 'Form - Form Order Barang',
     ];
 
     /** Doc type yang pakai counter bergaya lain (tanpa bulan/tahun pada nomor) -- hanya No. Urut yang bisa diubah. */
@@ -77,6 +81,12 @@ class DocumentNumber extends Model
         'payment_kk'          => ['prefix_pay_kk',  'KK.HME'],
         'payment_kkp'         => ['prefix_pay_kkp', 'KKP.HME'],
         'pengajuan_budget'    => ['prefix_pb',      'PB.HME'],
+        // Menu Form (FormDocument::numberConfig()). Kode Form Order Barang SAMA dengan Pengajuan Budget
+        // (PB.HME) atas permintaan, tapi setting & counter-nya TERPISAH -- mengubah satu tidak menggeser yang lain.
+        'form_kwitansi'       => ['prefix_form_kwt', 'KWT.HME'],
+        'form_bon_sementara'  => ['prefix_form_bs',  'BS.HME'],
+        'form_tanda_terima'   => ['prefix_form_td',  'TD.HME'],
+        'form_order_barang'   => ['prefix_form_pb',  'PB.HME'],
     ];
 
     public static function label(string $docType): string

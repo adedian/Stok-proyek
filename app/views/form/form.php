@@ -48,6 +48,20 @@ $today = date('Y-m-d');
                     <?php endforeach; ?>
                 </select>
             <?php endif; ?>
+
+            <?php
+            // No. Dokumen: pratinjau nomor berikutnya (Tambah) atau nomor tersimpan (Edit). Jenis tanpa nomor menyembunyikan kotak ini.
+            $numberPreviews = $numberPreviews ?? [];
+            $savedNumber = $isEdit ? (string) ($row['form_number'] ?? '') : '';
+            ?>
+            <div class="mt-3" id="fmNumberWrap" <?= ($isEdit ? $savedNumber === '' : !isset($numberPreviews[$type])) ? 'hidden' : '' ?>>
+                <label class="form-label" for="fmNumber">No. Dokumen</label>
+                <input type="text" id="fmNumber" class="form-control" readonly tabindex="-1"
+                       value="<?= e($isEdit ? $savedNumber : ($numberPreviews[$type] ?? '')) ?>">
+                <div class="form-text">
+                    <?= $isEdit ? 'Nomor tetap, tidak berubah saat form diedit.' : 'Dibuat otomatis saat form disimpan; nomor akhir bisa bergeser bila ada yang menyimpan lebih dulu.' ?>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -158,18 +172,14 @@ $today = date('Y-m-d');
     <!-- ================= ORDER FORM ================= -->
     <fieldset class="fm-section" data-type="order_form">
         <div class="card border-0 shadow-sm mb-3">
-            <div class="card-header bg-white fw-semibold"><i class="bi bi-card-checklist"></i> Order Form</div>
+            <div class="card-header bg-white fw-semibold"><i class="bi bi-card-checklist"></i> Form Order Barang</div>
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-md-4">
                         <label class="form-label" for="of_date">Date</label>
                         <input type="date" id="of_date" name="order_date" class="form-control" value="<?= e($d['order_date'] ?? $today) ?>">
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label" for="order_number">Order Number</label>
-                        <input type="text" id="order_number" name="order_number" class="form-control" maxlength="50" value="<?= e($d['order_number'] ?? '') ?>">
-                    </div>
-                    <div class="col-md-4"></div>
+                    <div class="col-md-8"></div>
                     <div class="col-md-4">
                         <label class="form-label" for="of_name">Name <span class="text-danger">*</span></label>
                         <input type="text" id="of_name" name="name" class="form-control" maxlength="150" required value="<?= e($d['name'] ?? '') ?>">
@@ -462,7 +472,21 @@ document.addEventListener('DOMContentLoaded', function () {
         input.addEventListener('input', render);
     });
 
-    // ---- baris dinamis (Order Form & Bon Sementara) ----
+    // ---- No. Dokumen mengikuti jenis form yang dipilih (hanya saat Tambah) ----
+    var numberPreviews = <?= json_encode($numberPreviews, JSON_UNESCAPED_UNICODE | JSON_FORCE_OBJECT) ?>;
+    var numWrap = document.getElementById('fmNumberWrap');
+    var numInput = document.getElementById('fmNumber');
+    <?php if (!$isEdit): ?>
+    function applyNumber() {
+        var n = numberPreviews[typeEl.value];
+        numWrap.hidden = !n;
+        numInput.value = n || '';
+    }
+    typeEl.addEventListener('change', applyNumber);
+    applyNumber();
+    <?php endif; ?>
+
+    // ---- baris dinamis (Form Order Barang & Bon Sementara) ----
     function money(n) { return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
     function num(s) { return parseFloat(String(s).replace(/,/g, '')) || 0; }            // nominal: koma ribuan, titik desimal
     function qty(s) { return parseFloat(String(s).replace(/\./g, '').replace(',', '.')) || 0; } // qty: koma desimal

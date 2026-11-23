@@ -10,7 +10,7 @@ $typeBadge = [
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h4 class="mb-0">Form</h4>
-        <small class="text-muted">Pengiriman Dokumen, Kwitansi, Order Form, Pengajuan Bon Sementara, dan Tanda Terima Dokumen</small>
+        <small class="text-muted">Pengiriman Dokumen, Kwitansi, Form Order Barang, Pengajuan Bon Sementara, dan Tanda Terima Dokumen</small>
     </div>
     <?php if (can('form', 'create')): ?>
         <a href="<?= BASE_URL ?>/form/create" class="btn btn-primary">
@@ -76,6 +76,7 @@ $typeBadge = [
                     <tr>
                         <th class="no-print" style="width: 36px;"></th>
                         <th>Jenis</th>
+                        <th>No. Dokumen</th>
                         <th>Ringkasan</th>
                         <th>Dibuat</th>
                         <th class="text-center no-print">Aksi</th>
@@ -83,7 +84,7 @@ $typeBadge = [
                 </thead>
                 <tbody>
                     <?php if (empty($rows)): ?>
-                        <tr><td colspan="5" class="p-0">
+                        <tr><td colspan="6" class="p-0">
                             <div class="empty-state">
                                 <i class="bi bi-journal-text empty-icon"></i>
                                 <div class="empty-title">Belum ada Form</div>
@@ -95,6 +96,7 @@ $typeBadge = [
                         <tr>
                             <td class="no-print"><input type="checkbox" class="form-check-input fm-row-check" value="<?= (int) $r['id'] ?>"></td>
                             <td data-label="Jenis"><span class="badge <?= e($typeBadge[$r['form_type']] ?? 'bg-secondary-subtle text-secondary-emphasis') ?>"><?= e($types[$r['form_type']] ?? $r['form_type']) ?></span></td>
+                            <td data-label="No. Dokumen" class="text-nowrap"><?= ($r['form_number'] ?? '') !== '' ? e($r['form_number']) : '<span class="text-muted">-</span>' ?></td>
                             <td data-label="Ringkasan" class="fw-semibold"><?= e($r['summary']) ?></td>
                             <td data-label="Dibuat"><?= formatTanggal($r['created_at']) ?></td>
                             <td class="text-center no-print">

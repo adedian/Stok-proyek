@@ -93,6 +93,33 @@
                     <div class="form-text">Contoh: 001/<?= e($numbering['prefix_pb'] ?? 'PB.HME') ?>/XI/2026</div>
                 </div>
             </div>
+            <hr>
+            <div class="row g-3">
+                <div class="col-12">
+                    <label class="form-label mb-0 fw-semibold">Kode Menu Form</label>
+                    <div class="form-text mt-0">Nomor otomatis untuk Kwitansi, Bon Sementara, Tanda Terima Dokumen, dan Form Order Barang (urutan masing-masing terpisah).</div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Kode Kwitansi</label>
+                    <input type="text" name="prefix_form_kwt" class="form-control" value="<?= e($numbering['prefix_form_kwt'] ?? 'KWT.HME') ?>">
+                    <div class="form-text">Contoh: 001/<?= e($numbering['prefix_form_kwt'] ?? 'KWT.HME') ?>/XI/2026</div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Kode Bon Sementara</label>
+                    <input type="text" name="prefix_form_bs" class="form-control" value="<?= e($numbering['prefix_form_bs'] ?? 'BS.HME') ?>">
+                    <div class="form-text">Contoh: 001/<?= e($numbering['prefix_form_bs'] ?? 'BS.HME') ?>/XI/2026</div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Kode Tanda Terima Dokumen</label>
+                    <input type="text" name="prefix_form_td" class="form-control" value="<?= e($numbering['prefix_form_td'] ?? 'TD.HME') ?>">
+                    <div class="form-text">Contoh: 001/<?= e($numbering['prefix_form_td'] ?? 'TD.HME') ?>/XI/2026</div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Kode Form Order Barang</label>
+                    <input type="text" name="prefix_form_pb" class="form-control" value="<?= e($numbering['prefix_form_pb'] ?? 'PB.HME') ?>">
+                    <div class="form-text">Contoh: 001/<?= e($numbering['prefix_form_pb'] ?? 'PB.HME') ?>/XI/2026</div>
+                </div>
+            </div>
             <button type="submit" class="btn btn-primary mt-3"><i class="bi bi-save"></i> Simpan Penomoran</button>
         </form>
     </div>

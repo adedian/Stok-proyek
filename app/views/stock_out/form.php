@@ -5,9 +5,12 @@ $actionUrl = $isEdit ? 'update' : 'store';
 // (ditegakkan juga di StockOutController). Role lain: hanya Project.
 $canClientDest = $canClientDest ?? true;
 $destType = $selectedDestinationType ?? 'project';
-if (!$canClientDest) {
+if ($destType === 'client' && !$canClientDest) {
     $destType = 'project';
 }
+$warehouses = $warehouses ?? [];
+$selSrcWh = (int) ($selectedSourceWarehouseId ?? 0);
+$selDstWh = (int) ($selectedDestWarehouseId ?? 0);
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
@@ -35,25 +38,26 @@ if (!$canClientDest) {
             <div class="row g-3">
                 <div class="col-md-4">
                     <label class="form-label d-block">Tujuan Pengeluaran <span class="text-danger">*</span></label>
-                    <?php if ($canClientDest): ?>
-                        <div class="btn-group w-100" role="group">
-                            <input type="radio" class="btn-check" name="destination_type" id="destTypeProject" value="project" autocomplete="off"
-                                   <?= $destType === 'project' ? 'checked' : '' ?> <?= $isEdit ? 'disabled' : '' ?>>
-                            <label class="btn btn-outline-primary" for="destTypeProject">Project</label>
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="destination_type" id="destTypeProject" value="project" autocomplete="off"
+                               <?= $destType === 'project' ? 'checked' : '' ?> <?= $isEdit ? 'disabled' : '' ?>>
+                        <label class="btn btn-outline-primary" for="destTypeProject">Project</label>
 
-                            <input type="radio" class="btn-check" name="destination_type" id="destTypeClient" value="client" autocomplete="off"
-                                   <?= $destType === 'client' ? 'checked' : '' ?> <?= $isEdit ? 'disabled' : '' ?>>
-                            <label class="btn btn-outline-primary" for="destTypeClient">Client (Invoice)</label>
-                        </div>
-                        <?php if ($isEdit): ?>
-                            <input type="hidden" name="destination_type" value="<?= e($destType) ?>">
+                        <?php if ($canClientDest): ?>
+                        <input type="radio" class="btn-check" name="destination_type" id="destTypeClient" value="client" autocomplete="off"
+                               <?= $destType === 'client' ? 'checked' : '' ?> <?= $isEdit ? 'disabled' : '' ?>>
+                        <label class="btn btn-outline-primary" for="destTypeClient">Client</label>
                         <?php endif; ?>
-                    <?php else: ?>
-                        <input type="hidden" name="destination_type" value="project">
-                        <div class="form-control bg-light d-flex align-items-center"><i class="bi bi-diagram-3 me-2"></i> Project</div>
+
+                        <input type="radio" class="btn-check" name="destination_type" id="destTypeGudang" value="gudang" autocomplete="off"
+                               <?= $destType === 'gudang' ? 'checked' : '' ?> <?= $isEdit ? 'disabled' : '' ?>>
+                        <label class="btn btn-outline-primary" for="destTypeGudang">Gudang</label>
+                    </div>
+                    <?php if ($isEdit): ?>
+                        <input type="hidden" name="destination_type" value="<?= e($destType) ?>">
                     <?php endif; ?>
                 </div>
-                <div class="col-md-4" id="projectFieldWrap" style="<?= $destType === 'client' ? 'display:none;' : '' ?>">
+                <div class="col-md-4" id="projectFieldWrap" style="<?= $destType !== 'project' ? 'display:none;' : '' ?>">
                     <label class="form-label">Project <span class="text-danger">*</span></label>
                     <div class="input-group">
                         <select name="project_id" id="projectSelect" class="form-select"
@@ -75,7 +79,7 @@ if (!$canClientDest) {
                         <input type="hidden" name="project_id" value="<?= (int) $selectedProjectId ?>">
                     <?php endif; ?>
                 </div>
-                <div class="col-md-4" id="invoiceFieldWrap" style="<?= $destType === 'project' ? 'display:none;' : '' ?>">
+                <div class="col-md-4" id="invoiceFieldWrap" style="<?= $destType !== 'client' ? 'display:none;' : '' ?>">
                     <label class="form-label">Client (Invoice) <span class="text-danger">*</span></label>
                     <select name="sales_invoice_id" id="invoiceSelect" class="form-select"
                             <?= $destType === 'client' ? 'required' : '' ?> <?= $isEdit ? 'disabled' : '' ?>>
@@ -94,6 +98,40 @@ if (!$canClientDest) {
                     <?php if ($isEdit): ?>
                         <input type="hidden" name="sales_invoice_id" value="<?= (int) $selectedSalesInvoiceId ?>">
                     <?php endif; ?>
+                </div>
+
+                <div class="col-md-8" id="warehouseFieldWrap" style="<?= $destType !== 'gudang' ? 'display:none;' : '' ?>">
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="form-label">Gudang Asal (Dikeluarkan dari Gudang) <span class="text-danger">*</span></label>
+                            <select name="source_warehouse_id" id="srcWarehouseSelect" class="form-select"
+                                    <?= $destType === 'gudang' ? 'required' : '' ?> <?= $isEdit ? 'disabled' : '' ?>>
+                                <option value="">-- Pilih Gudang Asal --</option>
+                                <?php foreach ($warehouses as $w): ?>
+                                    <option value="<?= (int) $w['id'] ?>" <?= $selSrcWh === (int) $w['id'] ? 'selected' : '' ?>><?= e($w['warehouse_name']) ?></option>
+                                <?php endforeach; ?>
+                                <?php if ($isEdit && $selSrcWh && !in_array($selSrcWh, array_map('intval', array_column($warehouses, 'id')), true)): ?>
+                                    <option value="<?= $selSrcWh ?>" selected><?= e($stockOut['source_warehouse_name'] ?? '-') ?> (nonaktif)</option>
+                                <?php endif; ?>
+                            </select>
+                            <?php if ($isEdit): ?><input type="hidden" name="source_warehouse_id" value="<?= $selSrcWh ?>"><?php endif; ?>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Gudang Tujuan (Dikirim ke Mana) <span class="text-danger">*</span></label>
+                            <select name="dest_warehouse_id" id="dstWarehouseSelect" class="form-select"
+                                    <?= $destType === 'gudang' ? 'required' : '' ?> <?= $isEdit ? 'disabled' : '' ?>>
+                                <option value="">-- Pilih Gudang Tujuan --</option>
+                                <?php foreach ($warehouses as $w): ?>
+                                    <option value="<?= (int) $w['id'] ?>" <?= $selDstWh === (int) $w['id'] ? 'selected' : '' ?>><?= e($w['warehouse_name']) ?></option>
+                                <?php endforeach; ?>
+                                <?php if ($isEdit && $selDstWh && !in_array($selDstWh, array_map('intval', array_column($warehouses, 'id')), true)): ?>
+                                    <option value="<?= $selDstWh ?>" selected><?= e($stockOut['dest_warehouse_name'] ?? '-') ?> (nonaktif)</option>
+                                <?php endif; ?>
+                            </select>
+                            <?php if ($isEdit): ?><input type="hidden" name="dest_warehouse_id" value="<?= $selDstWh ?>"><?php endif; ?>
+                        </div>
+                    </div>
+                    <div class="form-text">Mutasi antar gudang: stok Gudang Asal berkurang saat disimpan (status <strong>Dalam Perjalanan</strong>); stok Gudang Tujuan bertambah setelah mutasi <strong>diterima</strong>.</div>
                 </div>
 
                 <div class="col-md-4">
@@ -239,7 +277,7 @@ if (!$canClientDest) {
                             <tr class="so-item-row">
                                 <td data-label="Barang">
                                     <select name="<?= $isEdit ? 'add_inventory_id[]' : 'inventory_id[]' ?>" class="form-select form-select-sm so-item-select" <?= $isEdit ? '' : 'required' ?> disabled>
-                                        <option value="">-- Pilih Project / Client dulu --</option>
+                                        <option value="">-- Pilih Project / Client / Gudang Asal dulu --</option>
                                     </select>
                                     <div class="form-text so-stock-info small"></div>
                                 </td>
@@ -295,6 +333,15 @@ if (!$canClientDest) {
     const projectFieldWrap = document.getElementById('projectFieldWrap');
     const invoiceFieldWrap = document.getElementById('invoiceFieldWrap');
     const destTypeRadios = document.querySelectorAll('input[name="destination_type"]');
+    const warehouseFieldWrap = document.getElementById('warehouseFieldWrap');
+    const srcWhSelect = document.getElementById('srcWarehouseSelect');
+    const dstWhSelect = document.getElementById('dstWarehouseSelect');
+    const destinationInput = document.querySelector('#stockOutForm input[name="destination"]');
+    let autoDestination = '';
+    function isGudangMode() {
+        const checked = document.querySelector('input[name="destination_type"]:checked');
+        return (checked ? checked.value : '<?= e($destType) ?>') === 'gudang';
+    }
     const itemsBody = document.getElementById('soItemsBody');
     const addRowBtn = document.getElementById('soAddRowBtn');
     const itemsHint = document.getElementById('soItemsHint');
@@ -313,8 +360,10 @@ if (!$canClientDest) {
     function optionLabel(item) {
         const showOrigin = ('project_name' in item) || isForeign(item);
         const origin = showOrigin ? (', ' + (item.project_name || 'Stok Kantor')) : '';
+        // Gudang tempat stok berada (mode Mutasi sudah disaring ke 1 gudang asal, jadi tak perlu diulang).
+        const wh = (item.warehouse_name && !isGudangMode()) ? (', Gudang: ' + item.warehouse_name) : '';
         return item.item_name + ' (stok: '
-            + parseFloat(item.qty_available).toLocaleString('id-ID') + ' ' + item.unit + origin + ')';
+            + parseFloat(item.qty_available).toLocaleString('id-ID') + ' ' + item.unit + origin + wh + ')';
     }
 
     function selectedElsewhere(exceptSelect) {
@@ -332,7 +381,9 @@ if (!$canClientDest) {
         const taken = selectedElsewhere(sel);
         // Dropdown mati sampai Project/Client dipilih -- label eksplisit supaya tidak tampak rusak.
         sel.innerHTML = '<option value="">'
-            + (currentItems.length ? '-- Pilih Barang --' : (itemsProjectCtx !== null ? '-- Tidak ada barang tersedia --' : '-- Pilih Project / Client dulu --'))
+            + (currentItems.length ? '-- Pilih Barang --' : (isGudangMode()
+                ? (srcWhSelect && srcWhSelect.value ? '-- Tidak ada barang di gudang ini --' : '-- Pilih Gudang Asal dulu --')
+                : (itemsProjectCtx !== null ? '-- Tidak ada barang tersedia --' : '-- Pilih Project / Client dulu --')))
             + '</option>';
         currentItems.forEach(function (item) {
             const opt = document.createElement('option');
@@ -487,6 +538,7 @@ if (!$canClientDest) {
                         id: it.id, item_name: it.item_name,
                         qty_available: it.qty_available, unit: it.unit,
                         project_id: it.project_id,
+                        warehouse_id: it.warehouse_id, warehouse_name: it.warehouse_name,
                         project_name: ('project_name' in it) ? it.project_name : undefined
                     };
                 });
@@ -505,17 +557,59 @@ if (!$canClientDest) {
     }
 
     function applyDestinationType(type) {
-        const isProject = type !== 'client';
+        const isProject = type === 'project';
+        const isClient = type === 'client';
+        const isGudang = type === 'gudang';
         if (projectFieldWrap) projectFieldWrap.style.display = isProject ? '' : 'none';
-        if (invoiceFieldWrap) invoiceFieldWrap.style.display = isProject ? 'none' : '';
-        projectSelect.required = isProject;
-        invoiceSelect.required = !isProject;
+        if (invoiceFieldWrap) invoiceFieldWrap.style.display = isClient ? '' : 'none';
+        if (warehouseFieldWrap) warehouseFieldWrap.style.display = isGudang ? '' : 'none';
+        projectSelect.required = isProject && !IS_EDIT;
+        invoiceSelect.required = isClient && !IS_EDIT;
+        if (srcWhSelect) srcWhSelect.required = isGudang && !IS_EDIT;
+        if (dstWhSelect) dstWhSelect.required = isGudang && !IS_EDIT;
+    }
+
+    // Mutasi: daftar barang = stok di Gudang Asal saja.
+    function loadWarehouseItems() {
+        itemsProjectCtx = null;
+        if (!srcWhSelect || !srcWhSelect.value) {
+            currentItems = [];
+            renderAllRows();
+            itemsHint.textContent = 'Pilih Gudang Asal agar daftar barang di gudang tersebut tampil.';
+            return;
+        }
+        loadItems('<?= BASE_URL ?>/index.php?module=stock_out&action=ajaxItemsByProject&project_id=0&warehouse_id=' + srcWhSelect.value,
+            'Tidak ada barang dengan stok tersedia di gudang ini.', null, '');
+    }
+
+    // Gudang Tujuan tidak boleh sama dengan Gudang Asal.
+    function syncDestOptions() {
+        if (!srcWhSelect || !dstWhSelect || IS_EDIT) { return; }
+        Array.prototype.forEach.call(dstWhSelect.options, function (opt) {
+            opt.disabled = !!opt.value && opt.value === srcWhSelect.value;
+        });
+        if (dstWhSelect.value && dstWhSelect.value === srcWhSelect.value) { dstWhSelect.value = ''; }
+        if (window.resyncSearchableSelect) { window.resyncSearchableSelect(dstWhSelect); }
     }
 
     destTypeRadios.forEach(function (radio) {
         radio.addEventListener('change', function () {
             applyDestinationType(this.value);
-            if (this.value === 'client') {
+            // Pindah jenis tujuan = kosongkan pilihan barang lama (stok-nya bisa dari gudang/project lain).
+            itemsBody.querySelectorAll('.so-item-row').forEach(function (r) { delete r.dataset.foreignOk; });
+            if (this.value === 'gudang') {
+                projectSelect.value = '';
+                invoiceSelect.value = '';
+                if (window.resyncSearchableSelect) {
+                    window.resyncSearchableSelect(projectSelect);
+                    window.resyncSearchableSelect(invoiceSelect);
+                }
+                itemsBody.querySelectorAll('.so-item-row').forEach(function (r, i) {
+                    if (i === 0) { r.querySelector('.so-item-select').value = ''; r.querySelector('.so-qty-input').value = ''; }
+                    else { r.remove(); }
+                });
+                loadWarehouseItems();
+            } else if (this.value === 'client') {
                 projectSelect.value = '';
                 if (window.resyncSearchableSelect) { window.resyncSearchableSelect(projectSelect); }
                 if (invoiceSelect.value) { loadOfficeItems(); } else { resetItems('Pilih Client (Invoice) agar barang yang cocok tampil paling atas.'); }
@@ -526,6 +620,25 @@ if (!$canClientDest) {
             }
         });
     });
+
+    if (srcWhSelect && !IS_EDIT) {
+        srcWhSelect.addEventListener('change', function () {
+            syncDestOptions();
+            itemsBody.querySelectorAll('.so-item-row').forEach(function (r, i) {
+                if (i === 0) { r.querySelector('.so-item-select').value = ''; r.querySelector('.so-qty-input').value = ''; }
+                else { r.remove(); }
+            });
+            loadWarehouseItems();
+        });
+        dstWhSelect.addEventListener('change', function () {
+            // Isi "Tujuan" otomatis dengan nama gudang tujuan (tetap bisa diubah pengguna).
+            const name = this.value ? this.options[this.selectedIndex].textContent.trim() : '';
+            if (destinationInput && (destinationInput.value === '' || destinationInput.value === autoDestination)) {
+                autoDestination = name ? ('Gudang ' + name.replace(/^Gudang\s+/i, '')) : '';
+                destinationInput.value = autoDestination;
+            }
+        });
+    }
 
     projectSelect.addEventListener('change', function () {
         // Konfirmasi "Tetap lanjutkan" berlaku per project; ganti project = tanya ulang.
@@ -543,6 +656,11 @@ if (!$canClientDest) {
     addRowBtn.addEventListener('click', function () { newRow(); });
 
     form.addEventListener('submit', function (e) {
+        if (isGudangMode() && !IS_EDIT && srcWhSelect.value && srcWhSelect.value === dstWhSelect.value) {
+            e.preventDefault();
+            alert('Gudang Asal dan Gudang Tujuan tidak boleh sama.');
+            return;
+        }
         const rows = Array.prototype.slice.call(itemsBody.querySelectorAll('.so-item-row'));
         let filled = 0;
         for (let i = 0; i < rows.length; i++) {
@@ -590,7 +708,10 @@ if (!$canClientDest) {
     // init
     wireRow(itemsBody.querySelector('.so-item-row'));
     applyDestinationType('<?= e($destType) ?>');
-    <?php if ($selectedProjectId): ?>
+    syncDestOptions();
+    <?php if ($destType === 'gudang'): ?>
+    loadWarehouseItems();
+    <?php elseif ($selectedProjectId): ?>
     if (projectSelect.value) {
         loadItems('<?= BASE_URL ?>/index.php?module=stock_out&action=ajaxItemsByProject&project_id=' + projectSelect.value,
             'Tidak ada barang dengan stok tersedia.', projectSelect.value);

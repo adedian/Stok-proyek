@@ -635,6 +635,17 @@ function formatReportValue($value, string $format = 'text', ?array $row = null):
  * Master Data > Barang, Stok Opname, Penerimaan Barang, dan Laporan Stok Barang
  * supaya "Kategori / Jenis Stok" konsisten di seluruh aplikasi.
  */
+/**
+ * Nama barang untuk Laporan Stok (layar/PDF/Excel): ditambah gudang bucket-nya, karena stok kini
+ * tersimpan per gudang dan satu barang bisa punya beberapa baris saldo (satu per gudang).
+ */
+function stockReportItemLabel(array $row): string
+{
+    $name = (string) ($row['item_name'] ?? '');
+    $wh = trim((string) ($row['warehouse_name'] ?? ''));
+    return $wh !== '' ? $name . ' [' . $wh . ']' : $name;
+}
+
 function stockTypeLabels(): array
 {
     return [

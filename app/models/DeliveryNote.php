@@ -172,6 +172,25 @@ class DeliveryNote extends Model
         );
     }
 
+    /**
+     * Gudang asal (& tujuan, khusus mutasi antar gudang) barang pada satu Surat Jalan -- ditampilkan
+     * di dokumen cetak. Berisi nama gudang unik, dipisah koma. Surat Jalan dari Order Penjualan /
+     * baris lama tanpa data gudang -> ['source' => '', 'dest' => ''] (baris tidak ditampilkan).
+     */
+    public function warehouseSummary(int $id): array
+    {
+        $row = $this->db->fetchOne(
+            "SELECT GROUP_CONCAT(DISTINCT swh.warehouse_name ORDER BY swh.warehouse_name SEPARATOR ', ') AS source_names,
+                    GROUP_CONCAT(DISTINCT dwh.warehouse_name ORDER BY dwh.warehouse_name SEPARATOR ', ') AS dest_names
+               FROM stock_out so
+               LEFT JOIN warehouses swh ON swh.id = so.source_warehouse_id
+               LEFT JOIN warehouses dwh ON dwh.id = so.dest_warehouse_id
+              WHERE so.delivery_note_id = :id AND so.deleted_at IS NULL",
+            ['id' => $id]
+        );
+        return ['source' => (string) ($row['source_names'] ?? ''), 'dest' => (string) ($row['dest_names'] ?? '')];
+    }
+
     public function itemsByDeliveryNote(int $id): array
     {
         return $this->db->fetchAll(

@@ -136,7 +136,9 @@ class ValidationController extends Controller
                 date('Y-m-d'),
                 currentUserId(),
                 $item['stock_scope'],
-                $stockType
+                $stockType,
+                '',
+                !empty($item['warehouse_id']) ? (int) $item['warehouse_id'] : null
             );
             $this->itemModel->markStockPosted($id, true);
         } elseif (!$isNowValid && $wasPosted) {
@@ -148,7 +150,9 @@ class ValidationController extends Controller
                 'goods_receipt_validation',
                 (int) $item['goods_receipt_id'],
                 currentUserId(),
-                $item['stock_scope']
+                $item['stock_scope'],
+                'Koreksi otomatis karena penerimaan barang terkait diedit/dihapus',
+                !empty($item['warehouse_id']) ? (int) $item['warehouse_id'] : null
             );
             $this->itemModel->markStockPosted($id, false);
         }

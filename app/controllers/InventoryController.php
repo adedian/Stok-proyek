@@ -6,6 +6,7 @@ require_once ROOT_PATH . '/app/models/StockTransaction.php';
 require_once ROOT_PATH . '/app/models/StockOpname.php';
 require_once ROOT_PATH . '/app/models/StockOpnameItem.php';
 require_once ROOT_PATH . '/app/models/Project.php';
+require_once ROOT_PATH . '/app/models/Warehouse.php';
 require_once ROOT_PATH . '/app/models/User.php';
 require_once ROOT_PATH . '/app/models/ActivityLog.php';
 
@@ -42,6 +43,7 @@ class InventoryController extends Controller
             'stock_type'    => $_GET['stock_type'] ?? '',
             'keyword'       => $_GET['keyword'] ?? '',
             'stock_filter'  => $_GET['stock_filter'] ?? '',
+            'warehouse_id'  => $_GET['warehouse_id'] ?? '',
         ];
 
         $items = $this->inventoryModel->listWithFilters($filters);
@@ -51,6 +53,7 @@ class InventoryController extends Controller
             'pageTitle' => 'Stok Barang',
             'items'     => $items,
             'projects'  => $projects,
+            'warehouses' => (new Warehouse())->activeList(),
             'filters'   => $filters,
         ]);
     }

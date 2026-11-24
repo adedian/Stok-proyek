@@ -15,6 +15,35 @@ class Warehouse extends Model
         );
     }
 
+    /**
+     * Alasan gudang TIDAK boleh dihapus (null = boleh). Menjaga saldo stok per gudang tidak "hilang":
+     * gudang bawaan, masih ada stok (> 0), atau ada mutasi Dalam Perjalanan dari/ke gudang ini.
+     */
+    public function deleteBlockReason(int $id): ?string
+    {
+        require_once ROOT_PATH . '/app/models/SystemSetting.php';
+        if ((int) (new SystemSetting())->get('stock.default_warehouse_id', '0') === $id) {
+            return 'ini gudang bawaan stok (dipakai Kas stok dan stok lama).';
+        }
+        $stock = (float) ($this->db->fetchOne(
+            "SELECT COALESCE(SUM(qty_available), 0) AS q FROM inventory WHERE warehouse_id = :id AND deleted_at IS NULL AND qty_available > 0",
+            ['id' => $id]
+        )['q'] ?? 0);
+        if ($stock > 0) {
+            return 'masih ada stok barang di gudang ini. Pindahkan dulu lewat Pengeluaran Barang (Mutasi Gudang).';
+        }
+        $transit = (int) ($this->db->fetchOne(
+            "SELECT COUNT(*) AS c FROM stock_out
+              WHERE destination_type = 'gudang' AND transfer_status = 'dalam_perjalanan' AND deleted_at IS NULL
+                AND (source_warehouse_id = :id1 OR dest_warehouse_id = :id2)",
+            ['id1' => $id, 'id2' => $id]
+        )['c'] ?? 0);
+        if ($transit > 0) {
+            return 'masih ada mutasi barang Dalam Perjalanan dari/ke gudang ini.';
+        }
+        return null;
+    }
+
     public function nameExists(string $name, ?int $excludeId = null): bool
     {
         $sql = "SELECT id FROM warehouses WHERE warehouse_name = :name AND deleted_at IS NULL";

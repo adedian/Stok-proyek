@@ -74,7 +74,7 @@
                             <?php foreach ($items as $item): ?>
                                 <tr>
                                     <td>
-                                        <?= e($item['item_name']) ?> <span class="text-muted small">(<?= e($item['unit']) ?>)</span>
+                                        <?= e($item['item_name']) ?> <span class="text-muted small">(<?= e($item['unit']) ?>)</span><?php if (!empty($item['warehouse_name'])): ?> <span class="badge text-bg-light border"><?= e($item['warehouse_name']) ?></span><?php endif; ?>
                                         <input type="hidden" name="inventory_id[]" value="<?= (int) $item['id'] ?>">
                                     </td>
                                     <td class="text-end"><?= number_format((float) $item['qty_available'], 2, ',', '.') ?></td>
@@ -156,7 +156,7 @@
                 data.items.forEach(function (item) {
                     const tr = document.createElement('tr');
                     tr.innerHTML =
-                        '<td>' + esc(item.item_name) + ' <span class="text-muted small">(' + esc(item.unit) + ')</span>'
+                        '<td>' + esc(item.item_name) + ' <span class="text-muted small">(' + esc(item.unit) + ')</span>' + (item.warehouse_name ? ' <span class="badge text-bg-light border">' + esc(item.warehouse_name) + '</span>' : '')
                         + '<input type="hidden" name="inventory_id[]" value="' + parseInt(item.id, 10) + '"></td>'
                         + '<td class="text-end">' + parseFloat(item.qty_available).toLocaleString('id-ID') + '</td>'
                         + '<td><input type="text" inputmode="decimal" name="qty_actual[]" class="form-control form-control-sm text-end" '

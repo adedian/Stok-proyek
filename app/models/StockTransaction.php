@@ -45,7 +45,7 @@ class StockTransaction extends Model
                       ON gr.id = st.reference_id
                      AND st.reference_type IN ('goods_receipt', 'goods_receipt_validation')
                LEFT JOIN stock_out so
-                      ON so.id = st.reference_id AND st.reference_type = 'stock_out'
+                      ON so.id = st.reference_id AND st.reference_type IN ('stock_out', 'stock_transfer_in')
                LEFT JOIN stock_opname op
                       ON op.id = st.reference_id AND st.reference_type = 'stock_opname'
                LEFT JOIN cash_transactions ct

@@ -188,6 +188,7 @@
         // Kalau kota belum diisi, jangan tampilkan nama project sebagai fallback
         // (itu justru bug yang diperbaiki) -- cukup tanggal saja tanpa kota.
         $kota = $note['city'] ?? '';
+        $whInfo = (new DeliveryNote())->warehouseSummary((int) $note['id']);
     ?>
     <div class="sj-print-page">
         <div class="sj-print-header">
@@ -206,6 +207,12 @@
             <table>
                 <tr><td>Number</td><td>: <strong><?= e($note['delivery_number']) ?></strong></td></tr>
                 <tr><td>Date</td><td>: <?= formatTanggal($note['delivery_date']) ?></td></tr>
+                <?php if ($whInfo['source'] !== ''): ?>
+                    <tr><td>Gudang Asal</td><td>: <?= e($whInfo['source']) ?></td></tr>
+                <?php endif; ?>
+                <?php if ($whInfo['dest'] !== ''): ?>
+                    <tr><td>Gudang Tujuan</td><td>: <?= e($whInfo['dest']) ?></td></tr>
+                <?php endif; ?>
                 <?php if (!empty($note['sales_order_number'])): ?>
                     <tr><td>Ref. Order</td><td>: <?= e($note['sales_order_number']) ?></td></tr>
                     <tr><td>PO Customer</td><td>: <?= e($note['sales_order_po_number']) ?><?= !empty($note['sales_order_po_date']) ? ' (' . e(formatTanggal($note['sales_order_po_date'])) . ')' : '' ?></td></tr>

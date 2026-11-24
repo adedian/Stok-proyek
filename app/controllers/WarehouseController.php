@@ -165,6 +165,12 @@ class WarehouseController extends Controller
         $warehouse = $this->warehouseModel->find($id);
 
         if ($warehouse) {
+            // Gudang yang masih dipakai tidak boleh dihapus: stok tersisa, mutasi berjalan, atau gudang bawaan
+            // (Kas stok & stok lama bergantung padanya). Histori transaksi tetap utuh (hapus = soft delete).
+            if ($reason = $this->warehouseModel->deleteBlockReason($id)) {
+                setFlash('error', "Gudang '{$warehouse['warehouse_name']}' tidak bisa dihapus: {$reason}");
+                $this->redirect('warehouse', 'index');
+            }
             $this->warehouseModel->deleteById($id);
             $this->activityLog->log(currentUserId(), 'warehouse', 'delete', "Gudang '{$warehouse['warehouse_name']}' dihapus");
             setFlash('success', 'Gudang berhasil dihapus.');

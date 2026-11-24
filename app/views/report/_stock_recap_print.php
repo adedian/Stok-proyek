@@ -101,7 +101,7 @@ if (!function_exists('formatMoneyPrint')) {
             <tr>
                 <td class="end"><?= $i + 1 ?></td>
                 <td><?= e($r['item_code'] ?: '-') ?></td>
-                <td><?= e($r['item_name']) ?></td>
+                <td><?= e(stockReportItemLabel($r)) ?></td>
 
                 <td class="end"><?= formatQtyPrint($r['saldo_awal']) ?></td>
                 <td><?= e($r['unit']) ?></td>

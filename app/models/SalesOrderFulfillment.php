@@ -156,6 +156,7 @@ class SalesOrderFulfillment extends Model
                         'out_date'                   => $date,
                         'notes'                      => $notes,
                         'validation_status'          => StockOut::initialValidationStatus(null),
+                        'source_warehouse_id'        => !empty($bucket['warehouse_id']) ? (int) $bucket['warehouse_id'] : null,
                         'created_by'                 => $userId,
                     ]);
                     if ($docId === null) {

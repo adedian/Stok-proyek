@@ -1,7 +1,7 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h4 class="mb-0">Stok Barang</h4>
-        <small class="text-muted">Kartu stok realtime per project</small>
+        <small class="text-muted">Kartu stok realtime per project dan gudang</small>
     </div>
     <a href="<?= BASE_URL ?>/inventory/opnameIndex" class="btn btn-outline-primary">
         <i class="bi bi-clipboard-check"></i> Stok Opname
@@ -27,6 +27,15 @@
                 </select>
             </div>
             <div class="col-md-2">
+                <label class="form-label small text-muted mb-1">Gudang</label>
+                <select name="warehouse_id" class="form-select form-select-sm">
+                    <option value="">Semua Gudang</option>
+                    <?php foreach ($warehouses ?? [] as $w): ?>
+                        <option value="<?= (int) $w['id'] ?>" <?= (string) ($filters['warehouse_id'] ?? '') === (string) $w['id'] ? 'selected' : '' ?>><?= e($w['warehouse_name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-2">
                 <label class="form-label small text-muted mb-1">Jenis Stok</label>
                 <select name="stock_type" class="form-select form-select-sm">
                     <option value="">Semua</option>
@@ -43,7 +52,7 @@
                     <option value="empty" <?= $filters['stock_filter'] === 'empty' ? 'selected' : '' ?>>Stok Habis</option>
                 </select>
             </div>
-            <div class="col-md-3 d-flex gap-2">
+            <div class="col-md-1 d-flex gap-2">
                 <button type="submit" class="btn btn-sm btn-outline-primary w-100">
                     <i class="bi bi-search"></i> Filter
                 </button>
@@ -64,6 +73,7 @@
                         <th>Barang</th>
                         <th>Kategori</th>
                         <th>Project</th>
+                        <th>Gudang</th>
                         <th class="text-end">Stok Tersedia</th>
                         <th class="text-end">Stok Minimum</th>
                         <th class="text-center">Status</th>
@@ -72,7 +82,7 @@
                 </thead>
                 <tbody>
                     <?php if (empty($items)): ?>
-                        <tr><td colspan="7" class="p-0">
+                        <tr><td colspan="8" class="p-0">
                             <div class="empty-state">
                                 <i class="bi bi-clipboard-data empty-icon"></i>
                                 <div class="empty-title">Belum ada data stok</div>
@@ -105,6 +115,7 @@
                                     <?= e($item['project_name'] ?? '-') ?>
                                 <?php endif; ?>
                             </td>
+                            <td><?= e($item['warehouse_name'] ?? '-') ?></td>
                             <td class="text-end"><?= number_format($qty, 2, ',', '.') ?> <?= e($item['unit']) ?></td>
                             <td class="text-end"><?= number_format($min, 2, ',', '.') ?> <?= e($item['unit']) ?></td>
                             <td class="text-center"><span class="badge <?= $badge[0] ?>"><?= $badge[1] ?></span></td>

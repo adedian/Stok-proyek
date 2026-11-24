@@ -489,9 +489,10 @@ class SalesOrder extends Model
     public function stockBuckets(string $itemName): array
     {
         return $this->db->fetchAll(
-            "SELECT inv.id, inv.unit, inv.qty_available, inv.stock_scope, inv.project_id, p.project_name
+            "SELECT inv.id, inv.unit, inv.qty_available, inv.stock_scope, inv.project_id, p.project_name, wh.warehouse_name
                FROM inventory inv
                LEFT JOIN projects p ON p.id = inv.project_id
+               LEFT JOIN warehouses wh ON wh.id = inv.warehouse_id
               WHERE inv.item_name = :n AND inv.deleted_at IS NULL AND inv.qty_available > 0
               ORDER BY (inv.stock_scope = 'kantor') DESC, inv.qty_available DESC, inv.id ASC",
             ['n' => $itemName]

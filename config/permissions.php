@@ -89,6 +89,8 @@ return [
         'create' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT],
         'edit'   => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT],
         'delete' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE],
+        // Menerima mutasi barang antar gudang (Dalam Perjalanan -> Diterima): ikut role yang boleh menambah.
+        'receive_transfer' => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT],
     ],
 
     // Validasi Pengeluaran Barang -- SENGAJA cuma Super Admin di sini (tidak

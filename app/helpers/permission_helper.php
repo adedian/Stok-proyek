@@ -93,7 +93,7 @@ function permissionLabelMaps(): array
             'submit' => 'Ajukan (Submit)', 'reject' => 'Tolak', 'forward' => 'Teruskan ke Purwati/Nissa', 'purchase_process' => 'Proses Purchase (PO/Invoice/Dokumen)', 'export' => 'Export',
             'view_all' => 'Lihat Semua Project', 'view_all_purchase' => 'Lihat Semua Kas Purchase', 'print' => 'Cetak', 'admin_delete' => 'Hapus Administratif',
             'realize' => 'Tandai Direalisasikan', 'edit_saldo' => 'Edit Saldo Bank Manual',
-            'receive_any' => 'Terima Barang dari Semua PO', 'cancel' => 'Batalkan', 'process' => 'Proses Pemenuhan (Stok/Invoice/Surat Jalan)', 'reverse' => 'Koreksi Pemenuhan',
+            'receive_any' => 'Terima Barang dari Semua PO', 'receive_transfer' => 'Terima Mutasi Antar Gudang', 'cancel' => 'Batalkan', 'process' => 'Proses Pemenuhan (Stok/Invoice/Surat Jalan)', 'reverse' => 'Koreksi Pemenuhan',
         ],
     ];
 }

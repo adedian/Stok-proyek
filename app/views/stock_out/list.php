@@ -1,7 +1,7 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h4 class="mb-0">Pengeluaran Barang</h4>
-        <small class="text-muted">Daftar barang yang keluar dari gudang</small>
+        <small class="text-muted">Daftar barang yang keluar dari gudang, termasuk mutasi antar gudang</small>
     </div>
     <div class="d-flex gap-2">
         <a href="<?= BASE_URL ?>/delivery_note" class="btn btn-outline-secondary">
@@ -28,11 +28,11 @@
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
         <form method="GET" action="<?= BASE_URL ?>/stock_out" class="row g-2 align-items-end">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label small text-muted mb-1">Cari (Barang / Tujuan / PIC)</label>
                 <input type="text" name="keyword" class="form-control form-control-sm" value="<?= e($filters['keyword']) ?>" placeholder="ketik potongan kode / nama...">
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label small text-muted mb-1">Project</label>
                 <select name="project_id" class="form-select form-select-sm">
                     <option value="">Semua Project</option>
@@ -41,6 +41,24 @@
                             <?= e($p['project_name']) ?>
                         </option>
                     <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small text-muted mb-1">Gudang (asal / tujuan)</label>
+                <select name="warehouse_id" class="form-select form-select-sm">
+                    <option value="">Semua Gudang</option>
+                    <?php foreach ($warehouses ?? [] as $w): ?>
+                        <option value="<?= (int) $w['id'] ?>" <?= (string) ($filters['warehouse_id'] ?? '') === (string) $w['id'] ? 'selected' : '' ?>><?= e($w['warehouse_name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small text-muted mb-1">Jenis Tujuan</label>
+                <select name="destination_type" class="form-select form-select-sm">
+                    <option value="">Semua</option>
+                    <option value="project" <?= ($filters['destination_type'] ?? '') === 'project' ? 'selected' : '' ?>>Project</option>
+                    <option value="client" <?= ($filters['destination_type'] ?? '') === 'client' ? 'selected' : '' ?>>Client</option>
+                    <option value="gudang" <?= ($filters['destination_type'] ?? '') === 'gudang' ? 'selected' : '' ?>>Gudang (Mutasi)</option>
                 </select>
             </div>
             <div class="col-md-2">
@@ -110,6 +128,7 @@
                         <th class="so-barang">Barang</th>
                         <th class="text-end so-nw">Qty</th>
                         <th class="so-proj">Project / Client</th>
+                        <th class="so-nw">Gudang</th>
                         <th class="so-tujuan">Tujuan</th>
                         <th class="so-nw">PIC</th>
                         <th class="so-nw">Surat Jalan</th>
@@ -119,7 +138,7 @@
                 </thead>
                 <tbody>
                     <?php if (empty($stockOuts)): ?>
-                        <tr><td colspan="10" class="p-0">
+                        <tr><td colspan="11" class="p-0">
                             <div class="empty-state">
                                 <i class="bi bi-box-arrow-up empty-icon"></i>
                                 <div class="empty-title">Belum ada pengeluaran barang</div>
@@ -159,7 +178,9 @@
                             <td class="so-barang"><?= e($so['item_name']) ?></td>
                             <td class="text-end so-nw"><?= number_format((float) $so['qty'], 2, ',', '.') ?> <?= e($so['unit']) ?></td>
                             <td>
-                                <?php if ($so['destination_type'] === 'client'): ?>
+                                <?php if ($so['destination_type'] === 'gudang'): ?>
+                                    <span class="badge text-bg-primary">Mutasi Gudang</span>
+                                <?php elseif ($so['destination_type'] === 'client'): ?>
                                     <span class="badge text-bg-info text-dark"><?= e($so['client_name'] ?? '-') ?></span>
                                     <?php if (!empty($so['sales_order_number'])): ?>
                                         <div class="text-muted small">
@@ -171,6 +192,15 @@
                                     <?php endif; ?>
                                 <?php else: ?>
                                     <?= e($so['project_name']) ?>
+                                <?php endif; ?>
+                            </td>
+                            <td class="so-nw">
+                                <?php if (($so['destination_type'] ?? '') === 'gudang'): ?>
+                                    <div><?= e($so['source_warehouse_name'] ?? '-') ?> <i class="bi bi-arrow-right"></i> <?= e($so['dest_warehouse_name'] ?? '-') ?></div>
+                                    <?php $soTsBadge = ['dalam_perjalanan' => 'warning text-dark', 'diterima' => 'success', 'dibatalkan' => 'secondary'][$so['transfer_status'] ?? ''] ?? 'secondary'; ?>
+                                    <span class="badge bg-<?= $soTsBadge ?>"><?= e(StockOut::transferStatusLabel($so['transfer_status'] ?? null)) ?></span>
+                                <?php else: ?>
+                                    <?= e($so['source_warehouse_name'] ?? '-') ?>
                                 <?php endif; ?>
                             </td>
                             <td class="so-tujuan"><?= e($so['destination']) ?></td>
@@ -194,7 +224,7 @@
                             </td>
                             <td class="text-center">
                                 <?php $soCanEditDn = !empty($so['delivery_note_id']) && can('delivery_note', 'edit'); ?>
-                                <?php if (can('stock_out', 'edit') || can('stock_out', 'delete') || $soCanEditDn): ?>
+                                <?php if (can('stock_out', 'edit') || can('stock_out', 'delete') || can('stock_out', 'receive_transfer') || $soCanEditDn): ?>
                                 <div class="dropdown row-actions">
                                     <button type="button" class="btn btn-row-actions" data-bs-toggle="dropdown" aria-expanded="false" title="Aksi">
                                         <i class="bi bi-three-dots-vertical"></i>
@@ -215,6 +245,19 @@
                                             </a>
                                         </li>
                                         <?php endif; ?>
+                                        <?php $soIsTransfer = ($so['destination_type'] ?? '') === 'gudang'; $soTs = (string) ($so['transfer_status'] ?? ''); ?>
+                                        <?php if ($soIsTransfer && $soTs === 'dalam_perjalanan' && can('stock_out', 'receive_transfer')): ?>
+                                        <li>
+                                            <form method="POST" action="<?= BASE_URL ?>/index.php?module=stock_out&action=receiveTransfer"
+                                                  onsubmit="return confirm('Terima mutasi ini? Stok gudang tujuan akan bertambah dan tidak bisa diterima dua kali.');">
+                                                <?= csrfField() ?>
+                                                <input type="hidden" name="id" value="<?= (int) $so['id'] ?>">
+                                                <button type="submit" class="dropdown-item text-success">
+                                                    <i class="bi bi-box-arrow-in-down"></i> Terima di Gudang Tujuan
+                                                </button>
+                                            </form>
+                                        </li>
+                                        <?php endif; ?>
                                         <?php if (!empty($so['sales_order_id'])): ?>
                                         <li><span class="dropdown-item-text text-muted small"><i class="bi bi-lock-fill"></i> Dari Order Penjualan &mdash; koreksi lewat order</span></li>
                                         <?php elseif ($soLocked): ?>
@@ -222,14 +265,25 @@
                                         <?php elseif (isPeriodClosed('stock_out', $so['out_date'])): ?>
                                         <li><span class="dropdown-item-text text-muted small"><i class="bi bi-lock-fill"></i> Periode ditutup</span></li>
                                         <?php else: ?>
-                                        <?php if (can('stock_out', 'edit')): ?>
+                                        <?php if (can('stock_out', 'edit') && (!$soIsTransfer || $soTs === 'dalam_perjalanan')): ?>
                                         <li>
                                             <a class="dropdown-item" href="<?= BASE_URL ?>/stock_out/edit/<?= (int) $so['id'] ?>">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
                                         </li>
                                         <?php endif; ?>
-                                        <?php if (can('stock_out', 'delete')): ?>
+                                        <?php if ($soIsTransfer && $soTs !== 'dibatalkan' && can('stock_out', 'delete')): ?>
+                                        <li>
+                                            <form method="POST" action="<?= BASE_URL ?>/index.php?module=stock_out&action=cancelTransfer"
+                                                  onsubmit="return confirm('Batalkan mutasi ini? Stok akan dikoreksi (dikembalikan ke gudang asal). Riwayat tetap tersimpan.');">
+                                                <?= csrfField() ?>
+                                                <input type="hidden" name="id" value="<?= (int) $so['id'] ?>">
+                                                <button type="submit" class="dropdown-item text-danger">
+                                                    <i class="bi bi-x-octagon"></i> Batalkan Mutasi
+                                                </button>
+                                            </form>
+                                        </li>
+                                        <?php elseif (can('stock_out', 'delete') && (!$soIsTransfer || $soTs === 'dibatalkan')): ?>
                                         <li>
                                             <form method="POST" action="<?= BASE_URL ?>/index.php?module=stock_out&action=delete"
                                                   onsubmit="return confirm('Yakin ingin menghapus pengeluaran barang ini? Stok akan dikembalikan.');">

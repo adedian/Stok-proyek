@@ -1,7 +1,7 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h4 class="mb-0">Kartu Stok - <?= e($item['item_name']) ?></h4>
-        <small class="text-muted"><?= e($item['project_name']) ?> &middot; Satuan: <?= e($item['unit']) ?></small>
+        <small class="text-muted"><?= e($item['project_name'] ?? 'Stok Kantor') ?> &middot; Gudang: <strong><?= e($item['warehouse_name'] ?? '-') ?></strong> &middot; Satuan: <?= e($item['unit']) ?></small>
     </div>
     <a href="<?= BASE_URL ?>/inventory" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Kembali
@@ -52,6 +52,7 @@
                             'goods_receipt'            => 'Penerimaan Barang',
                             'goods_receipt_validation' => 'Validasi Penerimaan',
                             'stock_out'                => 'Pengeluaran Barang',
+                            'stock_transfer_in'        => 'Mutasi Masuk (Terima Antar Gudang)',
                             'stock_opname'             => 'Stok Opname',
                             'stock_opname_delete'      => 'Hapus Stok Opname',
                             'kas'                      => 'Kas',

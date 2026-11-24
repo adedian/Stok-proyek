@@ -123,6 +123,8 @@
         <div class="gr-print-meta">
             <table>
                 <tr><td>Tanggal Datang</td><td>: <?= formatTanggal($receipt['receipt_date']) ?></td></tr>
+                <?php if (!empty($receipt['warehouse_name'])): ?><tr><td>Diterima di</td><td>: <?= e($receipt['warehouse_name']) ?></td></tr><?php endif; ?>
+                <?php if (!empty($receipt['sent_from_warehouse_name'])): ?><tr><td>Dikirim dari</td><td>: <?= e($receipt['sent_from_warehouse_name']) ?></td></tr><?php endif; ?>
                 <?php if ($receipt['receipt_type'] === 'pemakai'): ?>
                     <tr><td>Sumber</td><td>: <?= e($receipt['source_detail'] ?? '-') ?> (Pemakai/Internal)</td></tr>
                     <tr><td>Kategori Stok</td><td>: <?= $receipt['stock_scope'] === 'kantor' ? 'Stok Kantor' : 'Stok Proyek' ?></td></tr>

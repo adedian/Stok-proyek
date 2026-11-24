@@ -45,6 +45,16 @@
                             <?php endif; ?>
                         </div>
                     </div>
+                    <div class="col-md-4">
+                        <div class="text-muted small">Barang Diterima di</div>
+                        <div class="fw-semibold"><?= e($receipt['warehouse_name'] ?? '-') ?></div>
+                    </div>
+                    <?php if (!empty($receipt['sent_from_warehouse_name'])): ?>
+                    <div class="col-md-4">
+                        <div class="text-muted small">Barang Dikirim dari Gudang</div>
+                        <div class="fw-semibold"><?= e($receipt['sent_from_warehouse_name']) ?></div>
+                    </div>
+                    <?php endif; ?>
                     <?php if ($receipt['receipt_type'] === 'pemakai'): ?>
                         <div class="col-md-4">
                             <div class="text-muted small">Nama Pemakai/Departemen</div>

@@ -14,9 +14,10 @@ class StockOpnameItem extends Model
      */
     public function itemsByOpname(int $opnameId): array
     {
-        $sql = "SELECT soi.*, inv.item_name, inv.unit, inv.deleted_at AS inventory_deleted_at
+        $sql = "SELECT soi.*, inv.item_name, inv.unit, inv.deleted_at AS inventory_deleted_at, wh.warehouse_name
                 FROM stock_opname_items soi
                 JOIN inventory inv ON inv.id = soi.inventory_id
+                LEFT JOIN warehouses wh ON wh.id = inv.warehouse_id
                 WHERE soi.stock_opname_id = :opname_id
                 ORDER BY inv.item_name ASC";
         return $this->db->fetchAll($sql, ['opname_id' => $opnameId]);

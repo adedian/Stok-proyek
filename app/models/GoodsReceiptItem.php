@@ -447,7 +447,7 @@ class GoodsReceiptItem extends Model
         if (!in_array($sourceColumn, ['purchase_order_id', 'offline_purchase_id'], true)) {
             throw new InvalidArgumentException('Sumber penerimaan tidak dikenal.');
         }
-        $sql = "SELECT gri.id, gri.qty_received, gr.id AS goods_receipt_id, gr.receipt_number, gr.stock_scope,
+        $sql = "SELECT gri.id, gri.qty_received, gr.id AS goods_receipt_id, gr.receipt_number, gr.stock_scope, gr.warehouse_id,
                        COALESCE(gri.actual_item_name, poi.item_name, opi.item_name) AS item_name,
                        COALESCE(gri.actual_unit, poi.unit, opi.unit) AS unit
                 FROM goods_receipt_items gri
@@ -471,7 +471,7 @@ class GoodsReceiptItem extends Model
         $sql = "SELECT gri.*,
                        COALESCE(gri.actual_item_name, poi.item_name, opi.item_name) AS item_name,
                        COALESCE(gri.actual_unit, poi.unit, opi.unit) AS unit,
-                       gr.receipt_number, gr.receipt_type, gr.stock_scope, gr.stock_type, gr.receipt_date,
+                       gr.receipt_number, gr.receipt_type, gr.stock_scope, gr.stock_type, gr.warehouse_id, gr.receipt_date,
                        gr.created_by AS receipt_created_by, po.receiver_user_id AS po_receiver_user_id,
                        gr.deleted_at AS receipt_deleted_at,
                        COALESCE(gr.project_id, po.project_id, op.project_id) AS project_id,

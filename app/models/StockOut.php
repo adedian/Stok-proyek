@@ -23,9 +23,12 @@ class StockOut extends Model
         // tujuan Client (destination_type='client'), lihat sales_invoice_id/clients.
         $sql = "SELECT so.*, inv.item_name, inv.unit, p.project_name, dn.delivery_number,
                        si.invoice_number, COALESCE(c.client_name, soc.client_name) AS client_name,
-                       sord.order_number AS sales_order_number, sord.po_number AS sales_order_po_number
+                       sord.order_number AS sales_order_number, sord.po_number AS sales_order_po_number,
+                       swh.warehouse_name AS source_warehouse_name, dwh.warehouse_name AS dest_warehouse_name
                 FROM stock_out so
                 JOIN inventory inv ON inv.id = so.inventory_id
+                LEFT JOIN warehouses swh ON swh.id = so.source_warehouse_id
+                LEFT JOIN warehouses dwh ON dwh.id = so.dest_warehouse_id
                 LEFT JOIN projects p ON p.id = so.project_id
                 LEFT JOIN sales_invoices si ON si.id = so.sales_invoice_id
                 LEFT JOIN clients c ON c.id = si.client_id
@@ -38,6 +41,16 @@ class StockOut extends Model
         if (!empty($filters['project_id'])) {
             $sql .= " AND so.project_id = :project_id";
             $params['project_id'] = $filters['project_id'];
+        }
+        if (!empty($filters['warehouse_id'])) {
+            // Gudang asal ATAU gudang tujuan (riwayat mutasi + pengeluaran dari gudang tsb).
+            $sql .= " AND (so.source_warehouse_id = :wh_src OR so.dest_warehouse_id = :wh_dst)";
+            $params['wh_src'] = (int) $filters['warehouse_id'];
+            $params['wh_dst'] = (int) $filters['warehouse_id'];
+        }
+        if (!empty($filters['destination_type']) && in_array($filters['destination_type'], ['project', 'client', 'gudang'], true)) {
+            $sql .= " AND so.destination_type = :dest_type";
+            $params['dest_type'] = $filters['destination_type'];
         }
         if (!empty($filters['keyword'])) {
             [$ssSql, $ssParams] = SmartSearch::clause(
@@ -73,11 +86,40 @@ class StockOut extends Model
     public function documentRows(int $documentId): array
     {
         return $this->db->fetchAll(
-            "SELECT so.*, inv.item_name, inv.unit, inv.qty_available
+            "SELECT so.*, inv.item_name, inv.unit, inv.qty_available, inv.project_id AS inv_project_id,
+                    inv.stock_scope AS inv_stock_scope, inv.stock_type AS inv_stock_type, inv.warehouse_id AS inv_warehouse_id,
+                    swh.warehouse_name AS source_warehouse_name, dwh.warehouse_name AS dest_warehouse_name
+               FROM stock_out so
+               JOIN inventory inv ON inv.id = so.inventory_id
+               LEFT JOIN warehouses swh ON swh.id = so.source_warehouse_id
+               LEFT JOIN warehouses dwh ON dwh.id = so.dest_warehouse_id
+              WHERE COALESCE(so.document_id, so.id) = :d AND so.deleted_at IS NULL
+              ORDER BY so.id ASC",
+            ['d' => $documentId]
+        );
+    }
+
+    /** Label status mutasi antar gudang (stock_out.transfer_status). */
+    public static function transferStatusLabel(?string $status): string
+    {
+        return [
+            'dalam_perjalanan' => 'Dalam Perjalanan',
+            'diterima'         => 'Diterima',
+            'dibatalkan'       => 'Dibatalkan',
+        ][(string) $status] ?? '-';
+    }
+
+    /** Baris dokumen yang dikunci (FOR UPDATE) -- dipakai Terima/Batalkan mutasi agar tidak diproses dobel. */
+    public function documentRowsForUpdate(int $documentId): array
+    {
+        return $this->db->fetchAll(
+            "SELECT so.*, inv.item_name, inv.unit, inv.project_id AS inv_project_id,
+                    inv.stock_scope AS inv_stock_scope, inv.stock_type AS inv_stock_type
                FROM stock_out so
                JOIN inventory inv ON inv.id = so.inventory_id
               WHERE COALESCE(so.document_id, so.id) = :d AND so.deleted_at IS NULL
-              ORDER BY so.id ASC",
+              ORDER BY so.id ASC
+              FOR UPDATE",
             ['d' => $documentId]
         );
     }
@@ -85,9 +127,12 @@ class StockOut extends Model
     public function findWithRelations(int $id)
     {
         $sql = "SELECT so.*, inv.item_name, inv.unit, inv.qty_available, p.project_name,
-                       si.invoice_number, c.client_name
+                       si.invoice_number, c.client_name,
+                       swh.warehouse_name AS source_warehouse_name, dwh.warehouse_name AS dest_warehouse_name
                 FROM stock_out so
                 JOIN inventory inv ON inv.id = so.inventory_id
+                LEFT JOIN warehouses swh ON swh.id = so.source_warehouse_id
+                LEFT JOIN warehouses dwh ON dwh.id = so.dest_warehouse_id
                 LEFT JOIN projects p ON p.id = so.project_id
                 LEFT JOIN sales_invoices si ON si.id = so.sales_invoice_id
                 LEFT JOIN clients c ON c.id = si.client_id

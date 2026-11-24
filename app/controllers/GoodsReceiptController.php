@@ -13,6 +13,7 @@ require_once ROOT_PATH . '/app/models/ActivityLog.php';
 require_once ROOT_PATH . '/app/models/Unit.php';
 require_once ROOT_PATH . '/app/models/Item.php';
 require_once ROOT_PATH . '/app/models/Signature.php';
+require_once ROOT_PATH . '/app/models/Warehouse.php';
 
 class GoodsReceiptController extends Controller
 {
@@ -30,6 +31,7 @@ class GoodsReceiptController extends Controller
     private Unit $unitModel;
     private Item $itemModel;
     private Signature $signatureModel;
+    private Warehouse $warehouseModel;
 
     public function __construct()
     {
@@ -47,6 +49,7 @@ class GoodsReceiptController extends Controller
         $this->unitModel        = new Unit();
         $this->itemModel        = new Item();
         $this->signatureModel   = new Signature();
+        $this->warehouseModel   = new Warehouse();
     }
 
     public function index()
@@ -156,6 +159,8 @@ class GoodsReceiptController extends Controller
             'projects'       => $this->projectModel->activeList(),
             'units'          => $this->unitModel->activeList(),
             'itemCatalog'    => $this->itemModel->activeList(),
+            'warehouses'     => $this->warehouseModel->activeList(),
+            'sentFromWarehouses' => $this->warehouseModel->activeList(),
             'mismatchItems'  => [],
             'documents'      => [],
         ]);
@@ -222,6 +227,8 @@ class GoodsReceiptController extends Controller
                 'receipt_type'      => $data['receipt_type'],
                 'stock_scope'       => $data['stock_scope'],
                 'stock_type'        => $data['stock_type'],
+                'warehouse_id'      => $data['warehouse_id'],
+                'sent_from_warehouse_id' => $data['sent_from_warehouse_id'] ?: null,
                 'project_id'        => $data['project_id'] ?: null,
                 'source_detail'     => $data['source_detail'],
                 'receipt_number'    => $this->receiptModel->generateReceiptNumber(),
@@ -385,6 +392,8 @@ class GoodsReceiptController extends Controller
             'projects'       => $this->projectModel->activeList(),
             'units'          => $this->unitModel->activeList(),
             'itemCatalog'    => $this->itemModel->activeList(),
+            'warehouses'     => $this->warehousesForReceipt((int) ($receipt['warehouse_id'] ?? 0)),
+            'sentFromWarehouses' => $this->warehousesForReceipt((int) ($receipt['sent_from_warehouse_id'] ?? 0)),
             'mismatchItems'  => $mismatchItems,
             'pemakaiItems'   => $pemakaiItems,
             'documents'      => $this->documentModel->byReceipt($id),
@@ -475,11 +484,15 @@ class GoodsReceiptController extends Controller
                     'goods_receipt',
                     $id,
                     currentUserId(),
-                    $existing['stock_scope']
+                    $existing['stock_scope'],
+                    'Koreksi otomatis karena penerimaan barang terkait diedit/dihapus',
+                    !empty($existing['warehouse_id']) ? (int) $existing['warehouse_id'] : null
                 );
             }
 
             $updateData = [
+                'warehouse_id'  => $data['warehouse_id'],
+                'sent_from_warehouse_id' => $data['sent_from_warehouse_id'] ?: null,
                 'receipt_date'  => $data['receipt_date'],
                 'receiver_name' => $data['receiver_name'],
                 'notes'         => $data['notes'],
@@ -653,7 +666,9 @@ class GoodsReceiptController extends Controller
                     'goods_receipt',
                     $id,
                     currentUserId(),
-                    $receipt['stock_scope'] ?? 'proyek'
+                    $receipt['stock_scope'] ?? 'proyek',
+                    'Koreksi otomatis karena penerimaan barang terkait diedit/dihapus',
+                    !empty($receipt['warehouse_id']) ? (int) $receipt['warehouse_id'] : null
                 );
             }
 
@@ -871,6 +886,67 @@ class GoodsReceiptController extends Controller
         }
     }
 
+    /** Gudang aktif untuk dropdown; di Edit, gudang tersimpan tetap muncul walau sudah dinonaktifkan. */
+    private function warehousesForReceipt(int $currentId): array
+    {
+        $list = $this->warehouseModel->activeList();
+        if ($currentId > 0 && !in_array($currentId, array_map('intval', array_column($list, 'id')), true)) {
+            $cur = $this->warehouseModel->find($currentId);
+            if ($cur) {
+                $list[] = $cur;
+            }
+        }
+        return $list;
+    }
+
+    /**
+     * "Barang Diterima di" wajib: gudang harus ada & aktif. Pada Edit, gudang yang sudah tersimpan
+     * di penerimaan ini boleh tetap dipakai walau kini nonaktif (hanya transaksi BARU yang dibatasi).
+     */
+    private function validateWarehouse(int $warehouseId, ?int $excludeReceiptId): array
+    {
+        if ($warehouseId <= 0) {
+            return ['Gudang penerimaan ("Barang Diterima di") wajib dipilih.'];
+        }
+        $wh = $this->warehouseModel->find($warehouseId);
+        if (!$wh) {
+            return ['Gudang penerimaan tidak valid.'];
+        }
+        if (($wh['status'] ?? 'active') !== 'active') {
+            $stored = $excludeReceiptId ? $this->receiptModel->find($excludeReceiptId) : null;
+            if (!$stored || (int) ($stored['warehouse_id'] ?? 0) !== $warehouseId) {
+                return ['Gudang "' . $wh['warehouse_name'] . '" tidak aktif sehingga tidak bisa dipilih untuk transaksi baru.'];
+            }
+        }
+        return [];
+    }
+
+    /**
+     * "Barang Dikirim dari Gudang" -- OPSIONAL (barang dari supplier tidak berasal dari gudang sendiri) dan
+     * hanya CATATAN: tidak memengaruhi stok. Bila diisi: gudang harus ada, aktif (kecuali sudah tersimpan
+     * di penerimaan ini), dan tidak boleh sama dengan gudang penerima.
+     */
+    private function validateSentFromWarehouse(int $sentFromId, int $receivedWarehouseId, ?int $excludeReceiptId): array
+    {
+        if ($sentFromId <= 0) {
+            return [];
+        }
+        $wh = $this->warehouseModel->find($sentFromId);
+        if (!$wh) {
+            return ['Gudang pengirim ("Dikirim dari Gudang") tidak valid.'];
+        }
+        if ($sentFromId === $receivedWarehouseId) {
+            return ['Gudang pengirim tidak boleh sama dengan gudang penerima ("Barang Diterima di").'];
+        }
+        if (($wh['status'] ?? 'active') !== 'active') {
+            $stored = $excludeReceiptId ? $this->receiptModel->find($excludeReceiptId) : null;
+            if (!$stored || (int) ($stored['sent_from_warehouse_id'] ?? 0) !== $sentFromId) {
+                return ['Gudang pengirim "' . $wh['warehouse_name'] . '" tidak aktif sehingga tidak bisa dipilih untuk transaksi baru.'];
+            }
+        }
+        return [];
+    }
+
     private function collectInput(): array
     {
         $receiptType = $_POST['receipt_type'] ?? 'purchase_order';
@@ -919,6 +995,8 @@ class GoodsReceiptController extends Controller
             'receipt_type'      => $receiptType,
             'stock_scope'       => $stockScope,
             'stock_type'        => $stockType,
+            'warehouse_id'      => (int) ($_POST['warehouse_id'] ?? 0),
+            'sent_from_warehouse_id' => (int) ($_POST['sent_from_warehouse_id'] ?? 0),
             'project_id'        => $projectId,
             'source_detail'     => trim($_POST['source_detail'] ?? ''),
             'receipt_date'      => $_POST['receipt_date'] ?? '',
@@ -1035,6 +1113,8 @@ class GoodsReceiptController extends Controller
         if ($data['receiver_name'] === '') {
             $errors[] = 'Nama penerima wajib diisi.';
         }
+        $errors = array_merge($errors, $this->validateWarehouse((int) $data['warehouse_id'], $excludeReceiptId));
+        $errors = array_merge($errors, $this->validateSentFromWarehouse((int) $data['sent_from_warehouse_id'], (int) $data['warehouse_id'], $excludeReceiptId));
 
         if ($data['receipt_type'] === 'purchase_order') {
             if ($data['purchase_order_id'] <= 0) {

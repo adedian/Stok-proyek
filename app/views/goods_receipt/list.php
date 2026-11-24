@@ -67,6 +67,7 @@
                         <th>Pembuat PO</th>
                         <th>Supplier / Pemakai</th>
                         <th>Tanggal</th>
+                        <th>Gudang</th>
                         <th>Nama Penerima</th>
                         <th class="text-center">Foto</th>
                         <th class="text-center">Aksi</th>
@@ -74,7 +75,7 @@
                 </thead>
                 <tbody>
                     <?php if (empty($receipts)): ?>
-                        <tr><td colspan="9" class="p-0">
+                        <tr><td colspan="10" class="p-0">
                             <div class="empty-state">
                                 <i class="bi bi-box-seam empty-icon"></i>
                                 <div class="empty-title">Belum ada penerimaan barang</div>
@@ -109,6 +110,7 @@
                             <td><?= e($r['pembuat_po'] ?? '-') ?></td>
                             <td><?= e($r['supplier_name']) ?></td>
                             <td><?= formatTanggal($r['receipt_date']) ?></td>
+                            <td><?= e($r['warehouse_name'] ?? '-') ?><?php if (!empty($r['sent_from_warehouse_name'])): ?><div class="text-muted small">dari: <?= e($r['sent_from_warehouse_name']) ?></div><?php endif; ?></td>
                             <td><?= e($r['received_by_name'] ?? '-') ?></td>
                             <td class="text-center">
                                 <?php if (!empty($r['photo_goods'])): ?>

@@ -110,7 +110,7 @@ $colspanSummary = $showPrice ? 16 : 10;
                 <td><?= formatTanggal(substr((string) $line['transaction_date'], 0, 10)) ?></td>
                 <td><?= e($line['no_bukti']) ?></td>
                 <td><?= e($g['item_code'] ?: '-') ?></td>
-                <td><?= e($g['item_name']) ?></td>
+                <td><?= e(stockReportItemLabel($g)) ?></td>
 
                 <td class="end"><?= formatQtyPrint($line['saldo_awal']) ?></td>
                 <td><?= e($g['unit']) ?></td>

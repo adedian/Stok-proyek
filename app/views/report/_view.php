@@ -194,6 +194,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
             <?php endif; ?>
 
+            <?php if (!empty($filterForm['warehouse']) && is_array($filterForm['warehouse'])): ?>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted mb-1">Gudang</label>
+                    <select name="warehouse_id" class="form-select form-select-sm">
+                        <option value="">Semua Gudang</option>
+                        <?php foreach ($filterForm['warehouse'] as $w): ?>
+                            <option value="<?= (int) $w['id'] ?>" <?= (string) ($filters['warehouseId'] ?? '') === (string) $w['id'] ? 'selected' : '' ?>><?= e($w['warehouse_name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            <?php endif; ?>
+
             <?php if (!empty($filterForm['priceMode'])): ?>
                 <div class="col-md-2">
                     <label class="form-label small text-muted mb-1">Harga</label>

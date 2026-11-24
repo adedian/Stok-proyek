@@ -88,7 +88,7 @@ $openLines = array_values(array_filter($items, fn($it) => (float) $it['remaining
                                             <option value="0" data-qty="<?= e($stock) ?>">Otomatis (Stok Kantor dulu, lalu terbanyak)</option>
                                             <?php foreach ($bk as $b): ?>
                                                 <option value="<?= (int) $b['id'] ?>" data-qty="<?= e($b['qty_available']) ?>">
-                                                    <?= $b['stock_scope'] === 'kantor' ? 'Stok Kantor' : e($b['project_name'] ?: 'Stok Proyek') ?> &mdash; <?= e($fq($b['qty_available'])) ?> <?= e($b['unit']) ?>
+                                                    <?= $b['stock_scope'] === 'kantor' ? 'Stok Kantor' : e($b['project_name'] ?: 'Stok Proyek') ?><?= !empty($b['warehouse_name']) ? ' @ ' . e($b['warehouse_name']) : '' ?> &mdash; <?= e($fq($b['qty_available'])) ?> <?= e($b['unit']) ?>
                                                 </option>
                                             <?php endforeach; ?>
                                         </select>

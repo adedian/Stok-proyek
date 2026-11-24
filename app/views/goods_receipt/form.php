@@ -148,12 +148,32 @@ $hideUnlessType = function (string $type) use ($isEdit, $receiptType): string {
                     <input type="date" name="receipt_date" <?= !$isEdit ? BackDate::minAttr('goods_receipt') : '' ?> class="form-control"
                            value="<?= e($receipt['receipt_date'] ?? date('Y-m-d')) ?>" required>
                 </div>
+                <div class="col-md-5">
+                    <label class="form-label">Barang Diterima di <span class="text-danger">*</span></label>
+                    <select name="warehouse_id" id="warehouseSelect" class="form-select" required>
+                        <option value="">-- Pilih Gudang --</option>
+                        <?php foreach ($warehouses ?? [] as $w): ?>
+                            <option value="<?= (int) $w['id'] ?>" <?= (string) ($receipt['warehouse_id'] ?? '') === (string) $w['id'] ? 'selected' : '' ?>><?= e($w['warehouse_name']) ?><?= ($w['status'] ?? 'active') !== 'active' ? ' (nonaktif)' : '' ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <div class="form-text">Stok masuk ke gudang ini saat barang divalidasi.</div>
+                </div>
                 <div class="col-md-4">
                     <label class="form-label">Nama Penerima <span class="text-danger">*</span></label>
                     <input type="text" name="receiver_name" id="receiverNameInput" class="form-control"
                            value="<?= e($receipt['received_by_name'] ?? '') ?>" required
                            <?= ($isEdit && ($receipt['receipt_type'] ?? '') === 'purchase_order') ? 'readonly' : '' ?>>
                     <div class="form-text" id="receiverNameHelp">Nama orang yang secara langsung menerima barang (boleh bukan pengguna sistem).</div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Barang Dikirim dari Gudang <span class="text-muted small">(opsional)</span></label>
+                    <select name="sent_from_warehouse_id" id="sentFromWarehouseSelect" class="form-select">
+                        <option value="">-- Tidak dari gudang sendiri / tidak diketahui --</option>
+                        <?php foreach ($sentFromWarehouses ?? ($warehouses ?? []) as $w): ?>
+                            <option value="<?= (int) $w['id'] ?>" <?= (string) ($receipt['sent_from_warehouse_id'] ?? '') === (string) $w['id'] ? 'selected' : '' ?>><?= e($w['warehouse_name']) ?><?= ($w['status'] ?? 'active') !== 'active' ? ' (nonaktif)' : '' ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <div class="form-text">Catatan asal pengiriman saja &mdash; tidak mengubah stok. Untuk memindahkan stok antar gudang gunakan Pengeluaran Barang &rarr; Gudang.</div>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Foto Barang</label>

@@ -369,7 +369,7 @@ function streamStockDetailExcel(array $groups, string $companyName, string $peri
             $sheet->setCellValue('A' . $row, formatTanggal(substr((string) $line['transaction_date'], 0, 10)));
             $sheet->setCellValue('B' . $row, $line['no_bukti'] !== '' ? $line['no_bukti'] : '-');
             $sheet->setCellValue('C' . $row, $g['item_code'] ?: '-');
-            $sheet->setCellValue('D' . $row, $g['item_name']);
+            $sheet->setCellValue('D' . $row, stockReportItemLabel($g));
 
             _stockExcelQty($sheet, $C['sa_1'] . $row, $line['saldo_awal']);
             $sheet->setCellValue($C['sa_2'] . $row, $g['unit']);
@@ -717,7 +717,7 @@ function streamStockRecapExcel(array $rows, string $companyName, string $periodT
         $sheet->setCellValue('A' . $row, $i + 1);
         $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $sheet->setCellValue('B' . $row, $r['item_code'] ?: '-');
-        $sheet->setCellValue('C' . $row, $r['item_name']);
+        $sheet->setCellValue('C' . $row, stockReportItemLabel($r));
 
         _stockExcelQty($sheet, $C['sa_1'] . $row, $r['saldo_awal']);
         $sheet->setCellValue($C['sa_2'] . $row, $r['unit']);
@@ -807,7 +807,7 @@ function streamStockAvailableExcel(array $rows, string $companyName, string $fil
         $sheet->setCellValue('A' . $row, $i + 1);
         $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $sheet->setCellValue('B' . $row, $r['item_code'] ?: '-');
-        $sheet->setCellValue('C' . $row, $r['item_name']);
+        $sheet->setCellValue('C' . $row, stockReportItemLabel($r));
         _stockExcelQty($sheet, 'D' . $row, $r['saldo_akhir']);
         $sheet->setCellValue('E' . $row, $r['unit']);
         $row++;

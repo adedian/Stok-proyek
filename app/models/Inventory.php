@@ -38,12 +38,16 @@ class Inventory extends Model
      * Item dianggap "sama" kalau nama & satuan identik dalam project & scope yang sama.
      * $projectId NULL dipakai untuk bucket stok Kantor (tidak terikat project manapun).
      */
-    public function findByItemProject(string $itemName, string $unit, ?int $projectId, string $stockScope = 'proyek')
+    public function findByItemProject(string $itemName, string $unit, ?int $projectId, string $stockScope = 'proyek', ?int $warehouseId = null)
     {
         $sql = "SELECT * FROM inventory
                  WHERE item_name = :item_name AND unit = :unit AND stock_scope = :stock_scope
+                   AND warehouse_id = :warehouse_id
                    AND deleted_at IS NULL";
-        $params = ['item_name' => $itemName, 'unit' => $unit, 'stock_scope' => $stockScope];
+        $params = [
+            'item_name' => $itemName, 'unit' => $unit, 'stock_scope' => $stockScope,
+            'warehouse_id' => $this->resolveWarehouseId($warehouseId),
+        ];
 
         if ($projectId === null) {
             $sql .= " AND project_id IS NULL";
@@ -57,8 +61,32 @@ class Inventory extends Model
     }
 
     /**
+     * Gudang bawaan (Pengaturan `stock.default_warehouse_id`, diisi migrasi multi gudang):
+     * dipakai stok lama & jalur yang tidak memilih gudang (mis. Kas stok).
+     */
+    public function defaultWarehouseId(): int
+    {
+        static $cache = null;
+        if ($cache === null) {
+            require_once ROOT_PATH . '/app/models/SystemSetting.php';
+            $cache = (int) (new SystemSetting())->get('stock.default_warehouse_id', '0');
+        }
+        if ($cache <= 0) {
+            throw new RuntimeException('Gudang bawaan stok belum diatur (jalankan migrasi multi gudang).');
+        }
+        return $cache;
+    }
+
+    /** NULL -> gudang bawaan; selain itu dipakai apa adanya. */
+    private function resolveWarehouseId(?int $warehouseId): int
+    {
+        return ($warehouseId !== null && $warehouseId > 0) ? $warehouseId : $this->defaultWarehouseId();
+    }
+
+    /**
      * Tambah stok masuk (dari penerimaan barang) + catat ke kartu stok (stock_transactions).
-     * Kalau item belum ada di inventory project/scope tsb, otomatis dibuatkan barisnya.
+     * Kalau item belum ada di inventory project/scope/gudang tsb, otomatis dibuatkan barisnya.
+     * Mengembalikan id baris inventory yang dikredit.
      */
     public function creditStock(
         string $itemName,
@@ -71,11 +99,13 @@ class Inventory extends Model
         ?int $userId,
         string $stockScope = 'proyek',
         string $stockType = 'stok_proyek',
-        string $notes = ''
-    ): void {
+        string $notes = '',
+        ?int $warehouseId = null
+    ): int {
         if ($qty <= 0) {
-            return;
+            return 0;
         }
+        $warehouseId = $this->resolveWarehouseId($warehouseId);
 
         // "Stok Proyek" HANYA untuk stok yang terikat project. Kalau masuk ke
         // bucket kantor (tanpa project), turunkan ke "Inventory Kantor" supaya
@@ -85,7 +115,7 @@ class Inventory extends Model
             $stockType = 'inventory_kantor';
         }
 
-        $existing = $this->findByItemProject($itemName, $unit, $projectId, $stockScope);
+        $existing = $this->findByItemProject($itemName, $unit, $projectId, $stockScope, $warehouseId);
 
         if ($existing) {
             $qtyBefore = (float) $existing['qty_available'];
@@ -105,6 +135,7 @@ class Inventory extends Model
                 'item_name'     => $itemName,
                 'unit'          => $unit,
                 'project_id'    => $projectId,
+                'warehouse_id'  => $warehouseId,
                 'stock_scope'   => $stockScope,
                 'stock_type'    => $stockType,
                 'qty_available' => $qtyAfter,
@@ -126,6 +157,7 @@ class Inventory extends Model
             $userId,
             $notes
         );
+        return $inventoryId;
     }
 
     /**
@@ -141,13 +173,36 @@ class Inventory extends Model
         int $referenceId,
         ?int $userId,
         string $stockScope = 'proyek',
-        string $notes = 'Koreksi otomatis karena penerimaan barang terkait diedit/dihapus'
+        string $notes = 'Koreksi otomatis karena penerimaan barang terkait diedit/dihapus',
+        ?int $warehouseId = null
     ): void {
         if ($qty <= 0) {
             return;
         }
 
-        $existing = $this->findByItemProject($itemName, $unit, $projectId, $stockScope);
+        $existing = $this->findByItemProject($itemName, $unit, $projectId, $stockScope, $warehouseId);
+        if (!$existing) {
+            return;
+        }
+        $this->reverseStockById((int) $existing['id'], $qty, $referenceType, $referenceId, $userId, $notes);
+    }
+
+    /**
+     * Kurangi stok satu bucket (koreksi 'adjustment' negatif) -- inti reverseCredit(), juga dipakai
+     * membalik penerimaan mutasi di gudang tujuan. Stok tidak cukup -> InsufficientStockException.
+     */
+    public function reverseStockById(
+        int $inventoryId,
+        float $qty,
+        string $referenceType,
+        int $referenceId,
+        ?int $userId,
+        string $notes
+    ): void {
+        if ($qty <= 0) {
+            return;
+        }
+        $existing = $this->findForUpdate($inventoryId);
         if (!$existing) {
             return;
         }
@@ -202,16 +257,17 @@ class Inventory extends Model
         int $referenceId,
         ?int $userId,
         string $stockScope,
-        string $notes
+        string $notes,
+        ?int $warehouseId = null
     ): void {
         if ($qty <= 0 || $fromProjectId === $toProjectId) {
             return;
         }
-        $existing = $this->findByItemProject($itemName, $unit, $fromProjectId, $stockScope);
+        $existing = $this->findByItemProject($itemName, $unit, $fromProjectId, $stockScope, $warehouseId);
         if (!$existing) {
             return;
         }
-        $this->reverseCredit($itemName, $unit, $fromProjectId, $qty, $referenceType, $referenceId, $userId, $stockScope, $notes);
+        $this->reverseCredit($itemName, $unit, $fromProjectId, $qty, $referenceType, $referenceId, $userId, $stockScope, $notes, $warehouseId);
         $this->creditStock(
             $itemName,
             $unit,
@@ -223,7 +279,8 @@ class Inventory extends Model
             $userId,
             $stockScope,
             (string) ($existing['stock_type'] ?: 'stok_proyek'),
-            $notes
+            $notes,
+            $warehouseId
         );
     }
 
@@ -257,7 +314,8 @@ class Inventory extends Model
                 (int) $row['goods_receipt_id'],
                 $userId,
                 (string) $row['stock_scope'],
-                $notes
+                $notes,
+                $row['warehouse_id'] !== null ? (int) $row['warehouse_id'] : null
             );
         }
         return count($rows);
@@ -401,9 +459,11 @@ class Inventory extends Model
     public function listByProject(int $projectId): array
     {
         return $this->db->fetchAll(
-            "SELECT * FROM inventory
-             WHERE project_id = :project_id AND deleted_at IS NULL AND qty_available > 0
-             ORDER BY item_name ASC",
+            "SELECT inv.*, wh.warehouse_name
+             FROM inventory inv
+             LEFT JOIN warehouses wh ON wh.id = inv.warehouse_id
+             WHERE inv.project_id = :project_id AND inv.deleted_at IS NULL AND inv.qty_available > 0
+             ORDER BY inv.item_name ASC",
             ['project_id' => $projectId]
         );
     }
@@ -430,15 +490,20 @@ class Inventory extends Model
      * di PO/Penerimaan Barang tidak pernah muncul di sini. Barang untuk Client
      * bisa saja diambil dari stok project mana pun, bukan cuma Kantor.
      */
-    public function listAllWithStock(): array
+    public function listAllWithStock(?int $warehouseId = null): array
     {
-        return $this->db->fetchAll(
-            "SELECT inv.*, p.project_name
-             FROM inventory inv
-             LEFT JOIN projects p ON p.id = inv.project_id
-             WHERE inv.deleted_at IS NULL AND inv.qty_available > 0
-             ORDER BY inv.item_name ASC"
-        );
+        $sql = "SELECT inv.*, p.project_name, wh.warehouse_name
+                FROM inventory inv
+                LEFT JOIN projects p ON p.id = inv.project_id
+                LEFT JOIN warehouses wh ON wh.id = inv.warehouse_id
+                WHERE inv.deleted_at IS NULL AND inv.qty_available > 0";
+        $params = [];
+        if ($warehouseId !== null && $warehouseId > 0) {
+            // Mutasi antar gudang: hanya stok yang ada di gudang asal.
+            $sql .= " AND inv.warehouse_id = :wh";
+            $params['wh'] = $warehouseId;
+        }
+        return $this->db->fetchAll($sql . " ORDER BY inv.item_name ASC", $params);
     }
 
     /**
@@ -474,18 +539,20 @@ class Inventory extends Model
      */
     public function forOpname(string $stockType, ?int $projectId): array
     {
-        $sql = "SELECT * FROM inventory WHERE deleted_at IS NULL AND stock_type = :stock_type";
+        $sql = "SELECT inventory.*, wh.warehouse_name FROM inventory
+                LEFT JOIN warehouses wh ON wh.id = inventory.warehouse_id
+                WHERE inventory.deleted_at IS NULL AND inventory.stock_type = :stock_type";
         $params = ['stock_type' => $stockType];
 
         // Project OPSIONAL untuk semua jenis stok (keputusan 2026-09-12 "boleh
         // dua-duanya"): kalau project dipilih -> batasi ke project itu; kalau
         // tidak -> hitung SEMUA baris jenis stok ini (lintas project + kantor).
         if ($projectId !== null) {
-            $sql .= " AND project_id = :project_id";
+            $sql .= " AND inventory.project_id = :project_id";
             $params['project_id'] = $projectId;
         }
 
-        $sql .= " ORDER BY item_name ASC";
+        $sql .= " ORDER BY inventory.item_name ASC, wh.warehouse_name ASC";
         return $this->db->fetchAll($sql, $params);
     }
 
@@ -544,17 +611,23 @@ class Inventory extends Model
         // NULL) supaya tidak ujug-ujug jadi 0 tanpa alasan. ROOT FIX: sinkronkan
         // Stok Minimum di semua halaman (Stok Barang, Kartu Stok, Laporan Stok
         // Barang) ke satu sumber kebenaran yang sama dengan Master Data & Dashboard.
-        $sql = "SELECT inv.*, p.project_name, i.item_code, i.status AS item_status,
+        $sql = "SELECT inv.*, p.project_name, wh.warehouse_name, i.item_code, i.status AS item_status,
                        COALESCE(i.min_stock, inv.min_stock, 0) AS min_stock,
                        (SELECT COALESCE(SUM(inv2.qty_available), 0)
                           FROM inventory inv2
                          WHERE inv2.item_name = inv.item_name AND inv2.deleted_at IS NULL) AS item_total_available
                 FROM inventory inv
                 LEFT JOIN projects p ON p.id = inv.project_id
+                LEFT JOIN warehouses wh ON wh.id = inv.warehouse_id
                 LEFT JOIN items i ON i.item_name = inv.item_name AND i.deleted_at IS NULL
                 WHERE inv.deleted_at IS NULL";
         $params = [];
 
+        // Saldo per gudang: satu baris stok = satu bucket di satu gudang.
+        if (!empty($filters['warehouse_id'])) {
+            $sql .= " AND inv.warehouse_id = :warehouse_id";
+            $params['warehouse_id'] = (int) $filters['warehouse_id'];
+        }
         if (!empty($filters['project_id'])) {
             $sql .= " AND inv.project_id = :project_id";
             $params['project_id'] = $filters['project_id'];
@@ -653,6 +726,7 @@ class Inventory extends Model
                 SELECT 1 FROM stock_transactions st
                 JOIN inventory inv2 ON inv2.id = st.inventory_id
                 WHERE inv2.item_name = inv.item_name AND inv2.unit = inv.unit AND inv2.stock_scope = inv.stock_scope
+                  AND inv2.warehouse_id = inv.warehouse_id
                   AND (inv2.project_id = inv.project_id OR (inv2.project_id IS NULL AND inv.project_id IS NULL))";
             if ($dateFrom !== '') {
                 $existsSql .= " AND st.transaction_date >= :mut_date_from";
@@ -667,7 +741,7 @@ class Inventory extends Model
             $sql .= $existsSql;
         }
 
-        $sql .= " ORDER BY p.project_name ASC, inv.item_name ASC";
+        $sql .= " ORDER BY p.project_name ASC, wh.warehouse_name ASC, inv.item_name ASC";
 
         return $this->db->fetchAll($sql, $params);
     }
@@ -676,10 +750,11 @@ class Inventory extends Model
     {
         // COALESCE ke master Barang (i.min_stock) -- sama seperti listWithFilters(),
         // supaya kartu Stok Minimum di halaman Mutasi konsisten dengan Stok Barang.
-        $sql = "SELECT inv.*, p.project_name,
+        $sql = "SELECT inv.*, p.project_name, wh.warehouse_name,
                        COALESCE(i.min_stock, inv.min_stock, 0) AS min_stock
                 FROM inventory inv
                 LEFT JOIN projects p ON p.id = inv.project_id
+                LEFT JOIN warehouses wh ON wh.id = inv.warehouse_id
                 LEFT JOIN items i ON i.item_name = inv.item_name AND i.deleted_at IS NULL
                 WHERE inv.id = :id AND inv.deleted_at IS NULL";
         return $this->db->fetchOne($sql, ['id' => $id]);
@@ -702,9 +777,10 @@ class Inventory extends Model
             // Cocokkan berdasarkan item_name+unit+project_id+stock_scope (bukan cuma
             // inventory_id baris ini) supaya riwayat tetap lengkap walau baris stok
             // sebelumnya pernah dihapus & dibuat ulang (lihat deleteWithAdjustment()).
-            $matchSql = "SELECT id FROM inventory WHERE item_name = :item_name AND unit = :unit AND stock_scope = :stock_scope"
+            // + warehouse_id: bucket di gudang lain TIDAK boleh ikut terjumlah (saldo per gudang).
+            $matchSql = "SELECT id FROM inventory WHERE item_name = :item_name AND unit = :unit AND stock_scope = :stock_scope AND warehouse_id = :warehouse_id"
                 . ($row['project_id'] === null ? " AND project_id IS NULL" : " AND project_id = :project_id");
-            $matchParams = ['item_name' => $row['item_name'], 'unit' => $row['unit'], 'stock_scope' => $row['stock_scope']];
+            $matchParams = ['item_name' => $row['item_name'], 'unit' => $row['unit'], 'stock_scope' => $row['stock_scope'], 'warehouse_id' => $row['warehouse_id']];
             if ($row['project_id'] !== null) {
                 $matchParams['project_id'] = $row['project_id'];
             }
@@ -784,9 +860,9 @@ class Inventory extends Model
      */
     private function matchingInventoryIds(array $row): array
     {
-        $matchSql = "SELECT id FROM inventory WHERE item_name = :item_name AND unit = :unit AND stock_scope = :stock_scope"
+        $matchSql = "SELECT id FROM inventory WHERE item_name = :item_name AND unit = :unit AND stock_scope = :stock_scope AND warehouse_id = :warehouse_id"
             . ($row['project_id'] === null ? " AND project_id IS NULL" : " AND project_id = :project_id");
-        $matchParams = ['item_name' => $row['item_name'], 'unit' => $row['unit'], 'stock_scope' => $row['stock_scope']];
+        $matchParams = ['item_name' => $row['item_name'], 'unit' => $row['unit'], 'stock_scope' => $row['stock_scope'], 'warehouse_id' => $row['warehouse_id']];
         if ($row['project_id'] !== null) {
             $matchParams['project_id'] = $row['project_id'];
         }
@@ -809,6 +885,9 @@ class Inventory extends Model
         }
         if (($t['reference_type'] ?? '') === 'kas' && !empty($t['kas_no_bukti'])) {
             return $t['kas_no_bukti'];
+        }
+        if (($t['reference_type'] ?? '') === 'stock_transfer_in') {
+            return 'Mutasi Masuk';
         }
         if (($t['transaction_type'] ?? '') === 'out') {
             return 'BK';
@@ -1000,6 +1079,7 @@ class Inventory extends Model
                 'item_name'         => $row['item_name'],
                 'unit'              => $row['unit'],
                 'project_name'      => $row['project_name'],
+                'warehouse_name'    => $row['warehouse_name'] ?? null,
                 'lines'             => $lines,
                 'saldo_awal'        => (float) $row['saldo_awal'],
                 'in_qty_total'      => $inQtyTotal,

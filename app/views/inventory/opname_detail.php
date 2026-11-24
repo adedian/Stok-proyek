@@ -69,7 +69,7 @@
                         <?php $diff = (float) $item['difference']; ?>
                         <tr>
                             <td>
-                                <?= e($item['item_name']) ?> <span class="text-muted small">(<?= e($item['unit']) ?>)</span>
+                                <?= e($item['item_name']) ?> <span class="text-muted small">(<?= e($item['unit']) ?>)</span><?php if (!empty($item['warehouse_name'])): ?> <span class="badge text-bg-light border"><?= e($item['warehouse_name']) ?></span><?php endif; ?>
                                 <?php if (!empty($item['inventory_deleted_at'])): ?>
                                     <span class="badge bg-secondary" title="Barang ini sudah dihapus dari Stok Barang setelah opname ini dibuat -- histori tetap dipertahankan.">sudah dihapus</span>
                                 <?php endif; ?>

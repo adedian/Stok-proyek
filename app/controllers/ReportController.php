@@ -11,6 +11,7 @@ require_once ROOT_PATH . '/app/models/SalesInvoice.php';
 require_once ROOT_PATH . '/app/models/OfflinePurchase.php';
 require_once ROOT_PATH . '/app/models/ActivityLog.php';
 require_once ROOT_PATH . '/app/models/Project.php';
+require_once ROOT_PATH . '/app/models/Warehouse.php';
 require_once ROOT_PATH . '/app/models/User.php';
 require_once ROOT_PATH . '/app/models/SystemSetting.php';
 
@@ -515,6 +516,12 @@ class ReportController extends Controller
             . ($filters['date_from'] !== '' ? formatTanggal($filters['date_from']) : '(seluruh riwayat)')
             . ' - '
             . ($filters['date_to'] !== '' ? formatTanggal($filters['date_to']) : 'Sekarang');
+        if (!empty($filters['warehouse_id'])) {
+            $wh = (new Warehouse())->find((int) $filters['warehouse_id']);
+            if ($wh) {
+                $periodText .= ' | Gudang: ' . $wh['warehouse_name'];
+            }
+        }
         return [$companyName, $periodText];
     }
 
@@ -524,6 +531,7 @@ class ReportController extends Controller
     {
         return [
             'project_id'   => trim($get['project_id'] ?? ''),
+            'warehouse_id' => trim($get['warehouse_id'] ?? ''),
             'keyword'      => trim($get['keyword'] ?? ''),
             'stock_filter' => trim($get['stock_filter'] ?? ''),
             'item_status'  => trim($get['item_status'] ?? ''),
@@ -710,10 +718,11 @@ class ReportController extends Controller
                 // Cetak/Export dipaksa tanpa harga (lihat stockFilters()).
                 $canStockPrice = can('report', 'stock_price');
                 $showPrice = ($canStockPrice && trim($get['show_price'] ?? '1') !== '0') ? '1' : '0';
+                $warehouseId = trim($get['warehouse_id'] ?? '');
                 $filters = [
                     'project_id' => $projectId, 'keyword' => $keyword, 'stock_filter' => $stockFilter,
                     'item_status' => $itemStatus, 'date_from' => $dateFrom, 'date_to' => $dateTo,
-                    'stock_type' => $stockType,
+                    'stock_type' => $stockType, 'warehouse_id' => $warehouseId,
                 ];
                 $rows = $model->stockMutationReport($filters);
                 foreach ($rows as &$r) {
@@ -731,6 +740,7 @@ class ReportController extends Controller
                         ['field' => 'item_name', 'label' => 'Barang'],
                         ['field' => 'item_code', 'label' => 'Kode Barang'],
                         ['field' => 'project_name', 'label' => 'Project'],
+                        ['field' => 'warehouse_name', 'label' => 'Gudang'],
                         ['field' => 'saldo_awal', 'label' => 'Saldo Awal', 'format' => 'number', 'align' => 'end'],
                         ['field' => 'mutasi_masuk', 'label' => 'Mutasi Masuk', 'format' => 'number', 'align' => 'end'],
                         ['field' => 'mutasi_keluar', 'label' => 'Mutasi Keluar', 'format' => 'number', 'align' => 'end'],
@@ -739,8 +749,8 @@ class ReportController extends Controller
                         ['field' => 'status_label', 'label' => 'Status'],
                     ],
                     'rows' => $rows,
-                    'filterForm' => ['date' => true, 'project' => true, 'keyword' => true, 'stockStatus' => true, 'itemStatus' => true, 'stockType' => $stockTypeLabels, 'priceMode' => $canStockPrice],
-                    'filters' => compact('dateFrom', 'dateTo', 'projectId', 'keyword', 'stockFilter', 'itemStatus', 'stockType', 'showPrice'),
+                    'filterForm' => ['date' => true, 'project' => true, 'keyword' => true, 'stockStatus' => true, 'itemStatus' => true, 'stockType' => $stockTypeLabels, 'priceMode' => $canStockPrice, 'warehouse' => (new Warehouse())->activeList()],
+                    'filters' => compact('dateFrom', 'dateTo', 'projectId', 'keyword', 'stockFilter', 'itemStatus', 'stockType', 'showPrice', 'warehouseId'),
                     'exportQuery' => $this->buildExportQuery($get),
                 ];
 

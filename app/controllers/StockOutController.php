@@ -8,6 +8,7 @@ require_once ROOT_PATH . '/app/models/User.php';
 require_once ROOT_PATH . '/app/models/ActivityLog.php';
 require_once ROOT_PATH . '/app/models/SalesInvoice.php';
 require_once ROOT_PATH . '/app/models/SalesInvoiceItem.php';
+require_once ROOT_PATH . '/app/models/Warehouse.php';
 
 class StockOutController extends Controller
 {
@@ -18,6 +19,7 @@ class StockOutController extends Controller
     private ActivityLog $activityLog;
     private SalesInvoice $salesInvoiceModel;
     private SalesInvoiceItem $salesInvoiceItemModel;
+    private Warehouse $warehouseModel;
 
     /**
      * Tujuan pengeluaran "Client (Invoice)" -- urusan penjualan/AR, hanya boleh
@@ -39,6 +41,7 @@ class StockOutController extends Controller
         $this->activityLog = new ActivityLog();
         $this->salesInvoiceModel = new SalesInvoice();
         $this->salesInvoiceItemModel = new SalesInvoiceItem();
+        $this->warehouseModel = new Warehouse();
     }
 
     public function index()
@@ -48,6 +51,8 @@ class StockOutController extends Controller
             'keyword'    => $_GET['keyword'] ?? '',
             'date_from'  => $_GET['date_from'] ?? '',
             'date_to'    => $_GET['date_to'] ?? '',
+            'warehouse_id'     => $_GET['warehouse_id'] ?? '',
+            'destination_type' => $_GET['destination_type'] ?? '',
         ];
 
         $stockOuts = $this->stockOutModel->listWithRelations($filters);
@@ -57,6 +62,7 @@ class StockOutController extends Controller
             'pageTitle' => 'Pengeluaran Barang',
             'stockOuts' => $stockOuts,
             'projects'  => $projects,
+            'warehouses' => $this->warehouseModel->activeList(),
             'filters'   => $filters,
         ]);
     }
@@ -86,6 +92,9 @@ class StockOutController extends Controller
             'selectedSalesInvoiceId' => $salesInvoiceId,
             'selectedDestinationType' => $salesInvoiceId ? 'client' : 'project',
             'inventoryItems'    => $inventoryItems,
+            'warehouses'        => $this->warehouseModel->activeList(),
+            'selectedSourceWarehouseId' => 0,
+            'selectedDestWarehouseId'   => 0,
             'picUsers'          => $this->userModel->activeList(),
         ]);
     }
@@ -100,6 +109,9 @@ class StockOutController extends Controller
 
         $data = $this->collectInput();
         $errors = $this->validateInput($data, true);
+        if ($data['destination_type'] === 'gudang') {
+            $errors = array_merge($errors, $this->validateTransferWarehouses($data));
+        }
 
         if (!empty($errors)) {
             setFlash('error', implode(' ', $errors));
@@ -135,14 +147,21 @@ class StockOutController extends Controller
                 currentUserId(),
                 'stock_out',
                 'create',
-                "Pengeluaran barang {$docNumber} dibuat: {$jml} barang ({$qtyTotal} unit) ke {$data['destination']}"
+                $data['destination_type'] === 'gudang'
+                    ? "Mutasi gudang {$docNumber} dibuat: {$jml} barang ({$qtyTotal} unit) dari {$data['source_warehouse_name']} ke {$data['dest_warehouse_name']} (Dalam Perjalanan)"
+                    : "Pengeluaran barang {$docNumber} dibuat: {$jml} barang ({$qtyTotal} unit) ke {$data['destination']}"
             );
 
             $pdo->commit();
 
-            setFlash('success', $jml > 1
-                ? "Pengeluaran barang {$docNumber} berhasil disimpan ({$jml} barang)."
-                : 'Pengeluaran barang berhasil disimpan.');
+            if ($data['destination_type'] === 'gudang') {
+                setFlash('success', "Mutasi {$docNumber} dibuat ({$jml} barang): stok {$data['source_warehouse_name']} sudah berkurang, "
+                    . "barang Dalam Perjalanan ke {$data['dest_warehouse_name']}. Stok tujuan bertambah setelah mutasi diterima.");
+            } else {
+                setFlash('success', $jml > 1
+                    ? "Pengeluaran barang {$docNumber} berhasil disimpan ({$jml} barang)."
+                    : 'Pengeluaran barang berhasil disimpan.');
+            }
             $this->redirect('stock_out', 'index');
         } catch (RuntimeException $e) {
             // Termasuk error "stok tidak mencukupi" dari debitStock()
@@ -173,6 +192,7 @@ class StockOutController extends Controller
         foreach ($docRows as $docRow) {
             $this->assertNotSalesOrderRow($docRow, 'diubah');
             $this->assertValidationAllowsChange($docRow, 'diubah');
+            $this->assertTransferEditable($docRow);
         }
 
         $this->view('stock_out/form', [
@@ -190,6 +210,9 @@ class StockOutController extends Controller
             'selectedSalesInvoiceId' => $stockOut['sales_invoice_id'],
             'selectedDestinationType' => $stockOut['destination_type'],
             'inventoryItems'    => $stockOut['project_id'] ? $this->inventoryModel->listByProject((int) $stockOut['project_id']) : [],
+            'warehouses'        => $this->warehouseModel->activeList(),
+            'selectedSourceWarehouseId' => (int) ($stockOut['source_warehouse_id'] ?? 0),
+            'selectedDestWarehouseId'   => (int) ($stockOut['dest_warehouse_id'] ?? 0),
         ]);
     }
 
@@ -228,6 +251,7 @@ class StockOutController extends Controller
         foreach ($docRows as $docRow) {
             $this->assertNotSalesOrderRow($docRow, 'diubah');
             $this->assertValidationAllowsChange($docRow, 'diubah');
+            $this->assertTransferEditable($docRow);
         }
         $docNumber = (string) $existing['stock_out_number'];
 
@@ -236,6 +260,9 @@ class StockOutController extends Controller
         $data['destination_type'] = $existing['destination_type'];
         $data['project_id']       = (int) ($existing['project_id'] ?? 0);
         $data['sales_invoice_id'] = (int) ($existing['sales_invoice_id'] ?? 0);
+        // Mutasi gudang: gudang asal/tujuan terkunci (dipakai nilai tersimpan, bukan request).
+        $data['source_warehouse_id'] = (int) ($existing['source_warehouse_id'] ?? 0);
+        $data['dest_warehouse_id']   = (int) ($existing['dest_warehouse_id'] ?? 0);
         $errors = $this->validateInput($data, false, true);
 
         // --- Barang yang sudah ada: hanya id milik dokumen ini yang dianggap sah ---
@@ -280,6 +307,14 @@ class StockOutController extends Controller
             $keptInventoryIds[] = (int) $rowsById[$lineId]['inventory_id'];
         }
         $errors = array_merge($errors, $this->validateExtraItems($extraItems, $keptInventoryIds));
+        if ($data['destination_type'] === 'gudang') {
+            foreach ($extraItems as $xi) {
+                $xInv = $this->inventoryModel->find($xi['inventory_id']);
+                if ($xInv && (int) $xInv['warehouse_id'] !== $data['source_warehouse_id']) {
+                    $errors[] = 'Barang tambahan harus berasal dari gudang asal mutasi ini.';
+                }
+            }
+        }
 
         if (count($keep) + count($extraItems) === 0) {
             $errors[] = 'Dokumen harus punya minimal 1 barang. Untuk membatalkan seluruh pengeluaran, gunakan Hapus.';
@@ -422,6 +457,15 @@ class StockOutController extends Controller
         if (!empty($existing['sales_order_id'])) {
             return 'dari Order Penjualan (koreksi lewat Order Penjualan)';
         }
+        if (($existing['destination_type'] ?? '') === 'gudang') {
+            // Mutasi: stok sudah/pernah berpindah gudang -- koreksinya lewat "Batalkan" (reversal, histori tetap ada).
+            // Hanya mutasi yang SUDAH dibatalkan (stok sudah kembali) boleh dibuang ke Tempat Sampah.
+            if (($existing['transfer_status'] ?? '') !== 'dibatalkan') {
+                return 'mutasi gudang (gunakan Batalkan)';
+            }
+            $this->stockOutModel->deleteById($id);
+            return true;
+        }
         // Soft-delete ke Tempat Sampah aman walau periode terkunci (koreksi stok
         // dicatat tanggal-sekarang) -- gerbang Tutup Bulan tetap berlaku untuk
         // hapus per-baris lewat delete().
@@ -488,6 +532,185 @@ class StockOutController extends Controller
         $this->redirect('stock_out', 'index');
     }
 
+    // ================= Mutasi antar gudang =================
+
+    /** Mutasi hanya boleh diubah selagi Dalam Perjalanan (setelah Diterima/Dibatalkan terkunci). */
+    private function assertTransferEditable(array $row): void
+    {
+        if (($row['destination_type'] ?? '') === 'gudang' && ($row['transfer_status'] ?? '') !== 'dalam_perjalanan') {
+            setFlash('error', "Mutasi '{$row['stock_out_number']}' berstatus " . StockOut::transferStatusLabel($row['transfer_status'] ?? null)
+                . ' -- tidak bisa diubah. Batalkan mutasinya bila perlu koreksi.');
+            $this->redirect('stock_out', 'index');
+        }
+    }
+
+    /** Gudang asal & tujuan: wajib, ada, aktif (transaksi baru), dan tidak boleh sama. Mengisi nama untuk pesan/log. */
+    private function validateTransferWarehouses(array &$data): array
+    {
+        $errors = [];
+        $src = $data['source_warehouse_id'] > 0 ? $this->warehouseModel->find($data['source_warehouse_id']) : null;
+        $dst = $data['dest_warehouse_id'] > 0 ? $this->warehouseModel->find($data['dest_warehouse_id']) : null;
+        if (!$src) {
+            $errors[] = 'Gudang Asal wajib dipilih.';
+        } elseif (($src['status'] ?? 'active') !== 'active') {
+            $errors[] = 'Gudang Asal tidak aktif.';
+        }
+        if (!$dst) {
+            $errors[] = 'Gudang Tujuan wajib dipilih.';
+        } elseif (($dst['status'] ?? 'active') !== 'active') {
+            $errors[] = 'Gudang Tujuan tidak aktif.';
+        }
+        if ($src && $dst && (int) $src['id'] === (int) $dst['id']) {
+            $errors[] = 'Gudang Asal dan Gudang Tujuan tidak boleh sama.';
+        }
+        $data['source_warehouse_name'] = $src['warehouse_name'] ?? '';
+        $data['dest_warehouse_name']   = $dst['warehouse_name'] ?? '';
+        return $errors;
+    }
+
+    /**
+     * Terima mutasi (Dalam Perjalanan -> Diterima) untuk SATU dokumen: stok gudang tujuan bertambah
+     * TEPAT SEKALI. Baris dikunci FOR UPDATE dan statusnya dibaca ulang di dalam transaksi, jadi dua
+     * klik/dua pengguna bersamaan tidak bisa menambah stok dua kali.
+     */
+    public function receiveTransfer()
+    {
+        Middleware::requirePermission('stock_out', 'receive_transfer');
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('stock_out', 'index');
+        }
+        verifyCsrf();
+
+        $id = (int) ($_POST['id'] ?? 0);
+        $existing = $this->stockOutModel->find($id);
+        if (!$existing || ($existing['destination_type'] ?? '') !== 'gudang') {
+            setFlash('error', 'Data mutasi tidak ditemukan.');
+            $this->redirect('stock_out', 'index');
+        }
+        $docId = (int) ($existing['document_id'] ?: $existing['id']);
+
+        $pdo = getPDO();
+        try {
+            $pdo->beginTransaction();
+            $rows = $this->stockOutModel->documentRowsForUpdate($docId);
+            $received = 0;
+            $number = (string) $existing['stock_out_number'];
+            $destName = '';
+            foreach ($rows as $row) {
+                if (($row['transfer_status'] ?? '') !== 'dalam_perjalanan') {
+                    continue; // sudah Diterima/Dibatalkan -- tidak diproses ulang
+                }
+                $destId = (int) $row['dest_warehouse_id'];
+                $destInvId = $this->inventoryModel->creditStock(
+                    (string) $row['item_name'],
+                    (string) $row['unit'],
+                    $row['inv_project_id'] !== null ? (int) $row['inv_project_id'] : null,
+                    (float) $row['qty'],
+                    'stock_transfer_in',
+                    (int) $row['id'],
+                    date('Y-m-d H:i:s'),
+                    currentUserId(),
+                    (string) $row['inv_stock_scope'],
+                    (string) ($row['inv_stock_type'] ?: 'stok_proyek'),
+                    "Mutasi {$number} diterima dari gudang asal",
+                    $destId
+                );
+                $this->stockOutModel->updateById((int) $row['id'], [
+                    'transfer_status'      => 'diterima',
+                    'dest_inventory_id'    => $destInvId,
+                    'transfer_received_at' => date('Y-m-d H:i:s'),
+                    'transfer_received_by' => currentUserId(),
+                ]);
+                $received++;
+            }
+            if ($received === 0) {
+                $pdo->rollBack();
+                setFlash('error', 'Mutasi ini tidak ada yang berstatus Dalam Perjalanan (sudah diterima atau dibatalkan).');
+                $this->redirect('stock_out', 'index');
+            }
+            $this->activityLog->log(currentUserId(), 'stock_out', 'receive_transfer',
+                "Mutasi gudang {$number} diterima ({$received} barang): stok gudang tujuan bertambah");
+            $pdo->commit();
+            setFlash('success', "Mutasi {$number} diterima ({$received} barang). Stok gudang tujuan sudah bertambah.");
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            error_log('Stock transfer receive error: ' . $e->getMessage());
+            setFlash('error', ($e instanceof RuntimeException || $e instanceof DomainException) ? $e->getMessage() : 'Gagal menerima mutasi.');
+        }
+        $this->redirect('stock_out', 'index');
+    }
+
+    /**
+     * Batalkan mutasi (reversal, histori tetap ada dengan status Dibatalkan):
+     *  - Dalam Perjalanan: stok kembali ke gudang asal.
+     *  - Diterima: stok gudang tujuan dikurangi lalu dikembalikan ke gudang asal; ditolak (rollback)
+     *    bila stok di gudang tujuan sudah terpakai.
+     */
+    public function cancelTransfer()
+    {
+        Middleware::requirePermission('stock_out', 'delete');
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('stock_out', 'index');
+        }
+        verifyCsrf();
+
+        $id = (int) ($_POST['id'] ?? 0);
+        $existing = $this->stockOutModel->find($id);
+        if (!$existing || ($existing['destination_type'] ?? '') !== 'gudang') {
+            setFlash('error', 'Data mutasi tidak ditemukan.');
+            $this->redirect('stock_out', 'index');
+        }
+        assertPeriodOpen('stock_out', $existing['out_date'], 'stock_out', 'index');
+        $docId = (int) ($existing['document_id'] ?: $existing['id']);
+
+        $pdo = getPDO();
+        try {
+            $pdo->beginTransaction();
+            $rows = $this->stockOutModel->documentRowsForUpdate($docId);
+            $cancelled = 0;
+            $number = (string) $existing['stock_out_number'];
+            foreach ($rows as $row) {
+                $status = (string) ($row['transfer_status'] ?? '');
+                if ($status === 'dibatalkan') {
+                    continue;
+                }
+                $rowId = (int) $row['id'];
+                $qty = (float) $row['qty'];
+                if ($status === 'diterima') {
+                    // Tarik kembali dari gudang tujuan (gagal = stok sudah terpakai -> rollback total).
+                    $this->inventoryModel->reverseStockById(
+                        (int) $row['dest_inventory_id'], $qty, 'stock_transfer_in', $rowId, currentUserId(),
+                        "Pembatalan mutasi {$number}: barang ditarik dari gudang tujuan"
+                    );
+                }
+                $this->inventoryModel->restoreStock(
+                    (int) $row['inventory_id'], $qty, 'stock_out', $rowId, currentUserId(),
+                    "Pembatalan mutasi {$number}: barang kembali ke gudang asal"
+                );
+                $this->stockOutModel->updateById($rowId, ['transfer_status' => 'dibatalkan']);
+                $cancelled++;
+            }
+            if ($cancelled === 0) {
+                $pdo->rollBack();
+                setFlash('error', 'Mutasi ini sudah dibatalkan.');
+                $this->redirect('stock_out', 'index');
+            }
+            $this->activityLog->log(currentUserId(), 'stock_out', 'cancel',
+                "Mutasi gudang {$number} dibatalkan ({$cancelled} barang), stok dikoreksi");
+            $pdo->commit();
+            setFlash('success', "Mutasi {$number} dibatalkan ({$cancelled} barang) dan stok dikoreksi.");
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            error_log('Stock transfer cancel error: ' . $e->getMessage());
+            setFlash('error', ($e instanceof RuntimeException || $e instanceof DomainException) ? $e->getMessage() : 'Gagal membatalkan mutasi.');
+        }
+        $this->redirect('stock_out', 'index');
+    }
+
     /**
      * AJAX: ambil daftar item stok untuk project tertentu (dropdown "Barang")
      */
@@ -495,8 +718,9 @@ class StockOutController extends Controller
     {
         $projectId = (int) ($_GET['project_id'] ?? 0);
         // project_id = 0 -> semua barang ber-stok tanpa urutan khusus (dropdown aktif
-        // sejak form dibuka, sebelum Project/Client dipilih).
-        $items = $this->inventoryModel->listAllWithStock();
+        // sejak form dibuka, sebelum Project/Client dipilih). warehouse_id > 0 (mode Mutasi
+        // Gudang) -> hanya stok yang ada di gudang asal tsb.
+        $items = $this->inventoryModel->listAllWithStock((int) ($_GET['warehouse_id'] ?? 0) ?: null);
 
         // Semua barang ber-stok ditampilkan; milik project tujuan di urutan teratas.
         // Pemilihan barang milik project lain/Kantor diberi peringatan di form.
@@ -587,6 +811,14 @@ class StockOutController extends Controller
     {
         // Debit stok DULU -- kalau stok tidak cukup, exception dilempar
         // dan transaksi di-rollback, TIDAK ada record stock_out tersimpan.
+        $isTransfer = $data['destination_type'] === 'gudang';
+        if ($isTransfer) {
+            // Barang harus benar-benar berada di gudang asal yang dipilih (cegah POST yang diutak-atik).
+            $srcInv = $this->inventoryModel->find($item['inventory_id']);
+            if (!$srcInv || (int) $srcInv['warehouse_id'] !== (int) $data['source_warehouse_id']) {
+                throw new RuntimeException('Barang yang dipilih tidak berada di Gudang Asal mutasi.');
+            }
+        }
         $this->inventoryModel->debitStock(
             $item['inventory_id'],
             $item['qty'],
@@ -594,8 +826,11 @@ class StockOutController extends Controller
             0, // reference_id di-update setelah record stock_out dibuat (lihat bawah)
             $data['out_date'],
             currentUserId(),
-            "Keluar ke {$data['destination']}"
+            $isTransfer ? 'Mutasi ke ' . ($data['dest_warehouse_name'] ?? 'gudang tujuan') . ' (dalam perjalanan)' : "Keluar ke {$data['destination']}"
         );
+        if (!$isTransfer) {
+            $srcInv = $this->inventoryModel->find($item['inventory_id']);
+        }
 
         $stockOutId = $this->stockOutModel->create([
             'stock_out_number' => $docNumber,
@@ -614,6 +849,10 @@ class StockOutController extends Controller
             'validation_status' => StockOut::initialValidationStatus(
                 $data['destination_type'] === 'project' ? $data['project_id'] : null
             ),
+            // Gudang asal = gudang bucket stok yang dikeluarkan (semua jenis tujuan); tujuan & status hanya mutasi.
+            'source_warehouse_id' => $srcInv ? (int) $srcInv['warehouse_id'] : null,
+            'dest_warehouse_id'   => $isTransfer ? (int) $data['dest_warehouse_id'] : null,
+            'transfer_status'     => $isTransfer ? 'dalam_perjalanan' : null,
             'created_by'   => currentUserId(),
         ]);
 
@@ -676,7 +915,10 @@ class StockOutController extends Controller
 
     private function collectInput(): array
     {
-        $destinationType = ($_POST['destination_type'] ?? 'project') === 'client' ? 'client' : 'project';
+        $destinationType = (string) ($_POST['destination_type'] ?? 'project');
+        if (!in_array($destinationType, ['project', 'client', 'gudang'], true)) {
+            $destinationType = 'project';
+        }
         // Client (Invoice) hanya Super Admin/Accounting/Purchase -- role lain
         // dipaksa ke Project walau POST-nya diutak-atik.
         if ($destinationType === 'client' && !$this->canClientDestination()) {
@@ -708,6 +950,8 @@ class StockOutController extends Controller
             'project_id'       => (int) ($_POST['project_id'] ?? 0),
             'destination_type' => $destinationType,
             'sales_invoice_id' => (int) ($_POST['sales_invoice_id'] ?? 0),
+            'source_warehouse_id' => (int) ($_POST['source_warehouse_id'] ?? 0),
+            'dest_warehouse_id'   => (int) ($_POST['dest_warehouse_id'] ?? 0),
             'pic_name'     => trim($_POST['pic_name'] ?? ''),
             'destination'  => trim($_POST['destination'] ?? ''),
             'out_date'     => $_POST['out_date'] ?? '',
@@ -731,6 +975,8 @@ class StockOutController extends Controller
         if ($data['destination_type'] === 'client' && $data['sales_invoice_id'] <= 0) {
             $errors[] = 'Client (Invoice) wajib dipilih.';
         }
+        // Tujuan 'gudang' (mutasi): gudang asal/tujuan divalidasi di validateTransferWarehouses().
+
         if ($data['pic_name'] === '') {
             $errors[] = 'PIC wajib diisi.';
         }

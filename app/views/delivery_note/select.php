@@ -27,10 +27,15 @@
                         <div class="col-md-6">
                             <label class="form-label">Tujuan Pengiriman</label>
                             <select name="destination_type" id="destinationType" class="form-select">
-                                <?php $soDefaultClient = !empty($salesOrder); ?>
-                                <option value="project" <?= $soDefaultClient ? '' : 'selected' ?>>Site/Project</option>
+                                <?php
+                                    $soDefaultClient = !empty($salesOrder);
+                                    // Mutasi antar gudang: tujuan = nama gudang (bukan project/client) -> default "Lainnya / Manual",
+                                    // nama tujuan sudah terisi dari kolom Tujuan pengeluaran ("Gudang X").
+                                    $soDefaultManual = !$soDefaultClient && (($rows[0]['destination_type'] ?? '') === 'gudang');
+                                ?>
+                                <option value="project" <?= ($soDefaultClient || $soDefaultManual) ? '' : 'selected' ?>>Site/Project</option>
                                 <option value="client" <?= $soDefaultClient ? 'selected' : '' ?>>Penjualan (Client)</option>
-                                <option value="manual">Lainnya / Manual (isi bebas)</option>
+                                <option value="manual" <?= $soDefaultManual ? 'selected' : '' ?>>Lainnya / Manual (isi bebas)</option>
                             </select>
                         </div>
                         <div class="col-12" id="projectDestWrap">

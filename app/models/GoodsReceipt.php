@@ -31,7 +31,8 @@ class GoodsReceipt extends Model
                        COALESCE(po.project_id, op.project_id, gr.project_id) AS effective_project_id,
                        COALESCE(s.supplier_name, op.supplier_name, gr.source_detail, 'Pemakai/Internal') AS supplier_name,
                        COALESCE(IF(po.is_non_project = 1, 'Non Project', NULL), p.project_name, p3.project_name, p2.project_name) AS project_name,
-                       COALESCE(gr.receiver_name, u.full_name) AS received_by_name
+                       COALESCE(gr.receiver_name, u.full_name) AS received_by_name,
+                       wh.warehouse_name, swh.warehouse_name AS sent_from_warehouse_name
                 FROM goods_receipts gr
                 LEFT JOIN purchase_orders po ON po.id = gr.purchase_order_id
                 LEFT JOIN offline_purchases op ON op.id = gr.offline_purchase_id
@@ -40,6 +41,8 @@ class GoodsReceipt extends Model
                 LEFT JOIN projects p3 ON p3.id = op.project_id
                 LEFT JOIN projects p2 ON p2.id = gr.project_id
                 LEFT JOIN users u ON u.id = gr.received_by
+                LEFT JOIN warehouses wh ON wh.id = gr.warehouse_id
+                LEFT JOIN warehouses swh ON swh.id = gr.sent_from_warehouse_id
                 WHERE gr.deleted_at IS NULL";
         $params = [];
 
@@ -93,7 +96,8 @@ class GoodsReceipt extends Model
                        COALESCE(po.project_id, op.project_id, gr.project_id) AS effective_project_id,
                        COALESCE(s.supplier_name, op.supplier_name, gr.source_detail, 'Pemakai/Internal') AS supplier_name,
                        COALESCE(IF(po.is_non_project = 1, 'Non Project', NULL), p.project_name, p3.project_name, p2.project_name) AS project_name,
-                       COALESCE(gr.receiver_name, u.full_name) AS received_by_name
+                       COALESCE(gr.receiver_name, u.full_name) AS received_by_name,
+                       wh.warehouse_name, swh.warehouse_name AS sent_from_warehouse_name
                 FROM goods_receipts gr
                 LEFT JOIN purchase_orders po ON po.id = gr.purchase_order_id
                 LEFT JOIN offline_purchases op ON op.id = gr.offline_purchase_id
@@ -102,6 +106,8 @@ class GoodsReceipt extends Model
                 LEFT JOIN projects p3 ON p3.id = op.project_id
                 LEFT JOIN projects p2 ON p2.id = gr.project_id
                 LEFT JOIN users u ON u.id = gr.received_by
+                LEFT JOIN warehouses wh ON wh.id = gr.warehouse_id
+                LEFT JOIN warehouses swh ON swh.id = gr.sent_from_warehouse_id
                 WHERE gr.id = :id AND gr.deleted_at IS NULL";
         return $this->db->fetchOne($sql, ['id' => $id]);
     }
@@ -116,6 +122,8 @@ class GoodsReceipt extends Model
         $sql = "SELECT gr.*, u.full_name AS received_by_name
                 FROM goods_receipts gr
                 LEFT JOIN users u ON u.id = gr.received_by
+                LEFT JOIN warehouses wh ON wh.id = gr.warehouse_id
+                LEFT JOIN warehouses swh ON swh.id = gr.sent_from_warehouse_id
                 WHERE gr.offline_purchase_id = :id AND gr.deleted_at IS NULL
                 ORDER BY gr.created_at DESC";
         return $this->db->fetchAll($sql, ['id' => $offlinePurchaseId]);

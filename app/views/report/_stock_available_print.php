@@ -55,7 +55,7 @@ if (!function_exists('formatQtyPrint')) {
             <tr>
                 <td class="c"><?= $i + 1 ?></td>
                 <td><?= e($r['item_code'] ?: '-') ?></td>
-                <td><?= e($r['item_name']) ?></td>
+                <td><?= e(stockReportItemLabel($r)) ?></td>
                 <td class="end"><?= formatQtyPrint($r['saldo_akhir']) ?></td>
                 <td><?= e($r['unit']) ?></td>
             </tr>

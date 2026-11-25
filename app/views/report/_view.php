@@ -181,16 +181,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
             <?php endif; ?>
 
-            <?php if (!empty($filterForm['stockType']) && is_array($filterForm['stockType'])): ?>
+            <?php if (isset($filterForm['category']) && is_array($filterForm['category'])): ?>
                 <div class="col-md-2">
                     <label class="form-label small text-muted mb-1">Kategori</label>
-                    <select name="stock_type" class="form-select form-select-sm">
-                        <option value="">Semua</option>
-                        <?php foreach ($filterForm['stockType'] as $key => $label): ?>
-                            <option value="<?= e($key) ?>" <?= ($filters['stockType'] ?? '') === $key ? 'selected' : '' ?>><?= e($label) ?></option>
+                    <select name="category_id" class="form-select form-select-sm">
+                        <option value="">Semua Kategori</option>
+                        <?php foreach ($filterForm['category'] as $catId => $catName): ?>
+                            <option value="<?= (int) $catId ?>" <?= (string) ($filters['categoryId'] ?? '') === (string) $catId ? 'selected' : '' ?>><?= e($catName) ?></option>
                         <?php endforeach; ?>
+                        <option value="none" <?= ($filters['categoryId'] ?? '') === 'none' ? 'selected' : '' ?>>Belum Dikategorikan</option>
                     </select>
-                    <div class="form-text">Hanya menyaring tampilan; Cetak &amp; Export tetap semua kategori.</div>
+                    <div class="form-text">Berlaku untuk layar, Cetak &amp; Export. Daftar mengikuti Master Kategori.</div>
                 </div>
             <?php endif; ?>
 

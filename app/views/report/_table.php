@@ -59,7 +59,29 @@
     </div>
 <?php endif; ?>
 
-<div class="card border-0 shadow-sm">
+<?php
+// Laporan Stok Barang dikelompokkan per KATEGORI (Master Kategori): satu kartu/tabel per kategori,
+// kategori kosong tidak tampil, "Belum Dikategorikan" paling akhir (urutan sudah diatur model).
+// Laporan lain: satu kelompok tanpa judul (tampilan lama tidak berubah).
+if ($isInventory && !empty($rows)) {
+    $screenGroups = [];
+    foreach ($rows as $__r) {
+        $__k = $__r['category_id'] === null ? 'none' : (string) $__r['category_id'];
+        $screenGroups[$__k]['name'] = $__r['category_name'];
+        $screenGroups[$__k]['rows'][] = $__r;
+    }
+} else {
+    $screenGroups = [['name' => null, 'rows' => $rows]];
+}
+?>
+<?php foreach ($screenGroups as $group): $rows = $group['rows']; ?>
+<?php if ($group['name'] !== null): ?>
+    <div class="d-flex align-items-center gap-2 mt-3 mb-2 category-heading">
+        <h5 class="mb-0"><i class="bi bi-tags text-primary"></i> Kategori: <?= e($group['name']) ?></h5>
+        <span class="badge text-bg-light border"><?= count($rows) ?> barang</span>
+    </div>
+<?php endif; ?>
+<div class="card border-0 shadow-sm <?= $group['name'] !== null ? 'mb-3' : '' ?>">
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
@@ -118,6 +140,7 @@
         </div>
     </div>
 </div>
+<?php endforeach; ?>
 <div class="print-note-onscreen"><?= e(printedAtLabel()) ?>, <?= e(printedByLabel()) ?></div>
 
 <?php if ($isInventory): ?>

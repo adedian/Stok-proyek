@@ -643,6 +643,21 @@ class Inventory extends Model
             $sql .= " AND inv.stock_type = :stock_type";
             $params['stock_type'] = $filters['stock_type'];
         }
+        // Filter Kategori Barang (Master Kategori = item_categories.id lewat items.category_id).
+        // 'none' = barang yang belum punya kategori. Tanpa JOIN (subquery skalar memilih satu
+        // barang master per nama) supaya baris stok TIDAK bisa tergandakan.
+        if (($filters['category_id'] ?? '') !== '' && ($filters['category_id'] ?? null) !== null) {
+            $catExpr = "(SELECT c2.id FROM items i2
+                           JOIN item_categories c2 ON c2.id = i2.category_id AND c2.deleted_at IS NULL
+                          WHERE i2.item_name = inv.item_name AND i2.deleted_at IS NULL
+                          ORDER BY i2.id ASC LIMIT 1)";
+            if ((string) $filters['category_id'] === 'none') {
+                $sql .= " AND {$catExpr} IS NULL";
+            } else {
+                $sql .= " AND {$catExpr} = :flt_category_id";
+                $params['flt_category_id'] = (int) $filters['category_id'];
+            }
+        }
         if (!empty($filters['keyword'])) {
             [$ssSql, $ssParams] = SmartSearch::clause($filters['keyword'], ['inv.item_name'], [], 'invkw');
             if ($ssSql !== '') {
@@ -847,7 +862,75 @@ class Inventory extends Model
                 : (float) $row['qty_available'];
             $row['last_transaction_date'] = $lastDate ? substr($lastDate, 0, 10) : null;
         }
+        unset($row);
 
+        return $this->attachCategories($rows);
+    }
+
+    /**
+     * Daftar kategori aktif dalam URUTAN Master Kategori (nama A-Z, sama dengan
+     * ItemCategory::activeList() & dropdown Master Data): [id => nama].
+     */
+    public function categoryOrder(): array
+    {
+        $out = [];
+        foreach ($this->db->fetchAll("SELECT id, category_name FROM item_categories WHERE deleted_at IS NULL ORDER BY category_name ASC, id ASC") as $c) {
+            $out[(int) $c['id']] = (string) $c['category_name'];
+        }
+        return $out;
+    }
+
+    /**
+     * Tempel kategori barang (Master Kategori) ke tiap baris laporan stok dan urutkan baris per
+     * kategori (urutan Master Kategori; "Belum Dikategorikan" paling akhir) dengan urutan asli
+     * dipertahankan di dalam kategori. Inventory tidak punya FK ke items -> dicocokkan lewat
+     * NAMA barang (sama seperti join Kode Barang di listWithFilters), tetapi SATU query terpisah
+     * yang memilih satu barang master per nama (id terkecil) -- tidak ada JOIN yang bisa
+     * menggandakan baris stok. Hanya menambah kolom: category_id, category_name, category_sort.
+     */
+    private function attachCategories(array $rows): array
+    {
+        if (empty($rows)) {
+            return $rows;
+        }
+        $order = $this->categoryOrder();
+        $sortOf = array_flip(array_keys($order));          // id kategori -> posisi
+
+        $names = array_values(array_unique(array_column($rows, 'item_name')));
+        $catByName = [];
+        foreach (array_chunk($names, 500) as $chunk) {
+            $ph = implode(',', array_fill(0, count($chunk), '?'));
+            $found = $this->db->fetchAll(
+                "SELECT i.item_name, i.category_id FROM items i
+                  WHERE i.deleted_at IS NULL AND i.item_name IN ({$ph}) ORDER BY i.id ASC",
+                $chunk
+            );
+            foreach ($found as $f) {
+                if (!array_key_exists($f['item_name'], $catByName)) {      // barang master id terkecil
+                    $catByName[$f['item_name']] = $f['category_id'] !== null ? (int) $f['category_id'] : null;
+                }
+            }
+        }
+
+        foreach ($rows as $i => &$r) {
+            $cid = $catByName[$r['item_name']] ?? null;
+            if ($cid === null || !isset($order[$cid])) {                   // tanpa kategori / kategori sudah dihapus
+                $r['category_id'] = null;
+                $r['category_name'] = 'Belum Dikategorikan';
+                $r['category_sort'] = PHP_INT_MAX;
+            } else {
+                $r['category_id'] = $cid;
+                $r['category_name'] = $order[$cid];
+                $r['category_sort'] = $sortOf[$cid];
+            }
+            $r['_ord'] = $i;
+        }
+        unset($r);
+        usort($rows, fn($a, $b) => [$a['category_sort'], $a['_ord']] <=> [$b['category_sort'], $b['_ord']]);
+        foreach ($rows as &$r) {
+            unset($r['_ord']);
+        }
+        unset($r);
         return $rows;
     }
 
@@ -1075,6 +1158,8 @@ class Inventory extends Model
             $finalSaldo  = (float) $row['saldo_akhir'];
 
             $groups[] = [
+                'category_id'       => $row['category_id'] ?? null,
+                'category_name'     => $row['category_name'] ?? 'Belum Dikategorikan',
                 'item_code'         => $row['item_code'],
                 'item_name'         => $row['item_name'],
                 'unit'              => $row['unit'],

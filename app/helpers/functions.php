@@ -545,6 +545,28 @@ function reportSumByCurrency(array $rows, string $field): array
 }
 
 /** Teks baris TOTAL laporan: satu mata uang -> "USD 1,000.00"; campuran -> "IDR 1,000.00 | USD 500.00". */
+/**
+ * Kelompokkan baris laporan berurutan menurut kolom kunci (mis. category_id), dipakai bersama
+ * layar, PDF, dan Excel supaya pengelompokannya SAMA. Baris diasumsikan sudah terurut per
+ * kelompok oleh model; urutan baris & kelompok dipertahankan. Kunci kosong (null) = 'none'.
+ *
+ * @param array $groupBy ['id' => kolom kunci, 'label' => kolom nama kelompok]
+ * @return array<int, array{key: string, name: string, rows: array}>
+ */
+function reportGroupRows(array $rows, array $groupBy): array
+{
+    $groups = [];
+    foreach ($rows as $r) {
+        $k = $r[$groupBy['id']] ?? null;
+        $k = ($k === null || $k === '') ? 'none' : (string) $k;
+        if (!isset($groups[$k])) {
+            $groups[$k] = ['key' => $k, 'name' => (string) ($r[$groupBy['label']] ?? ''), 'rows' => []];
+        }
+        $groups[$k]['rows'][] = $r;
+    }
+    return array_values($groups);
+}
+
 function formatReportTotal(array $rows, string $field, string $format = 'rupiah'): string
 {
     if ($format === 'idr') {

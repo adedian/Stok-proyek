@@ -24,8 +24,12 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
  *                              'align'=>'end' (opsional), 'width'=>int (opsional)]
  * @param array  $rows        Baris data, array asosiatif per baris (key = 'field' di atas)
  * @param string $filename    Nama file unduhan, TANPA ekstensi
+ * @param array|null $groupBy ['id'=>kolom kunci,'label'=>kolom nama,'title'=>..,'unit'=>..] -- bila diisi, baris
+ *                            dikelompokkan: band judul + header + isi (No mulai 1) + SUBTOTAL per kelompok,
+ *                            lalu TOTAL KESELURUHAN. Tanpa ini: perilaku lama (satu tabel + TOTAL).
+ * @param string|null $footnote Catatan kaki di bawah tabel (opsional)
  */
-function streamExcelReport(string $title, string $companyName, string $periodText, array $columns, array $rows, string $filename): void
+function streamExcelReport(string $title, string $companyName, string $periodText, array $columns, array $rows, string $filename, ?array $groupBy = null, ?string $footnote = null): void
 {
     $colCount = count($columns) + 1; // +1 kolom "No"
     $lastColLetter = Coordinate::stringFromColumnIndex($colCount);
@@ -49,98 +53,118 @@ function streamExcelReport(string $title, string $companyName, string $periodTex
     $sheet->getStyle('A3')->getFont()->setSize(11)->getColor()->setRGB('0070C0');
     $sheet->getStyle('A3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-    // --- Header kolom ---
+    // --- Lebar kolom (sekali) ---
     $headerRow = 5;
-    $sheet->setCellValue('A' . $headerRow, 'No');
     $sheet->getColumnDimension('A')->setWidth(5);
-
     $colIndex = 2;
     foreach ($columns as $col) {
-        $letter = Coordinate::stringFromColumnIndex($colIndex);
-        $sheet->setCellValue($letter . $headerRow, $col['label']);
-        $sheet->getColumnDimension($letter)->setWidth($col['width'] ?? 18);
+        $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($colIndex))->setWidth($col['width'] ?? 18);
         $colIndex++;
     }
 
-    $headerRange = "A{$headerRow}:{$lastColLetter}{$headerRow}";
-    $sheet->getStyle($headerRange)->getFont()->setBold(true);
-    $sheet->getStyle($headerRange)->getAlignment()
-        ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-        ->setVertical(Alignment::VERTICAL_CENTER)
-        ->setWrapText(true);
-
-    // --- Baris data ---
-    $rowNum = $headerRow + 1;
-    foreach ($rows as $i => $row) {
-        $sheet->setCellValue('A' . $rowNum, $i + 1);
-        $sheet->getStyle('A' . $rowNum)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-
-        $colIndex = 2;
+    // Header kolom -- ditulis ulang di tiap kelompok bila $groupBy.
+    $writeHeader = function (int $hr) use ($sheet, $columns, $lastColLetter) {
+        $sheet->setCellValue('A' . $hr, 'No');
+        $ci = 2;
         foreach ($columns as $col) {
-            $letter = Coordinate::stringFromColumnIndex($colIndex);
-            $cell = $letter . $rowNum;
-            $value = $row[$col['field']] ?? null;
-
-            switch ($col['format'] ?? 'text') {
-                case 'date':
-                    $sheet->setCellValue($cell, $value ? formatTanggal($value) : '-');
-                    break;
-                case 'datetime':
-                    $sheet->setCellValue($cell, $value ? formatTanggal(substr((string) $value, 0, 10)) . ' ' . substr((string) $value, 11, 5) : '-');
-                    break;
-                case 'number':
-                    $sheet->setCellValue($cell, $value !== null ? (float) $value : 0);
-                    $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('#,##0.00');
-                    break;
-                case 'rupiah':
-                    $sheet->setCellValue($cell, $value !== null ? (float) $value : 0);
-                    // Laporan berbasis PO: prefix = mata uang PO (label saja, nilai tidak dikonversi).
-                    $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('"' . (!empty($row['currency']) ? currencyPrefix($row['currency']) : 'Rp') . '" #,##0');
-                    break;
-                case 'percent':
-                    $sheet->setCellValue($cell, $value !== null ? (float) $value : 0);
-                    $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('0.00"%"');
-                    break;
-                case 'percent_full':
-                    // Teks (bukan angka) supaya presisi penuh tidak dipotong format sel: "99,9999926%".
-                    $sheet->setCellValueExplicit($cell, formatReportValue($value, 'percent_full'), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
-                    $sheet->getStyle($cell)->getAlignment()->setHorizontal('right');
-                    break;
-                case 'idr':
-                    // Selalu Rupiah (nilai hasil konversi kurs), bukan mata uang baris.
-                    $sheet->setCellValue($cell, $value !== null ? (float) $value : 0);
-                    $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('"Rp" #,##0');
-                    break;
-                case 'kurs':
-                    // Kurs: ANGKA asli (mis. 16500), bukan teks -- teks "16.000" otomatis dibaca
-                    // Excel sebagai 16. Pemisah ribuan/desimal mengikuti pengaturan regional Excel.
-                    // Tanpa kurs (IDR) -> "-".
-                    if ($value === null || $value === '') {
-                        $sheet->setCellValue($cell, '-');
-                    } else {
-                        $sheet->setCellValue($cell, (float) $value);
-                        $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('#,##0.######');
-                    }
-                    break;
-                default:
-                    $sheet->setCellValue($cell, $value !== null && $value !== '' ? $value : '-');
-            }
-
-            if (($col['align'] ?? '') === 'end') {
-                $sheet->getStyle($cell)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-            }
-            $colIndex++;
+            $sheet->setCellValue(Coordinate::stringFromColumnIndex($ci) . $hr, $col['label']);
+            $ci++;
         }
-        $rowNum++;
-    }
+        $range = "A{$hr}:{$lastColLetter}{$hr}";
+        $sheet->getStyle($range)->getFont()->setBold(true);
+        $sheet->getStyle($range)->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+    };
 
-    // --- Baris TOTAL: SUM tiap kolom nominal (format 'rupiah') dari $rows yang
-    // sama persis dengan yang sudah ditampilkan (sudah kena filter aktif) --
-    // TIDAK query ulang ke DB, supaya SUM selalu match dengan isi tabel di atasnya.
+    // Baris data ($part = baris satu kelompok / seluruhnya); penomoran mulai 1.
+    $writeRows = function (array $part, int $rowNum) use ($sheet, $columns): int {
+        foreach ($part as $i => $row) {
+            $sheet->setCellValue('A' . $rowNum, $i + 1);
+            $sheet->getStyle('A' . $rowNum)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+            $colIndex = 2;
+            foreach ($columns as $col) {
+                $letter = Coordinate::stringFromColumnIndex($colIndex);
+                $cell = $letter . $rowNum;
+                $value = $row[$col['field']] ?? null;
+
+                switch ($col['format'] ?? 'text') {
+                    case 'date':
+                        $sheet->setCellValue($cell, $value ? formatTanggal($value) : '-');
+                        break;
+                    case 'datetime':
+                        $sheet->setCellValue($cell, $value ? formatTanggal(substr((string) $value, 0, 10)) . ' ' . substr((string) $value, 11, 5) : '-');
+                        break;
+                    case 'number':
+                        $sheet->setCellValue($cell, $value !== null ? (float) $value : 0);
+                        $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('#,##0.00');
+                        break;
+                    case 'rupiah':
+                        $sheet->setCellValue($cell, $value !== null ? (float) $value : 0);
+                        // Laporan berbasis PO: prefix = mata uang PO (label saja, nilai tidak dikonversi).
+                        $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('"' . (!empty($row['currency']) ? currencyPrefix($row['currency']) : 'Rp') . '" #,##0');
+                        break;
+                    case 'percent':
+                        $sheet->setCellValue($cell, $value !== null ? (float) $value : 0);
+                        $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('0.00"%"');
+                        break;
+                    case 'percent_full':
+                        // Teks (bukan angka) supaya presisi penuh tidak dipotong format sel: "99,9999926%".
+                        $sheet->setCellValueExplicit($cell, formatReportValue($value, 'percent_full'), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        $sheet->getStyle($cell)->getAlignment()->setHorizontal('right');
+                        break;
+                    case 'idr':
+                        // Selalu Rupiah (nilai hasil konversi kurs), bukan mata uang baris.
+                        $sheet->setCellValue($cell, $value !== null ? (float) $value : 0);
+                        $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('"Rp" #,##0');
+                        break;
+                    case 'kurs':
+                        // Kurs: ANGKA asli (mis. 16500), bukan teks -- teks "16.000" otomatis dibaca
+                        // Excel sebagai 16. Pemisah ribuan/desimal mengikuti pengaturan regional Excel.
+                        // Tanpa kurs (IDR) -> "-".
+                        if ($value === null || $value === '') {
+                            $sheet->setCellValue($cell, '-');
+                        } else {
+                            $sheet->setCellValue($cell, (float) $value);
+                            $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('#,##0.######');
+                        }
+                        break;
+                    default:
+                        $sheet->setCellValue($cell, $value !== null && $value !== '' ? $value : '-');
+                }
+
+                if (($col['align'] ?? '') === 'end') {
+                    $sheet->getStyle($cell)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                }
+                $colIndex++;
+            }
+            $rowNum++;
+        }
+        return $rowNum;
+    };
+
+    // Baris TOTAL/SUBTOTAL: SUM tiap kolom bertanda 'sum' dari $part yang SAMA dengan yang
+    // ditampilkan (tanpa query ulang, supaya SUM selalu cocok dengan isi tabel). $label ditulis
+    // di A (mode lama) atau di sel gabungan A..sebelum kolom 'sum' pertama (mode kelompok).
     $sumCols = array_filter($columns, fn($c) => !empty($c['sum']));
-    if (!empty($sumCols) && !empty($rows)) {
-        $totalRow = $rowNum;
-        $sheet->setCellValue('A' . $totalRow, 'TOTAL');
+    $firstSumIdx = null;
+    foreach ($columns as $i => $c) {
+        if (!empty($c['sum'])) {
+            $firstSumIdx = $i;
+            break;
+        }
+    }
+    $writeTotal = function (array $part, int $totalRow, string $label, bool $mergeLead, ?string $fill = null) use ($sheet, $columns, $lastColLetter, $firstSumIdx): void {
+        if ($mergeLead && $firstSumIdx !== null) {
+            $lead = Coordinate::stringFromColumnIndex($firstSumIdx + 1);   // kolom terakhir sebelum 'sum' pertama
+            $sheet->mergeCells("A{$totalRow}:{$lead}{$totalRow}");
+            $sheet->setCellValue('A' . $totalRow, $label);
+            $sheet->getStyle('A' . $totalRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        } else {
+            $sheet->setCellValue('A' . $totalRow, $label);
+        }
         $sheet->getStyle('A' . $totalRow)->getFont()->setBold(true);
 
         $colIndex = 2;
@@ -148,8 +172,8 @@ function streamExcelReport(string $title, string $companyName, string $periodTex
             $letter = Coordinate::stringFromColumnIndex($colIndex);
             if (!empty($col['sum'])) {
                 $sums = (($col['format'] ?? '') === 'idr')
-                    ? ['' => array_sum(array_map(fn($r) => (float) ($r[$col['field']] ?? 0), $rows))] // kolom Rupiah: satu angka
-                    : reportSumByCurrency($rows, $col['field']);
+                    ? ['' => array_sum(array_map(fn($r) => (float) ($r[$col['field']] ?? 0), $part))] // kolom Rupiah: satu angka
+                    : reportSumByCurrency($part, $col['field']);
                 $cell = $letter . $totalRow;
                 if (count($sums) === 1) {
                     // Satu mata uang -> angka asli + format berprefix kode.
@@ -158,7 +182,7 @@ function streamExcelReport(string $title, string $companyName, string $periodTex
                     $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('"' . ($cur === '' ? 'Rp' : currencyPrefix($cur)) . '" #,##0');
                 } else {
                     // Campuran mata uang: tidak dijumlahkan jadi satu angka (tanpa kurs) -- teks per mata uang.
-                    $sheet->setCellValue($cell, formatReportTotal($rows, $col['field']));
+                    $sheet->setCellValue($cell, formatReportTotal($part, $col['field']));
                 }
                 $sheet->getStyle($cell)->getFont()->setBold(true);
                 $sheet->getStyle($cell)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
@@ -167,12 +191,54 @@ function streamExcelReport(string $title, string $companyName, string $periodTex
         }
         $sheet->getStyle("A{$totalRow}:{$lastColLetter}{$totalRow}")
             ->getBorders()->getTop()->setBorderStyle(Border::BORDER_MEDIUM);
+        if ($fill !== null) {
+            $sheet->getStyle("A{$totalRow}:{$lastColLetter}{$totalRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($fill);
+        }
+    };
+
+    $rowNum = $headerRow;
+    if ($groupBy !== null && !empty($rows)) {
+        foreach (reportGroupRows($rows, $groupBy) as $section) {
+            // Band judul kelompok
+            $sheet->mergeCells("A{$rowNum}:{$lastColLetter}{$rowNum}");
+            $sheet->setCellValue('A' . $rowNum, ($groupBy['title'] ?? 'Kelompok') . ': ' . $section['name'] . '   (' . count($section['rows']) . ' ' . ($groupBy['unit'] ?? 'baris') . ')');
+            $sheet->getStyle("A{$rowNum}:{$lastColLetter}{$rowNum}")->getFont()->setBold(true)->setSize(11)->getColor()->setRGB('FFFFFF');
+            $sheet->getStyle("A{$rowNum}:{$lastColLetter}{$rowNum}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('1F4E79');
+            $rowNum++;
+            $writeHeader($rowNum);
+            $rowNum++;
+            $rowNum = $writeRows($section['rows'], $rowNum);
+            if (!empty($sumCols)) {
+                $writeTotal($section['rows'], $rowNum, 'Subtotal ' . $section['name'], true, 'E7F1FF');
+                $rowNum++;
+            }
+        }
+        if (!empty($sumCols)) {
+            $writeTotal($rows, $rowNum, 'TOTAL KESELURUHAN', true);
+            $rowNum++;
+        }
+    } else {
+        $writeHeader($rowNum);
         $rowNum++;
+        $rowNum = $writeRows($rows, $rowNum);
+        if (!empty($sumCols) && !empty($rows)) {
+            $writeTotal($rows, $rowNum, 'TOTAL', false);
+            $rowNum++;
+        }
     }
 
     $lastDataRow = max($rowNum - 1, $headerRow);
     $sheet->getStyle("A{$headerRow}:{$lastColLetter}{$lastDataRow}")
         ->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+
+    if ($footnote !== null && $footnote !== '') {
+        $fnRow = $lastDataRow + 2;
+        $sheet->mergeCells("A{$fnRow}:{$lastColLetter}{$fnRow}");
+        $sheet->setCellValue('A' . $fnRow, $footnote);
+        $sheet->getStyle('A' . $fnRow)->getFont()->setItalic(true)->setSize(9)->getColor()->setRGB('6C757D');
+        $sheet->getStyle('A' . $fnRow)->getAlignment()->setWrapText(true)->setVertical(Alignment::VERTICAL_TOP);
+        $sheet->getRowDimension($fnRow)->setRowHeight(26);
+    }
 
     $sheet->getPageSetup()->setOrientation(PageSetup::ORIENTATION_LANDSCAPE);
     $sheet->setTitle('Laporan');
@@ -183,7 +249,7 @@ function streamExcelReport(string $title, string $companyName, string $periodTex
     // cuma dibuka (tidak dicetak). ---
     _excelPrintFooter($sheet);
 
-    $noteRow = $lastDataRow + 3;
+    $noteRow = $lastDataRow + 3 + ($footnote !== null && $footnote !== '' ? 2 : 0);
     $sheet->mergeCells("A{$noteRow}:{$lastColLetter}{$noteRow}");
     $sheet->setCellValue('A' . $noteRow, printedAtLabel() . ', ' . printedByLabel());
     $sheet->getStyle('A' . $noteRow)->getFont()->setSize(8)->getColor()->setRGB('999999');

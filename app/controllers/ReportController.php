@@ -340,7 +340,7 @@ class ReportController extends Controller
             . ' - '
             . ($dateTo ? formatTanggal($dateTo) : 'Sekarang');
 
-        streamExcelReport($report['title'], $companyName, $periodText, $report['columns'], $report['rows'], $type . '_' . date('Ymd_His'));
+        streamExcelReport($report['title'], $companyName, $periodText, $report['columns'], $report['rows'], $type . '_' . date('Ymd_His'), $report['groupBy'] ?? null, $report['footnote'] ?? null);
     }
 
     /**
@@ -398,6 +398,8 @@ class ReportController extends Controller
         $columns = $report['columns'];
         $rows = $report['rows'];
         $title = $report['title'];
+        $groupBy = $report['groupBy'] ?? null;
+        $footnote = $report['footnote'] ?? null;
         require ROOT_PATH . '/app/views/report/_pdf_table.php';
         $html = ob_get_clean();
 
@@ -552,6 +554,22 @@ class ReportController extends Controller
         ];
     }
 
+    /**
+     * Nilai filter Kategori yang valid: '' (semua), 'none' (Belum Dikategorikan), atau id kategori
+     * AKTIF di Master Kategori. Selain itu (id asal/sudah dihapus) diabaikan -> '' (semua).
+     */
+    private function normalizeCategoryFilter($raw): string
+    {
+        $raw = is_scalar($raw) ? trim((string) $raw) : '';
+        if ($raw === 'none') {
+            return 'none';
+        }
+        if ($raw !== '' && ctype_digit($raw) && array_key_exists((int) $raw, (new SalesInvoice())->itemCategoryOrder())) {
+            return (string) (int) $raw;
+        }
+        return '';
+    }
+
     private function sanitizeIds($rawIds): array
     {
         if (!is_array($rawIds)) {
@@ -576,6 +594,8 @@ class ReportController extends Controller
             'filterForm'    => $report['filterForm'],
             'filters'       => $report['filters'],
             'exportQuery'   => $report['exportQuery'],
+            'groupBy'       => $report['groupBy'] ?? null,
+            'footnote'      => $report['footnote'] ?? null,
             'pagination'    => $report['pagination'] ?? null,
             'baseQuery'     => $report['baseQuery'] ?? '',
             'rowNumOffset'  => $report['rowNumOffset'] ?? 0,
@@ -812,9 +832,18 @@ class ReportController extends Controller
                 // cuma tidak lagi punya entry laporan terpisah di sini.
                 $model = new SalesInvoice();
                 $filters = ['date_from' => $dateFrom, 'date_to' => $dateTo, 'keyword' => $keyword];
-                $rows = $model->listWithRelations($filters);
+                // Dikelompokkan per KATEGORI BARANG item (Master Kategori) + filter Kategori
+                // (Semua / tiap kategori / Belum Dikategorikan). Invoice berisi >1 kategori dibagi
+                // per porsi item (tidak dihitung ganda) -- lihat SalesInvoice::reportRowsByItemCategory().
+                $categoryId = $this->normalizeCategoryFilter($get['category_id'] ?? '');
+                $rows = $model->reportRowsByItemCategory($filters, $categoryId);
+                $hasSplit = (bool) array_filter($rows, fn($r) => !empty($r['is_split']));
                 return [
                     'title' => 'Laporan Invoice Keluar',
+                    'groupBy' => ['id' => 'category_id', 'label' => 'category_name', 'title' => 'Kategori', 'unit' => 'invoice'],
+                    'footnote' => $hasSplit
+                        ? '* Invoice berisi barang dari lebih dari satu kategori: Jumlah, Tagihan DP, PPN, dan Total dibagi sesuai porsi subtotal item pada kategori tersebut (jumlah seluruh bagian = nilai invoice).'
+                        : null,
                     'columns' => [
                         ['field' => 'invoice_number', 'label' => 'No. Invoice'],
                         ['field' => 'client_name', 'label' => 'Client'],
@@ -827,8 +856,8 @@ class ReportController extends Controller
                         ['field' => 'total_amount', 'label' => 'Total', 'format' => 'rupiah', 'align' => 'end', 'sum' => true],
                     ],
                     'rows' => $rows,
-                    'filterForm' => ['date' => true, 'keyword' => true],
-                    'filters' => compact('dateFrom', 'dateTo', 'keyword'),
+                    'filterForm' => ['date' => true, 'keyword' => true, 'category' => $model->itemCategoryOrder()],
+                    'filters' => compact('dateFrom', 'dateTo', 'keyword', 'categoryId'),
                     'exportQuery' => $this->buildExportQuery($get),
                 ];
 

@@ -132,6 +132,20 @@ document.addEventListener('DOMContentLoaded', function () {
                 <?php endif; ?>
             <?php endif; ?>
 
+            <?php if (isset($filterForm['category']) && is_array($filterForm['category'])): ?>
+                <div class="col-md-3">
+                    <label class="form-label small text-muted mb-1">Kategori Barang</label>
+                    <select name="category_id" class="form-select form-select-sm">
+                        <option value="">Semua Kategori</option>
+                        <?php foreach ($filterForm['category'] as $catId => $catName): ?>
+                            <option value="<?= (int) $catId ?>" <?= (string) ($filters['categoryId'] ?? '') === (string) $catId ? 'selected' : '' ?>><?= e($catName) ?></option>
+                        <?php endforeach; ?>
+                        <option value="none" <?= ($filters['categoryId'] ?? '') === 'none' ? 'selected' : '' ?>>Belum Dikategorikan</option>
+                    </select>
+                    <div class="form-text">Menurut kategori barang pada item invoice (Master Kategori). Berlaku untuk layar, PDF &amp; Excel.</div>
+                </div>
+            <?php endif; ?>
+
             <?php if (!empty($filterForm['project'])): ?>
                 <div class="col-md-2">
                     <label class="form-label small text-muted mb-1">Project</label>

@@ -169,6 +169,113 @@ class SalesInvoice extends Model
     }
 
     /**
+     * Baris LAPORAN Invoice Keluar yang dikelompokkan per KATEGORI BARANG item (Master Kategori):
+     * satu baris per (invoice, kategori). Kategori tiap item = sales_invoice_items.item_id ->
+     * items.category_id -> item_categories (lewat ID, bukan teks); item tanpa master barang
+     * (teks bebas) / barang tanpa kategori / kategori terhapus -> "Belum Dikategorikan".
+     *
+     * Invoice yang berisi barang dari >1 kategori TIDAK dihitung ganda: nilainya dibagi per
+     * kategori menurut porsi subtotal item (Jumlah = subtotal item kategori itu; Tagihan DP,
+     * PPN, dan Total dialokasikan proporsional, sisa pembulatan ke bagian terakhir) sehingga
+     * jumlah semua bagian SAMA PERSIS dengan nilai invoice. Baris tersebut diberi tanda
+     * is_split dan nomor invoice berakhiran "*".
+     *
+     * Urutan: kategori mengikuti Master Kategori (nama A-Z), "Belum Dikategorikan" terakhir;
+     * di dalam kategori mengikuti urutan listWithRelations() (tanggal terbaru dulu).
+     *
+     * @param array  $filters        sama dengan listWithRelations() (date_from/date_to/keyword/...)
+     * @param string $categoryFilter '' = semua, 'none' = Belum Dikategorikan, angka = id kategori
+     */
+    public function reportRowsByItemCategory(array $filters = [], string $categoryFilter = ''): array
+    {
+        $invoices = $this->listWithRelations($filters);
+        if (empty($invoices)) {
+            return [];
+        }
+
+        $order = $this->itemCategoryOrder();
+        $sortOf = array_flip(array_keys($order));            // id kategori -> posisi di Master Kategori
+
+        // Subtotal item per (invoice, kategori). Join lewat PRIMARY KEY (items.id) -> tidak ada
+        // baris yang tergandakan; kategori hanya dihitung bila masih aktif di Master Kategori.
+        $parts = [];
+        foreach (array_chunk(array_column($invoices, 'id'), 500) as $chunk) {
+            $ph = implode(',', array_fill(0, count($chunk), '?'));
+            $found = $this->db->fetchAll(
+                "SELECT sii.sales_invoice_id AS inv_id, c.id AS cat_id, SUM(sii.subtotal) AS sub
+                   FROM sales_invoice_items sii
+                   LEFT JOIN items i ON i.id = sii.item_id
+                   LEFT JOIN item_categories c ON c.id = i.category_id AND c.deleted_at IS NULL
+                  WHERE sii.sales_invoice_id IN ({$ph})
+               GROUP BY sii.sales_invoice_id, c.id",
+                $chunk
+            );
+            foreach ($found as $f) {
+                $key = $f['cat_id'] === null ? 'none' : (int) $f['cat_id'];
+                $parts[(int) $f['inv_id']][$key] = (float) $f['sub'];
+            }
+        }
+
+        $out = [];
+        foreach ($invoices as $idx => $inv) {
+            $p = $parts[(int) $inv['id']] ?? [];
+            if (empty($p)) {                                  // invoice tanpa item: nilai penuh, belum dikategorikan
+                $p = ['none' => (float) $inv['subtotal']];
+            }
+            $keys = array_keys($p);
+            usort($keys, fn($a, $b) => ($a === 'none' ? PHP_INT_MAX : $sortOf[$a]) <=> ($b === 'none' ? PHP_INT_MAX : $sortOf[$b]));
+            $total = array_sum($p);
+            $n = count($keys);
+            $allocated = ['dp_amount' => 0.0, 'ppn_amount' => 0.0, 'total_amount' => 0.0];
+
+            foreach ($keys as $i => $key) {
+                $row = $inv;
+                $isLast = $i === $n - 1;
+                if ($n === 1) {
+                    // satu kategori: nilai invoice apa adanya
+                    $row['subtotal'] = (float) $inv['subtotal'];
+                } else {
+                    $share = $total > 0 ? $p[$key] / $total : ($i === 0 ? 1.0 : 0.0);
+                    $row['subtotal'] = $p[$key];
+                    foreach (['dp_amount', 'ppn_amount', 'total_amount'] as $f) {
+                        $val = $isLast ? round((float) $inv[$f] - $allocated[$f], 2) : round((float) $inv[$f] * $share, 2);
+                        $allocated[$f] += $val;
+                        $row[$f] = $val;
+                    }
+                    $row['invoice_number'] = $inv['invoice_number'] . '*';
+                }
+                $row['is_split'] = $n > 1;
+                $row['category_id'] = $key === 'none' ? null : (int) $key;
+                $row['category_name'] = $key === 'none' ? 'Belum Dikategorikan' : $order[$key];
+                $row['category_sort'] = $key === 'none' ? PHP_INT_MAX : $sortOf[$key];
+                $row['_ord'] = $idx;
+                $out[] = $row;
+            }
+        }
+
+        if ($categoryFilter !== '') {
+            $want = $categoryFilter === 'none' ? null : (int) $categoryFilter;
+            $out = array_values(array_filter($out, fn($r) => $r['category_id'] === $want));
+        }
+        usort($out, fn($a, $b) => [$a['category_sort'], $a['_ord']] <=> [$b['category_sort'], $b['_ord']]);
+        foreach ($out as &$r) {
+            unset($r['_ord']);
+        }
+        unset($r);
+        return $out;
+    }
+
+    /** Kategori aktif Master Kategori dalam urutan tampil (nama A-Z): [id => nama]. */
+    public function itemCategoryOrder(): array
+    {
+        $map = [];
+        foreach ($this->db->fetchAll("SELECT id, category_name FROM item_categories WHERE deleted_at IS NULL ORDER BY category_name ASC, id ASC") as $c) {
+            $map[(int) $c['id']] = (string) $c['category_name'];
+        }
+        return $map;
+    }
+
+    /**
      * Subquery status tertagih: invoice dianggap SUDAH tertagih kalau sudah
      * muncul di minimal 1 Tanda Terima yang belum dibatalkan -- sama persis
      * dengan definisi DashboardStat::invoiceBelumTertagih(), dipakai bareng

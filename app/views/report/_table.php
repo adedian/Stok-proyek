@@ -59,7 +59,22 @@
     </div>
 <?php endif; ?>
 
-<div class="card border-0 shadow-sm">
+<?php
+// Laporan yang mendefinisikan $groupBy (mis. Invoice Keluar per kategori barang): satu kartu/tabel
+// per kelompok dengan judul + subtotal, lalu TOTAL KESELURUHAN. Tanpa $groupBy: satu kelompok
+// tanpa judul -> tampilan lama tidak berubah.
+$isGrouped = !empty($groupBy) && !empty($rows);
+$screenGroups = $isGrouped ? reportGroupRows($rows, $groupBy) : [['key' => null, 'name' => null, 'rows' => $rows]];
+$allRows = $rows;
+?>
+<?php foreach ($screenGroups as $group): $rows = $group['rows']; ?>
+<?php if ($group['name'] !== null): ?>
+    <div class="d-flex align-items-center gap-2 mt-3 mb-2 category-heading">
+        <h5 class="mb-0"><i class="bi bi-tags text-primary"></i> <?= e($groupBy['title'] ?? 'Kelompok') ?>: <?= e($group['name']) ?></h5>
+        <span class="badge text-bg-light border"><?= count($rows) ?> <?= e($groupBy['unit'] ?? 'baris') ?></span>
+    </div>
+<?php endif; ?>
+<div class="card border-0 shadow-sm <?= $isGrouped ? 'mb-3' : '' ?>">
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
@@ -103,7 +118,7 @@
                     <?php if ($hasSumCols && !empty($rows)): ?>
                         <tr class="fw-bold border-top border-dark-subtle">
                             <?php if ($isInventory): ?><td class="no-print"></td><?php endif; ?>
-                            <td class="text-end">TOTAL</td>
+                            <td class="text-end"><?= $isGrouped ? 'SUBTOTAL' : 'TOTAL' ?></td>
                             <?php foreach ($columns as $col): ?>
                                 <?php if (!empty($col['sum'])): ?>
                                     <td class="text-end"><?= e(formatReportTotal($rows, $col['field'], $col['format'] ?? 'rupiah')) ?></td>
@@ -118,6 +133,24 @@
         </div>
     </div>
 </div>
+<?php endforeach; ?>
+<?php $rows = $allRows; ?>
+<?php if ($isGrouped): ?>
+    <?php $__sumCols = array_filter($columns, fn($c) => !empty($c['sum'])); ?>
+    <?php if (!empty($__sumCols)): ?>
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body py-2 d-flex flex-wrap align-items-center gap-4">
+            <strong>TOTAL KESELURUHAN</strong>
+            <?php foreach ($__sumCols as $col): ?>
+                <span><span class="text-muted small"><?= e($col['label']) ?>:</span> <strong><?= e(formatReportTotal($rows, $col['field'], $col['format'] ?? 'rupiah')) ?></strong></span>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <?php endif; ?>
+<?php endif; ?>
+<?php if (!empty($footnote)): ?>
+    <div class="small text-muted mb-3"><?= e($footnote) ?></div>
+<?php endif; ?>
 <div class="print-note-onscreen"><?= e(printedAtLabel()) ?>, <?= e(printedByLabel()) ?></div>
 
 <?php if ($isInventory): ?>

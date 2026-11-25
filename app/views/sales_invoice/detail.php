@@ -187,7 +187,7 @@
                             <?php foreach ($terms as $t): ?>
                                 <tr>
                                     <td><?= e($t['label']) ?></td>
-                                    <td class="text-end"><?= formatPercent($t['percentage']) ?>%</td>
+                                    <td class="text-end"><?= (int) ($t['use_percentage'] ?? 1) === 1 ? formatPercent($t['percentage']) . '%' : '-' ?></td>
                                     <td><?= !empty($t['due_date']) ? formatTanggal($t['due_date']) : '-' ?></td>
                                     <td class="text-end"><?= formatRupiah($t['amount']) ?></td>
                                     <?php if ($showPpn): ?><td class="text-end"><?= formatRupiah($t['ppn_amount']) ?></td><?php endif; ?>

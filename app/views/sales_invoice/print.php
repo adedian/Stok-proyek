@@ -284,7 +284,12 @@
                     //   'termasuk'       = harga sudah memuat PPN: hanya Subtotal & Total -- TIDAK ada baris/persen/
                     //                      nominal/keterangan PPN sama sekali.
                     $showPpn = ($inv['ppn_mode'] ?? 'tidak_termasuk') !== 'termasuk';
-                    $singleFullTerm = count($inv['terms']) === 1 && abs((float) $inv['terms'][0]['percentage'] - 100) < 0.01;
+                    // Termin tanpa persentase (nominal manual) SELALU dirinci di bawah subtotal, walau cuma satu & nilainya = Jumlah.
+                    $singleFullTerm = count($inv['terms']) === 1 && (int) ($inv['terms'][0]['use_percentage'] ?? 1) === 1
+                        && abs((float) $inv['terms'][0]['percentage'] - 100) < 0.01;
+                    $termLabel = static function (array $t): string {
+                        return e($t['label']) . ((int) ($t['use_percentage'] ?? 1) === 1 ? ' (' . formatPercent($t['percentage']) . '%)' : '');
+                    };
                 ?>
                 <?php if ($showPpn): ?>
                     <tr class="inv-print-summary-row">
@@ -293,7 +298,7 @@
                     </tr>
                     <?php foreach ($inv['terms'] as $t): ?>
                         <tr class="inv-print-summary-row">
-                            <td colspan="4"><?= e($t['label']) ?> (<?= formatPercent($t['percentage']) ?>%)</td>
+                            <td colspan="4"><?= $termLabel($t) ?></td>
                             <td class="num"><?= formatRupiah($t['amount']) ?></td>
                         </tr>
                     <?php endforeach; ?>
@@ -314,7 +319,7 @@
                     </tr>
                     <?php foreach ($inv['terms'] as $t): ?>
                         <tr class="inv-print-summary-row">
-                            <td colspan="4"><?= e($t['label']) ?> (<?= formatPercent($t['percentage']) ?>%)</td>
+                            <td colspan="4"><?= $termLabel($t) ?></td>
                             <td class="num"><?= formatRupiah($t['amount']) ?></td>
                         </tr>
                     <?php endforeach; ?>

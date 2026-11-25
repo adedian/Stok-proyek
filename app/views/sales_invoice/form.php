@@ -382,19 +382,23 @@ if (empty($terms)) {
                     </thead>
                     <tbody id="termTableBody">
                         <?php foreach ($terms as $term): ?>
+                            <?php $termManual = isset($term['use_percentage']) && (int) $term['use_percentage'] === 0; ?>
                             <tr class="term-row">
                                 <td>
                                     <div class="input-group input-group-sm flex-nowrap">
-                                        <span class="input-group-text" title="Centang bila nominal termin dihitung dari persentase">
-                                            <input type="checkbox" class="form-check-input mt-0 term-use-pct" checked aria-label="Pakai persentase">
+                                        <span class="input-group-text" title="Centang bila nominal termin dihitung dari persentase. Tidak dicentang: nominal diisi manual.">
+                                            <input type="checkbox" class="form-check-input mt-0 term-use-pct" <?= $termManual ? '' : 'checked' ?> aria-label="Pakai persentase">
                                         </span>
-                                        <input type="number" name="term_percentage[]" class="form-control form-control-sm term-percentage-input" value="<?= e($term['percentage'] ?? '') ?>" min="0.01" max="100" step="0.01" placeholder="mis. 30" required>
+                                        <input type="number" name="term_percentage[]" class="form-control form-control-sm term-percentage-input" value="<?= $termManual ? '' : e($term['percentage'] ?? '') ?>" min="0.01" max="100" step="0.01" placeholder="<?= $termManual ? 'tanpa persentase' : 'mis. 30' ?>" <?= $termManual ? 'readonly' : 'required' ?>>
                                     </div>
-                                    <input type="hidden" name="term_use_pct[]" class="term-use-pct-flag" value="1">
+                                    <input type="hidden" name="term_use_pct[]" class="term-use-pct-flag" value="<?= $termManual ? '0' : '1' ?>">
                                 </td>
                                 <td><input type="text" name="term_label[]" class="form-control form-control-sm term-label-input" value="<?= e($term['label'] ?? '') ?>" placeholder="mis. Termin 1, Pelunasan" required></td>
                                 <td><input type="date" name="term_due_date[]" class="form-control form-control-sm term-duedate-input" value="<?= e($term['due_date'] ?? '') ?>" readonly tabindex="-1"></td>
-                                <td class="text-end term-amount-cell">Rp 0.00</td>
+                                <td class="text-end term-amount-cell">
+                                    <span class="term-amount-text<?= $termManual ? ' d-none' : '' ?>">Rp 0.00</span>
+                                    <input type="number" name="term_amount[]" class="form-control form-control-sm text-end term-amount-input<?= $termManual ? '' : ' d-none' ?>" value="<?= $termManual ? e($term['amount'] ?? '') : '' ?>" min="0" step="0.01" placeholder="Nominal" aria-label="Nominal termin (manual)">
+                                </td>
                                 <td class="text-end term-ppn-cell ppn-col">Rp 0.00</td>
                                 <td class="text-end fw-semibold term-total-cell">Rp 0.00</td>
                                 <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger btn-remove-term"><i class="bi bi-trash"></i></button></td>
@@ -569,11 +573,13 @@ if (empty($terms)) {
     //   Nominal termin = Jumlah x %termin
     //   PPN termin     = Nominal termin x PPN%   (BUKAN dari Jumlah)
     //   Total termin   = Nominal termin + PPN termin
+    let currentSubtotal = 0;
     function recalcAll() {
         let subtotal = 0;
         tableBody.querySelectorAll('.item-row').forEach(function (row) {
             subtotal += recalcRow(row);
         });
+        currentSubtotal = subtotal;
         document.getElementById('sumSubtotal').textContent = formatRupiah(subtotal);
 
         const mode = ppnMode();
@@ -583,14 +589,20 @@ if (empty($terms)) {
 
         let sumPercentage = 0;
         termTableBody.querySelectorAll('.term-row').forEach(function (row) {
-            // Tanpa centang persentase = tagihan penuh (100% dari Jumlah).
+            // Tanpa centang persentase = nominal diketik manual (persentase = nominal / Jumlah, hanya info).
             const usePct = row.querySelector('.term-use-pct').checked;
-            const pct = usePct ? (parseFloat(row.querySelector('.term-percentage-input').value) || 0) : 100;
-            const amount = round2(subtotal * pct / 100);
+            let pct, amount;
+            if (usePct) {
+                pct = parseFloat(row.querySelector('.term-percentage-input').value) || 0;
+                amount = round2(subtotal * pct / 100);
+            } else {
+                amount = round2(parseFloat(row.querySelector('.term-amount-input').value) || 0);
+                pct = subtotal > 0 ? amount / subtotal * 100 : 0;
+            }
             const ppnAmount = round2(amount * ppnPercent / 100);
             const total = round2(amount + ppnAmount);
 
-            row.querySelector('.term-amount-cell').textContent = formatRupiah(amount);
+            row.querySelector('.term-amount-text').textContent = formatRupiah(amount);
             row.querySelector('.term-ppn-cell').textContent = formatRupiah(ppnAmount);
             row.querySelector('.term-total-cell').textContent = formatRupiah(total);
 
@@ -636,33 +648,47 @@ if (empty($terms)) {
     ppnInput.addEventListener('input', recalcAll);
 
     termTableBody.addEventListener('input', function (e) {
-        if (e.target.classList.contains('term-percentage-input')) {
+        if (e.target.classList.contains('term-percentage-input') || e.target.classList.contains('term-amount-input')) {
             recalcAll();
         }
     });
 
     // Checkbox "pakai persentase": tidak dicentang -> kolom persentase mati
-    // (readonly, bukan disabled, supaya index array POST tetap sejajar) & tidak
-    // perlu diisi; nominal termin = tagihan penuh (100%). Flag 1/0 dikirim lewat
+    // (readonly, bukan disabled, supaya index array POST tetap sejajar) & kolom
+    // Nominal berubah jadi input manual (term_amount[]). Flag 1/0 dikirim lewat
     // hidden term_use_pct[] karena checkbox tak tercentang tidak ikut terkirim.
-    function applyTermPctMode(row) {
+    // keepValues = true untuk baris yang baru dimuat (jangan timpa nominal tersimpan).
+    function applyTermPctMode(row, keepValues) {
         const cb = row.querySelector('.term-use-pct');
         const input = row.querySelector('.term-percentage-input');
+        const amountInput = row.querySelector('.term-amount-input');
+        const amountText = row.querySelector('.term-amount-text');
         row.querySelector('.term-use-pct-flag').value = cb.checked ? '1' : '0';
         if (cb.checked) {
             input.readOnly = false;
             input.required = true;
             input.placeholder = 'mis. 30';
+            amountInput.classList.add('d-none');
+            amountText.classList.remove('d-none');
         } else {
-            input.value = '';
+            if (!keepValues) {
+                // Nominal awal = nominal yang sedang tampil (dari persentase), atau Jumlah penuh bila belum ada persentase.
+                const pct = parseFloat(input.value);
+                amountInput.value = round2(pct > 0 ? currentSubtotal * pct / 100 : currentSubtotal) || '';
+                input.value = '';
+            }
             input.readOnly = true;
             input.required = false;
-            input.placeholder = '100% (penuh)';
+            input.placeholder = 'tanpa persentase';
+            amountInput.classList.remove('d-none');
+            amountText.classList.add('d-none');
         }
     }
     termTableBody.addEventListener('change', function (e) {
         if (e.target.classList.contains('term-use-pct')) {
-            applyTermPctMode(e.target.closest('.term-row'));
+            applyTermPctMode(e.target.closest('.term-row'), false);
+            const ai = e.target.closest('.term-row').querySelector('.term-amount-input');
+            if (!e.target.checked) { ai.focus(); }
             recalcAll();
         }
     });
@@ -690,7 +716,8 @@ if (empty($terms)) {
                 '<input type="hidden" name="term_use_pct[]" class="term-use-pct-flag" value="1"></td>' +
             '<td><input type="text" name="term_label[]" class="form-control form-control-sm term-label-input" placeholder="mis. Termin 1, Pelunasan" required></td>' +
             '<td><input type="date" name="term_due_date[]" class="form-control form-control-sm term-duedate-input" readonly tabindex="-1"></td>' +
-            '<td class="text-end term-amount-cell">Rp 0.00</td>' +
+            '<td class="text-end term-amount-cell"><span class="term-amount-text">Rp 0.00</span>' +
+                '<input type="number" name="term_amount[]" class="form-control form-control-sm text-end term-amount-input d-none" min="0" step="0.01" placeholder="Nominal" aria-label="Nominal termin (manual)"></td>' +
             '<td class="text-end term-ppn-cell ppn-col">Rp 0.00</td>' +
             '<td class="text-end fw-semibold term-total-cell">Rp 0.00</td>' +
             '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger btn-remove-term"><i class="bi bi-trash"></i></button></td>';

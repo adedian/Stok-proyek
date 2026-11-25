@@ -820,20 +820,31 @@ class SalesInvoiceController extends Controller
         $termPercentages = $_POST['term_percentage'] ?? [];
 
         // Checkbox "pakai persentase" per baris (hidden term_use_pct[] = 1/0).
-        // Tidak dipakai (0) -> persentase TIDAK dibaca dari input, tagihan penuh = 100%.
+        // Tidak dipakai (0) -> persentase TIDAK dibaca; NOMINAL termin diketik manual (term_amount[]).
+        // percentage hanya diturunkan (nominal / Jumlah) untuk validasi total <= 100%.
         $termUsePct = $_POST['term_use_pct'] ?? [];
+        $termAmounts = $_POST['term_amount'] ?? [];
+        $itemsSubtotal = 0.0;
+        foreach ($items as $it) {
+            $itemsSubtotal += $it['subtotal'];
+        }
 
         foreach ($termLabels as $i => $label) {
             $label = trim($label);
             $usePct = (string) ($termUsePct[$i] ?? '1') !== '0';
-            $percentage = $usePct ? (float) ($termPercentages[$i] ?? 0) : 100.0;
-            if ($label === '' && $percentage <= 0) {
+            $amount = ($usePct || !is_scalar($termAmounts[$i] ?? null)) ? 0.0 : parseCurrencyInput($termAmounts[$i]);
+            $percentage = $usePct
+                ? (float) ($termPercentages[$i] ?? 0)
+                : ($itemsSubtotal > 0 ? $amount / $itemsSubtotal * 100 : 0.0);
+            if ($label === '' && $percentage <= 0 && $amount <= 0) {
                 continue;
             }
             $terms[] = [
                 'dp_percentage_id' => null,
                 'label'            => $label !== '' ? $label : 'Termin',
                 'percentage'       => $percentage,
+                'use_percentage'   => $usePct ? 1 : 0,
+                'amount'           => $amount,
                 'due_date'         => $data['jatuh_tempo'],
             ];
         }
@@ -958,7 +969,12 @@ class SalesInvoiceController extends Controller
         }
         $percentageSum = 0.0;
         foreach ($terms as $term) {
-            if ($term['percentage'] < 0 || ($term['percentage'] <= 0 && !$draft)) {
+            if (isset($term['use_percentage']) && (int) $term['use_percentage'] === 0) {
+                if ($term['amount'] < 0 || ($term['amount'] <= 0 && !$draft) || $term['amount'] > INPUT_MAX_LINE_TOTAL) {
+                    $errors[] = 'Nominal setiap baris termin (tanpa persentase) harus lebih dari 0 dan dalam batas wajar.';
+                    break;
+                }
+            } elseif ($term['percentage'] < 0 || ($term['percentage'] <= 0 && !$draft)) {
                 $errors[] = 'Persentase setiap baris termin harus lebih dari 0%.';
                 break;
             }

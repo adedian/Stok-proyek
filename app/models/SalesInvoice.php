@@ -121,7 +121,14 @@ class SalesInvoice extends Model
         $sumTotal = 0.0;
 
         foreach ($terms as $i => $term) {
-            $amount = round($subtotal * $term['percentage'] / 100, 2);
+            // Termin tanpa persentase (use_percentage = 0): NOMINAL diketik manual, bukan Jumlah x %.
+            $manual = isset($term['use_percentage']) && (int) $term['use_percentage'] === 0;
+            if ($manual) {
+                $amount = round((float) ($term['amount'] ?? 0), 2);
+                $term['percentage'] = $subtotal > 0 ? min(round($amount / $subtotal * 100, 2), 999.99) : 0.0;
+            } else {
+                $amount = round($subtotal * $term['percentage'] / 100, 2);
+            }
             $ppnAmount = round($amount * $ppnPercent / 100, 2);   // 0 bila Termasuk PPN (persen dipaksa 0 di atas)
             $total = round($amount + $ppnAmount, 2);
 
@@ -130,7 +137,8 @@ class SalesInvoice extends Model
                 'dp_percentage_id' => $term['dp_percentage_id'],
                 'label'            => $term['label'],
                 'percentage'       => $term['percentage'],
-                'amount'           => $amount,
+                'use_percentage'   => $manual ? 0 : 1,
+                'amount'         => $amount,
                 'ppn_amount'       => $ppnAmount,
                 'total_amount'     => $total,
                 'due_date'         => $term['due_date'],

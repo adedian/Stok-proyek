@@ -129,9 +129,10 @@
         padding-top: 52px;
     }
     .inv-print-signoff-company {
-        /* Hanya teks nama perusahaan yang naik 1 baris (~18px); area TTD/"(.....)" tetap di posisi semula. */
+        /* Nama perusahaan diturunkan 3 baris lagi (3 x ~18px = 54px; sebelumnya top: -18px -> 0 -> 54px);
+           area TTD/"(.....)" & footer tetap di posisi semula. */
         position: relative;
-        top: -18px;
+        top: 54px;
         font-weight: 700;
         margin-bottom: 4px;
     }
@@ -190,11 +191,19 @@
             border: none;
             margin: 0;
             max-width: none;
-            padding: 0 12mm 8mm 12mm;   /* atas 0: jarak atas = margin @page saja */
+            padding: 0 12mm 0 12mm;     /* atas 0: jarak atas = margin @page saja; bawah 0: footer rapat ke tepi area cetak */
             min-height: 271mm;           /* A4 297 - 15 (atas) - 10 (bawah) = 272mm, dikurangi 1mm cadangan */
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
             color-adjust: exact;
+        }
+        /* Blok tanda tangan + footer ditekan ke dasar kertas (halaman = kolom flex setinggi min-height di atas):
+           "PT Hexa Multi Energi"/TTD dan strip footer menempel di bawah, dengan jarak ~2 baris (margin @page bawah 10mm) dari tepi kertas. */
+        .inv-print-signoff {
+            margin-top: auto;
+        }
+        .inv-print-footer-strip {
+            margin-top: 14px;
         }
     }
 </style>

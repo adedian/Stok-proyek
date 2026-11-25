@@ -375,7 +375,7 @@ if (empty($terms)) {
                             <th style="width: 180px;">Label</th>
                             <th style="width: 140px;">Jatuh Tempo</th>
                             <th style="width: 130px;" class="text-end">Nominal</th>
-                            <th style="width: 120px;" class="text-end ppn-col">PPN</th>
+                            <th style="width: 120px;" class="text-end d-none">PPN</th>
                             <th style="width: 130px;" class="text-end">Total</th>
                             <th style="width: 40px;"></th>
                         </tr>
@@ -399,7 +399,7 @@ if (empty($terms)) {
                                     <span class="term-amount-text<?= $termManual ? ' d-none' : '' ?>">Rp 0.00</span>
                                     <input type="number" name="term_amount[]" class="form-control form-control-sm text-end term-amount-input<?= $termManual ? '' : ' d-none' ?>" value="<?= $termManual ? e($term['amount'] ?? '') : '' ?>" min="0" step="0.01" placeholder="Nominal" aria-label="Nominal termin (manual)">
                                 </td>
-                                <td class="text-end term-ppn-cell ppn-col">Rp 0.00</td>
+                                <td class="text-end term-ppn-cell d-none">Rp 0.00</td>
                                 <td class="text-end fw-semibold term-total-cell">Rp 0.00</td>
                                 <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger btn-remove-term"><i class="bi bi-trash"></i></button></td>
                             </tr>
@@ -409,7 +409,7 @@ if (empty($terms)) {
                         <tr class="table-light">
                             <td colspan="3" class="text-end fw-bold">Total Keseluruhan</td>
                             <td class="text-end fw-bold" id="sumTermAmount">Rp 0.00</td>
-                            <td class="text-end fw-bold ppn-col" id="sumTermPpn">Rp 0.00</td>
+                            <td class="text-end fw-bold d-none" id="sumTermPpn">Rp 0.00</td>
                             <td class="text-end fw-bold" id="sumTermTotal">Rp 0.00</td>
                             <td></td>
                         </tr>
@@ -422,7 +422,7 @@ if (empty($terms)) {
             <div class="d-flex justify-content-end mt-3">
                 <table class="table table-sm mb-0" style="max-width: 340px;" id="invoiceSummary">
                     <tr class="ppn-col"><td class="text-muted">Subtotal / DPP</td><td class="text-end" id="sumDpp">Rp 0.00</td></tr>
-                    <tr class="ppn-col"><td class="text-muted" id="sumPpnLabel">PPN</td><td class="text-end" id="sumPpnNominal">Rp 0.00</td></tr>
+                    <tr class="d-none"><td class="text-muted" id="sumPpnLabel">PPN</td><td class="text-end" id="sumPpnNominal">Rp 0.00</td></tr>
                     <tr class="fw-bold"><td>Total Invoice</td><td class="text-end" id="sumInvoiceTotal">Rp 0.00</td></tr>
                 </table>
             </div>
@@ -732,7 +732,7 @@ if (empty($terms)) {
             '<td><input type="date" name="term_due_date[]" class="form-control form-control-sm term-duedate-input" readonly tabindex="-1"></td>' +
             '<td class="text-end term-amount-cell"><span class="term-amount-text">Rp 0.00</span>' +
                 '<input type="number" name="term_amount[]" class="form-control form-control-sm text-end term-amount-input d-none" min="0" step="0.01" placeholder="Nominal" aria-label="Nominal termin (manual)"></td>' +
-            '<td class="text-end term-ppn-cell ppn-col">Rp 0.00</td>' +
+            '<td class="text-end term-ppn-cell d-none">Rp 0.00</td>' +
             '<td class="text-end fw-semibold term-total-cell">Rp 0.00</td>' +
             '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger btn-remove-term"><i class="bi bi-trash"></i></button></td>';
         termTableBody.appendChild(tr);

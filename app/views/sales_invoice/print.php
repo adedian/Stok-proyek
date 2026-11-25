@@ -269,13 +269,26 @@
                 </tr>
             </thead>
             <tbody>
+                <?php
+                    // Exclude PPN dasar bruto (price_basis = 'gross'): harga item DICETAK sebagai harga Exclude (DPP) =
+                    // harga / (1 + PPN%), mis. / 1,11 -- sehingga Harga Jumlah item sama dengan baris "Jumlah" di bawah.
+                    // Nilai tersimpan (harga bruto) tidak berubah; invoice lama/dari Order ('net') & Include dicetak apa adanya.
+                    $dppDivisor = (($inv['ppn_mode'] ?? 'tidak_termasuk') !== 'termasuk' && ($inv['price_basis'] ?? 'net') === 'gross')
+                        ? 1 + ((float) $inv['ppn_percent']) / 100 : 1.0;
+                    $dppItemsTotal = 0.0;
+                ?>
                 <?php foreach ($inv['items'] as $i => $item): ?>
+                    <?php
+                        $itemUnit = $dppDivisor > 1 ? round((float) $item['unit_price'] / $dppDivisor, 2) : $item['unit_price'];
+                        $itemSub  = $dppDivisor > 1 ? round((float) $item['subtotal'] / $dppDivisor, 2) : $item['subtotal'];
+                        $dppItemsTotal += (float) $itemSub;
+                    ?>
                     <tr>
                         <td><?= $i + 1 ?></td>
                         <td><?= nl2br(e($item['description'])) ?></td>
                         <td class="num"><?= number_format((float) $item['qty'], 2, ',', '.') ?></td>
-                        <td class="num"><?= formatRupiah($item['unit_price']) ?></td>
-                        <td class="num"><?= formatRupiah($item['subtotal']) ?></td>
+                        <td class="num"><?= formatRupiah($itemUnit) ?></td>
+                        <td class="num"><?= formatRupiah($itemSub) ?></td>
                     </tr>
                 <?php endforeach; ?>
                 <?php
@@ -301,11 +314,11 @@
                     };
                 ?>
                 <?php
-                    // Exclude PPN dasar bruto (price_basis = 'gross'): baris "Jumlah" paling atas = DPP (= jumlah nominal semua
-                    // termin = harga / (1 + PPN%)), bukan harga bruto. Invoice lama/dari Order ('net') tetap memakai Jumlah item.
+                    // Exclude PPN dasar bruto (price_basis = 'gross'): baris "Jumlah" paling atas = DPP (= jumlah Harga Jumlah item
+                    // yang dicetak sebagai DPP = harga / (1 + PPN%)), bukan harga bruto. Invoice lama/dari Order ('net') tetap memakai Jumlah item.
                     $topAmount = $inv['subtotal'];
                     if ($showPpn && ($inv['price_basis'] ?? 'net') === 'gross') {
-                        $topAmount = array_sum(array_map(static fn ($t) => (float) $t['amount'], $inv['terms']));
+                        $topAmount = $dppItemsTotal;   // = jumlah Harga Jumlah item (sudah dicetak sebagai DPP) -> kedua angka selalu sama
                     }
                 ?>
                 <?php if ($showPpn): ?>

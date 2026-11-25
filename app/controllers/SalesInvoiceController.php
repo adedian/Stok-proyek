@@ -163,6 +163,7 @@ class SalesInvoiceController extends Controller
 
             $invoiceId = $this->invoiceModel->create(array_merge($data, [
                 'dpp_amount'      => $totals['dpp'],
+                'price_basis'     => $totals['price_basis'],
                 'subtotal'        => $totals['subtotal'],
                 'dp_percentage_id' => $totals['dp_percentage_id'],
                 'dp_percentage'    => $totals['dp_percentage'],
@@ -365,6 +366,7 @@ class SalesInvoiceController extends Controller
 
             $this->invoiceModel->updateById($id, array_merge($data, [
                 'dpp_amount'       => $totals['dpp'],
+                'price_basis'      => $totals['price_basis'],
                 'subtotal'         => $totals['subtotal'],
                 'dp_percentage_id' => $totals['dp_percentage_id'],
                 'dp_percentage'    => $totals['dp_percentage'],

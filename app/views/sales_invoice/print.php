@@ -300,10 +300,18 @@
                         return e($t['label']) . ((int) ($t['use_percentage'] ?? 1) === 1 ? ' (' . formatPercent($t['percentage']) . '%)' : '');
                     };
                 ?>
+                <?php
+                    // Exclude PPN dasar bruto (price_basis = 'gross'): baris "Jumlah" paling atas = DPP (= jumlah nominal semua
+                    // termin = harga / (1 + PPN%)), bukan harga bruto. Invoice lama/dari Order ('net') tetap memakai Jumlah item.
+                    $topAmount = $inv['subtotal'];
+                    if ($showPpn && ($inv['price_basis'] ?? 'net') === 'gross') {
+                        $topAmount = array_sum(array_map(static fn ($t) => (float) $t['amount'], $inv['terms']));
+                    }
+                ?>
                 <?php if ($showPpn): ?>
                     <tr class="inv-print-summary-row">
                         <td colspan="4">Jumlah</td>
-                        <td class="num"><?= formatRupiah($inv['subtotal']) ?></td>
+                        <td class="num"><?= formatRupiah($topAmount) ?></td>
                     </tr>
                     <?php foreach ($inv['terms'] as $t): ?>
                         <tr class="inv-print-summary-row">

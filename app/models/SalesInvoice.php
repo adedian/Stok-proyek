@@ -125,6 +125,9 @@ class SalesInvoice extends Model
         $subtotal = round($subtotal, 2);
 
         $computedTerms = [];
+        // Disimpan di sales_invoices.price_basis: cetak Exclude dasar bruto menaruh DPP di baris "Jumlah" paling atas.
+        $priceBasis = ($grossBasis && $ppnMode === self::PPN_TIDAK_TERMASUK && $ppnPercent > 0) ? 'gross' : 'net';
+
         $sumPercentage = 0.0;
         $sumAmount = 0.0;
         $sumPpn = 0.0;
@@ -179,6 +182,7 @@ class SalesInvoice extends Model
             'dp_amount'        => round($sumAmount, 2),
             'dpp'              => round($sumAmount, 2),
             'ppn_percent'      => $ppnPercent,
+            'price_basis'      => $priceBasis,
             'ppn_amount'       => round($sumPpn, 2),
             'total'            => round($sumTotal, 2),
         ];

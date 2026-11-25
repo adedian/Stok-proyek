@@ -122,9 +122,9 @@
                         <div class="text-muted small">Perlakuan PPN</div>
                         <div class="fw-semibold">
                             <?php if ($ppnMode === 'termasuk'): ?>
-                                Harga Termasuk PPN
+                                Include PPN
                             <?php else: ?>
-                                Harga Tidak Termasuk PPN (PPN <?= e(formatPercent($invoice['ppn_percent'])) ?>%)
+                                Exclude PPN (PPN <?= e(formatPercent($invoice['ppn_percent'])) ?>%)
                             <?php endif; ?>
                         </div>
                     </div>

@@ -103,7 +103,17 @@ class SalesInvoice extends Model
         return ($invoice['ppn_mode'] ?? self::PPN_TIDAK_TERMASUK) === self::PPN_TIDAK_TERMASUK;
     }
 
-    public static function calculateTotals(array $items, array $terms, float $ppnPercent, string $ppnMode = self::PPN_TIDAK_TERMASUK): array
+    /**
+     * $grossBasis (Revisi "Include/Exclude PPN", 2026-11-25) -- dasar harga mode Exclude PPN:
+     *   false (bawaan; Order Penjualan & invoice dari Order) : harga = NET, PPN ditambahkan di atas harga
+     *                                                          (DPP = Jumlah x %, PPN = DPP x PPN%, Total = DPP + PPN).
+     *   true  (form Invoice Keluar)                          : harga = BRUTO (sudah sama dgn harga Include PPN):
+     *                                                          Total termin = Jumlah x %, DPP = Total / (1 + PPN%) (mis. / 1,11),
+     *                                                          PPN = Total - DPP. Total Exclude == Total Include untuk harga sama.
+     * Termin nominal manual (use_percentage = 0): nominal yg diketik = DPP; PPN = DPP x PPN%; Total = DPP + PPN.
+     * Mode Include (PPN_TERMASUK) tidak terpengaruh: PPN 0, Total = harga.
+     */
+    public static function calculateTotals(array $items, array $terms, float $ppnPercent, string $ppnMode = self::PPN_TIDAK_TERMASUK, bool $grossBasis = false): array
     {
         if ($ppnMode === self::PPN_TERMASUK) {
             $ppnPercent = 0.0;   // harga sudah termasuk PPN -> tidak ada PPN yang dihitung
@@ -123,14 +133,24 @@ class SalesInvoice extends Model
         foreach ($terms as $i => $term) {
             // Termin tanpa persentase (use_percentage = 0): NOMINAL diketik manual, bukan Jumlah x %.
             $manual = isset($term['use_percentage']) && (int) $term['use_percentage'] === 0;
+            $grossExclude = $grossBasis && $ppnMode === self::PPN_TIDAK_TERMASUK && $ppnPercent > 0;
             if ($manual) {
                 $amount = round((float) ($term['amount'] ?? 0), 2);
-                $term['percentage'] = $subtotal > 0 ? min(round($amount / $subtotal * 100, 2), 999.99) : 0.0;
+                $ppnAmount = round($amount * $ppnPercent / 100, 2);   // 0 bila Include PPN (persen dipaksa 0 di atas)
+                $total = round($amount + $ppnAmount, 2);
+                // Persentase (info/validasi total <= 100%) terhadap Jumlah: pada dasar bruto memakai Total (DPP + PPN).
+                $base = $grossExclude ? $total : $amount;
+                $term['percentage'] = $subtotal > 0 ? min(round($base / $subtotal * 100, 2), 999.99) : 0.0;
+            } elseif ($grossExclude) {
+                // Exclude PPN, dasar bruto: Total = Jumlah x %; DPP = Total / (1 + PPN%); PPN = Total - DPP.
+                $total = round($subtotal * $term['percentage'] / 100, 2);
+                $amount = round($total / (1 + $ppnPercent / 100), 2);
+                $ppnAmount = round($total - $amount, 2);
             } else {
                 $amount = round($subtotal * $term['percentage'] / 100, 2);
+                $ppnAmount = round($amount * $ppnPercent / 100, 2);   // 0 bila Include PPN (persen dipaksa 0 di atas)
+                $total = round($amount + $ppnAmount, 2);
             }
-            $ppnAmount = round($amount * $ppnPercent / 100, 2);   // 0 bila Termasuk PPN (persen dipaksa 0 di atas)
-            $total = round($amount + $ppnAmount, 2);
 
             $computedTerms[] = [
                 'term_no'          => $i + 1,

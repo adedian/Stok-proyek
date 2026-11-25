@@ -283,7 +283,7 @@ class SalesInvoiceController extends Controller
         $this->assertEditable($existing);
         $soLinked = !empty($existing['sales_order_id']);
 
-        [$data, $items, $terms] = $this->collectInput();
+        [$data, $items, $terms] = $this->collectInput(!$soLinked);
         // Hanya invoice yang masih Draft yang boleh disimpan sebagai Draft lagi; invoice final tidak bisa "diturunkan".
         $wasDraft = ($existing['status'] ?? SalesInvoice::FINAL) === SalesInvoice::DRAFT;
         $isDraft = $wasDraft && $this->isDraftSave();
@@ -359,7 +359,8 @@ class SalesInvoiceController extends Controller
             }
 
             $oldItems = $this->itemModel->itemsByInvoice($id);
-            $totals = $this->calculateTotals($items, $terms, $data['ppn_percent'], $data['ppn_mode']);
+            // Invoice dari Order Penjualan tetap pada dasar harga NET (PPN ditambahkan), sama seperti saat diterbitkan.
+            $totals = $this->calculateTotals($items, $terms, $data['ppn_percent'], $data['ppn_mode'], !$soLinked);
             $data['ppn_percent'] = $totals['ppn_percent'];   // 0 untuk Termasuk PPN
 
             $this->invoiceModel->updateById($id, array_merge($data, [
@@ -734,7 +735,8 @@ class SalesInvoiceController extends Controller
 
     // ================= Helper privat =================
 
-    private function collectInput(): array
+    /** $grossBasis: dasar harga bruto (Exclude PPN dibagi 1+PPN%) -- false hanya untuk invoice dari Order Penjualan. */
+    private function collectInput(bool $grossBasis = true): array
     {
         $invoiceType = $_POST['invoice_type'] ?? '';
 
@@ -833,9 +835,11 @@ class SalesInvoiceController extends Controller
             $label = trim($label);
             $usePct = (string) ($termUsePct[$i] ?? '1') !== '0';
             $amount = ($usePct || !is_scalar($termAmounts[$i] ?? null)) ? 0.0 : parseCurrencyInput($termAmounts[$i]);
+            // Nominal manual = DPP; pada dasar bruto + Exclude PPN, bagiannya dari Jumlah = DPP x (1 + PPN%).
+            $manualBase = ($grossBasis && $data['ppn_mode'] === SalesInvoice::PPN_TIDAK_TERMASUK) ? $amount * (1 + $data['ppn_percent'] / 100) : $amount;
             $percentage = $usePct
                 ? (float) ($termPercentages[$i] ?? 0)
-                : ($itemsSubtotal > 0 ? $amount / $itemsSubtotal * 100 : 0.0);
+                : ($itemsSubtotal > 0 ? $manualBase / $itemsSubtotal * 100 : 0.0);
             if ($label === '' && $percentage <= 0 && $amount <= 0) {
                 continue;
             }
@@ -937,7 +941,7 @@ class SalesInvoiceController extends Controller
             $errors[] = 'Tempo harus berupa angka hari (0 sampai ' . INPUT_MAX_TEMPO_DAYS . '), tanpa huruf/simbol.';
         }
         if (!in_array($data['ppn_mode'], [SalesInvoice::PPN_TERMASUK, SalesInvoice::PPN_TIDAK_TERMASUK], true)) {
-            $errors[] = 'Pilih perlakuan PPN: Harga Termasuk PPN atau Harga Tidak Termasuk PPN.';
+            $errors[] = 'Pilih perlakuan PPN: Include PPN atau Exclude PPN.';
         } elseif ($data['ppn_mode'] === SalesInvoice::PPN_TIDAK_TERMASUK && ($data['ppn_percent'] < 0 || $data['ppn_percent'] > 100)) {
             // Persentase PPN hanya relevan (dan hanya divalidasi) bila PPN dihitung.
             $errors[] = 'PPN harus antara 0 dan 100 persen.';
@@ -1109,9 +1113,9 @@ class SalesInvoiceController extends Controller
     }
 
     /** Rumus Invoice Keluar -- lihat SalesInvoice::calculateTotals() (satu sumber, juga dipakai Order Penjualan). */
-    private function calculateTotals(array $items, array $terms, float $ppnPercent, string $ppnMode): array
+    private function calculateTotals(array $items, array $terms, float $ppnPercent, string $ppnMode, bool $grossBasis = true): array
     {
-        return SalesInvoice::calculateTotals($items, $terms, $ppnPercent, $ppnMode);
+        return SalesInvoice::calculateTotals($items, $terms, $ppnPercent, $ppnMode, $grossBasis);
     }
 
     private function saveTerms(int $invoiceId, array $computedTerms): void

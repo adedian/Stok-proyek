@@ -219,12 +219,12 @@ if (empty($terms)) {
                     <label class="form-label d-block">Perlakuan PPN <span class="text-danger">*</span></label>
                     <div class="btn-group" role="group" aria-label="Perlakuan PPN" id="ppnModeGroup">
                         <input type="radio" class="btn-check" name="ppn_mode" id="ppnModeIncl" value="termasuk" autocomplete="off" <?= $ppnMode === 'termasuk' ? 'checked' : '' ?>>
-                        <label class="btn btn-outline-primary" for="ppnModeIncl">Harga Termasuk PPN</label>
+                        <label class="btn btn-outline-primary" for="ppnModeIncl">Include PPN</label>
                         <input type="radio" class="btn-check" name="ppn_mode" id="ppnModeExcl" value="tidak_termasuk" autocomplete="off" <?= $ppnMode === 'tidak_termasuk' ? 'checked' : '' ?>>
-                        <label class="btn btn-outline-primary" for="ppnModeExcl">Harga Tidak Termasuk PPN</label>
+                        <label class="btn btn-outline-primary" for="ppnModeExcl">Exclude PPN</label>
                     </div>
                     <div class="form-text" id="ppnModeHint">
-                        Termasuk: harga sudah memuat PPN &mdash; PPN tidak dihitung &amp; tidak dicetak. Tidak termasuk: PPN dihitung &amp; ditambahkan di atas harga.
+                        Include: harga sudah memuat PPN &mdash; PPN tidak dihitung &amp; tidak dicetak. Exclude: Subtotal/DPP = harga &divide; (1 + PPN%), mis. &divide; 1,11 &mdash; total sama dengan Include.
                     </div>
                 </div>
                 <div class="col-md-3" id="ppnPercentWrap">
@@ -492,10 +492,13 @@ if (empty($terms)) {
     function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
 
     // ---------- Perlakuan PPN ----------
-    // 'termasuk' (Harga Termasuk PPN) | 'tidak_termasuk' (Harga Tidak Termasuk PPN).
+    // 'termasuk' (Include PPN) | 'tidak_termasuk' (Exclude PPN).
     // Rumus (SATU sumber di backend: SalesInvoice::calculateTotals(); angka di layar hanya preview):
     //   termasuk       : harga sudah memuat PPN -> PPN tidak dihitung/ditampilkan; Total = harga
-    //   tidak_termasuk : PPN = Nominal x PPN%, Total = Nominal + PPN
+    //   tidak_termasuk : dasar bruto -> Total = Jumlah x %, DPP = Total / (1 + PPN%), PPN = Total - DPP
+    //                    (Total Exclude == Total Include). Invoice dari Order Penjualan tetap dasar NET
+    //                    (PPN ditambahkan: Total = DPP + PPN) -- lihat grossBasis.
+    const grossBasis = <?= $soLinked ? 'false' : 'true' ?>;
     const ppnModeRadios = document.querySelectorAll('input[name="ppn_mode"]');
     function ppnMode() {
         const checked = document.querySelector('input[name="ppn_mode"]:checked');
@@ -592,15 +595,26 @@ if (empty($terms)) {
             // Tanpa centang persentase = nominal diketik manual (persentase = nominal / Jumlah, hanya info).
             const usePct = row.querySelector('.term-use-pct').checked;
             let pct, amount;
+            let ppnAmount, total;
+            const grossExclude = grossBasis && mode === 'tidak_termasuk' && ppnPercent > 0;
             if (usePct) {
                 pct = parseFloat(row.querySelector('.term-percentage-input').value) || 0;
-                amount = round2(subtotal * pct / 100);
+                if (grossExclude) {
+                    total = round2(subtotal * pct / 100);
+                    amount = round2(total / (1 + ppnPercent / 100));
+                    ppnAmount = round2(total - amount);
+                } else {
+                    amount = round2(subtotal * pct / 100);
+                    ppnAmount = round2(amount * ppnPercent / 100);
+                    total = round2(amount + ppnAmount);
+                }
             } else {
+                // Nominal manual = DPP; PPN = DPP x PPN%; persentase info = bagian dari Jumlah.
                 amount = round2(parseFloat(row.querySelector('.term-amount-input').value) || 0);
-                pct = subtotal > 0 ? amount / subtotal * 100 : 0;
+                ppnAmount = round2(amount * ppnPercent / 100);
+                total = round2(amount + ppnAmount);
+                pct = subtotal > 0 ? (grossExclude ? total : amount) / subtotal * 100 : 0;
             }
-            const ppnAmount = round2(amount * ppnPercent / 100);
-            const total = round2(amount + ppnAmount);
 
             row.querySelector('.term-amount-text').textContent = formatRupiah(amount);
             row.querySelector('.term-ppn-cell').textContent = formatRupiah(ppnAmount);

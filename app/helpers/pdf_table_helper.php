@@ -66,6 +66,37 @@ class FastPdfTable
         $this->border = $rgb;
     }
 
+    /** Ukuran font isi tabel (pt) + padding vertikal sel. */
+    public function setSize(float $size, ?float $padY = null): void
+    {
+        $this->size = $size;
+        if ($padY !== null) {
+            $this->padY = $padY;
+        }
+    }
+
+    /** Header 1 baris: sel 'c','s','t','fill','color','align'. */
+    public function headerRow(array $cells): void
+    {
+        $h = $this->lineHeight() + 2 * $this->padY;
+        foreach ($cells as $cell) {
+            $o = $cell + ['bold' => true, 'align' => 'c', 'fit' => true];
+            $this->drawCell($this->colX($cell['c']), $this->y, $this->colW($cell['c'], $cell['s'] ?? 1), $h, (string) $cell['t'], $o);
+        }
+        $this->y += $h;
+    }
+
+    /** Batang berwarna selebar tabel dengan teks (mis. judul kelompok "PIC: ..."). */
+    public function bar(string $text, string $fill, string $color = '#ffffff', bool $withHeader = true): void
+    {
+        $h = $this->lineHeight() + 2 * $this->padY + 2;
+        // jangan tinggalkan batang sendirian di dasar halaman: sertakan ruang utk header + 1 baris
+        $this->ensureSpace($h + 2 * ($this->lineHeight() + 2 * $this->padY), false);
+        $w = $this->colW(0, count($this->cols));
+        $this->drawCell($this->mL, $this->y, $w, $h, $text, ['fill' => $fill, 'color' => $color, 'bold' => true, 'size' => $this->size + 0.5, 'border' => false, 'lines' => [$text]]);
+        $this->y += $h;
+    }
+
     public function setHeader(callable $fn): void
     {
         $this->headerFn = $fn;
@@ -633,5 +664,153 @@ function fastPdfStockAvailable(array $rows, string $companyName): string
             ['c' => 4, 't' => (string) $r['unit']],
         ]);
     }
+    return $p->finish();
+}
+
+/** Qty gaya Laporan Kas: bulat tanpa desimal; selain itu maksimal 2 desimal tanpa nol di belakang. */
+function pdfFmtQtyKas($v): string
+{
+    $v = (float) $v;
+    return $v == (int) $v ? number_format($v, 0, ',', '.') : rtrim(rtrim(number_format($v, 2, ',', '.'), '0'), ',');
+}
+
+/** Judul tengah laporan Kas: judul (hitam, tebal), perusahaan & periode (biru). */
+function pdfKasTitle(FastPdfTable $p, string $title, string $company, string $period, ?string $note = null): void
+{
+    $p->text($title, 14, ['bold' => true, 'align' => 'c']);
+    $p->text($company, 10.5, ['bold' => true, 'color' => '#0070C0', 'align' => 'c']);
+    $p->text($period, 9, ['color' => '#0070C0', 'align' => 'c', 'after' => $note === null ? 6 : 1]);
+    if ($note !== null) {
+        $p->text($note, 8.5, ['color' => '#6c757d', 'align' => 'c', 'after' => 6]);
+    }
+}
+
+/**
+ * Laporan Kas (buku kas kronologis, Rekap/Rincian; Kas [+Bank]). $ledger dari
+ * CashController::combinedLedger(): saldo_awal, rows, saldo_akhir, [groups per akun].
+ */
+function fastPdfCashReport(array $ledger, string $company, string $periodText, string $reportTitle): string
+{
+    $p = new FastPdfTable(printedAtLabel() . ', ' . printedByLabel());
+    $p->setSize(8, 3.0);
+    pdfKasTitle($p, $reportTitle, $company, $periodText);
+    $p->setColumns([7, 11.5, 30, 5, 8, 10, 10, 11, 9]);
+    $p->setHeader(function (FastPdfTable $p) {
+        $h = [];
+        foreach (['Tgl', 'No Bukti', 'Uraian', 'Qty', 'Satuan', 'Masuk', 'Keluar', 'Saldo Akhir', 'PIC'] as $i => $t) {
+            $h[] = ['c' => $i, 't' => $t, 'fill' => '#f1f3f5', 'align' => $i >= 3 && $i <= 7 ? 'r' : 'c'];
+        }
+        $p->headerRow($h);
+    });
+    $p->header();
+
+    $grouped = !empty($ledger['groups']);
+    $sections = $grouped ? $ledger['groups'] : [[
+        'label' => null, 'saldo_awal' => $ledger['saldo_awal'], 'rows' => $ledger['rows'], 'saldo_akhir' => $ledger['saldo_akhir'],
+    ]];
+    foreach ($sections as $sec) {
+        if ($sec['label'] !== null) {
+            $p->row([['c' => 0, 's' => 9, 't' => (string) $sec['label'], 'bold' => true, 'color' => '#0a3a7a', 'wrap' => true]], '#cfe2ff');
+        }
+        $p->row([
+            ['c' => 0, 's' => 7, 't' => 'Saldo Awal', 'align' => 'c', 'bold' => true],
+            ['c' => 7, 't' => pdfFmtMoney($sec['saldo_awal']), 'align' => 'r', 'bold' => true],
+        ], '#f1f3f5');
+        if (empty($sec['rows'])) {
+            $p->row([['c' => 0, 's' => 9, 't' => 'Tidak ada transaksi pada periode/filter ini.', 'align' => 'c', 'wrap' => true]]);
+        }
+        foreach ($sec['rows'] as $row) {
+            $isBank = ($row['source'] ?? 'kas') === 'bank';
+            $first = !empty($row['is_first']);
+            $uraian = (string) $row['uraian'] . ($isBank && !$grouped ? ' (' . $row['kategori'] . ')' : '');
+            $p->row([
+                ['c' => 0, 't' => $first ? date('j-M-y', strtotime($row['trx_date_full'])) : ''],
+                ['c' => 1, 't' => $first ? (string) $row['no_bukti_full'] : '', 'wrap' => true],
+                ['c' => 2, 't' => $uraian, 'wrap' => true],
+                ['c' => 3, 't' => $isBank ? '-' : pdfFmtQtyKas($row['qty']), 'align' => 'r'],
+                ['c' => 4, 't' => $isBank ? '-' : pdfFmtMoney($row['satuan']), 'align' => 'r'],
+                ['c' => 5, 't' => $row['masuk'] != 0 ? pdfFmtMoney($row['masuk']) : '', 'align' => 'r'],
+                ['c' => 6, 't' => $row['keluar'] != 0 ? pdfFmtMoney($row['keluar']) : '', 'align' => 'r'],
+                ['c' => 7, 't' => pdfFmtMoney($row['saldo']), 'align' => 'r'],
+                ['c' => 8, 't' => $first ? (string) $row['pic_full'] : '', 'wrap' => true],
+            ]);
+        }
+        if ($grouped) {
+            $p->row([
+                ['c' => 0, 's' => 5, 't' => 'Saldo Akhir ' . $sec['label'], 'align' => 'r', 'bold' => true, 'wrap' => true],
+                ['c' => 5, 't' => pdfFmtMoney($sec['masuk']), 'align' => 'r', 'bold' => true],
+                ['c' => 6, 't' => pdfFmtMoney($sec['keluar']), 'align' => 'r', 'bold' => true],
+                ['c' => 7, 't' => pdfFmtMoney($sec['saldo_akhir']), 'align' => 'r', 'bold' => true],
+            ], '#f1f3f5');
+        }
+    }
+    $p->row([
+        ['c' => 0, 's' => 7, 't' => $grouped ? 'Total Saldo Akhir (semua akun)' : 'Saldo Akhir', 'align' => 'r', 'bold' => true],
+        ['c' => 7, 't' => pdfFmtMoney($ledger['saldo_akhir']), 'align' => 'r', 'bold' => true],
+    ], '#f1f3f5');
+    return $p->finish();
+}
+
+/**
+ * Laporan Kas "Tarik Semua": per PIC (batang judul + tabel + subtotal) lalu GRAND TOTAL.
+ * $groups dari CashController::buildGroupedByPic().
+ */
+function fastPdfCashGrouped(array $groups, float $grandMasuk, float $grandKeluar, string $company, string $periodText, string $reportTitle): string
+{
+    $p = new FastPdfTable(printedAtLabel() . ', ' . printedByLabel());
+    $p->setSize(8, 3.0);
+    pdfKasTitle($p, $reportTitle, $company, $periodText, 'Tarik Semua - dikelompokkan per PIC');
+    $p->setColumns([9, 14, 17, 36, 12, 12]);
+    if (empty($groups)) {
+        $p->row([['c' => 0, 's' => 6, 't' => 'Tidak ada transaksi pada periode/filter ini.', 'align' => 'c', 'wrap' => true]]);
+        return $p->finish();
+    }
+    $head = function (FastPdfTable $p) {
+        $h = [];
+        foreach (['Tanggal', 'No Bukti', 'Project', 'Uraian', 'Masuk', 'Keluar'] as $i => $t) {
+            $h[] = ['c' => $i, 't' => $t, 'fill' => '#f1f3f5', 'align' => $i >= 4 ? 'r' : 'c'];
+        }
+        $p->headerRow($h);
+    };
+    $p->setHeader($head);
+    foreach ($groups as $g) {
+        $pic = mb_strtoupper((string) $g['pic']);
+        $p->gap(6);
+        $p->bar('PIC: ' . $pic, '#212529');
+        $p->header();
+        foreach ($g['rows'] as $row) {
+            $project = (string) ($row['project_name_full'] ?? '');
+            $p->row([
+                ['c' => 0, 't' => !empty($row['trx_date_full']) ? date('j-M-y', strtotime($row['trx_date_full'])) : ''],
+                ['c' => 1, 't' => (string) ($row['no_bukti_full'] ?? ''), 'wrap' => true],
+                ['c' => 2, 't' => $project !== '' ? $project : '-', 'wrap' => true],
+                ['c' => 3, 't' => (string) $row['uraian'], 'wrap' => true],
+                ['c' => 4, 't' => $row['masuk'] != 0 ? pdfFmtMoney($row['masuk']) : '', 'align' => 'r'],
+                ['c' => 5, 't' => $row['keluar'] != 0 ? pdfFmtMoney($row['keluar']) : '', 'align' => 'r'],
+            ]);
+        }
+        $p->row([
+            ['c' => 0, 's' => 4, 't' => 'Total PIC ' . $pic, 'align' => 'r', 'bold' => true, 'wrap' => true],
+            ['c' => 4, 't' => pdfFmtMoney($g['masuk']), 'align' => 'r', 'bold' => true],
+            ['c' => 5, 't' => pdfFmtMoney($g['keluar']), 'align' => 'r', 'bold' => true],
+        ], '#f8f9fa');
+    }
+
+    // GRAND TOTAL
+    $p->gap(10);
+    $p->setHeader(function (FastPdfTable $p) {
+        $p->headerRow([
+            ['c' => 0, 's' => 4, 't' => 'GRAND TOTAL', 'fill' => '#212529', 'color' => '#ffffff'],
+            ['c' => 4, 't' => 'Masuk', 'fill' => '#212529', 'color' => '#ffffff', 'align' => 'r'],
+            ['c' => 5, 't' => 'Keluar', 'fill' => '#212529', 'color' => '#ffffff', 'align' => 'r'],
+        ]);
+    });
+    $p->header();
+    $p->row([
+        ['c' => 0, 's' => 4, 't' => 'Total Masuk / Keluar / Saldo', 'bold' => true, 'wrap' => true],
+        ['c' => 4, 't' => pdfFmtMoney($grandMasuk), 'align' => 'r', 'bold' => true],
+        ['c' => 5, 't' => pdfFmtMoney($grandKeluar), 'align' => 'r', 'bold' => true],
+    ]);
+    $p->row([['c' => 0, 's' => 6, 't' => 'Saldo: ' . pdfFmtMoney($grandMasuk - $grandKeluar), 'align' => 'r', 'bold' => true]]);
     return $p->finish();
 }

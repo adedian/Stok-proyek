@@ -540,13 +540,11 @@ class CashController extends Controller
     {
         [$ledger, $meta] = $this->buildReportData();
         $this->activityLog->log(currentUserId(), 'cash', 'print', 'Cetak PDF Laporan Kas (' . $meta['period'] . ')');
-        ob_start();
-        $company = $meta['company'];
-        $periodText = $meta['period'];
-        $reportTitle = $meta['title'];
-        require ROOT_PATH . '/app/views/cash/_report_pdf.php';
-        $html = ob_get_clean();
-        streamPdf($html, 'laporan_kas_' . date('Ymd_His'));
+        // PDF ditulis langsung (FastPdfTable) -- Dompdf HTML terlalu lambat/boros memori utk ratusan baris.
+        streamPdfBinary(
+            fastPdfCashReport($ledger, $meta['company'], $meta['period'], $meta['title']),
+            'laporan_kas_' . date('Ymd_His')
+        );
     }
 
     public function exportReport(): void
@@ -610,13 +608,10 @@ class CashController extends Controller
         $grandMasuk = array_sum(array_column($groups, 'masuk'));
         $grandKeluar = array_sum(array_column($groups, 'keluar'));
 
-        ob_start();
-        $company = $meta['company'];
-        $periodText = $meta['period'];
-        $reportTitle = $meta['title'];
-        require ROOT_PATH . '/app/views/cash/_report_grouped_pdf.php';
-        $html = ob_get_clean();
-        streamPdf($html, 'laporan_kas_tarik_semua_' . date('Ymd_His'));
+        streamPdfBinary(
+            fastPdfCashGrouped($groups, (float) $grandMasuk, (float) $grandKeluar, $meta['company'], $meta['period'], $meta['title']),
+            'laporan_kas_tarik_semua_' . date('Ymd_His')
+        );
     }
 
     /**

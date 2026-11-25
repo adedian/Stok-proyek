@@ -439,7 +439,7 @@ function streamStockDetailExcel(array $groups, string $companyName, string $peri
 /**
  * ============================================================
  * EXPORT EXCEL "TARIK SEMUA" (Revisi lanjutan poin 3) -- isi & pengelompokan
- * SAMA PERSIS dengan versi PDF (_report_grouped_pdf.php), dibangun dari
+ * SAMA PERSIS dengan versi PDF (fastPdfCashGrouped() di pdf_table_helper.php), dibangun dari
  * $groups yang sama (CashController::buildGroupedByPic()), cuma beda format
  * output. Kolom: Tanggal | No Bukti | Project | Uraian | Masuk | Keluar,
  * dikelompokkan per PIC (judul grup + subtotal), lalu Grand Total di akhir.

@@ -371,7 +371,7 @@ if (empty($terms)) {
                 <table class="table table-sm align-middle mb-0 entry-cards">
                     <thead class="table-light">
                         <tr>
-                            <th style="width: 130px;">Persentase</th>
+                            <th style="width: 170px;">Persentase</th>
                             <th style="width: 180px;">Label</th>
                             <th style="width: 140px;">Jatuh Tempo</th>
                             <th style="width: 130px;" class="text-end">Nominal</th>
@@ -383,7 +383,15 @@ if (empty($terms)) {
                     <tbody id="termTableBody">
                         <?php foreach ($terms as $term): ?>
                             <tr class="term-row">
-                                <td><input type="number" name="term_percentage[]" class="form-control form-control-sm term-percentage-input" value="<?= e($term['percentage'] ?? '') ?>" min="0.01" max="100" step="0.01" placeholder="mis. 30" required></td>
+                                <td>
+                                    <div class="input-group input-group-sm flex-nowrap">
+                                        <span class="input-group-text" title="Centang bila nominal termin dihitung dari persentase">
+                                            <input type="checkbox" class="form-check-input mt-0 term-use-pct" checked aria-label="Pakai persentase">
+                                        </span>
+                                        <input type="number" name="term_percentage[]" class="form-control form-control-sm term-percentage-input" value="<?= e($term['percentage'] ?? '') ?>" min="0.01" max="100" step="0.01" placeholder="mis. 30" required>
+                                    </div>
+                                    <input type="hidden" name="term_use_pct[]" class="term-use-pct-flag" value="1">
+                                </td>
                                 <td><input type="text" name="term_label[]" class="form-control form-control-sm term-label-input" value="<?= e($term['label'] ?? '') ?>" placeholder="mis. Termin 1, Pelunasan" required></td>
                                 <td><input type="date" name="term_due_date[]" class="form-control form-control-sm term-duedate-input" value="<?= e($term['due_date'] ?? '') ?>" readonly tabindex="-1"></td>
                                 <td class="text-end term-amount-cell">Rp 0.00</td>
@@ -575,7 +583,9 @@ if (empty($terms)) {
 
         let sumPercentage = 0;
         termTableBody.querySelectorAll('.term-row').forEach(function (row) {
-            const pct = parseFloat(row.querySelector('.term-percentage-input').value) || 0;
+            // Tanpa centang persentase = tagihan penuh (100% dari Jumlah).
+            const usePct = row.querySelector('.term-use-pct').checked;
+            const pct = usePct ? (parseFloat(row.querySelector('.term-percentage-input').value) || 0) : 100;
             const amount = round2(subtotal * pct / 100);
             const ppnAmount = round2(amount * ppnPercent / 100);
             const total = round2(amount + ppnAmount);
@@ -631,6 +641,32 @@ if (empty($terms)) {
         }
     });
 
+    // Checkbox "pakai persentase": tidak dicentang -> kolom persentase mati
+    // (readonly, bukan disabled, supaya index array POST tetap sejajar) & tidak
+    // perlu diisi; nominal termin = tagihan penuh (100%). Flag 1/0 dikirim lewat
+    // hidden term_use_pct[] karena checkbox tak tercentang tidak ikut terkirim.
+    function applyTermPctMode(row) {
+        const cb = row.querySelector('.term-use-pct');
+        const input = row.querySelector('.term-percentage-input');
+        row.querySelector('.term-use-pct-flag').value = cb.checked ? '1' : '0';
+        if (cb.checked) {
+            input.readOnly = false;
+            input.required = true;
+            input.placeholder = 'mis. 30';
+        } else {
+            input.value = '';
+            input.readOnly = true;
+            input.required = false;
+            input.placeholder = '100% (penuh)';
+        }
+    }
+    termTableBody.addEventListener('change', function (e) {
+        if (e.target.classList.contains('term-use-pct')) {
+            applyTermPctMode(e.target.closest('.term-row'));
+            recalcAll();
+        }
+    });
+
     termTableBody.addEventListener('click', function (e) {
         const removeBtn = e.target.closest('.btn-remove-term');
         if (removeBtn) {
@@ -648,7 +684,10 @@ if (empty($terms)) {
         const tr = document.createElement('tr');
         tr.className = 'term-row';
         tr.innerHTML =
-            '<td><input type="number" name="term_percentage[]" class="form-control form-control-sm term-percentage-input" min="0.01" max="100" step="0.01" placeholder="mis. 30" required></td>' +
+            '<td><div class="input-group input-group-sm flex-nowrap">' +
+                '<span class="input-group-text" title="Centang bila nominal termin dihitung dari persentase"><input type="checkbox" class="form-check-input mt-0 term-use-pct" checked aria-label="Pakai persentase"></span>' +
+                '<input type="number" name="term_percentage[]" class="form-control form-control-sm term-percentage-input" min="0.01" max="100" step="0.01" placeholder="mis. 30" required></div>' +
+                '<input type="hidden" name="term_use_pct[]" class="term-use-pct-flag" value="1"></td>' +
             '<td><input type="text" name="term_label[]" class="form-control form-control-sm term-label-input" placeholder="mis. Termin 1, Pelunasan" required></td>' +
             '<td><input type="date" name="term_due_date[]" class="form-control form-control-sm term-duedate-input" readonly tabindex="-1"></td>' +
             '<td class="text-end term-amount-cell">Rp 0.00</td>' +

@@ -819,9 +819,14 @@ class SalesInvoiceController extends Controller
         $termLabels = $_POST['term_label'] ?? [];
         $termPercentages = $_POST['term_percentage'] ?? [];
 
+        // Checkbox "pakai persentase" per baris (hidden term_use_pct[] = 1/0).
+        // Tidak dipakai (0) -> persentase TIDAK dibaca dari input, tagihan penuh = 100%.
+        $termUsePct = $_POST['term_use_pct'] ?? [];
+
         foreach ($termLabels as $i => $label) {
             $label = trim($label);
-            $percentage = (float) ($termPercentages[$i] ?? 0);
+            $usePct = (string) ($termUsePct[$i] ?? '1') !== '0';
+            $percentage = $usePct ? (float) ($termPercentages[$i] ?? 0) : 100.0;
             if ($label === '' && $percentage <= 0) {
                 continue;
             }

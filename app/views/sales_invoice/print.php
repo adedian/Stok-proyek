@@ -129,10 +129,10 @@
         padding-top: 52px;
     }
     .inv-print-signoff-company {
-        /* Nama perusahaan diturunkan 3 baris lagi (3 x ~18px = 54px; sebelumnya top: -18px -> 0 -> 54px);
+        /* Nama perusahaan: sebelumnya top -18px -> 0 -> 54px (turun 3 baris) -> 18px (naik 2 baris), kini naik 1 baris lagi (~18px) -> 0;
            area TTD/"(.....)" & footer tetap di posisi semula. */
         position: relative;
-        top: 54px;
+        top: 0;
         font-weight: 700;
         margin-bottom: 4px;
     }
@@ -176,6 +176,8 @@
         color: #495057;
         line-height: 1.5;
     }
+    .inv-print-bottom-spacer { display: none; }
+    .inv-footer-fixed { display: none; }
     .inv-print-footer-strip > div:last-child {
         border-left: 1px solid #adb5bd;
         padding-left: 16px;
@@ -191,19 +193,40 @@
             border: none;
             margin: 0;
             max-width: none;
-            padding: 0 12mm 0 12mm;     /* atas 0: jarak atas = margin @page saja; bawah 0: footer rapat ke tepi area cetak */
-            min-height: 271mm;           /* A4 297 - 15 (atas) - 10 (bawah) = 272mm, dikurangi 1mm cadangan */
+            /* bawah 41mm = ruang cadangan untuk footer yang dipasang TETAP di dasar area cetak (lihat .inv-footer-fixed):
+               isi invoice tidak pernah menimpa footer, dan bila tidak muat pindah ke halaman berikutnya (bukan terpotong). */
+            padding: 0 12mm 41mm 12mm;   /* atas 0: jarak atas = margin @page saja */
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
             color-adjust: exact;
         }
-        /* Blok tanda tangan + footer ditekan ke dasar kertas (halaman = kolom flex setinggi min-height di atas):
-           "PT Hexa Multi Energi"/TTD dan strip footer menempel di bawah, dengan jarak ~2 baris (margin @page bawah 10mm) dari tepi kertas. */
-        .inv-print-signoff {
-            margin-top: auto;
+        /* Footer alamat/kontak: SATU elemen position: fixed di dasar area cetak (di dalam margin @page => tidak pernah
+           terpotong di A4/F4/Letter/Legal, TIDAK bergantung pada tinggi kertas/vh), muncul di setiap halaman cetak.
+           Salinan footer di dalam tiap invoice (.inv-footer-flow, hanya untuk layar) disembunyikan saat cetak. */
+        .inv-footer-flow {
+            display: none !important;
         }
-        .inv-print-footer-strip {
-            margin-top: 14px;
+        .inv-footer-fixed {
+            display: flex !important;
+            position: fixed;
+            left: 12mm;
+            right: 12mm;
+            bottom: 29.8mm;    /* 29,8mm = 6mm + naik 3 baris (14,3mm) + naik 2 baris lagi (2 x ~4,8mm = 9,5mm) */
+            margin: 0;
+            background: #fff;
+        }
+        .inv-print-bottom-spacer {
+            display: none !important;
+        }
+        /* Tanda tangan tidak boleh terbelah antar halaman: bila tidak muat, seluruh blok pindah ke halaman berikut. */
+        .inv-print-signoff {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        /* Teks kecil "tanggal cetak, pencetak" (utilities.css: fixed, bottom 8px): tepat 1 baris (~4,8mm) di bawah footer.
+           Tepi bawah footer = 29,8mm; tinggi teks ~3,3mm -> bottom = 29,8 - 4,8 - 3,3 = 21,7mm. */
+        .doc-print-meta {
+            bottom: 21.7mm;
         }
     }
 </style>
@@ -388,7 +411,7 @@
         </div>
 
         <?php if (!empty($company['company_address']) || !empty($company['company_phone']) || !empty($company['company_email'])): ?>
-            <div class="inv-print-footer-strip">
+            <div class="inv-print-footer-strip inv-footer-flow">
                 <div><?= nl2br(e($company['company_address'] ?? '')) ?></div>
                 <div>
                     <?= e($company['company_phone'] ?? '') ?>
@@ -398,5 +421,16 @@
         <?php endif; ?>
     </div>
 <?php endforeach; ?>
+
+<?php /* Footer cetak: SATU elemen fixed di dasar area cetak (hanya tampil saat cetak; di layar tiap invoice punya footer sendiri). */ ?>
+<?php if (!empty($company['company_address']) || !empty($company['company_phone']) || !empty($company['company_email'])): ?>
+    <div class="inv-print-footer-strip inv-footer-fixed">
+        <div><?= nl2br(e($company['company_address'] ?? '')) ?></div>
+        <div>
+            <?= e($company['company_phone'] ?? '') ?>
+            <?php if (!empty($company['company_email'])): ?><br><?= e($company['company_email']) ?><?php endif; ?>
+        </div>
+    </div>
+<?php endif; ?>
 
 <div class="doc-print-meta"><?= e(printedAtLabel()) ?>, <?= e(printedByLabel()) ?></div>

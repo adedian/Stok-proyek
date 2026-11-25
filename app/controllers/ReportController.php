@@ -425,15 +425,8 @@ class ReportController extends Controller
             $grandTotals['akhir'] += (float) ($g['saldo_akhir_value'] ?? 0);
         }
 
-        // Bobot = jumlah baris tabel (transaksi + 1 baris "Saldo Akhir"); potongan ~180 baris.
-        $chunks = splitIntoPdfChunks($groups, fn($g) => count($g['lines']) + 1, 180);
-        $chunkCount = count($chunks);
-        streamPdfChunked($chunkCount, function (int $chunkIndex) use ($chunks, $chunkCount, $dateFrom, $dateTo, $showPrice, $grandTotals) {
-            $groups = $chunks[$chunkIndex]['items'];
-            ob_start();
-            require ROOT_PATH . '/app/views/report/_stock_detail_print.php';
-            return ob_get_clean();
-        }, 'laporan_stok_detail_' . date('Ymd_His'));
+        // PDF ditulis langsung (FastPdfTable) -- jauh lebih cepat & hemat memori daripada Dompdf HTML.
+        streamPdfBinary(fastPdfStockDetail($groups, $dateFrom, $dateTo, $showPrice, $grandTotals), 'laporan_stok_detail_' . date('Ymd_His'));
     }
 
     /**
@@ -455,16 +448,7 @@ class ReportController extends Controller
             $grandTotals['akhir'] += (float) ($r['saldo_akhir_value'] ?? 0);
         }
 
-        // 1 baris per barang; potongan ~220 baris (render bertahap, lihat streamPdfChunked()).
-        $chunks = splitIntoPdfChunks($rows, fn() => 1, 220);
-        $chunkCount = count($chunks);
-        streamPdfChunked($chunkCount, function (int $chunkIndex) use ($chunks, $chunkCount, $dateFrom, $dateTo, $showPrice, $grandTotals) {
-            $rows = $chunks[$chunkIndex]['items'];
-            $rowOffset = $chunks[$chunkIndex]['offset'];
-            ob_start();
-            require ROOT_PATH . '/app/views/report/_stock_recap_print.php';
-            return ob_get_clean();
-        }, 'laporan_stok_rekap_' . date('Ymd_His'));
+        streamPdfBinary(fastPdfStockRecap($rows, $dateFrom, $dateTo, $showPrice, $grandTotals), 'laporan_stok_rekap_' . date('Ymd_His'));
     }
 
     /**
@@ -510,16 +494,7 @@ class ReportController extends Controller
         $rows = $this->availableStockRows();
         $companyName = (new SystemSetting())->getGroup('company')['company_name'] ?: 'Perusahaan';
 
-        // Render bertahap supaya "semua data" tidak menembus memory_limit (lihat streamPdfChunked()).
-        $chunks = splitIntoPdfChunks($rows, fn() => 1, 500);
-        $chunkCount = count($chunks);
-        streamPdfChunked($chunkCount, function (int $chunkIndex) use ($chunks, $companyName) {
-            $rows = $chunks[$chunkIndex]['items'];
-            $rowOffset = $chunks[$chunkIndex]['offset'];
-            ob_start();
-            require ROOT_PATH . '/app/views/report/_stock_available_print.php';
-            return ob_get_clean();
-        }, 'laporan_stok_tersedia_' . date('Ymd_His'));
+        streamPdfBinary(fastPdfStockAvailable($rows, $companyName), 'laporan_stok_tersedia_' . date('Ymd_His'));
     }
 
     /** Export Excel Stok Tersedia -- isi sama dengan printStockAvailable(). */
@@ -535,7 +510,7 @@ class ReportController extends Controller
     /**
      * Nama perusahaan + baris periode untuk header Excel Stok -- format periode
      * dibuat dari date_from/date_to yang SAMA dengan yang dipakai template PDF
-     * stok (_stock_detail_print.php/_stock_recap_print.php).
+     * stok (fastPdfStockDetail()/fastPdfStockRecap() di pdf_table_helper.php).
      */
     private function stockReportHeaderMeta(array $filters): array
     {

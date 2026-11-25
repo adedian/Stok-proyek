@@ -203,7 +203,7 @@ function streamExcelReport(string $title, string $companyName, string $periodTex
  * EXPORT EXCEL LAPORAN STOK BARANG -- Detail & Rekap (Revisi 8 #9-#13).
  *
  * Struktur, kolom, grouping, & angka WAJIB sama persis dengan cetak PDF-nya
- * (app/views/report/_stock_detail_print.php & _stock_recap_print.php). Data
+ * (fastPdfStockDetail()/fastPdfStockRecap() di app/helpers/pdf_table_helper.php). Data
  * masuk lewat parameter $groups/$rows yang datang dari method model yang SAMA
  * dipakai PDF (Inventory::stockDetailReport()/stockRecapReport()), dengan
  * $filters yang identik -- jadi filter periode/barang/"Stok != 0"/dll otomatis
@@ -317,7 +317,7 @@ function _stockPriceBlocks(bool $showPrice, int $firstColIdx): array
 }
 
 /**
- * Excel DETAIL Stok -- cerminan app/views/report/_stock_detail_print.php.
+ * Excel DETAIL Stok -- cerminan fastPdfStockDetail() (pdf_table_helper.php).
  * $showPrice = false -> kolom & baris "Dengan Harga" / total nilai dihilangkan.
  */
 function streamStockDetailExcel(array $groups, string $companyName, string $periodText, string $filename, bool $showPrice = true): void
@@ -659,7 +659,7 @@ function streamCashReportExcel(array $ledger, string $companyName, string $perio
 }
 
 /**
- * Excel REKAP Stok -- cerminan app/views/report/_stock_recap_print.php:
+ * Excel REKAP Stok -- cerminan fastPdfStockRecap() (pdf_table_helper.php):
  * satu baris per barang, ringkasan Saldo Awal / In (total masuk) / Out (total
  * keluar) / Saldo Akhir (masing-masing Qty + Satuan).
  *
@@ -768,7 +768,7 @@ function streamStockRecapExcel(array $rows, string $companyName, string $periodT
 /**
  * Excel STOK TERSEDIA -- template "Laporan Stok Barang - Rekap" versi ringkas:
  * No, Kode Barang, Nama Barang, Stock Tersedia (Qty + Satuan). Tanpa harga &
- * tanpa baris periode. Cerminan app/views/report/_stock_available_print.php.
+ * tanpa baris periode. Cerminan fastPdfStockAvailable() (pdf_table_helper.php).
  *
  * @param array $rows Hasil Inventory::stockMutationReport() yang sudah disaring
  *              saldo_akhir > 0 -- item_code, item_name, unit, saldo_akhir

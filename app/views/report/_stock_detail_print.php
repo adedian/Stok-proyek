@@ -9,6 +9,12 @@
  * "Dengan Harga" (Harga Satuan + Total) -- dinilai atas harga beli terakhir.
  */
 $showPrice = $showPrice ?? true;
+// Render bertahap (streamPdfChunked): potongan ke-$chunkIndex dari $chunkCount. Judul hanya di
+// potongan pertama; baris TOTAL KESELURUHAN hanya di potongan terakhir dan memakai
+// $grandTotals (dihitung dari SEMUA barang oleh controller), bukan hanya isi potongan ini.
+$chunkIndex = $chunkIndex ?? 0;
+$chunkCount = $chunkCount ?? 1;
+$grandTotals = $grandTotals ?? null;
 if (!function_exists('formatQtyPrint')) {
     function formatQtyPrint($value): string
     {
@@ -56,11 +62,13 @@ $colspanSummary = $showPrice ? 16 : 10;
 </style>
 </head>
 <body>
+    <?php if ($chunkIndex === 0): ?>
     <h2>Laporan Stok Barang - Cetak Detail</h2>
     <div class="meta">
         Periode: <?= $dateFrom !== '' ? formatTanggal($dateFrom) : '(seluruh riwayat)' ?> &ndash; <?= $dateTo !== '' ? formatTanggal($dateTo) : 'Sekarang' ?>
         &nbsp;|&nbsp; Dicetak: <?= formatTanggal(date('Y-m-d')) ?> <?= date('H:i') ?>
     </div>
+    <?php endif; ?>
     <?php if (empty($groups)): ?>
         <p>Tidak ada mutasi stok pada periode ini.</p>
     <?php else: ?>
@@ -151,7 +159,8 @@ $colspanSummary = $showPrice ? 16 : 10;
                 <?php endif; ?>
             </tr>
         <?php endforeach; ?>
-            <?php if ($showPrice): ?>
+            <?php if ($showPrice && $chunkIndex === $chunkCount - 1): ?>
+            <?php if ($grandTotals !== null) { $grandIn = $grandTotals['in']; $grandOut = $grandTotals['out']; $grandAkhir = $grandTotals['akhir']; } ?>
             <tr class="grand-row">
                 <td colspan="11" class="end">TOTAL SALDO KESELURUHAN</td>
                 <td class="end"><?= formatMoneyPrint($grandIn) ?></td>

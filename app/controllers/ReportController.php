@@ -417,11 +417,23 @@ class ReportController extends Controller
         $dateTo = $filters['date_to'];
         $showPrice = $filters['show_price'];
 
-        ob_start();
-        require ROOT_PATH . '/app/views/report/_stock_detail_print.php';
-        $html = ob_get_clean();
+        // Total keseluruhan dihitung dari SEMUA barang (bukan per potongan).
+        $grandTotals = ['in' => 0.0, 'out' => 0.0, 'akhir' => 0.0];
+        foreach ($groups as $g) {
+            $grandTotals['in']    += (float) ($g['in_total_value'] ?? 0);
+            $grandTotals['out']   += (float) ($g['out_total_value'] ?? 0);
+            $grandTotals['akhir'] += (float) ($g['saldo_akhir_value'] ?? 0);
+        }
 
-        streamPdf($html, 'laporan_stok_detail_' . date('Ymd_His'));
+        // Bobot = jumlah baris tabel (transaksi + 1 baris "Saldo Akhir"); potongan ~180 baris.
+        $chunks = splitIntoPdfChunks($groups, fn($g) => count($g['lines']) + 1, 180);
+        $chunkCount = count($chunks);
+        streamPdfChunked($chunkCount, function (int $chunkIndex) use ($chunks, $chunkCount, $dateFrom, $dateTo, $showPrice, $grandTotals) {
+            $groups = $chunks[$chunkIndex]['items'];
+            ob_start();
+            require ROOT_PATH . '/app/views/report/_stock_detail_print.php';
+            return ob_get_clean();
+        }, 'laporan_stok_detail_' . date('Ymd_His'));
     }
 
     /**
@@ -436,11 +448,23 @@ class ReportController extends Controller
         $dateTo = $filters['date_to'];
         $showPrice = $filters['show_price'];
 
-        ob_start();
-        require ROOT_PATH . '/app/views/report/_stock_recap_print.php';
-        $html = ob_get_clean();
+        $grandTotals = ['in' => 0.0, 'out' => 0.0, 'akhir' => 0.0];
+        foreach ($rows as $r) {
+            $grandTotals['in']    += (float) ($r['in_value'] ?? 0);
+            $grandTotals['out']   += (float) ($r['out_value'] ?? 0);
+            $grandTotals['akhir'] += (float) ($r['saldo_akhir_value'] ?? 0);
+        }
 
-        streamPdf($html, 'laporan_stok_rekap_' . date('Ymd_His'));
+        // 1 baris per barang; potongan ~220 baris (render bertahap, lihat streamPdfChunked()).
+        $chunks = splitIntoPdfChunks($rows, fn() => 1, 220);
+        $chunkCount = count($chunks);
+        streamPdfChunked($chunkCount, function (int $chunkIndex) use ($chunks, $chunkCount, $dateFrom, $dateTo, $showPrice, $grandTotals) {
+            $rows = $chunks[$chunkIndex]['items'];
+            $rowOffset = $chunks[$chunkIndex]['offset'];
+            ob_start();
+            require ROOT_PATH . '/app/views/report/_stock_recap_print.php';
+            return ob_get_clean();
+        }, 'laporan_stok_rekap_' . date('Ymd_His'));
     }
 
     /**
@@ -486,11 +510,16 @@ class ReportController extends Controller
         $rows = $this->availableStockRows();
         $companyName = (new SystemSetting())->getGroup('company')['company_name'] ?: 'Perusahaan';
 
-        ob_start();
-        require ROOT_PATH . '/app/views/report/_stock_available_print.php';
-        $html = ob_get_clean();
-
-        streamPdf($html, 'laporan_stok_tersedia_' . date('Ymd_His'));
+        // Render bertahap supaya "semua data" tidak menembus memory_limit (lihat streamPdfChunked()).
+        $chunks = splitIntoPdfChunks($rows, fn() => 1, 500);
+        $chunkCount = count($chunks);
+        streamPdfChunked($chunkCount, function (int $chunkIndex) use ($chunks, $companyName) {
+            $rows = $chunks[$chunkIndex]['items'];
+            $rowOffset = $chunks[$chunkIndex]['offset'];
+            ob_start();
+            require ROOT_PATH . '/app/views/report/_stock_available_print.php';
+            return ob_get_clean();
+        }, 'laporan_stok_tersedia_' . date('Ymd_His'));
     }
 
     /** Export Excel Stok Tersedia -- isi sama dengan printStockAvailable(). */

@@ -4,6 +4,9 @@
  * Variabel: $rows (Inventory::stockMutationReport() disaring saldo_akhir > 0),
  *           $companyName. Mirror Excel streamStockAvailableExcel().
  */
+// Render bertahap (streamPdfChunked) -- judul hanya di potongan pertama; $rowOffset = penomoran lanjut.
+$chunkIndex = $chunkIndex ?? 0;
+$rowOffset = $rowOffset ?? 0;
 if (!function_exists('formatQtyPrint')) {
     function formatQtyPrint($value): string
     {
@@ -32,8 +35,10 @@ if (!function_exists('formatQtyPrint')) {
 </style>
 </head>
 <body>
+    <?php if ($chunkIndex === 0): ?>
     <div class="ttl">Laporan Stok Barang - Rekap</div>
     <div class="co"><?= e($companyName) ?></div>
+    <?php endif; ?>
     <?php if (empty($rows)): ?>
         <p>Tidak ada stok tersedia yang cocok dengan filter ini.</p>
     <?php else: ?>
@@ -53,7 +58,7 @@ if (!function_exists('formatQtyPrint')) {
         <tbody>
         <?php foreach ($rows as $i => $r): ?>
             <tr>
-                <td class="c"><?= $i + 1 ?></td>
+                <td class="c"><?= $rowOffset + $i + 1 ?></td>
                 <td><?= e($r['item_code'] ?: '-') ?></td>
                 <td><?= e(stockReportItemLabel($r)) ?></td>
                 <td class="end"><?= formatQtyPrint($r['saldo_akhir']) ?></td>

@@ -9,6 +9,12 @@
  * total masuk x harga; Total (Saldo Akhir) = saldo akhir x harga.
  */
 $showPrice = $showPrice ?? true;
+// Render bertahap (streamPdfChunked) -- lihat catatan di _stock_detail_print.php.
+// $rowOffset = jumlah barang di potongan sebelumnya (penomoran lanjut).
+$chunkIndex = $chunkIndex ?? 0;
+$chunkCount = $chunkCount ?? 1;
+$rowOffset = $rowOffset ?? 0;
+$grandTotals = $grandTotals ?? null;
 if (!function_exists('formatQtyPrint')) {
     function formatQtyPrint($value): string
     {
@@ -54,11 +60,13 @@ if (!function_exists('formatMoneyPrint')) {
 </style>
 </head>
 <body>
+    <?php if ($chunkIndex === 0): ?>
     <h2>Laporan Stok Barang - Cetak Rekap</h2>
     <div class="meta">
         Periode: <?= $dateFrom !== '' ? formatTanggal($dateFrom) : '(seluruh riwayat)' ?> &ndash; <?= $dateTo !== '' ? formatTanggal($dateTo) : 'Sekarang' ?>
         &nbsp;|&nbsp; Dicetak: <?= formatTanggal(date('Y-m-d')) ?> <?= date('H:i') ?>
     </div>
+    <?php endif; ?>
     <?php if (empty($rows)): ?>
         <p>Tidak ada data barang yang cocok dengan filter ini.</p>
     <?php else: ?>
@@ -99,7 +107,7 @@ if (!function_exists('formatMoneyPrint')) {
                 $grandAkhir += (float) ($r['saldo_akhir_value'] ?? 0);
             ?>
             <tr>
-                <td class="end"><?= $i + 1 ?></td>
+                <td class="end"><?= $rowOffset + $i + 1 ?></td>
                 <td><?= e($r['item_code'] ?: '-') ?></td>
                 <td><?= e(stockReportItemLabel($r)) ?></td>
 
@@ -132,7 +140,8 @@ if (!function_exists('formatMoneyPrint')) {
                 <?php endif; ?>
             </tr>
         <?php endforeach; ?>
-            <?php if ($showPrice): ?>
+            <?php if ($showPrice && $chunkIndex === $chunkCount - 1): ?>
+            <?php if ($grandTotals !== null) { $grandIn = $grandTotals['in']; $grandOut = $grandTotals['out']; $grandAkhir = $grandTotals['akhir']; } ?>
             <tr class="grand-row">
                 <td colspan="10" class="end">TOTAL SALDO KESELURUHAN</td>
                 <td class="end"><?= formatMoneyPrint($grandIn) ?></td>

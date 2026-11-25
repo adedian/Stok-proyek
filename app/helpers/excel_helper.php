@@ -316,29 +316,8 @@ function _stockPriceBlocks(bool $showPrice, int $firstColIdx): array
     return [$blocks, $C, $idx - 1];
 }
 
-/** Jumlah baris per kategori ['none'|id => n] untuk judul "Kategori: X (n barang)". */
-function _stockExcelCategoryCounts(array $rows): array
-{
-    $out = [];
-    foreach ($rows as $r) {
-        $k = $r['category_id'] ?? 'none';
-        $out[$k] = ($out[$k] ?? 0) + 1;
-    }
-    return $out;
-}
-
-/** Band judul satu kategori (selebar tabel) -- tiap kategori = bagian/tabel sendiri. */
-function _stockExcelCategoryBand($sheet, int $row, string $lastColLetter, string $name, int $count): void
-{
-    $sheet->mergeCells("A{$row}:{$lastColLetter}{$row}");
-    $sheet->setCellValue('A' . $row, 'Kategori: ' . $name . '   (' . $count . ' barang)');
-    $sheet->getStyle("A{$row}:{$lastColLetter}{$row}")->getFont()->setBold(true)->setSize(11)->getColor()->setRGB('FFFFFF');
-    $sheet->getStyle("A{$row}:{$lastColLetter}{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('1F4E79');
-}
-
 /**
  * Excel DETAIL Stok -- cerminan fastPdfStockDetail() (pdf_table_helper.php).
- * Dikelompokkan per KATEGORI (Master Kategori): band judul + header + isi + subtotal tiap kategori.
  * $showPrice = false -> kolom & baris "Dengan Harga" / total nilai dihilangkan.
  */
 function streamStockDetailExcel(array $groups, string $companyName, string $periodText, string $filename, bool $showPrice = true): void
@@ -350,151 +329,103 @@ function streamStockDetailExcel(array $groups, string $companyName, string $peri
     [$blocks, $C, $lastIdx] = _stockPriceBlocks($showPrice, 5); // A-D info, blok mulai E
     $lastColLetter = Coordinate::stringFromColumnIndex($lastIdx);
     $colBeforeAkhir = Coordinate::stringFromColumnIndex(Coordinate::columnIndexFromString($C['akhir_1']) - 1);
-    $mergeEnd = $showPrice ? Coordinate::stringFromColumnIndex(Coordinate::columnIndexFromString($C['in_h_2']) - 1) : $colBeforeAkhir;
 
     $headerRow = _stockExcelTitleBlock($sheet, 'Laporan Stok Barang - Detail', $companyName, $periodText, $lastColLetter);
+    $sub = $headerRow + 1;
 
+    foreach (['A' => 'Tanggal', 'B' => 'No Bukti', 'C' => 'Kode Barang', 'D' => 'Nama Barang'] as $col => $label) {
+        $sheet->setCellValue($col . $headerRow, $label);
+        $sheet->mergeCells("{$col}{$headerRow}:{$col}{$sub}");
+    }
     foreach ($blocks as $b) {
+        $sheet->setCellValue($b['c1'] . $headerRow, $b['label']);
+        $sheet->mergeCells("{$b['c1']}{$headerRow}:{$b['c2']}{$headerRow}");
+        $sheet->setCellValue($b['c1'] . $sub, $b['sub'][0]);
+        $sheet->setCellValue($b['c2'] . $sub, $b['sub'][1]);
         $sheet->getColumnDimension($b['c1'])->setWidth($b['w'][0]);
         $sheet->getColumnDimension($b['c2'])->setWidth($b['w'][1]);
     }
     foreach (['A' => 15, 'B' => 15, 'C' => 15, 'D' => 30] as $c => $w) {
         $sheet->getColumnDimension($c)->setWidth($w);
     }
+    $sheet->getStyle("A{$headerRow}:{$lastColLetter}{$sub}")->getFont()->setBold(true);
+    $sheet->getStyle("A{$headerRow}:{$lastColLetter}{$sub}")->getAlignment()
+        ->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
 
-    // Header tabel 2 baris, digambar ulang di tiap kategori.
-    $drawHeader = function (int $hr) use ($sheet, $blocks, $lastColLetter) {
-        $sub = $hr + 1;
-        foreach (['A' => 'Tanggal', 'B' => 'No Bukti', 'C' => 'Kode Barang', 'D' => 'Nama Barang'] as $col => $label) {
-            $sheet->setCellValue($col . $hr, $label);
-            $sheet->mergeCells("{$col}{$hr}:{$col}{$sub}");
-        }
-        foreach ($blocks as $b) {
-            $sheet->setCellValue($b['c1'] . $hr, $b['label']);
-            $sheet->mergeCells("{$b['c1']}{$hr}:{$b['c2']}{$hr}");
-            $sheet->setCellValue($b['c1'] . $sub, $b['sub'][0]);
-            $sheet->setCellValue($b['c2'] . $sub, $b['sub'][1]);
-        }
-        $sheet->getStyle("A{$hr}:{$lastColLetter}{$sub}")->getFont()->setBold(true);
-        $sheet->getStyle("A{$hr}:{$lastColLetter}{$sub}")->getAlignment()
-            ->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
-    };
-
-    $row = $headerRow;
+    $row = $sub + 1;
+    $firstDataRow = $row;
     $grandIn = 0.0;
     $grandOut = 0.0;
     $grandAkhir = 0.0;
+    foreach ($groups as $g) {
+        $grandIn    += (float) ($g['in_total_value'] ?? 0);
+        $grandOut   += (float) ($g['out_total_value'] ?? 0);
+        $grandAkhir += (float) ($g['saldo_akhir_value'] ?? 0);
+        foreach ($g['lines'] as $line) {
+            $hasIn  = (float) $line['in_qty'] > 0;
+            $hasOut = (float) $line['out_qty'] > 0;
+            $priced = ($line['line_price'] ?? null) !== null;
 
-    if (empty($groups)) {
-        $drawHeader($row);
-        $row += 2;
+            $sheet->setCellValue('A' . $row, formatTanggal(substr((string) $line['transaction_date'], 0, 10)));
+            $sheet->setCellValue('B' . $row, $line['no_bukti'] !== '' ? $line['no_bukti'] : '-');
+            $sheet->setCellValue('C' . $row, $g['item_code'] ?: '-');
+            $sheet->setCellValue('D' . $row, stockReportItemLabel($g));
+
+            _stockExcelQty($sheet, $C['sa_1'] . $row, $line['saldo_awal']);
+            $sheet->setCellValue($C['sa_2'] . $row, $g['unit']);
+
+            if ($hasIn) {
+                _stockExcelQty($sheet, $C['in_1'] . $row, $line['in_qty']);
+                $sheet->setCellValue($C['in_2'] . $row, $g['unit']);
+                if ($showPrice && $priced) {
+                    _stockExcelMoney($sheet, $C['in_h_1'] . $row, $line['line_price']);
+                    _stockExcelMoney($sheet, $C['in_h_2'] . $row, $line['in_value']);
+                }
+            }
+            if ($hasOut) {
+                _stockExcelQty($sheet, $C['out_1'] . $row, $line['out_qty']);
+                $sheet->setCellValue($C['out_2'] . $row, $g['unit']);
+                if ($showPrice && $priced) {
+                    _stockExcelMoney($sheet, $C['out_h_1'] . $row, $line['line_price']);
+                    _stockExcelMoney($sheet, $C['out_h_2'] . $row, $line['out_value']);
+                }
+            }
+
+            _stockExcelQty($sheet, $C['akhir_1'] . $row, $line['saldo_akhir']);
+            $sheet->setCellValue($C['akhir_2'] . $row, $g['unit']);
+            if ($showPrice && ($line['saldo_akhir_price'] ?? null) !== null) {
+                _stockExcelMoney($sheet, $C['akhir_h_1'] . $row, $line['saldo_akhir_price']);
+                _stockExcelMoney($sheet, $C['akhir_h_2'] . $row, $line['saldo_akhir_value']);
+            }
+            $row++;
+        }
+        // Baris ringkasan "Saldo Akhir" per barang
+        $sheet->setCellValue('A' . $row, 'Saldo Akhir - ' . ($g['item_code'] ?: $g['item_name']));
+        $sheet->mergeCells("A{$row}:{$colBeforeAkhir}{$row}");
+        $sheet->getStyle("A{$row}:{$lastColLetter}{$row}")->getFont()->setBold(true);
+        $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        _stockExcelQty($sheet, $C['akhir_1'] . $row, $g['saldo_akhir']);
+        $sheet->setCellValue($C['akhir_2'] . $row, $g['unit']);
+        if ($showPrice && ($g['saldo_akhir_price'] ?? null) !== null) {
+            _stockExcelMoney($sheet, $C['akhir_h_1'] . $row, $g['saldo_akhir_price']);
+            _stockExcelMoney($sheet, $C['akhir_h_2'] . $row, $g['saldo_akhir_value']);
+        }
+        $row++;
+    }
+    if ($row === $firstDataRow) {
         $sheet->setCellValue('A' . $row, 'Tidak ada mutasi stok pada periode ini.');
         $sheet->mergeCells("A{$row}:{$lastColLetter}{$row}");
         $row++;
-    } else {
-        $catCount = _stockExcelCategoryCounts($groups);
-        $curCat = false;
-        $subName = '';
-        $sub = ['in' => 0.0, 'out' => 0.0, 'akhir' => 0.0];
-        $flushSub = function () use ($sheet, $showPrice, $C, $lastColLetter, $mergeEnd, &$row, &$sub, &$subName) {
-            if ($showPrice && $subName !== '') {
-                $sheet->setCellValue('A' . $row, 'Subtotal Kategori ' . $subName);
-                $sheet->mergeCells("A{$row}:{$mergeEnd}{$row}");
-                $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-                _stockExcelMoney($sheet, $C['in_h_2'] . $row, $sub['in']);
-                _stockExcelMoney($sheet, $C['out_h_2'] . $row, $sub['out']);
-                _stockExcelMoney($sheet, $C['akhir_h_2'] . $row, $sub['akhir']);
-                $sheet->getStyle("A{$row}:{$lastColLetter}{$row}")->getFont()->setBold(true);
-                $sheet->getStyle("A{$row}:{$lastColLetter}{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('E7F1FF');
-                $row++;
-            }
-            $sub = ['in' => 0.0, 'out' => 0.0, 'akhir' => 0.0];
-        };
-
-        foreach ($groups as $g) {
-            $ck = $g['category_id'] ?? 'none';
-            if ($ck !== $curCat) {
-                $flushSub();
-                $curCat = $ck;
-                $subName = (string) ($g['category_name'] ?? 'Belum Dikategorikan');
-                _stockExcelCategoryBand($sheet, $row, $lastColLetter, $subName, $catCount[$ck]);
-                $row++;
-                $drawHeader($row);
-                $row += 2;
-            }
-            $gIn    = (float) ($g['in_total_value'] ?? 0);
-            $gOut   = (float) ($g['out_total_value'] ?? 0);
-            $gAkhir = (float) ($g['saldo_akhir_value'] ?? 0);
-            $grandIn += $gIn;
-            $grandOut += $gOut;
-            $grandAkhir += $gAkhir;
-            $sub['in'] += $gIn;
-            $sub['out'] += $gOut;
-            $sub['akhir'] += $gAkhir;
-
-            foreach ($g['lines'] as $line) {
-                $hasIn  = (float) $line['in_qty'] > 0;
-                $hasOut = (float) $line['out_qty'] > 0;
-                $priced = ($line['line_price'] ?? null) !== null;
-
-                $sheet->setCellValue('A' . $row, formatTanggal(substr((string) $line['transaction_date'], 0, 10)));
-                $sheet->setCellValue('B' . $row, $line['no_bukti'] !== '' ? $line['no_bukti'] : '-');
-                $sheet->setCellValue('C' . $row, $g['item_code'] ?: '-');
-                $sheet->setCellValue('D' . $row, stockReportItemLabel($g));
-
-                _stockExcelQty($sheet, $C['sa_1'] . $row, $line['saldo_awal']);
-                $sheet->setCellValue($C['sa_2'] . $row, $g['unit']);
-
-                if ($hasIn) {
-                    _stockExcelQty($sheet, $C['in_1'] . $row, $line['in_qty']);
-                    $sheet->setCellValue($C['in_2'] . $row, $g['unit']);
-                    if ($showPrice && $priced) {
-                        _stockExcelMoney($sheet, $C['in_h_1'] . $row, $line['line_price']);
-                        _stockExcelMoney($sheet, $C['in_h_2'] . $row, $line['in_value']);
-                    }
-                }
-                if ($hasOut) {
-                    _stockExcelQty($sheet, $C['out_1'] . $row, $line['out_qty']);
-                    $sheet->setCellValue($C['out_2'] . $row, $g['unit']);
-                    if ($showPrice && $priced) {
-                        _stockExcelMoney($sheet, $C['out_h_1'] . $row, $line['line_price']);
-                        _stockExcelMoney($sheet, $C['out_h_2'] . $row, $line['out_value']);
-                    }
-                }
-
-                _stockExcelQty($sheet, $C['akhir_1'] . $row, $line['saldo_akhir']);
-                $sheet->setCellValue($C['akhir_2'] . $row, $g['unit']);
-                if ($showPrice && ($line['saldo_akhir_price'] ?? null) !== null) {
-                    _stockExcelMoney($sheet, $C['akhir_h_1'] . $row, $line['saldo_akhir_price']);
-                    _stockExcelMoney($sheet, $C['akhir_h_2'] . $row, $line['saldo_akhir_value']);
-                }
-                $row++;
-            }
-            // Baris ringkasan "Saldo Akhir" per barang
-            $sheet->setCellValue('A' . $row, 'Saldo Akhir - ' . ($g['item_code'] ?: $g['item_name']));
-            $sheet->mergeCells("A{$row}:{$colBeforeAkhir}{$row}");
-            $sheet->getStyle("A{$row}:{$lastColLetter}{$row}")->getFont()->setBold(true);
-            $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-            _stockExcelQty($sheet, $C['akhir_1'] . $row, $g['saldo_akhir']);
-            $sheet->setCellValue($C['akhir_2'] . $row, $g['unit']);
-            if ($showPrice && ($g['saldo_akhir_price'] ?? null) !== null) {
-                _stockExcelMoney($sheet, $C['akhir_h_1'] . $row, $g['saldo_akhir_price']);
-                _stockExcelMoney($sheet, $C['akhir_h_2'] . $row, $g['saldo_akhir_value']);
-            }
-            $row++;
-        }
-        $flushSub();
-
-        if ($showPrice) {
-            $sheet->setCellValue('A' . $row, 'TOTAL SALDO KESELURUHAN');
-            $sheet->mergeCells("A{$row}:{$mergeEnd}{$row}");
-            $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-            _stockExcelMoney($sheet, $C['in_h_2'] . $row, $grandIn);
-            _stockExcelMoney($sheet, $C['out_h_2'] . $row, $grandOut);
-            _stockExcelMoney($sheet, $C['akhir_h_2'] . $row, $grandAkhir);
-            $sheet->getStyle("A{$row}:{$lastColLetter}{$row}")->getFont()->setBold(true);
-            $row++;
-        }
+    } elseif ($showPrice) {
+        $mergeEnd = Coordinate::stringFromColumnIndex(Coordinate::columnIndexFromString($C['in_h_2']) - 1);
+        $sheet->setCellValue('A' . $row, 'TOTAL SALDO KESELURUHAN');
+        $sheet->mergeCells("A{$row}:{$mergeEnd}{$row}");
+        $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        _stockExcelMoney($sheet, $C['in_h_2'] . $row, $grandIn);
+        _stockExcelMoney($sheet, $C['out_h_2'] . $row, $grandOut);
+        _stockExcelMoney($sheet, $C['akhir_h_2'] . $row, $grandAkhir);
+        $sheet->getStyle("A{$row}:{$lastColLetter}{$row}")->getFont()->setBold(true);
+        $row++;
     }
 
     $lastDataRow = $row - 1;
@@ -730,11 +661,10 @@ function streamCashReportExcel(array $ledger, string $companyName, string $perio
 /**
  * Excel REKAP Stok -- cerminan fastPdfStockRecap() (pdf_table_helper.php):
  * satu baris per barang, ringkasan Saldo Awal / In (total masuk) / Out (total
- * keluar) / Saldo Akhir (masing-masing Qty + Satuan). Dikelompokkan per KATEGORI
- * (Master Kategori): band judul + header + isi (No mulai 1) + subtotal tiap kategori.
+ * keluar) / Saldo Akhir (masing-masing Qty + Satuan).
  *
- * @param array $rows Hasil Inventory::stockRecapReport() -- category_id/category_name,
- *              item_code, item_name, unit, saldo_awal, mutasi_masuk, mutasi_keluar, saldo_akhir
+ * @param array $rows Hasil Inventory::stockRecapReport() -- item_code, item_name,
+ *              unit, saldo_awal, mutasi_masuk, mutasi_keluar, saldo_akhir
  */
 function streamStockRecapExcel(array $rows, string $companyName, string $periodText, string $filename, bool $showPrice = true): void
 {
@@ -744,134 +674,87 @@ function streamStockRecapExcel(array $rows, string $companyName, string $periodT
 
     [$blocks, $C, $lastIdx] = _stockPriceBlocks($showPrice, 4); // A-C info, blok mulai D
     $lastColLetter = Coordinate::stringFromColumnIndex($lastIdx);
-    $mergeEnd = $showPrice ? Coordinate::stringFromColumnIndex(Coordinate::columnIndexFromString($C['in_h_2']) - 1) : $lastColLetter;
+    $colBeforeAkhir = Coordinate::stringFromColumnIndex(Coordinate::columnIndexFromString($C['akhir_1']) - 1);
 
     $headerRow = _stockExcelTitleBlock($sheet, 'Laporan Stok Barang - Rekap', $companyName, $periodText, $lastColLetter);
+    $sub = $headerRow + 1;
 
+    foreach (['A' => 'No', 'B' => 'Kode Barang', 'C' => 'Nama Barang'] as $col => $label) {
+        $sheet->setCellValue($col . $headerRow, $label);
+        $sheet->mergeCells("{$col}{$headerRow}:{$col}{$sub}");
+    }
     foreach ($blocks as $b) {
+        $sheet->setCellValue($b['c1'] . $headerRow, $b['label']);
+        $sheet->mergeCells("{$b['c1']}{$headerRow}:{$b['c2']}{$headerRow}");
+        $sheet->setCellValue($b['c1'] . $sub, $b['sub'][0]);
+        $sheet->setCellValue($b['c2'] . $sub, $b['sub'][1]);
         $sheet->getColumnDimension($b['c1'])->setWidth($b['w'][0]);
         $sheet->getColumnDimension($b['c2'])->setWidth($b['w'][1]);
     }
     foreach (['A' => 6, 'B' => 15, 'C' => 32] as $c => $w) {
         $sheet->getColumnDimension($c)->setWidth($w);
     }
+    $sheet->getStyle("A{$headerRow}:{$lastColLetter}{$sub}")->getFont()->setBold(true);
+    $sheet->getStyle("A{$headerRow}:{$lastColLetter}{$sub}")->getAlignment()
+        ->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
 
-    $drawHeader = function (int $hr) use ($sheet, $blocks, $lastColLetter) {
-        $sub = $hr + 1;
-        foreach (['A' => 'No', 'B' => 'Kode Barang', 'C' => 'Nama Barang'] as $col => $label) {
-            $sheet->setCellValue($col . $hr, $label);
-            $sheet->mergeCells("{$col}{$hr}:{$col}{$sub}");
-        }
-        foreach ($blocks as $b) {
-            $sheet->setCellValue($b['c1'] . $hr, $b['label']);
-            $sheet->mergeCells("{$b['c1']}{$hr}:{$b['c2']}{$hr}");
-            $sheet->setCellValue($b['c1'] . $sub, $b['sub'][0]);
-            $sheet->setCellValue($b['c2'] . $sub, $b['sub'][1]);
-        }
-        $sheet->getStyle("A{$hr}:{$lastColLetter}{$sub}")->getFont()->setBold(true);
-        $sheet->getStyle("A{$hr}:{$lastColLetter}{$sub}")->getAlignment()
-            ->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
-    };
-
-    $row = $headerRow;
-    $grandIn = 0.0;
-    $grandOut = 0.0;
-    $grandAkhir = 0.0;
-
+    $row = $sub + 1;
     if (empty($rows)) {
-        $drawHeader($row);
-        $row += 2;
         $sheet->setCellValue('A' . $row, 'Tidak ada data barang yang cocok dengan filter ini.');
         $sheet->mergeCells("A{$row}:{$lastColLetter}{$row}");
         $row++;
-    } else {
-        $catCount = _stockExcelCategoryCounts($rows);
-        $curCat = false;
-        $subName = '';
-        $no = 0;
-        $sub = ['in' => 0.0, 'out' => 0.0, 'akhir' => 0.0];
-        $flushSub = function () use ($sheet, $showPrice, $C, $lastColLetter, $mergeEnd, &$row, &$sub, &$subName) {
-            if ($showPrice && $subName !== '') {
-                $sheet->setCellValue('A' . $row, 'Subtotal Kategori ' . $subName);
-                $sheet->mergeCells("A{$row}:{$mergeEnd}{$row}");
-                $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-                _stockExcelMoney($sheet, $C['in_h_2'] . $row, $sub['in']);
-                _stockExcelMoney($sheet, $C['out_h_2'] . $row, $sub['out']);
-                _stockExcelMoney($sheet, $C['akhir_h_2'] . $row, $sub['akhir']);
-                $sheet->getStyle("A{$row}:{$lastColLetter}{$row}")->getFont()->setBold(true);
-                $sheet->getStyle("A{$row}:{$lastColLetter}{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('E7F1FF');
-                $row++;
-            }
-            $sub = ['in' => 0.0, 'out' => 0.0, 'akhir' => 0.0];
-        };
+    }
+    $grandIn = 0.0;
+    $grandOut = 0.0;
+    $grandAkhir = 0.0;
+    foreach ($rows as $i => $r) {
+        $priced = ($r['in_unit_price'] ?? null) !== null;
+        $akhirPriced = ($r['saldo_akhir_price'] ?? null) !== null;
+        $grandIn    += (float) ($r['in_value'] ?? 0);
+        $grandOut   += (float) ($r['out_value'] ?? 0);
+        $grandAkhir += (float) ($r['saldo_akhir_value'] ?? 0);
 
-        foreach ($rows as $r) {
-            $ck = $r['category_id'] ?? 'none';
-            if ($ck !== $curCat) {
-                $flushSub();
-                $curCat = $ck;
-                $subName = (string) ($r['category_name'] ?? 'Belum Dikategorikan');
-                $no = 0;
-                _stockExcelCategoryBand($sheet, $row, $lastColLetter, $subName, $catCount[$ck]);
-                $row++;
-                $drawHeader($row);
-                $row += 2;
-            }
-            $no++;
-            $priced = ($r['in_unit_price'] ?? null) !== null;
-            $akhirPriced = ($r['saldo_akhir_price'] ?? null) !== null;
-            $rIn    = (float) ($r['in_value'] ?? 0);
-            $rOut   = (float) ($r['out_value'] ?? 0);
-            $rAkhir = (float) ($r['saldo_akhir_value'] ?? 0);
-            $grandIn += $rIn;
-            $grandOut += $rOut;
-            $grandAkhir += $rAkhir;
-            $sub['in'] += $rIn;
-            $sub['out'] += $rOut;
-            $sub['akhir'] += $rAkhir;
+        $sheet->setCellValue('A' . $row, $i + 1);
+        $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->setCellValue('B' . $row, $r['item_code'] ?: '-');
+        $sheet->setCellValue('C' . $row, stockReportItemLabel($r));
 
-            $sheet->setCellValue('A' . $row, $no);
-            $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-            $sheet->setCellValue('B' . $row, $r['item_code'] ?: '-');
-            $sheet->setCellValue('C' . $row, stockReportItemLabel($r));
+        _stockExcelQty($sheet, $C['sa_1'] . $row, $r['saldo_awal']);
+        $sheet->setCellValue($C['sa_2'] . $row, $r['unit']);
 
-            _stockExcelQty($sheet, $C['sa_1'] . $row, $r['saldo_awal']);
-            $sheet->setCellValue($C['sa_2'] . $row, $r['unit']);
-
-            _stockExcelQty($sheet, $C['in_1'] . $row, $r['mutasi_masuk']);
-            $sheet->setCellValue($C['in_2'] . $row, $r['unit']);
-            if ($showPrice && $priced) {
-                _stockExcelMoney($sheet, $C['in_h_1'] . $row, $r['in_unit_price']);
-                _stockExcelMoney($sheet, $C['in_h_2'] . $row, $r['in_value']);
-            }
-
-            _stockExcelQty($sheet, $C['out_1'] . $row, $r['mutasi_keluar']);
-            $sheet->setCellValue($C['out_2'] . $row, $r['unit']);
-            if ($showPrice && $akhirPriced && (float) $r['mutasi_keluar'] > 0) {
-                _stockExcelMoney($sheet, $C['out_h_1'] . $row, $r['saldo_akhir_price']);
-                _stockExcelMoney($sheet, $C['out_h_2'] . $row, $r['out_value']);
-            }
-
-            _stockExcelQty($sheet, $C['akhir_1'] . $row, $r['saldo_akhir']);
-            $sheet->setCellValue($C['akhir_2'] . $row, $r['unit']);
-            if ($showPrice && $akhirPriced) {
-                _stockExcelMoney($sheet, $C['akhir_h_1'] . $row, $r['saldo_akhir_price']);
-                _stockExcelMoney($sheet, $C['akhir_h_2'] . $row, $r['saldo_akhir_value']);
-            }
-            $row++;
+        _stockExcelQty($sheet, $C['in_1'] . $row, $r['mutasi_masuk']);
+        $sheet->setCellValue($C['in_2'] . $row, $r['unit']);
+        if ($showPrice && $priced) {
+            _stockExcelMoney($sheet, $C['in_h_1'] . $row, $r['in_unit_price']);
+            _stockExcelMoney($sheet, $C['in_h_2'] . $row, $r['in_value']);
         }
-        $flushSub();
 
-        if ($showPrice) {
-            $sheet->setCellValue('A' . $row, 'TOTAL SALDO KESELURUHAN');
-            $sheet->mergeCells("A{$row}:{$mergeEnd}{$row}");
-            $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-            _stockExcelMoney($sheet, $C['in_h_2'] . $row, $grandIn);
-            _stockExcelMoney($sheet, $C['out_h_2'] . $row, $grandOut);
-            _stockExcelMoney($sheet, $C['akhir_h_2'] . $row, $grandAkhir);
-            $sheet->getStyle("A{$row}:{$lastColLetter}{$row}")->getFont()->setBold(true);
-            $row++;
+        _stockExcelQty($sheet, $C['out_1'] . $row, $r['mutasi_keluar']);
+        $sheet->setCellValue($C['out_2'] . $row, $r['unit']);
+        if ($showPrice && $akhirPriced && (float) $r['mutasi_keluar'] > 0) {
+            _stockExcelMoney($sheet, $C['out_h_1'] . $row, $r['saldo_akhir_price']);
+            _stockExcelMoney($sheet, $C['out_h_2'] . $row, $r['out_value']);
         }
+
+        _stockExcelQty($sheet, $C['akhir_1'] . $row, $r['saldo_akhir']);
+        $sheet->setCellValue($C['akhir_2'] . $row, $r['unit']);
+        if ($showPrice && $akhirPriced) {
+            _stockExcelMoney($sheet, $C['akhir_h_1'] . $row, $r['saldo_akhir_price']);
+            _stockExcelMoney($sheet, $C['akhir_h_2'] . $row, $r['saldo_akhir_value']);
+        }
+        $row++;
+    }
+
+    if (!empty($rows) && $showPrice) {
+        $mergeEnd = Coordinate::stringFromColumnIndex(Coordinate::columnIndexFromString($C['in_h_2']) - 1);
+        $sheet->setCellValue('A' . $row, 'TOTAL SALDO KESELURUHAN');
+        $sheet->mergeCells("A{$row}:{$mergeEnd}{$row}");
+        $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        _stockExcelMoney($sheet, $C['in_h_2'] . $row, $grandIn);
+        _stockExcelMoney($sheet, $C['out_h_2'] . $row, $grandOut);
+        _stockExcelMoney($sheet, $C['akhir_h_2'] . $row, $grandAkhir);
+        $sheet->getStyle("A{$row}:{$lastColLetter}{$row}")->getFont()->setBold(true);
+        $row++;
     }
 
     $lastDataRow = $row - 1;
@@ -885,11 +768,10 @@ function streamStockRecapExcel(array $rows, string $companyName, string $periodT
 /**
  * Excel STOK TERSEDIA -- template "Laporan Stok Barang - Rekap" versi ringkas:
  * No, Kode Barang, Nama Barang, Stock Tersedia (Qty + Satuan). Tanpa harga &
- * tanpa baris periode. Cerminan fastPdfStockAvailable() (pdf_table_helper.php);
- * dikelompokkan per KATEGORI (Master Kategori), No mulai 1 di tiap kategori.
+ * tanpa baris periode. Cerminan fastPdfStockAvailable() (pdf_table_helper.php).
  *
  * @param array $rows Hasil Inventory::stockMutationReport() yang sudah disaring
- *              saldo_akhir > 0 -- category_id/category_name, item_code, item_name, unit, saldo_akhir
+ *              saldo_akhir > 0 -- item_code, item_name, unit, saldo_akhir
  */
 function streamStockAvailableExcel(array $rows, string $companyName, string $filename): void
 {
@@ -898,55 +780,37 @@ function streamStockAvailableExcel(array $rows, string $companyName, string $fil
     $sheet->setTitle('Stok Tersedia');
 
     $headerRow = _stockExcelTitleBlock($sheet, 'Laporan Stok Barang - Rekap', $companyName, '', 'E');
+    $sub = $headerRow + 1;
 
+    foreach (['A' => 'No', 'B' => 'Kode Barang', 'C' => 'Nama Barang'] as $col => $label) {
+        $sheet->setCellValue($col . $headerRow, $label);
+        $sheet->mergeCells("{$col}{$headerRow}:{$col}{$sub}");
+    }
+    $sheet->setCellValue('D' . $headerRow, 'Stock Tersedia');
+    $sheet->mergeCells("D{$headerRow}:E{$headerRow}");
+    $sheet->setCellValue('D' . $sub, 'Qty');
+    $sheet->setCellValue('E' . $sub, 'Satuan');
     foreach (['A' => 6, 'B' => 18, 'C' => 38, 'D' => 10, 'E' => 10] as $c => $w) {
         $sheet->getColumnDimension($c)->setWidth($w);
     }
-    $drawHeader = function (int $hr) use ($sheet) {
-        $sub = $hr + 1;
-        foreach (['A' => 'No', 'B' => 'Kode Barang', 'C' => 'Nama Barang'] as $col => $label) {
-            $sheet->setCellValue($col . $hr, $label);
-            $sheet->mergeCells("{$col}{$hr}:{$col}{$sub}");
-        }
-        $sheet->setCellValue('D' . $hr, 'Stock Tersedia');
-        $sheet->mergeCells("D{$hr}:E{$hr}");
-        $sheet->setCellValue('D' . $sub, 'Qty');
-        $sheet->setCellValue('E' . $sub, 'Satuan');
-        $sheet->getStyle("A{$hr}:E{$sub}")->getFont()->setBold(true);
-        $sheet->getStyle("A{$hr}:E{$sub}")->getAlignment()
-            ->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
-    };
+    $sheet->getStyle("A{$headerRow}:E{$sub}")->getFont()->setBold(true);
+    $sheet->getStyle("A{$headerRow}:E{$sub}")->getAlignment()
+        ->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
 
-    $row = $headerRow;
+    $row = $sub + 1;
     if (empty($rows)) {
-        $drawHeader($row);
-        $row += 2;
         $sheet->setCellValue('A' . $row, 'Tidak ada stok tersedia yang cocok dengan filter ini.');
         $sheet->mergeCells("A{$row}:E{$row}");
         $row++;
-    } else {
-        $catCount = _stockExcelCategoryCounts($rows);
-        $curCat = false;
-        $no = 0;
-        foreach ($rows as $r) {
-            $ck = $r['category_id'] ?? 'none';
-            if ($ck !== $curCat) {
-                $curCat = $ck;
-                $no = 0;
-                _stockExcelCategoryBand($sheet, $row, 'E', (string) ($r['category_name'] ?? 'Belum Dikategorikan'), $catCount[$ck]);
-                $row++;
-                $drawHeader($row);
-                $row += 2;
-            }
-            $no++;
-            $sheet->setCellValue('A' . $row, $no);
-            $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-            $sheet->setCellValue('B' . $row, $r['item_code'] ?: '-');
-            $sheet->setCellValue('C' . $row, stockReportItemLabel($r));
-            _stockExcelQty($sheet, 'D' . $row, $r['saldo_akhir']);
-            $sheet->setCellValue('E' . $row, $r['unit']);
-            $row++;
-        }
+    }
+    foreach ($rows as $i => $r) {
+        $sheet->setCellValue('A' . $row, $i + 1);
+        $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->setCellValue('B' . $row, $r['item_code'] ?: '-');
+        $sheet->setCellValue('C' . $row, stockReportItemLabel($r));
+        _stockExcelQty($sheet, 'D' . $row, $r['saldo_akhir']);
+        $sheet->setCellValue('E' . $row, $r['unit']);
+        $row++;
     }
 
     $lastDataRow = $row - 1;

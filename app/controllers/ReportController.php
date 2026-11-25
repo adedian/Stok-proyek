@@ -536,9 +536,6 @@ class ReportController extends Controller
         return [
             'project_id'   => trim($get['project_id'] ?? ''),
             'warehouse_id' => trim($get['warehouse_id'] ?? ''),
-            // Kategori barang (Master Kategori): '' = semua, 'none' = Belum Dikategorikan, angka = id.
-            // Berlaku untuk layar, Cetak PDF, dan Export Excel (sama persis).
-            'category_id'  => $this->normalizeCategoryFilter($get['category_id'] ?? ''),
             'keyword'      => trim($get['keyword'] ?? ''),
             'stock_filter' => trim($get['stock_filter'] ?? ''),
             'item_status'  => trim($get['item_status'] ?? ''),
@@ -553,22 +550,6 @@ class ReportController extends Controller
             // inv.id IN (...)), bukan sekadar dipercaya dari frontend.
             'ids'          => $this->sanitizeIds($get['ids'] ?? []),
         ];
-    }
-
-    /**
-     * Nilai filter Kategori yang valid: '' (semua), 'none' (Belum Dikategorikan), atau id kategori
-     * AKTIF di Master Kategori. Selain itu (id asal/sudah dihapus) diabaikan -> '' (semua).
-     */
-    private function normalizeCategoryFilter($raw): string
-    {
-        $raw = is_scalar($raw) ? trim((string) $raw) : '';
-        if ($raw === 'none') {
-            return 'none';
-        }
-        if ($raw !== '' && ctype_digit($raw) && array_key_exists((int) $raw, (new Inventory())->categoryOrder())) {
-            return (string) (int) $raw;
-        }
-        return '';
     }
 
     private function sanitizeIds($rawIds): array
@@ -731,11 +712,11 @@ class ReportController extends Controller
                 $model = new Inventory();
                 $stockFilter = trim($get['stock_filter'] ?? '');
                 $itemStatus = trim($get['item_status'] ?? '');
-                // Filter Kategori = Master Kategori (item_categories) -- berlaku SAMA untuk layar,
-                // Cetak PDF & Export Excel (ikut di exportQuery). Menggantikan filter Jenis Stok
-                // lama yang hanya menyaring layar.
-                $categoryId = $this->normalizeCategoryFilter($get['category_id'] ?? '');
-                $categoryOptions = (new Inventory())->categoryOrder();
+                // Filter Jenis Stok -- HANYA memengaruhi tampilan layar, TIDAK ikut
+                // ke Cetak/Export (stockFilters() & buildExportQuery() sengaja tidak
+                // membawa 'stock_type'). Label dari sumber tunggal stockTypeLabels().
+                $stockTypeLabels = stockTypeLabels();
+                $stockType = isset($stockTypeLabels[trim($get['stock_type'] ?? '')]) ? trim($get['stock_type']) : '';
                 // Toggle "Tampilkan/Tanpa harga" HANYA untuk role ber-izin
                 // (report.stock_price). Role lain: kontrol disembunyikan & output
                 // Cetak/Export dipaksa tanpa harga (lihat stockFilters()).
@@ -745,7 +726,7 @@ class ReportController extends Controller
                 $filters = [
                     'project_id' => $projectId, 'keyword' => $keyword, 'stock_filter' => $stockFilter,
                     'item_status' => $itemStatus, 'date_from' => $dateFrom, 'date_to' => $dateTo,
-                    'category_id' => $categoryId, 'warehouse_id' => $warehouseId,
+                    'stock_type' => $stockType, 'warehouse_id' => $warehouseId,
                 ];
                 $rows = $model->stockMutationReport($filters);
                 foreach ($rows as &$r) {
@@ -772,8 +753,8 @@ class ReportController extends Controller
                         ['field' => 'status_label', 'label' => 'Status'],
                     ],
                     'rows' => $rows,
-                    'filterForm' => ['date' => true, 'project' => true, 'keyword' => true, 'stockStatus' => true, 'itemStatus' => true, 'category' => $categoryOptions, 'priceMode' => $canStockPrice, 'warehouse' => (new Warehouse())->activeList()],
-                    'filters' => compact('dateFrom', 'dateTo', 'projectId', 'keyword', 'stockFilter', 'itemStatus', 'categoryId', 'showPrice', 'warehouseId'),
+                    'filterForm' => ['date' => true, 'project' => true, 'keyword' => true, 'stockStatus' => true, 'itemStatus' => true, 'stockType' => $stockTypeLabels, 'priceMode' => $canStockPrice, 'warehouse' => (new Warehouse())->activeList()],
+                    'filters' => compact('dateFrom', 'dateTo', 'projectId', 'keyword', 'stockFilter', 'itemStatus', 'stockType', 'showPrice', 'warehouseId'),
                     'exportQuery' => $this->buildExportQuery($get),
                 ];
 
@@ -1054,8 +1035,8 @@ class ReportController extends Controller
     private function buildExportQuery(array $get): string
     {
         $params = $get;
-        // 'stock_type' = filter Jenis Stok lama (sudah digantikan filter Kategori/Master Kategori
-        // 'category_id' yang IKUT ke Cetak/Export) -- dibuang supaya tak terbawa dari URL lama.
+        // 'stock_type' = filter Kategori Laporan Stok Barang: sengaja TIDAK ikut
+        // ke tombol Cetak/Export supaya cetak & ekspor selalu lengkap semua jenis stok.
         // 'page' = penanda halaman paginasi tampilan layar -- Cetak/Export tidak dipaginasi.
         unset($params['module'], $params['action'], $params['type'], $params['stock_type'], $params['page']);
         $query = http_build_query($params);

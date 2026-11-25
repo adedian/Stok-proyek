@@ -433,28 +433,6 @@ function pdfStockGroupHeader(int $first, bool $showPrice): array
     return [$row1, $row2];
 }
 
-/**
- * Pembuka satu KATEGORI di laporan stok: batang judul "Kategori: X (n barang)" + header tabel.
- * Dipanggil setiap kali kategori berganti (tiap kategori = bagian/tabel sendiri).
- */
-function pdfStockCategoryStart(FastPdfTable $p, string $name, int $count): void
-{
-    $p->gap(7);
-    $p->bar('Kategori: ' . $name . '   (' . $count . ' barang)', '#1f4e79');
-    $p->header();
-}
-
-/** Hitung jumlah baris per kategori: ['none'|id => n]. */
-function pdfStockCategoryCounts(array $rows): array
-{
-    $out = [];
-    foreach ($rows as $r) {
-        $k = $r['category_id'] ?? 'none';
-        $out[$k] = ($out[$k] ?? 0) + 1;
-    }
-    return $out;
-}
-
 /** Judul + baris meta periode (halaman pertama Detail/Rekap). */
 function pdfStockTitle(FastPdfTable $p, string $title, string $dateFrom, string $dateTo): void
 {
@@ -496,38 +474,11 @@ function fastPdfStockDetail(array $groups, string $dateFrom, string $dateTo, boo
         }
         $p->headerBlock(array_merge($head, $r1), $r2);
     });
+    $p->header();
 
     $perGroup = $showPrice ? 4 : 2;
     $akhirC = 4 + 3 * $perGroup;           // kolom pertama grup Saldo Akhir
-
-    // Pengelompokan per KATEGORI (Master Kategori): tiap kategori = batang judul + tabel sendiri,
-    // diakhiri subtotal nilai kategori (bila ada harga). Urutan grup sudah diatur model.
-    $catCount = pdfStockCategoryCounts($groups);
-    $curCat = false;
-    $subName = '';
-    $sub = ['in' => 0.0, 'out' => 0.0, 'akhir' => 0.0];
-    $flushSub = function () use ($p, $showPrice, &$sub, &$subName) {
-        if ($showPrice && $subName !== '') {
-            $p->row([
-                ['c' => 0, 's' => 10, 't' => 'Subtotal Kategori ' . $subName, 'align' => 'r', 'bold' => true, 'wrap' => true],
-                ['c' => 10, 's' => 2, 't' => pdfFmtMoney($sub['in']), 'align' => 'r', 'bold' => true],
-                ['c' => 14, 's' => 2, 't' => pdfFmtMoney($sub['out']), 'align' => 'r', 'bold' => true],
-                ['c' => 18, 's' => 2, 't' => pdfFmtMoney($sub['akhir']), 'align' => 'r', 'bold' => true],
-            ], '#e7f1ff');
-        }
-        $sub = ['in' => 0.0, 'out' => 0.0, 'akhir' => 0.0];
-    };
     foreach ($groups as $g) {
-        $ck = $g['category_id'] ?? 'none';
-        if ($ck !== $curCat) {
-            $flushSub();
-            $curCat = $ck;
-            $subName = (string) ($g['category_name'] ?? 'Belum Dikategorikan');
-            pdfStockCategoryStart($p, $subName, $catCount[$ck]);
-        }
-        $sub['in']    += (float) ($g['in_total_value'] ?? 0);
-        $sub['out']   += (float) ($g['out_total_value'] ?? 0);
-        $sub['akhir'] += (float) ($g['saldo_akhir_value'] ?? 0);
         $unit = (string) $g['unit'];
         $code = ($g['item_code'] ?? '') !== '' ? (string) $g['item_code'] : '-';
         $label = stockReportItemLabel($g);
@@ -589,10 +540,8 @@ function fastPdfStockDetail(array $groups, string $dateFrom, string $dateTo, boo
         }
         $p->row($sum, '#f8f9fa');
     }
-    $flushSub();
 
     if ($showPrice) {
-        $p->gap(4);
         $p->row([
             ['c' => 0, 's' => 10, 't' => 'TOTAL SALDO KESELURUHAN', 'align' => 'r', 'bold' => true],
             ['c' => 10, 's' => 2, 't' => pdfFmtMoney($grandTotals['in']), 'align' => 'r', 'bold' => true],
@@ -626,49 +575,19 @@ function fastPdfStockRecap(array $rows, string $dateFrom, string $dateTo, bool $
         [$r1, $r2] = pdfStockGroupHeader(3, $showPrice);
         $p->headerBlock(array_merge($head, $r1), $r2);
     });
+    $p->header();
 
     $perGroup = $showPrice ? 4 : 2;
     $cIn = 3 + $perGroup;
     $cOut = 3 + 2 * $perGroup;
     $cAkhir = 3 + 3 * $perGroup;
-
-    // Per KATEGORI (Master Kategori): batang judul + tabel sendiri, penomoran mulai 1 di tiap kategori,
-    // subtotal nilai per kategori (bila ada harga). TOTAL KESELURUHAN tetap di akhir.
-    $catCount = pdfStockCategoryCounts($rows);
-    $curCat = false;
-    $subName = '';
-    $no = 0;
-    $sub = ['in' => 0.0, 'out' => 0.0, 'akhir' => 0.0];
-    $flushSub = function () use ($p, $showPrice, &$sub, &$subName) {
-        if ($showPrice && $subName !== '') {
-            $p->row([
-                ['c' => 0, 's' => 9, 't' => 'Subtotal Kategori ' . $subName, 'align' => 'r', 'bold' => true, 'wrap' => true],
-                ['c' => 9, 's' => 2, 't' => pdfFmtMoney($sub['in']), 'align' => 'r', 'bold' => true],
-                ['c' => 13, 's' => 2, 't' => pdfFmtMoney($sub['out']), 'align' => 'r', 'bold' => true],
-                ['c' => 17, 's' => 2, 't' => pdfFmtMoney($sub['akhir']), 'align' => 'r', 'bold' => true],
-            ], '#e7f1ff');
-        }
-        $sub = ['in' => 0.0, 'out' => 0.0, 'akhir' => 0.0];
-    };
-    foreach ($rows as $r) {
-        $ck = $r['category_id'] ?? 'none';
-        if ($ck !== $curCat) {
-            $flushSub();
-            $curCat = $ck;
-            $subName = (string) ($r['category_name'] ?? 'Belum Dikategorikan');
-            $no = 0;
-            pdfStockCategoryStart($p, $subName, $catCount[$ck]);
-        }
-        $no++;
-        $sub['in']    += (float) ($r['in_value'] ?? 0);
-        $sub['out']   += (float) ($r['out_value'] ?? 0);
-        $sub['akhir'] += (float) ($r['saldo_akhir_value'] ?? 0);
+    foreach ($rows as $i => $r) {
         $unit = (string) $r['unit'];
         $priced = ($r['in_unit_price'] ?? null) !== null;
         $akhirPriced = ($r['saldo_akhir_price'] ?? null) !== null;
         $keluar = (float) $r['mutasi_keluar'];
         $cells = [
-            ['c' => 0, 't' => (string) $no, 'align' => 'r'],
+            ['c' => 0, 't' => (string) ($i + 1), 'align' => 'r'],
             ['c' => 1, 't' => ($r['item_code'] ?? '') !== '' ? (string) $r['item_code'] : '-'],
             ['c' => 2, 't' => stockReportItemLabel($r), 'wrap' => true],
             ['c' => 3, 't' => pdfFmtQty($r['saldo_awal']), 'align' => 'r'],
@@ -696,10 +615,8 @@ function fastPdfStockRecap(array $rows, string $dateFrom, string $dateTo, bool $
         }
         $p->row($cells);
     }
-    $flushSub();
 
     if ($showPrice) {
-        $p->gap(4);
         $p->row([
             ['c' => 0, 's' => 9, 't' => 'TOTAL SALDO KESELURUHAN', 'align' => 'r', 'bold' => true],
             ['c' => 9, 's' => 2, 't' => pdfFmtMoney($grandTotals['in']), 'align' => 'r', 'bold' => true],
@@ -737,20 +654,10 @@ function fastPdfStockAvailable(array $rows, string $companyName): string
             ]
         );
     });
-    // Per KATEGORI (Master Kategori): batang judul + tabel sendiri, penomoran mulai 1 di tiap kategori.
-    $catCount = pdfStockCategoryCounts($rows);
-    $curCat = false;
-    $no = 0;
-    foreach ($rows as $r) {
-        $ck = $r['category_id'] ?? 'none';
-        if ($ck !== $curCat) {
-            $curCat = $ck;
-            $no = 0;
-            pdfStockCategoryStart($p, (string) ($r['category_name'] ?? 'Belum Dikategorikan'), $catCount[$ck]);
-        }
-        $no++;
+    $p->header();
+    foreach ($rows as $i => $r) {
         $p->row([
-            ['c' => 0, 't' => (string) $no, 'align' => 'c'],
+            ['c' => 0, 't' => (string) ($i + 1), 'align' => 'c'],
             ['c' => 1, 't' => ($r['item_code'] ?? '') !== '' ? (string) $r['item_code'] : '-'],
             ['c' => 2, 't' => stockReportItemLabel($r), 'wrap' => true],
             ['c' => 3, 't' => pdfFmtQty($r['saldo_akhir']), 'align' => 'r'],

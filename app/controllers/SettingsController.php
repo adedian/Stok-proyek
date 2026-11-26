@@ -230,7 +230,7 @@ class SettingsController extends Controller
         }
         verifyCsrf();
 
-        foreach (['prefix_po', 'prefix_gr', 'prefix_opn', 'prefix_sto', 'prefix_off', 'prefix_op', 'prefix_sls', 'prefix_fkt', 'prefix_proinv', 'prefix_profkt','prefix_sj', 'prefix_tt', 'prefix_pay_bk', 'prefix_pay_kk', 'prefix_pay_kkp', 'prefix_pb', 'prefix_form_pd', 'prefix_form_kwt', 'prefix_form_bs', 'prefix_form_td', 'prefix_form_pb'] as $key) {
+        foreach (['prefix_po', 'prefix_gr', 'prefix_opn', 'prefix_sto', 'prefix_off', 'prefix_op', 'prefix_sls', 'prefix_fkt', 'prefix_proinv', 'prefix_profkt','prefix_sj', 'prefix_tt', 'prefix_pay_bk', 'prefix_pay_kk', 'prefix_pay_kkp', 'prefix_pb', 'prefix_reimb', 'prefix_fee', 'prefix_form_pd', 'prefix_form_kwt', 'prefix_form_bs', 'prefix_form_td', 'prefix_form_pb'] as $key) {
             $value = trim($_POST[$key] ?? '');
             if ($value !== '') {
                 $this->settingModel->set($key, $value, 'numbering', currentUserId());

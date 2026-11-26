@@ -64,13 +64,25 @@ class FileController extends Controller
             if (!$allowed) {
                 $this->deny(403);
             }
+        } elseif ($folder === 'reimbursement') {
+            // Bukti Reimbursement: hanya pengaju pemilik reimbursement itu atau pemeriksa ('view_all'). Pemilik file dicari dari DB.
+            require_once ROOT_PATH . '/app/models/Reimbursement.php';
+            $rm = new Reimbursement();
+            $rid = $rm->reimbursementIdByFilePath($rel);
+            $rrow = $rid ? $rm->findWithRelations($rid) : null;
+            if (!$rrow) {
+                $this->deny(404);
+            }
+            if (!Reimbursement::canViewRow($rrow)) {
+                $this->deny(403);
+            }
         } elseif (!isset(self::GATED[$folder])) {
             // Folder publik tidak seharusnya lewat sini -- arahkan balik ke URL langsung.
             header('Location: ' . BASE_URL . '/' . $rel);
             exit;
         }
 
-        if ($folder !== 'request_budget' && !can(self::GATED[$folder], 'view')) {
+        if ($folder !== 'request_budget' && $folder !== 'reimbursement' && !can(self::GATED[$folder], 'view')) {
             $this->deny(403);
         }
 

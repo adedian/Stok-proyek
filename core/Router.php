@@ -19,6 +19,8 @@ class Router
         'request_po'      => 'RequestPoController',
         'pengajuan_budget' => 'PengajuanBudgetController',
         'pengajuan_budget_report' => 'PengajuanBudgetReportController',
+        'reimbursement' => 'ReimbursementController',
+        'pengajuan_fee' => 'PengajuanFeeController',
         'purchase_order'  => 'PurchaseOrderController',
         'payment'         => 'PaymentController',
         'goods_receipt'   => 'GoodsReceiptController',

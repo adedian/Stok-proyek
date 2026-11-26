@@ -81,7 +81,7 @@ $canCreate = can('pengajuan_budget', 'create');
                     <?php foreach ($rows as $n => $r): $id = (int) $r['id']; ?>
                         <tr>
                             <td data-label="No" class="text-muted"><?= (int) ($pagination['offset'] ?? 0) + $n + 1 ?></td>
-                            <td data-label="No. Pengajuan"><a href="<?= BASE_URL ?>/pengajuan_budget/detail/<?= $id ?>" class="fw-semibold text-decoration-none"><?= e($r['pengajuan_number']) ?></a></td>
+                            <td data-label="No. Pengajuan"><a href="<?= BASE_URL ?>/pengajuan_budget/detail/<?= $id ?>" class="fw-semibold text-decoration-none"><?= e($r['pengajuan_number']) ?></a><?php if (($r['source_type'] ?? '') === 'reimbursement'): ?> <span class="badge bg-info-subtle text-info-emphasis border" title="Diteruskan otomatis dari Reimbursement"><i class="bi bi-link-45deg"></i> Reimbursement</span><?php endif; ?></td>
                             <td data-label="Tanggal"><?= e(formatTanggal($r['pengajuan_date'])) ?></td>
                             <td data-label="Pengaju"><?= e($r['created_by_name']) ?></td>
                             <td data-label="No. PO"><?php

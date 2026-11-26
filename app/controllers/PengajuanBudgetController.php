@@ -135,6 +135,7 @@ class PengajuanBudgetController extends Controller
             'items'     => $items,
             'history'   => $this->model->history($id),
             'actions'   => $this->availableActions($pb),
+            'source'    => $this->sourceInfo($pb),
         ]);
     }
 
@@ -469,6 +470,28 @@ class PengajuanBudgetController extends Controller
     {
         $nums = array_values(array_unique(array_filter(array_column($items, 'po_number'))));
         return $nums ? ' | PO: ' . implode(', ', $nums) : '';
+    }
+
+    /**
+     * Sumber pengajuan (mis. diteruskan dari Reimbursement): nomor + tautan ke dokumen asal. Tautan hanya bila akun
+     * boleh membukanya (pengaju pemilik atau pemeriksa 'view_all'); selain itu hanya nomor.
+     */
+    private function sourceInfo(array $pb): ?array
+    {
+        if (($pb['source_type'] ?? '') !== 'reimbursement' || empty($pb['source_id'])) {
+            return null;
+        }
+        require_once ROOT_PATH . '/app/models/Reimbursement.php';
+        $row = (new Reimbursement())->findWithRelations((int) $pb['source_id']);
+        if (!$row) {
+            return ['label' => 'Reimbursement', 'number' => '#' . (int) $pb['source_id'], 'url' => null];
+        }
+        return [
+            'label'  => 'Reimbursement',
+            'number' => $row['reimb_number'],
+            'url'    => (can('reimbursement', 'view') && Reimbursement::canViewRow($row)) ? BASE_URL . '/reimbursement/detail/' . (int) $row['id'] : null,
+            'by'     => $row['employee_name'],
+        ];
     }
 
     private function load(int $id): array

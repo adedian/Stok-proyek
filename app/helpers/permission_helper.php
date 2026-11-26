@@ -82,6 +82,7 @@ function permissionLabelMaps(): array
             'settings' => 'Pengaturan Sistem', 'trash' => 'Tempat Sampah', 'period_lock' => 'Tutup Bulan',
             'information' => 'Pusat Informasi', 'request_budget' => 'Request Budget', 'request_budget_report' => 'Laporan Request Budget', 'request_po' => 'Request PO',
             'pengajuan_budget' => 'Pengajuan Budget (Form)', 'pengajuan_budget_report' => 'Laporan Pengajuan Budget', 'master_rekening_tujuan' => 'Master Rekening Tujuan',
+            'reimbursement' => 'Reimbursement', 'pengajuan_fee' => 'Pengajuan Fee',
         ],
         'actions' => [
             'view' => 'Lihat', 'create' => 'Tambah', 'edit' => 'Ubah', 'delete' => 'Hapus',
@@ -91,8 +92,9 @@ function permissionLabelMaps(): array
             'stock_price' => 'Lihat Harga (Laporan Stok)', 'stock_report' => 'Buka Laporan Stok Barang',
             'print_voucher' => 'Cetak Voucher Terpilih', 'manage_access' => 'Atur Akses Project',
             'submit' => 'Ajukan (Submit)', 'reject' => 'Tolak', 'forward' => 'Teruskan ke Purwati/Nissa', 'purchase_process' => 'Proses Purchase (PO/Invoice/Dokumen)', 'export' => 'Export',
-            'view_all' => 'Lihat Semua Project', 'view_all_purchase' => 'Lihat Semua Kas Purchase', 'print' => 'Cetak', 'admin_delete' => 'Hapus Administratif',
+            'view_all' => 'Lihat Semua Project / Pengajuan', 'view_all_purchase' => 'Lihat Semua Kas Purchase', 'print' => 'Cetak', 'admin_delete' => 'Hapus Administratif',
             'realize' => 'Tandai Direalisasikan', 'edit_saldo' => 'Edit Saldo Bank Manual',
+            'review' => 'Periksa (Setujui/Tolak)', 'check' => 'Periksa (Pengajuan Fee)',
             'receive_any' => 'Terima Barang dari Semua PO', 'receive_transfer' => 'Terima Mutasi Antar Gudang', 'cancel' => 'Batalkan', 'process' => 'Proses Pemenuhan (Stok/Invoice/Surat Jalan)', 'reverse' => 'Koreksi Pemenuhan',
         ],
     ];

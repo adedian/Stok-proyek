@@ -51,6 +51,8 @@ class DocumentNumber extends Model
         'payment_kk'          => 'Pembayaran - Kas Kecil',
         'payment_kkp'         => 'Pembayaran - Kas Project',
         'pengajuan_budget'    => 'Pengajuan Budget (Permintaan Otorisasi)',
+        'reimbursement'       => 'Reimbursement',
+        'pengajuan_fee'       => 'Pengajuan Fee',
         'form_pengiriman'     => 'Form - Pengiriman Dokumen',
         'form_kwitansi'       => 'Form - Kwitansi',
         'form_bon_sementara'  => 'Form - Pengajuan Bon Sementara',
@@ -82,6 +84,8 @@ class DocumentNumber extends Model
         'payment_kk'          => ['prefix_pay_kk',  'KK.HME'],
         'payment_kkp'         => ['prefix_pay_kkp', 'KKP.HME'],
         'pengajuan_budget'    => ['prefix_pb',      'PB.HME'],
+        'reimbursement'       => ['prefix_reimb',   'RMB.HME'],
+        'pengajuan_fee'       => ['prefix_fee',     'FEE.HME'],
         // Menu Form (FormDocument::numberConfig()). Kode Form Order Barang SAMA dengan Pengajuan Budget
         // (PB.HME) atas permintaan, tapi setting & counter-nya TERPISAH -- mengubah satu tidak menggeser yang lain.
         'form_pengiriman'     => ['prefix_form_pd',  'PD.HME'],

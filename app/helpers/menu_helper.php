@@ -18,6 +18,9 @@ function appMenus(): array
         // Pengajuan Budget (Permintaan Otorisasi) -- hanya Purwati & Nissa (izin per akun) + Super Admin; tersembunyi untuk akun lain
         // lewat can(..., 'view'). Laporannya ada di menu Laporan (kartu "Pengajuan Budget").
         ['label' => 'Pengajuan Budget', 'module' => 'pengajuan_budget', 'icon' => 'bi-file-earmark-plus', 'roles' => permissionRoles('pengajuan_budget', 'view'), 'active' => true, 'group' => 'Transaksi'],
+        // Reimbursement: semua akun (pengaju lihat miliknya; Nissa/Purwati periksa semua). Pengajuan Fee: izin per akun (Nissa/Purwati) + Super Admin.
+        ['label' => 'Reimbursement', 'module' => 'reimbursement', 'icon' => 'bi-receipt', 'roles' => permissionRoles('reimbursement', 'view'), 'active' => true, 'group' => 'Transaksi'],
+        ['label' => 'Pengajuan Fee', 'module' => 'pengajuan_fee', 'icon' => 'bi-percent', 'roles' => permissionRoles('pengajuan_fee', 'view'), 'active' => true, 'group' => 'Transaksi'],
         // "Bank" TIDAK lagi menu sendiri (revisi lanjutan) -- transaksi Bank
         // digabung tampil di menu Kas (CashController::index(), khusus
         // can('bank','view')). module tetap 'cash' supaya sidebar highlight benar.

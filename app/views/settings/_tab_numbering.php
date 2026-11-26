@@ -92,6 +92,16 @@
                     <input type="text" name="prefix_pb" class="form-control" value="<?= e($numbering['prefix_pb'] ?? 'PB.HME') ?>">
                     <div class="form-text">Contoh: 001/<?= e($numbering['prefix_pb'] ?? 'PB.HME') ?>/XI/2026</div>
                 </div>
+                <div class="col-md-4">
+                    <label class="form-label">Kode Reimbursement</label>
+                    <input type="text" name="prefix_reimb" class="form-control" value="<?= e($numbering['prefix_reimb'] ?? 'RMB.HME') ?>">
+                    <div class="form-text">Contoh: 001/<?= e($numbering['prefix_reimb'] ?? 'RMB.HME') ?>/XI/2026</div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Kode Pengajuan Fee</label>
+                    <input type="text" name="prefix_fee" class="form-control" value="<?= e($numbering['prefix_fee'] ?? 'FEE.HME') ?>">
+                    <div class="form-text">Contoh: 001/<?= e($numbering['prefix_fee'] ?? 'FEE.HME') ?>/XI/2026</div>
+                </div>
             </div>
             <hr>
             <div class="row g-3">

@@ -1,5 +1,5 @@
 <?php
-/** Detail pengajuan. Variabel: $pb, $items, $history, $actions */
+/** Detail pengajuan. Variabel: $pb, $items, $history, $actions, $source (sumber otomatis, mis. Reimbursement) */
 $id = (int) $pb['id'];
 $postUrl = fn(string $a) => BASE_URL . '/index.php?module=pengajuan_budget&action=' . $a;
 $total = array_sum(array_map(fn($r) => (float) $r['amount'], $items));
@@ -42,6 +42,12 @@ $actionForm = function (string $action, string $label, string $icon, string $btn
         <a href="<?= BASE_URL ?>/pengajuan_budget" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Kembali</a>
     </div>
 </div>
+
+<?php if (!empty($source)): ?>
+    <div class="alert alert-info py-2"><i class="bi bi-link-45deg"></i> Pengajuan ini berasal dari <strong><?= e($source['label']) ?></strong>
+        <?= $source['url'] ? '<a href="' . e($source['url']) . '" class="fw-semibold">' . e($source['number']) . '</a>' : '<strong>' . e($source['number']) . '</strong>' ?><?= !empty($source['by']) ? ' a.n. ' . e($source['by']) : '' ?>
+        &mdash; dibuat otomatis saat reimbursement disetujui.</div>
+<?php endif; ?>
 
 <?php if ($pb['status'] === PengajuanBudget::DIREALISASIKAN): ?>
     <div class="alert alert-success py-2"><i class="bi bi-lock"></i> Pengajuan sudah <strong>Direalisasikan</strong> (<?= e(formatTanggal(substr((string) $pb['realized_at'], 0, 10))) ?><?= $pb['realized_by_name'] ? ', oleh ' . e($pb['realized_by_name']) : '' ?>) &mdash; terkunci, tidak bisa diedit, dibatalkan, atau dihapus.</div>

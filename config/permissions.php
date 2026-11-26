@@ -507,6 +507,33 @@ return [
         'edit_saldo' => [ROLE_SUPER_ADMIN],
     ],
 
+    // Reimbursement (Laporan Biaya Reimburse) -- SEMUA akun boleh membuat & melihat pengajuannya SENDIRI.
+    //   view_all = lihat seluruh pengajuan, review = periksa (Setujui/Tolak) lalu diteruskan ke Pengajuan Budget.
+    //   view_all & review HANYA akun Nissa & Purwati (izin per akun, migrasi 2026_11_27_b) + Super Admin.
+    //   edit/submit hanya berlaku untuk pengajuan milik sendiri yang masih Draft (ditegakkan di controller).
+    'reimbursement' => [
+        'view'     => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT, ROLE_PROJECT_MANAGER],
+        'create'   => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT, ROLE_PROJECT_MANAGER],
+        'edit'     => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT, ROLE_PROJECT_MANAGER],
+        'submit'   => [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_PIC_PROJECT, ROLE_ADMIN_PROJECT, ROLE_PROJECT_MANAGER],
+        'view_all' => [ROLE_SUPER_ADMIN],
+        'review'   => [ROLE_SUPER_ADMIN],
+        'delete'   => [ROLE_SUPER_ADMIN],
+    ],
+
+    // Pengajuan Fee -- modul MANDIRI (tanpa hubungan ke Pengajuan Budget). Alur: Dibuat -> Diajukan -> Diperiksa -> Disetujui/Ditolak.
+    // Akses HANYA lewat izin per akun (migrasi 2026_11_27_b): Nissa = buat/ubah/ajukan, Purwati = periksa;
+    // 'approve' (Disetujui) default Super Admin -- beri ke akun penyetuju lewat Hak Akses.
+    'pengajuan_fee' => [
+        'view'    => [ROLE_SUPER_ADMIN],
+        'create'  => [ROLE_SUPER_ADMIN],
+        'edit'    => [ROLE_SUPER_ADMIN],
+        'submit'  => [ROLE_SUPER_ADMIN],
+        'check'   => [ROLE_SUPER_ADMIN],
+        'approve' => [ROLE_SUPER_ADMIN],
+        'delete'  => [ROLE_SUPER_ADMIN],
+    ],
+
     // Master Rekening Tujuan (Master Data) -- penerima pembayaran untuk kolom Rekening Tujuan Pengajuan Budget.
     // Sama seperti Pengajuan Budget: akses HANYA lewat izin per akun (Purwati & Nissa) + Super Admin;
     // hapus khusus Super Admin. Lihat migrasi 2026_11_16_e_master_rekening_tujuan_permissions.php.

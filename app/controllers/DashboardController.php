@@ -70,7 +70,7 @@ class DashboardController extends Controller
         unset($activity);
 
         $paymentProgress = null;
-        if (hasRole([ROLE_SUPER_ADMIN, ROLE_ACCOUNTING, ROLE_PURCHASE])) {
+        if (hasRole([ROLE_SUPER_ADMIN, ROLE_ACCOUNTING, ROLE_PURCHASE, ROLE_DIREKTUR])) {
             $paymentProgress = (new Payment())->overallProgress();
         }
 

@@ -71,7 +71,7 @@ class ReportController extends Controller
         $type = $this->reportTypeForRequest();
 
         // --- Role project: hanya Kartu Stok (Stok Barang) ---
-        if (!in_array($role, [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING], true)) {
+        if (!in_array($role, [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_DIREKTUR], true)) {
             $stockOnly = [
                 'inventory',
                 'printStockDetail', 'printStockRecap', 'printStockAvailable', 'exportStockAvailable',
@@ -88,7 +88,7 @@ class ReportController extends Controller
 
         // --- Super Admin / Purchase / Accounting: gate per laporan ---
         if ($type === 'activityLog') {
-            if (!in_array($role, [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING], true)) {
+            if (!in_array($role, [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING, ROLE_DIREKTUR], true)) {
                 denyAccess('Laporan Riwayat Aktivitas hanya untuk Super Admin & Accounting.');
             }
             return;
@@ -172,7 +172,7 @@ class ReportController extends Controller
 
         $role = currentUserRole();
 
-        if (!in_array($role, [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING], true)) {
+        if (!in_array($role, [ROLE_SUPER_ADMIN, ROLE_PURCHASE, ROLE_ACCOUNTING, ROLE_DIREKTUR], true)) {
             // Role project: Kartu Stok (Revisi 9) + Laporan Kas / Bank untuk tim Project
             // (PIC Project & Admin Project, mis. Tio/Adil/Rizal/Gusti). Isi laporan TETAP
             // dibatasi per-PIC/project-nya sendiri oleh CashController::report() -- kartu ini
@@ -189,7 +189,7 @@ class ReportController extends Controller
         } else {
             $out = array_values(array_filter($all, function ($r) use ($role) {
                 if ($r['key'] === 'activityLog') {
-                    return in_array($role, [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING], true);
+                    return in_array($role, [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING, ROLE_DIREKTUR], true);
                 }
                 // Kartu "Stok Barang" muncul juga lewat izin khusus report.stock_report
                 // (tim Purchase) walau tak punya inventory.view.

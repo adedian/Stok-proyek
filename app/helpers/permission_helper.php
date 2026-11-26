@@ -24,7 +24,7 @@ const PERMISSION_LOCKED_MODULES = ['settings', 'user', 'trash', 'period_lock'];
 /** Role yang izinnya bisa diedit di matrix (super_admin selalu full-access). */
 function permissionEditableRoleSlugs(): array
 {
-    return ['purchase', 'accounting', 'pic_project', 'admin_project', 'project_manager'];
+    return ['purchase', 'accounting', 'pic_project', 'admin_project', 'project_manager', 'direktur'];
 }
 
 /** Matrix statis config/permissions.php (di-cache per request). */
@@ -33,8 +33,25 @@ function permissionFileMatrix(): array
     static $matrix = null;
     if ($matrix === null) {
         $matrix = require ROOT_PATH . '/config/permissions.php';
+        // Direktur: VIEW ONLY -- otomatis boleh SEMUA aksi baca di modul tak terkunci; tak pernah boleh tambah/ubah/hapus/dll.
+        foreach ($matrix as $module => $actions) {
+            if (permissionIsLockedModule($module)) {
+                continue;
+            }
+            foreach ($actions as $action => $roles) {
+                if (in_array($action, permissionReadOnlyActions(), true)) {
+                    $matrix[$module][$action][] = ROLE_DIREKTUR;
+                }
+            }
+        }
     }
     return $matrix;
+}
+
+/** Aksi yang hanya MEMBACA/MENCETAK (tanpa mengubah data) -- dasar hak akses role Direktur. */
+function permissionReadOnlyActions(): array
+{
+    return ['view', 'view_all', 'view_all_purchase', 'view_balance', 'print', 'export', 'print_voucher', 'stock_price', 'stock_report'];
 }
 
 /**

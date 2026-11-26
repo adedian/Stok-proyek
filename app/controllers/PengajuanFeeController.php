@@ -251,6 +251,9 @@ class PengajuanFeeController extends Controller
     /** Tolak: tahap Diajukan oleh pemeriksa ('check'), tahap Diperiksa oleh penyetuju ('approve'). Catatan WAJIB. */
     public function reject()
     {
+        if (!can('pengajuan_fee', 'check') && !can('pengajuan_fee', 'approve')) {
+            Middleware::requirePermission('pengajuan_fee', 'check'); // 403 sebelum apa pun dibaca
+        }
         $this->requirePost();
         $f = $this->load((int) ($_POST['id'] ?? 0));
         $perm = $f['status'] === PengajuanFee::DIPERIKSA ? 'approve' : 'check';

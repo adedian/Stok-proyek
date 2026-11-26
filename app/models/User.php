@@ -69,6 +69,7 @@ class User extends Model
              ORDER BY
                 CASE r.role_slug
                     WHEN 'super_admin'     THEN 1
+                    WHEN 'direktur'        THEN 1
                     WHEN 'project_manager' THEN 2
                     WHEN 'accounting'      THEN 3
                     WHEN 'finance'         THEN 3

@@ -133,6 +133,10 @@ define('ROLE_ACCOUNTING', 'accounting');
 define('ROLE_PIC_PROJECT', 'pic_project');
 define('ROLE_ADMIN_PROJECT', 'admin_project');
 
+// Direktur (2026-11-26): VIEW ONLY lintas SEMUA menu (kecuali modul khusus Super Admin: Pengaturan, User, Tempat Sampah, Tutup Bulan).
+// Aturan izinnya dibentuk otomatis di permissionFileMatrix() (semua aksi baca = boleh, selain itu tidak).
+define('ROLE_DIREKTUR', 'direktur');
+
 // DEPRECATED (Revisi 9): role 'finance' & 'gudang' tidak lagi ditawarkan
 // sebagai pilihan (lihat Role::assignableList()). Konstanta DIPERTAHANKAN
 // karena baris role-nya masih ada di DB untuk histori dan sejumlah cek

@@ -23,7 +23,7 @@
 /** Role yang tidak perlu verifikasi PIC Kas. */
 function kasExemptRoles(): array
 {
-    return [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING, ROLE_PROJECT_MANAGER];
+    return [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING, ROLE_PROJECT_MANAGER, ROLE_DIREKTUR];
 }
 
 /**
@@ -35,7 +35,7 @@ function kasExemptRoles(): array
  */
 function kasViewAllRoles(): array
 {
-    return [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING];
+    return [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING, ROLE_DIREKTUR]; // Direktur: lihat semua (VIEW ONLY; aksi tulis dijaga izin cash.*)
 }
 
 function kasIsViewAllRole(?string $roleSlug): bool

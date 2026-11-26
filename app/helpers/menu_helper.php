@@ -91,6 +91,7 @@ function roleLabelMap(): array
 {
     return [
         ROLE_SUPER_ADMIN     => 'Super Admin',
+        ROLE_DIREKTUR        => 'Direktur',
         ROLE_PURCHASE        => 'Purchase',
         ROLE_ACCOUNTING      => 'Accounting',
         ROLE_PIC_PROJECT     => 'PIC Project',

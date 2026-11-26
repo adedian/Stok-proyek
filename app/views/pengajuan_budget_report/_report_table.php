@@ -24,7 +24,7 @@ $saldoBtns = function (array $s) use ($print, $canEditSaldo, $rq, $report) {
     if (!empty($s['manual_date'])) {
         $h .= '<span class="badge bg-light text-secondary border" title="Saldo dari catatan manual">manual ' . e(date('d/m/Y', strtotime($s['manual_date']))) . '</span>';
     }
-    if ($canEditSaldo && in_array($s['jenis'], ['loan', 'hr'], true)) {
+    if ($canEditSaldo && in_array($s['jenis'], ['loan', 'hr', 'kas'], true)) {
         $h .= '<a class="btn btn-sm btn-outline-primary py-0" href="' . e(BASE_URL . '/index.php?' . http_build_query(['module' => 'pengajuan_budget_report', 'action' => 'editSaldo', 'bank_id' => $s['bank_id'], 'date' => $report['saldo_date']] + $rq)) . '"><i class="bi bi-pencil-square"></i> Edit Saldo</a>';
     }
     $h .= '<a class="btn btn-sm btn-outline-secondary py-0" href="' . e(BASE_URL . '/index.php?' . http_build_query(['module' => 'pengajuan_budget_report', 'action' => 'saldoHistory', 'bank_id' => $s['bank_id']] + $rq)) . '"><i class="bi bi-clock-history"></i> Riwayat</a>';

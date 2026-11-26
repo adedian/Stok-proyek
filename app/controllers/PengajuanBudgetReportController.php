@@ -94,11 +94,11 @@ class PengajuanBudgetReportController extends Controller
 
     // =================== Saldo bank manual ===================
 
-    /** Rekening yang boleh diedit saldonya: Master Bank aktif berjenis Loan/HR. */
+    /** Rekening yang boleh diedit saldonya: Master Bank aktif berjenis Loan/HR/Kas. */
     private function editableBank(int $id): ?array
     {
         $b = $id > 0 ? (new MasterBank())->find($id) : null;
-        return ($b && (int) $b['is_active'] === 1 && in_array($b['jenis'], ['loan', 'hr'], true)) ? $b : null;
+        return ($b && (int) $b['is_active'] === 1 && in_array($b['jenis'], ['loan', 'hr', 'kas'], true)) ? $b : null;
     }
 
     /** Query kembali ke laporan (tanggal/filter yang sedang dilihat). */
@@ -120,7 +120,7 @@ class PengajuanBudgetReportController extends Controller
         Middleware::requirePermission('pengajuan_budget_report', 'edit_saldo');
         $bank = $this->editableBank((int) ($_GET['bank_id'] ?? 0));
         if (!$bank) {
-            setFlash('error', 'Rekening tidak ditemukan atau bukan rekening Loan/HR yang aktif.');
+            setFlash('error', 'Rekening tidak ditemukan atau bukan rekening aktif.');
             $this->redirect('pengajuan_budget_report', 'index', $this->backQuery());
         }
         $date = is_string($_GET['date'] ?? null) && isValidDateString($_GET['date']) ? $_GET['date'] : date('Y-m-d');
@@ -164,7 +164,7 @@ class PengajuanBudgetReportController extends Controller
         $bank = $this->editableBank($bankId);
         $back = $this->backQuery();
         if (!$bank) {
-            setFlash('error', 'Rekening tidak ditemukan atau bukan rekening Loan/HR yang aktif.');
+            setFlash('error', 'Rekening tidak ditemukan atau bukan rekening aktif.');
             $this->redirect('pengajuan_budget_report', 'index', $back);
         }
         $date = is_string($_POST['effective_date'] ?? null) ? trim($_POST['effective_date']) : '';

@@ -22,7 +22,7 @@ $__qaPrjMaster       = $__qaPrjCode->masterCodeForEntity('project');
 $__qaPrjCanAddPrefix = function_exists('can') && (can('master_kode', 'edit') || can('project', 'quick_add'));
 ?>
 <div class="modal fade" id="modalQuickAddProject" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog<?= !empty($quickAddVia) ? ' modal-dialog-centered' : '' ?>">
         <div class="modal-content">
             <form id="formQuickAddProject">
                 <div class="modal-header">

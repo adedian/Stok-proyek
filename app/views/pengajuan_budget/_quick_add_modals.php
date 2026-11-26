@@ -10,7 +10,7 @@
  */
 ?>
 <div class="modal fade" id="pbQaBankModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form id="pbQaBankForm">
                 <div class="modal-header">
@@ -59,7 +59,7 @@
 </div>
 
 <div class="modal fade" id="pbQaTujuanModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form id="pbQaTujuanForm">
                 <div class="modal-header">
@@ -99,7 +99,7 @@
 </div>
 
 <div class="modal fade" id="pbQaCategoryModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form id="pbQaCategoryForm">
                 <div class="modal-header">

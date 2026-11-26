@@ -229,6 +229,62 @@
         }
         registry.set(select, instance);
         bindOverflowFix(select);
+        if (select.hasAttribute('data-quick-add')) {
+            attachQuickAdd(select, instance);
+        }
+    }
+
+    /**
+     * "Tambah cepat" di dalam dropdown: <select data-quick-add="tipe"> mendapat baris aksi di dasar daftar
+     * pilihan -- "+ Tambah baru", atau "+ Tambah “kata yang diketik” sebagai baru" saat user sedang mencari
+     * (disembunyikan bila sudah ada pilihan dengan nama persis sama). Klik -> dropdown tertutup dan event
+     * 'quickadd' (bubbles, detail.term = kata yang diketik) dikirim dari <select>; form pemilik yang membuka
+     * modal tambah & mengisi namanya. Baris aksi dibuat ulang tiap enhance(); listener event hanya dipasang
+     * sekali per <select> (merujuk tombol yang aktif lewat select.__qa).
+     */
+    function attachQuickAdd(select, instance) {
+        var btn = document.createElement('div');
+        btn.className = 'choices__qa';
+        btn.setAttribute('role', 'button');
+        btn.textContent = '+ Tambah baru';
+        instance.dropdown.element.appendChild(btn);
+        select.__qa = { btn: btn, term: '' };
+
+        btn.addEventListener('mousedown', function (e) {
+            // cegah Choices memproses klik ini sebagai pilihan / menutup lewat blur
+            e.preventDefault();
+            e.stopPropagation();
+            var term = (select.__qa.term || '').trim();
+            var inst = registry.get(select);
+            if (inst) {
+                inst.hideDropdown();
+            }
+            select.dispatchEvent(new CustomEvent('quickadd', { bubbles: true, detail: { term: term } }));
+        });
+        btn.addEventListener('click', function (e) { e.stopPropagation(); });
+
+        if (select.dataset.ssQaBound) {
+            return;
+        }
+        select.dataset.ssQaBound = '1';
+        function render() {
+            var qa = select.__qa;
+            if (!qa) { return; }
+            var t = (qa.term || '').trim();
+            var exact = t !== '' && Array.prototype.some.call(select.options, function (o) {
+                return o.value !== '' && o.value !== 'manual' && o.text.trim().toLowerCase() === t.toLowerCase();
+            });
+            qa.btn.style.display = exact ? 'none' : '';
+            qa.btn.textContent = t ? '+ Tambah “' + t + '” sebagai baru' : '+ Tambah baru';
+        }
+        select.addEventListener('search', function (e) {
+            if (select.__qa) { select.__qa.term = (e.detail && e.detail.value) || ''; }
+            render();
+        });
+        select.addEventListener('showDropdown', function () {
+            if (select.__qa) { select.__qa.term = ''; }
+            render();
+        });
     }
 
     /**

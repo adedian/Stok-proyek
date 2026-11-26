@@ -57,14 +57,11 @@ $tujuanSelect = function (array $it) use ($tujuanList) {
     $o .= '<option value="manual"' . ($manual ? ' selected' : '') . '>&#9998; Ketik manual...</option>';
     return [$o, $manual];
 };
-// Tombol "+" Tambah Cepat di samping dropdown (hanya akun dengan izin pengajuan_budget.quick_add: Purwati, Nissa, Super Admin).
+// Tambah Cepat: baris "+ Tambah baru" di dasar dropdown (searchable-select.js, atribut data-quick-add) -- hanya untuk
+// akun dengan izin pengajuan_budget.quick_add (Purwati, Nissa, Super Admin). Judul argumen ke-3 tidak dipakai lagi.
 $canQuickAdd = can('pengajuan_budget', 'quick_add');
-$qaWrap = function (string $select, string $type, string $title) use ($canQuickAdd) {
-    if (!$canQuickAdd) {
-        return $select;
-    }
-    return '<div class="input-group input-group-sm pb-qa-group">' . $select
-        . '<button type="button" class="btn btn-outline-secondary pb-qa" data-qa="' . $type . '" title="' . $title . '" aria-label="' . $title . '"><i class="bi bi-plus-lg"></i></button></div>';
+$qaWrap = function (string $select, string $type, string $title = '') use ($canQuickAdd) {
+    return $canQuickAdd ? preg_replace('/^<select /', '<select data-quick-add="' . $type . '" ', $select, 1) : $select;
 };
 $renderRow = function (array $it) use ($tujuanSelect, $bankSelect, $jenisSelect, $catSelect, $projSelect, $fmtAmt, $qaWrap) {
     ob_start(); ?>
@@ -264,19 +261,26 @@ $renderRow = function (array $it) use ($tujuanSelect, $bankSelect, $jenisSelect,
         if (e.target.classList && e.target.classList.contains('pb-tujuan')) { syncTujuan(e.target); }
     });
 
-    // ---- Tambah Cepat (tombol "+" di samping dropdown; hanya ada bila punya izin pengajuan_budget.quick_add) ----
-    // Modal & endpoint ada di _quick_add_modals.php / partial Project. Opsi baru otomatis disebar ke SEMUA baris
-    // oleh initQuickAdd (broadcastSelector) dan dipilih di baris yang tombolnya diklik.
+    // ---- Tambah Cepat (baris "+ Tambah baru" di dalam dropdown; hanya ada bila punya izin pengajuan_budget.quick_add) ----
+    // searchable-select.js mengirim event 'quickadd' dari <select data-quick-add>; di sini modalnya dibuka dengan nama
+    // terisi dari kata yang diketik. Modal & endpoint ada di _quick_add_modals.php / partial Project. Opsi baru otomatis
+    // disebar ke SEMUA baris oleh initQuickAdd (broadcastSelector) dan dipilih di baris yang dropdown-nya dipakai.
     const QA_MODAL = { bank: 'pbQaBankModal', tujuan: 'pbQaTujuanModal', category: 'pbQaCategoryModal', project: 'modalQuickAddProject' };
     const QA_SELECT = { bank: '.pb-bank', tujuan: '.pb-tujuan', category: '.pb-cat', project: '.pb-proj' };
-    body.addEventListener('click', function (e) {
-        const btn = e.target.closest('.pb-qa');
-        if (!btn) { return; }
-        const type = btn.getAttribute('data-qa');
-        const sel = btn.closest('td').querySelector(QA_SELECT[type]);
+    const QA_NAME = { bank: 'bank_name', tujuan: 'nama_penerima', category: 'category_name', project: 'project_name' };
+    body.addEventListener('quickadd', function (e) {
+        const sel = e.target;
+        const type = sel.getAttribute('data-quick-add');
         const modalEl = document.getElementById(QA_MODAL[type]);
-        if (!sel || !modalEl) { return; }
+        if (!modalEl) { return; }
         if (type === 'project') { window.__quickAddProjectTarget = sel; } else { window.__pbQaTarget = sel; }
+        const nameInput = modalEl.querySelector('[name="' + QA_NAME[type] + '"]');
+        if (nameInput) { nameInput.value = (e.detail && e.detail.term) || ''; }
+        modalEl.addEventListener('shown.bs.modal', function () {
+            // kolom nama sudah terisi -> fokus ke kolom berikutnya yang kosong; bila tak ada, ke nama
+            const empty = Array.prototype.find.call(modalEl.querySelectorAll('input.form-control:not([type=hidden])'), function (i) { return !i.value && !i.readOnly; });
+            (empty || nameInput || modalEl).focus();
+        }, { once: true });
         bootstrap.Modal.getOrCreateInstance(modalEl).show();
     });
 

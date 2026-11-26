@@ -250,12 +250,14 @@
                     <div class="login-field">
                         <label for="loginUsername">Username</label>
                         <input type="text" name="username" id="loginUsername" class="form-control" required
-                               <?= $isLocked ? '' : 'autofocus' ?> autocomplete="username" <?= $isLocked ? 'disabled' : '' ?>>
+                               value="<?= e($lastUsername ?? '') ?>"
+                               <?= ($isLocked || !empty($lastUsername)) ? '' : 'autofocus' ?> autocomplete="username" <?= $isLocked ? 'disabled' : '' ?>>
                     </div>
                     <div class="login-field">
                         <label for="loginPassword">Password</label>
                         <div class="login-password">
                             <input type="password" name="password" id="loginPassword" class="form-control" required
+                                   <?= ($isLocked || empty($lastUsername)) ? '' : 'autofocus' ?>
                                    autocomplete="current-password" <?= $isLocked ? 'disabled' : '' ?>>
                             <button type="button" class="login-eye" id="loginEye"
                                     aria-label="Tampilkan password" <?= $isLocked ? 'disabled' : '' ?>>

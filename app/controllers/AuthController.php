@@ -5,6 +5,8 @@ require_once ROOT_PATH . '/app/models/ActivityLog.php';
 
 class AuthController extends Controller
 {
+    private const LAST_USER_COOKIE = 'last_username';
+
     private User $userModel;
     private ActivityLog $activityLog;
 
@@ -39,10 +41,18 @@ class AuthController extends Controller
             $lockRemaining = $ipRemain;
         }
 
+        // Username terakhir yang berhasil login di perangkat ini (cookie).
+        // Hanya username -- password tidak pernah disimpan.
+        $lastUsername = (string) ($_COOKIE[self::LAST_USER_COOKIE] ?? '');
+        if (!preg_match('/^[A-Za-z0-9._@\-]{1,60}$/', $lastUsername)) {
+            $lastUsername = '';
+        }
+
         $this->viewPlain('auth/login', [
             'expired'       => isset($_GET['expired']),
             'invalid'       => isset($_GET['invalid']),
             'lockRemaining' => $lockRemaining,
+            'lastUsername'  => $lastUsername,
         ]);
     }
 
@@ -108,6 +118,18 @@ class AuthController extends Controller
         $_SESSION['role_slug']  = $user['role_slug'];
         $_SESSION['profile_photo'] = $user['profile_photo'] ?? null;
         $_SESSION['last_activity'] = time();
+
+        // Ingat username (bukan password) untuk prefill form login berikutnya.
+        $https = (!empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off')
+            || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https')
+            || (($_SERVER['SERVER_PORT'] ?? '') === '443');
+        setcookie(self::LAST_USER_COOKIE, (string) $user['username'], [
+            'expires'  => time() + 365 * 86400,
+            'path'     => '/',
+            'secure'   => $https,
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
 
         $this->userModel->updateLastLogin($user['id']);
         $this->activityLog->log($user['id'], 'auth', 'login', 'User login berhasil');

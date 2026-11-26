@@ -15,6 +15,9 @@
     <script src="<?= assetUrl('/assets/js/checkbox-select-all.js') ?>"></script>
     <script src="<?= assetUrl('/assets/js/responsive-tables.js') ?>"></script>
     <script src="<?= assetUrl('/assets/js/inline-row-add.js') ?>"></script>
+    <?php /* Draft otomatis form Tambah (form-draft.js): butuh id akun (kunci draft per akun) + jenis flash halaman ini. */ ?>
+    <script>window.HXS_UID = <?= (int) currentUserId() ?>; window.HXS_FLASH_TYPE = <?= json_encode($flash['type'] ?? null) ?>;</script>
+    <script src="<?= assetUrl('/assets/js/form-draft.js') ?>"></script>
     <script src="<?= assetUrl('/assets/js/pwa.js') ?>"></script>
 
     <?php if (isLoggedIn() && VAPID_PUBLIC_KEY !== ''): ?>

@@ -186,12 +186,17 @@ if (!function_exists('renderTopbarAvatar')) {
         logoutLink.addEventListener('click', function (e) {
             e.preventDefault();
             var url = '<?= route('auth', 'logout') ?>';
+            // Logout = draft form di perangkat ini ikut dibersihkan (form-draft.js).
+            var goLogout = function () {
+                if (window.HXS_clearDrafts) { window.HXS_clearDrafts(); }
+                window.location.href = url;
+            };
             if (window.confirmAction) {
                 confirmAction('Yakin ingin logout?', 'Ya, logout').then(function (ok) {
-                    if (ok) { window.location.href = url; }
+                    if (ok) { goLogout(); }
                 });
             } else if (confirm('Yakin ingin logout?')) {
-                window.location.href = url;
+                goLogout();
             }
         });
     });

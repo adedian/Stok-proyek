@@ -245,7 +245,9 @@ class ProjectController extends Controller
      */
     public function quickStore()
     {
-        Middleware::requirePermission('project', 'quick_add');
+        if (!Middleware::viaPengajuanQuickAdd()) {
+            Middleware::requirePermission('project', 'quick_add');
+        }
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->json(['errors' => ['Metode tidak diizinkan.']], 405);

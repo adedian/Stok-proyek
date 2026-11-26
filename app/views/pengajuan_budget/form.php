@@ -57,15 +57,24 @@ $tujuanSelect = function (array $it) use ($tujuanList) {
     $o .= '<option value="manual"' . ($manual ? ' selected' : '') . '>&#9998; Ketik manual...</option>';
     return [$o, $manual];
 };
-$renderRow = function (array $it) use ($tujuanSelect, $bankSelect, $jenisSelect, $catSelect, $projSelect, $fmtAmt) {
+// Tombol "+" Tambah Cepat di samping dropdown (hanya akun dengan izin pengajuan_budget.quick_add: Purwati, Nissa, Super Admin).
+$canQuickAdd = can('pengajuan_budget', 'quick_add');
+$qaWrap = function (string $select, string $type, string $title) use ($canQuickAdd) {
+    if (!$canQuickAdd) {
+        return $select;
+    }
+    return '<div class="input-group input-group-sm pb-qa-group">' . $select
+        . '<button type="button" class="btn btn-outline-secondary pb-qa" data-qa="' . $type . '" title="' . $title . '" aria-label="' . $title . '"><i class="bi bi-plus-lg"></i></button></div>';
+};
+$renderRow = function (array $it) use ($tujuanSelect, $bankSelect, $jenisSelect, $catSelect, $projSelect, $fmtAmt, $qaWrap) {
     ob_start(); ?>
     <tr class="pb-row">
         <td data-label="No" class="pb-no text-muted text-center"></td>
-        <td data-label="Rekening Sumber"><select name="source_bank_id[]" class="form-select form-select-sm pb-bank"><?= $bankSelect((string) ($it['source_bank_id'] ?? '')) ?></select></td>
+        <td data-label="Rekening Sumber"><?= $qaWrap('<select name="source_bank_id[]" class="form-select form-select-sm pb-bank">' . $bankSelect((string) ($it['source_bank_id'] ?? '')) . '</select>', 'bank', 'Tambah Rekening Sumber Cepat') ?></td>
         <td data-label="Jenis Transaksi"><select name="jenis_transaksi[]" class="form-select form-select-sm"><?= $jenisSelect((string) ($it['jenis_transaksi'] ?? '')) ?></select></td>
         <?php [$tujuanOpts, $tujuanManual] = $tujuanSelect($it); ?>
         <td data-label="Rekening Tujuan">
-            <select name="tujuan_id[]" class="form-select form-select-sm pb-tujuan"><?= $tujuanOpts ?></select>
+            <?= $qaWrap('<select name="tujuan_id[]" class="form-select form-select-sm pb-tujuan">' . $tujuanOpts . '</select>', 'tujuan', 'Tambah Rekening Tujuan Cepat') ?>
             <input type="text" name="tujuan[]" class="form-control form-control-sm mt-1 pb-tujuan-manual<?= $tujuanManual ? '' : ' d-none' ?>" maxlength="255" autocomplete="off" value="<?= e($tujuanManual ? ($it['tujuan'] ?? '') : '') ?>" placeholder="Nama - Bank No. Rek">
         </td>
         <td data-label="Jumlah (Rp)"><input type="text" name="amount[]" class="form-control form-control-sm text-end currency-input pb-amount" inputmode="decimal" placeholder="0" value="<?= e($fmtAmt($it['amount'] ?? '')) ?>"></td>
@@ -75,8 +84,8 @@ $renderRow = function (array $it) use ($tujuanSelect, $bankSelect, $jenisSelect,
             <input type="hidden" name="purchase_order_id[]" class="pb-po-id" value="<?= $rowPo ?: '' ?>">
             <div class="pb-po-badge small mt-1<?= $rowPo ? '' : ' d-none' ?>"><span class="badge bg-info-subtle text-info-emphasis border"><i class="bi bi-link-45deg"></i> Dari PO <span class="pb-po-no"><?= e($it['po_number'] ?? '') ?></span></span> <button type="button" class="btn btn-link btn-sm p-0 text-danger align-baseline pb-po-unlink" title="Lepas tautan PO (data baris tidak berubah)">lepas</button></div>
         </td>
-        <td data-label="Kategori"><select name="category_id[]" class="form-select form-select-sm"><?= $catSelect((string) ($it['category_id'] ?? '')) ?></select></td>
-        <td data-label="Project"><select name="project_id[]" class="form-select form-select-sm"><?= $projSelect((string) ($it['project_id'] ?? '')) ?></select></td>
+        <td data-label="Kategori"><?= $qaWrap('<select name="category_id[]" class="form-select form-select-sm pb-cat">' . $catSelect((string) ($it['category_id'] ?? '')) . '</select>', 'category', 'Tambah Kategori Cepat') ?></td>
+        <td data-label="Project"><?= $qaWrap('<select name="project_id[]" class="form-select form-select-sm project-select pb-proj">' . $projSelect((string) ($it['project_id'] ?? '')) . '</select>', 'project', 'Tambah Project Cepat') ?></td>
         <td class="text-center cell-remove"><button type="button" class="btn btn-sm btn-outline-danger pb-remove" title="Hapus baris"><i class="bi bi-x-lg"></i></button></td>
     </tr>
     <?php
@@ -189,6 +198,12 @@ $renderRow = function (array $it) use ($tujuanSelect, $bankSelect, $jenisSelect,
 
 <template id="pbRowTemplate"><?= $renderRow(['source_bank_id' => '', 'jenis_transaksi' => '', 'tujuan' => '', 'amount' => '', 'keterangan' => '', 'category_id' => '', 'project_id' => '', 'tujuan_id' => '']) ?></template>
 
+<?php if ($canQuickAdd) { // Tambah Cepat: Rekening Sumber / Tujuan / Kategori / Project ?>
+    <?php require __DIR__ . '/_quick_add_modals.php'; ?>
+    <?php $quickAddProjectDynamic = true; $quickAddVia = 'pengajuan_budget'; ?>
+    <?php require ROOT_PATH . '/app/views/partials/quick_add_project_modal.php'; ?>
+<?php } ?>
+
 
 <script>
 (function () {
@@ -249,48 +264,51 @@ $renderRow = function (array $it) use ($tujuanSelect, $bankSelect, $jenisSelect,
         if (e.target.classList && e.target.classList.contains('pb-tujuan')) { syncTujuan(e.target); }
     });
 
-    // Quick-add Master Rekening Tujuan: opsi baru ditambahkan ke SEMUA baris + template, dan dipilih di baris aktif.
-    let lastTujuanSelect = null;
-    body.addEventListener('focusin', function (e) {
-        if (e.target.closest && e.target.closest('td') && e.target.closest('td').querySelector('.pb-tujuan')) {
-            lastTujuanSelect = e.target.closest('td').querySelector('.pb-tujuan');
-        }
+    // ---- Tambah Cepat (tombol "+" di samping dropdown; hanya ada bila punya izin pengajuan_budget.quick_add) ----
+    // Modal & endpoint ada di _quick_add_modals.php / partial Project. Opsi baru otomatis disebar ke SEMUA baris
+    // oleh initQuickAdd (broadcastSelector) dan dipilih di baris yang tombolnya diklik.
+    const QA_MODAL = { bank: 'pbQaBankModal', tujuan: 'pbQaTujuanModal', category: 'pbQaCategoryModal', project: 'modalQuickAddProject' };
+    const QA_SELECT = { bank: '.pb-bank', tujuan: '.pb-tujuan', category: '.pb-cat', project: '.pb-proj' };
+    body.addEventListener('click', function (e) {
+        const btn = e.target.closest('.pb-qa');
+        if (!btn) { return; }
+        const type = btn.getAttribute('data-qa');
+        const sel = btn.closest('td').querySelector(QA_SELECT[type]);
+        const modalEl = document.getElementById(QA_MODAL[type]);
+        if (!sel || !modalEl) { return; }
+        if (type === 'project') { window.__quickAddProjectTarget = sel; } else { window.__pbQaTarget = sel; }
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
     });
-    const tForm = document.getElementById('pbTujuanForm');
-    if (tForm) {
-        tForm.addEventListener('submit', function (ev) {
-            ev.preventDefault();
-            const err = document.getElementById('pbTujuanErr');
-            err.classList.add('d-none');
-            const btn = document.getElementById('pbTujuanSave');
-            btn.disabled = true;
-            fetch('<?= BASE_URL ?>/index.php?module=master_rekening_tujuan&action=quickStore', { method: 'POST', body: new FormData(tForm), credentials: 'same-origin' })
-                .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
-                .then(function (res) {
-                    btn.disabled = false;
-                    if (!res.ok) { err.textContent = (res.j.errors || ['Gagal menyimpan.']).join(' '); err.classList.remove('d-none'); return; }
-                    const addOpt = function (sel, select) {
-                        const o = document.createElement('option');
-                        o.value = res.j.id; o.textContent = res.j.label;
-                        const manualOpt = sel.querySelector('option[value="manual"]');
-                        sel.insertBefore(o, manualOpt);
-                        if (select) { sel.value = String(res.j.id); }
-                    };
-                    const target = lastTujuanSelect && body.contains(lastTujuanSelect) ? lastTujuanSelect : body.querySelector('.pb-tujuan');
-                    body.querySelectorAll('.pb-tujuan').forEach(function (sel) {
-                        addOpt(sel, sel === target);
-                        if (window.resyncSearchableSelect) { window.resyncSearchableSelect(sel); }
-                    });
-                    tpl.content.querySelectorAll('.pb-tujuan').forEach(function (sel) { addOpt(sel, false); });
-                    if (target) { syncTujuan(target); }
-                    tForm.reset();
-                    const m = bootstrap.Modal.getInstance(document.getElementById('pbTujuanModal'));
-                    if (m) { m.hide(); }
-                })
-                .catch(function () { btn.disabled = false; err.textContent = 'Gagal menyimpan (jaringan).'; err.classList.remove('d-none'); });
+
+    // Baris yang ditambah belakangan (dari template) belum tahu opsi hasil Tambah Cepat: salin opsi yang
+    // belum ada dari baris lain, lalu sinkronkan widget pencarian.
+    function syncRowOptions(tr) {
+        const ref = Array.prototype.find.call(body.querySelectorAll('.pb-row'), function (r) { return r !== tr; });
+        if (!ref) { return; }
+        Object.keys(QA_SELECT).forEach(function (k) {
+            const dst = tr.querySelector(QA_SELECT[k]), src = ref.querySelector(QA_SELECT[k]);
+            if (!dst || !src) { return; }
+            const have = {};
+            Array.prototype.forEach.call(dst.options, function (o) { have[o.value] = true; });
+            const manualOpt = dst.querySelector('option[value="manual"]');
+            let added = false;
+            Array.prototype.forEach.call(src.options, function (o) {
+                if (have[o.value]) { return; }
+                const c = document.createElement('option');
+                c.value = o.value; c.textContent = o.textContent;
+                if (manualOpt) { dst.insertBefore(c, manualOpt); } else { dst.appendChild(c); }
+                added = true;
+            });
+            if (added && window.resyncSearchableSelect) { window.resyncSearchableSelect(dst); }
         });
     }
-
+    new MutationObserver(function (muts) {
+        muts.forEach(function (m) {
+            m.addedNodes.forEach(function (n) {
+                if (n.nodeType === 1 && n.classList.contains('pb-row')) { syncRowOptions(n); }
+            });
+        });
+    }).observe(body, { childList: true });
     document.getElementById('pbAddRow').addEventListener('click', function () {
         body.appendChild(tpl.content.cloneNode(true));
         recalc();

@@ -16,7 +16,9 @@ class CashCategoryController extends Controller
 
     public function __construct()
     {
-        Middleware::requirePermission('cash_category', 'view');
+        if (!Middleware::viaPengajuanQuickAdd()) {
+            Middleware::requirePermission('cash_category', 'view');
+        }
 
         $this->categoryModel = new CashCategory();
         $this->activityLog   = new ActivityLog();
@@ -78,6 +80,32 @@ class CashCategoryController extends Controller
         $this->activityLog->log(currentUserId(), 'cash_category', 'create', "Kategori Biaya '{$name}' dibuat");
         setFlash('success', 'Kategori Biaya berhasil ditambahkan.');
         $this->redirect('cash_category', 'index');
+    }
+
+    /**
+     * AJAX Tambah Cepat Kategori Biaya dari form Pengajuan Budget (tanpa keluar dari form).
+     * Hanya lewat jalur _via=pengajuan_budget (izin 'pengajuan_budget'.'quick_add');
+     * selain itu memakai izin 'cash_category'.'create'.
+     */
+    public function quickStore()
+    {
+        if (!Middleware::viaPengajuanQuickAdd()) {
+            Middleware::requirePermission('cash_category', 'create');
+        }
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->json(['errors' => ['Metode tidak diizinkan.']], 405);
+        }
+        verifyCsrf();
+
+        $name = mb_substr(trim($_POST['category_name'] ?? ''), 0, 150);
+        $errors = $this->validate($name);
+        if (!empty($errors)) {
+            $this->json(['errors' => $errors], 422);
+        }
+
+        $id = $this->categoryModel->create(['category_name' => $name, 'created_by' => currentUserId()]);
+        $this->activityLog->log(currentUserId(), 'cash_category', 'quick_add', "Kategori Biaya '{$name}' ditambahkan cepat dari form Pengajuan Budget");
+        $this->json(['id' => $id, 'label' => $name]);
     }
 
     public function edit()

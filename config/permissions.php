@@ -493,6 +493,9 @@ return [
         'submit'  => [ROLE_SUPER_ADMIN],
         'realize' => [ROLE_SUPER_ADMIN],
         'cancel'  => [ROLE_SUPER_ADMIN],
+        // Tombol "+" Tambah Cepat (Rekening Sumber, Rekening Tujuan, Kategori, Project) di form Pengajuan.
+        // Per akun: Purwati & Nissa (migrasi 2026_11_26_a). Dipakai lewat Middleware::viaPengajuanQuickAdd().
+        'quick_add' => [ROLE_SUPER_ADMIN],
     ],
 
     // Laporan Pengajuan Budget (Permintaan Otorisasi) -- akses sama: Purwati & Nissa saja.

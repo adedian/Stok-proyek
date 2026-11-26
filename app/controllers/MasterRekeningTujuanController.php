@@ -16,7 +16,9 @@ class MasterRekeningTujuanController extends Controller
 
     public function __construct()
     {
-        Middleware::requirePermission('master_rekening_tujuan', 'view');
+        if (!Middleware::viaPengajuanQuickAdd()) {
+            Middleware::requirePermission('master_rekening_tujuan', 'view');
+        }
         $this->model = new MasterRekeningTujuan();
         $this->activityLog = new ActivityLog();
     }
@@ -116,7 +118,9 @@ class MasterRekeningTujuanController extends Controller
     /** AJAX quick-add dari form Pengajuan Budget (tanpa keluar dari form). */
     public function quickStore()
     {
-        Middleware::requirePermission('master_rekening_tujuan', 'quick_add');
+        if (!Middleware::viaPengajuanQuickAdd()) {
+            Middleware::requirePermission('master_rekening_tujuan', 'quick_add');
+        }
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->json(['errors' => ['Metode tidak diizinkan.']], 405);
         }

@@ -32,6 +32,7 @@ $__qaPrjCanAddPrefix = function_exists('can') && (can('master_kode', 'edit') || 
                 <div class="modal-body">
                     <div class="alert alert-danger d-none quick-add-error"></div>
                     <?= csrfField() ?>
+                    <?php if (!empty($quickAddVia)): ?><input type="hidden" name="_via" value="<?= e($quickAddVia) ?>"><?php endif; ?>
                     <div class="row g-3">
                         <div class="col-12">
                             <label class="form-label">Nama Project <span class="text-danger">*</span></label>

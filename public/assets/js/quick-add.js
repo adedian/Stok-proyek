@@ -15,6 +15,8 @@
  *                      SEMUA <select> yang cocok (bukan cuma target), supaya baris lain yang
  *                      sudah ada di halaman juga langsung punya pilihan baru ini
  *   extraFill          function(optionEl, responseData) -- isi data-attribute tambahan di <option>
+ *   optionBeforeSelector  CSS selector opsional -- <option> baru disisipkan SEBELUM opsi yang cocok
+ *                      (bukan di akhir), mis. 'option[value="manual"]'
  */
 function initQuickAdd(config) {
     const modalEl = document.getElementById(config.modalId);
@@ -85,7 +87,13 @@ function initQuickAdd(config) {
                     if (typeof config.extraFill === 'function') {
                         config.extraFill(opt, result.data);
                     }
-                    sel.appendChild(opt);
+                    // optionBeforeSelector: sisipkan sebelum opsi penutup tertentu (mis. "Ketik manual...").
+                    const before = config.optionBeforeSelector ? sel.querySelector(config.optionBeforeSelector) : null;
+                    if (before) {
+                        sel.insertBefore(opt, before);
+                    } else {
+                        sel.appendChild(opt);
+                    }
                 });
 
                 targetSelect.value = String(result.data.id);

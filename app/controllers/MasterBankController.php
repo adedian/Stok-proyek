@@ -15,7 +15,9 @@ class MasterBankController extends Controller
 
     public function __construct()
     {
-        Middleware::requirePermission('master_bank', 'view');
+        if (!Middleware::viaPengajuanQuickAdd()) {
+            Middleware::requirePermission('master_bank', 'view');
+        }
         $this->model = new MasterBank();
         $this->activityLog = new ActivityLog();
     }
@@ -156,7 +158,10 @@ class MasterBankController extends Controller
      */
     public function quickStore()
     {
-        Middleware::requirePermission('master_bank', 'quick_add');
+        $viaPengajuan = Middleware::viaPengajuanQuickAdd();
+        if (!$viaPengajuan) {
+            Middleware::requirePermission('master_bank', 'quick_add');
+        }
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->json(['errors' => ['Metode tidak diizinkan.']], 405);
@@ -175,7 +180,10 @@ class MasterBankController extends Controller
         $id = $this->model->create(array_merge($data, ['created_by' => currentUserId()]));
         $this->activityLog->log(currentUserId(), 'master_bank', 'quick_add', "Bank '{$data['bank_name']}' ({$data['jenis']}) ditambahkan cepat dari form lain");
 
-        $label = $data['bank_name'] . ' (' . strtoupper($data['jenis']) . ')';
+        // Dropdown Rekening Sumber (Pengajuan Budget) memakai label laporan (nama [- no. rekening]).
+        $label = $viaPengajuan
+            ? MasterBank::reportLabel($data)
+            : $data['bank_name'] . ' (' . strtoupper($data['jenis']) . ')';
         $this->json(['id' => $id, 'label' => $label]);
     }
 

@@ -103,6 +103,24 @@ class Middleware
      * yang menyembunyikan tombol di view.
      * Contoh: Middleware::requirePermission('purchase_order', 'create');
      */
+    /**
+     * Tambah Cepat dari form Pengajuan Budget (Master Bank / Rekening Tujuan / Kategori / Project).
+     * Request quickStore yang membawa penanda _via=pengajuan_budget diizinkan bagi pemegang izin
+     * 'pengajuan_budget'.'quick_add' (akun Purwati, Nissa + Super Admin), TANPA melonggarkan izin modul
+     * master terkait untuk akses lain. Mengembalikan true bila jalur ini berlaku (login sudah dipastikan);
+     * false = pakai gerbang izin modul seperti biasa.
+     */
+    public static function viaPengajuanQuickAdd(): bool
+    {
+        if (($_GET['action'] ?? '') !== 'quickStore'
+            || ($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST'
+            || ($_POST['_via'] ?? '') !== 'pengajuan_budget') {
+            return false;
+        }
+        self::requireAuth();
+        return can('pengajuan_budget', 'quick_add');
+    }
+
     public static function requirePermission(string $module, string $action): void
     {
         self::requireAuth();

@@ -623,7 +623,8 @@ class PengajuanBudget extends Model
         }
 
         // --- Blok saldo ---
-        // Rekening yang ditampilkan: SEMUA Master Bank aktif berjenis Loan & HR (dinamis; rekening baru otomatis ikut)
+        // Rekening yang ditampilkan: SEMUA Master Bank aktif (Loan, HR, Kas; dinamis; rekening baru otomatis ikut,
+        // tetap tampil walau saldo 0)
         // + rekening lain yang punya pengajuan di laporan. Filter Rekening Sumber mempersempit ke rekening itu saja.
         // Saldo = saldo manual terbaru (bila ada, sesuai tanggal berlaku) + mutasi Bank sesudahnya; tanpa saldo manual
         // = saldo ledger Bank. Dihitung per rekening (tidak pernah dicampur antar rekening).
@@ -641,7 +642,7 @@ class PengajuanBudget extends Model
             }
             $banks = $this->db->fetchAll(
                 "SELECT * FROM master_banks
-                  WHERE (deleted_at IS NULL AND is_active = 1 AND jenis IN ('loan','hr'))"
+                  WHERE (deleted_at IS NULL AND is_active = 1)"
                 . ($in ? " OR id IN (" . implode(',', $in) . ")" : "")
                 . " ORDER BY FIELD(jenis,'loan','hr','kas'), bank_name ASC, id ASC",
                 $p

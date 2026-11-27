@@ -99,7 +99,7 @@ function permissionLabelMaps(): array
             'settings' => 'Pengaturan Sistem', 'trash' => 'Tempat Sampah', 'period_lock' => 'Tutup Bulan',
             'information' => 'Pusat Informasi', 'request_budget' => 'Request Budget', 'request_budget_report' => 'Laporan Request Budget', 'request_po' => 'Request PO',
             'pengajuan_budget' => 'Pengajuan Budget (Form)', 'pengajuan_budget_report' => 'Laporan Pengajuan Budget', 'master_rekening_tujuan' => 'Master Rekening Tujuan',
-            'reimbursement' => 'Reimbursement', 'pengajuan_fee' => 'Pengajuan Fee',
+            'reimbursement' => 'Reimbursement', 'pengajuan_fee' => 'Pengajuan Fee', 'rekap_ppn' => 'Rekap PPN',
         ],
         'actions' => [
             'view' => 'Lihat', 'create' => 'Tambah', 'edit' => 'Ubah', 'delete' => 'Hapus',

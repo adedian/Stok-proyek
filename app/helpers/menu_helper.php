@@ -41,6 +41,8 @@ function appMenus(): array
         ['label' => 'Form', 'module' => 'form', 'icon' => 'bi-journal-text', 'roles' => permissionRoles('form', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Pembelian Offline', 'module' => 'offline_purchase', 'icon' => 'bi-shop', 'roles' => permissionRoles('offline_purchase', 'view'), 'active' => true, 'group' => 'Transaksi'],
         ['label' => 'Laporan', 'module' => 'report', 'icon' => 'bi-bar-chart-line', 'roles' => permissionRoles('report', 'view'), 'active' => true, 'group' => 'Laporan & Administrasi'],
+        // Rekap PPN: register faktur pajak PPN Masukan + PPN Keluaran (satu menu, 2 tab + ringkasan setoran per masa).
+        ['label' => 'Rekap PPN', 'module' => 'rekap_ppn', 'icon' => 'bi-percent', 'roles' => permissionRoles('rekap_ppn', 'view'), 'active' => true, 'group' => 'Laporan & Administrasi'],
         ['label' => 'User Management', 'module' => 'user', 'icon' => 'bi-people', 'roles' => permissionRoles('user', 'view'), 'active' => true, 'group' => 'Laporan & Administrasi'],
         ['label' => 'Master Data', 'module' => 'master_data', 'icon' => 'bi-database', 'roles' => permissionRoles('master_data', 'view'), 'active' => true, 'group' => 'Laporan & Administrasi'],
         ['label' => 'Tempat Sampah', 'module' => 'trash', 'icon' => 'bi-trash3', 'roles' => permissionRoles('trash', 'view'), 'active' => true, 'group' => 'Laporan & Administrasi'],

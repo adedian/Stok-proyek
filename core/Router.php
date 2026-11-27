@@ -21,6 +21,7 @@ class Router
         'pengajuan_budget_report' => 'PengajuanBudgetReportController',
         'reimbursement' => 'ReimbursementController',
         'pengajuan_fee' => 'PengajuanFeeController',
+        'rekap_ppn' => 'RekapPpnController',
         'purchase_order'  => 'PurchaseOrderController',
         'payment'         => 'PaymentController',
         'goods_receipt'   => 'GoodsReceiptController',

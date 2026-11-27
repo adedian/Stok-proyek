@@ -36,7 +36,10 @@ class RekapPpnController extends Controller
     public function index()
     {
         $f = $this->filters();
-        $tab = ($_GET['tab'] ?? 'masukan') === 'keluaran' ? 'keluaran' : 'masukan';
+        // Tanpa ?tab= -> buka tab faktur yang terakhir diinput (bukan selalu Masukan).
+        $tab = isset($_GET['tab']) && is_string($_GET['tab'])
+            ? ($_GET['tab'] === 'keluaran' ? 'keluaran' : 'masukan')
+            : ($this->model->latestEntry()['tab'] ?? 'masukan');
         $this->view('rekap_ppn/index', [
             'pageTitle' => 'Rekap PPN',
             'f'         => $f,
@@ -358,10 +361,10 @@ class RekapPpnController extends Controller
 
     // =================== Helper privat ===================
 
-    /** Filter periode + pencarian + status (PPN Keluaran). Tanpa parameter periode -> masa terbaru yang punya data. */
+    /** Filter periode + pencarian + status (PPN Keluaran). Tanpa parameter periode -> masa faktur yang terakhir diinput. */
     private function filters(): array
     {
-        $latest = $this->model->latestPeriod();
+        $latest = $this->model->latestEntry() ?? $this->model->latestPeriod();
         $tahun = isset($_GET['tahun']) && is_scalar($_GET['tahun']) ? (int) $_GET['tahun'] : $latest['tahun'];
         if ($tahun < 2000 || $tahun > 2100) {
             $tahun = $latest['tahun'];

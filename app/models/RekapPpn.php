@@ -113,6 +113,22 @@ class RekapPpn extends Model
         return $best ? ['tahun' => (int) $best['tahun'], 'masa' => (int) $best['masa']] : ['tahun' => (int) date('Y'), 'masa' => (int) date('n')];
     }
 
+    /**
+     * Faktur yang TERAKHIR DIINPUT (Masukan atau Keluaran, termasuk Draft/hasil tarik): tab + masa-nya. Dipakai sebagai tampilan
+     * awal halaman utama supaya data yang baru disimpan langsung terlihat -- "masa terbaru menurut tanggal" menyembunyikan data
+     * yang diinput untuk masa lebih lama, dan tab Keluaran tidak pernah jadi tampilan awal. Null bila belum ada data sama sekali.
+     */
+    public function latestEntry(): ?array
+    {
+        $a = $this->db->fetchOne("SELECT 'masukan' AS tab, tahun, masa, created_at, id FROM ppn_masukan WHERE deleted_at IS NULL ORDER BY created_at DESC, id DESC LIMIT 1");
+        $b = $this->db->fetchOne("SELECT 'keluaran' AS tab, YEAR(entry_date) AS tahun, MONTH(entry_date) AS masa, created_at, id FROM ppn_keluaran WHERE deleted_at IS NULL ORDER BY created_at DESC, id DESC LIMIT 1");
+        $best = $a;
+        if ($b && (!$a || (string) $b['created_at'] >= (string) $a['created_at'])) {
+            $best = $b;
+        }
+        return $best ? ['tab' => $best['tab'], 'tahun' => (int) $best['tahun'], 'masa' => (int) $best['masa']] : null;
+    }
+
     /** Tahun-tahun yang punya data + tahun berjalan, terbaru dulu (untuk dropdown filter). */
     public function years(): array
     {

@@ -23,11 +23,20 @@ require_once ROOT_PATH . '/core/Model.php';
  *   Pajak Keluaran, Pajak Masukan, PPN Kurang (Lebih) Bayar = Keluaran - Masukan, dikurangi Lebih Bayar masa sebelumnya
  *   (kompensasi) = PPN yang harus disetor. Di Excel selisihnya dihitung Masukan - Keluaran sehingga tanda minus berarti
  *   "kurang bayar"; di sistem dibalik supaya angka positif = harus disetor, negatif = lebih bayar.
+ *   Pajak Keluaran HANYA menghitung faktur berstatus 'lengkap'; 'draft' (mis. hasil tarik Invoice Keluar yang belum punya
+ *   No. Faktur Pajak / NPWP) ditampilkan terpisah sebagai catatan dan belum dihitung.
+ *
+ * Master: Customer = clients (kolom npwp), Vendor = suppliers, Project = projects. Kolom nama di tabel Rekap PPN tetap
+ * disimpan sebagai salinan (dokumen pajak tidak berubah bila master diganti nama); *_id menautkan ke master.
  */
 class RekapPpn extends Model
 {
     protected string $table = 'ppn_masukan';
     protected bool $softDelete = true;
+
+    public const STATUS_DRAFT = 'draft';
+    public const STATUS_LENGKAP = 'lengkap';
+    public const STATUS_LABELS = [self::STATUS_DRAFT => 'Draft', self::STATUS_LENGKAP => 'Lengkap'];
 
     public const MAX_AMOUNT = 999999999999.0;
     public const PPN_DIVISOR = 1.11;
@@ -143,18 +152,159 @@ class RekapPpn extends Model
         $mk = $this->db->fetchOne("SELECT COUNT(*) AS n, COALESCE(SUM(dpp),0) AS dpp, COALESCE(SUM(ppn_amount),0) AS ppn, COALESCE(SUM(total_amount),0) AS total
                                      FROM ppn_masukan WHERE deleted_at IS NULL AND tahun = :t{$mWhere}", $p);
         $kl = $this->db->fetchOne("SELECT COUNT(*) AS n, COALESCE(SUM(total_dpp),0) AS dpp, COALESCE(SUM(total_ppn),0) AS ppn, COALESCE(SUM(total_amount),0) AS total
-                                     FROM ppn_keluaran WHERE deleted_at IS NULL AND YEAR(entry_date) = :t{$kWhere}", $p);
+                                     FROM ppn_keluaran WHERE deleted_at IS NULL AND status = 'lengkap' AND YEAR(entry_date) = :t{$kWhere}", $p);
+        $dr = $this->db->fetchOne("SELECT COUNT(*) AS n, COALESCE(SUM(total_ppn),0) AS ppn
+                                     FROM ppn_keluaran WHERE deleted_at IS NULL AND status = 'draft' AND YEAR(entry_date) = :t{$kWhere}", $p);
         $period = $masa > 0 ? $this->getPeriod($tahun, $masa) : null;
         $carry = $period ? (float) $period['lebih_bayar_sebelumnya'] : 0.0;
         $selisih = self::r2((float) $kl['ppn'] - (float) $mk['ppn']);
         return [
             'masukan'  => $mk,
             'keluaran' => $kl,
+            'draft'    => $dr,                        // faktur keluaran Draft -- belum dihitung
             'selisih'  => $selisih,                       // Keluaran - Masukan (positif = kurang bayar)
             'carry'    => $carry,
             'setor'    => self::r2($selisih - $carry),    // yang harus disetor (negatif = lebih bayar)
             'period'   => $period,
         ];
+    }
+
+    // =================== Master (dropdown) ===================
+
+    private const MASTERS = [
+        'clients'   => ['name' => 'client_name', 'npwp' => 'npwp', 'extra' => "status = 'active'"],
+        'suppliers' => ['name' => 'supplier_name', 'npwp' => 'npwp', 'extra' => "status = 'active'"],
+        'projects'  => ['name' => 'project_name', 'npwp' => null, 'extra' => "status <> 'closed'"],
+    ];
+
+    /** Pilihan dropdown dari master (aktif saja): [['id','name','npwp'], ...]. */
+    public function masterOptions(string $table): array
+    {
+        $m = self::MASTERS[$table];
+        $npwp = $m['npwp'] ? "COALESCE({$m['npwp']}, '')" : "''";
+        return $this->db->fetchAll("SELECT id, {$m['name']} AS name, {$npwp} AS npwp FROM {$table} WHERE deleted_at IS NULL AND {$m['extra']} ORDER BY {$m['name']}");
+    }
+
+    /** Satu baris master (apa pun statusnya, asal belum dihapus) atau null. */
+    public function masterRow(string $table, int $id): ?array
+    {
+        $m = self::MASTERS[$table];
+        $npwp = $m['npwp'] ? "COALESCE({$m['npwp']}, '')" : "''";
+        $r = $this->db->fetchOne("SELECT id, {$m['name']} AS name, {$npwp} AS npwp FROM {$table} WHERE id = :id AND deleted_at IS NULL", ['id' => $id]);
+        return $r ?: null;
+    }
+
+    /** Isi NPWP di Master Customer bila masih kosong (dipakai opsi "Simpan NPWP ke master"). */
+    public function fillClientNpwp(int $clientId, string $npwp): bool
+    {
+        return $this->db->update('clients', ['npwp' => $npwp], "id = :pk AND (npwp IS NULL OR npwp = '') AND deleted_at IS NULL", ['pk' => $clientId]) > 0;
+    }
+
+    // =================== Tarik dari Invoice Keluar ===================
+
+    private function pullFilter(int $tahun, int $masa, array &$params): string
+    {
+        $w = "si.deleted_at IS NULL AND si.document_kind = 'invoice' AND si.status = 'final' AND si.ppn_amount > 0 AND YEAR(si.invoice_date) = :t";
+        $params['t'] = $tahun;
+        if ($masa > 0) {
+            $w .= ' AND MONTH(si.invoice_date) = :m';
+            $params['m'] = $masa;
+        }
+        return $w;
+    }
+
+    /** Invoice Keluar (final, ber-PPN) pada periode yang BELUM ditarik ke PPN Keluaran. */
+    public function pullableInvoices(int $tahun, int $masa): array
+    {
+        $params = [];
+        $w = $this->pullFilter($tahun, $masa, $params);
+        return $this->db->fetchAll(
+            "SELECT si.id, si.invoice_number, si.invoice_date, si.tax_invoice_number, si.dpp_amount, si.ppn_amount, si.total_amount,
+                    c.client_name, COALESCE(c.npwp, '') AS client_npwp
+               FROM sales_invoices si JOIN clients c ON c.id = si.client_id
+              WHERE {$w}
+                AND NOT EXISTS (SELECT 1 FROM ppn_keluaran k WHERE k.sales_invoice_id = si.id AND k.deleted_at IS NULL)
+              ORDER BY si.invoice_date, si.id",
+            $params
+        );
+    }
+
+    /** Periode (tahun, masa) Invoice Keluar final ber-PPN terbaru yang BELUM ditarik; null bila tidak ada. */
+    public function latestPullablePeriod(): ?array
+    {
+        $r = $this->db->fetchOne(
+            "SELECT YEAR(si.invoice_date) AS tahun, MONTH(si.invoice_date) AS masa FROM sales_invoices si
+              WHERE si.deleted_at IS NULL AND si.document_kind = 'invoice' AND si.status = 'final' AND si.ppn_amount > 0
+                AND NOT EXISTS (SELECT 1 FROM ppn_keluaran k WHERE k.sales_invoice_id = si.id AND k.deleted_at IS NULL)
+              ORDER BY si.invoice_date DESC LIMIT 1"
+        );
+        return $r ? ['tahun' => (int) $r['tahun'], 'masa' => (int) $r['masa']] : null;
+    }
+
+    /** Jumlah invoice pada periode yang sudah pernah ditarik (info di halaman tarik). */
+    public function pulledCount(int $tahun, int $masa): int
+    {
+        $params = [];
+        $w = $this->pullFilter($tahun, $masa, $params);
+        return (int) $this->db->fetchOne(
+            "SELECT COUNT(*) AS n FROM sales_invoices si
+              WHERE {$w} AND EXISTS (SELECT 1 FROM ppn_keluaran k WHERE k.sales_invoice_id = si.id AND k.deleted_at IS NULL)",
+            $params
+        )['n'];
+    }
+
+    /**
+     * Bangun header + baris PPN Keluaran dari satu Invoice Keluar, atau null bila tidak layak ditarik / sudah ditarik.
+     * Tiap barang invoice menjadi satu baris; nilai ditagih (DPP + PPN invoice, sudah memperhitungkan DP/termin) dibagi
+     * ke barang menurut porsi subtotalnya, lalu menjadi "harga satuan termasuk PPN". Status = lengkap bila No. Faktur Pajak
+     * (dari invoice) dan NPWP (dari Master Customer) sama-sama ada; selain itu draft. Faktur ganda dikosongkan (draft).
+     */
+    public function buildFromInvoice(int $invoiceId, int $userId): ?array
+    {
+        $inv = $this->db->fetchOne(
+            "SELECT si.*, c.client_name, COALESCE(c.npwp, '') AS client_npwp
+               FROM sales_invoices si JOIN clients c ON c.id = si.client_id
+              WHERE si.id = :id AND si.deleted_at IS NULL AND si.document_kind = 'invoice' AND si.status = 'final' AND si.ppn_amount > 0",
+            ['id' => $invoiceId]
+        );
+        if (!$inv || $this->db->fetchOne("SELECT id FROM ppn_keluaran WHERE sales_invoice_id = :id AND deleted_at IS NULL LIMIT 1", ['id' => $invoiceId])) {
+            return null;
+        }
+        $billed = (float) $inv['dpp_amount'] + (float) $inv['ppn_amount'];
+        $sub = (float) $inv['subtotal'];
+        $src = $this->db->fetchAll("SELECT description, qty, subtotal FROM sales_invoice_items WHERE sales_invoice_id = :id ORDER BY id", ['id' => $invoiceId]);
+
+        $items = [];
+        if ($src && $sub > 0) {
+            foreach ($src as $it) {
+                $qty = (float) $it['qty'] > 0 ? (float) $it['qty'] : 1.0;
+                $price = self::r2(((float) $it['subtotal'] / $sub * $billed) / $qty);
+                $items[] = ['item_name' => mb_substr((string) $it['description'], 0, 255), 'qty' => $qty, 'pricelist' => null, 'unit_price' => $price]
+                    + self::computeKeluaranRow($qty, $price);
+            }
+        } else {
+            $items[] = ['item_name' => 'Invoice ' . $inv['invoice_number'], 'qty' => 1.0, 'pricelist' => null, 'unit_price' => self::r2($billed)]
+                + self::computeKeluaranRow(1.0, self::r2($billed));
+        }
+
+        $faktur = trim((string) ($inv['tax_invoice_number'] ?? ''));
+        if ($faktur !== '' && (!preg_match('/^[0-9.\-\s]{1,40}$/', $faktur) || $this->keluaranDuplicate($faktur))) {
+            $faktur = '';
+        }
+        $npwp = trim((string) $inv['client_npwp']);
+        $header = [
+            'entry_date'       => $inv['invoice_date'],
+            'invoice_number'   => $inv['invoice_number'],
+            'faktur_number'    => $faktur !== '' ? $faktur : null,
+            'customer_name'    => $inv['client_name'],
+            'client_id'        => (int) $inv['client_id'],
+            'npwp'             => $npwp !== '' ? $npwp : null,
+            'notes'            => null,
+            'status'           => ($faktur !== '' && $npwp !== '') ? self::STATUS_LENGKAP : self::STATUS_DRAFT,
+            'sales_invoice_id' => $invoiceId,
+            'created_by'       => $userId,
+        ] + self::sumKeluaran($items);
+        return [$header, $items];
     }
 
     // =================== PPN Masukan ===================
@@ -232,6 +382,10 @@ class RekapPpn extends Model
         if ($f['masa'] > 0) {
             $w .= ' AND MONTH(k.entry_date) = :masa';
             $params['masa'] = $f['masa'];
+        }
+        if (($f['status'] ?? '') !== '' && isset(self::STATUS_LABELS[$f['status']])) {
+            $w .= ' AND k.status = :status';
+            $params['status'] = $f['status'];
         }
         if ($f['q'] !== '') {
             $w .= ' AND (k.invoice_number LIKE :q1 OR k.faktur_number LIKE :q2 OR k.customer_name LIKE :q3 OR k.npwp LIKE :q4 OR k.notes LIKE :q5

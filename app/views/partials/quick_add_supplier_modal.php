@@ -15,7 +15,7 @@ $__qaSupMaster        = $__qaSupCode->masterCodeForEntity('supplier');
 $__qaSupCanAddPrefix  = function_exists('can') && (can('master_kode', 'edit') || can('supplier', 'quick_add'));
 ?>
 <div class="modal fade" id="modalQuickAddSupplier" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog<?= !empty($quickAddVia) ? ' modal-dialog-centered' : '' ?>">
         <div class="modal-content">
             <form id="formQuickAddSupplier">
                 <div class="modal-header">
@@ -25,6 +25,7 @@ $__qaSupCanAddPrefix  = function_exists('can') && (can('master_kode', 'edit') ||
                 <div class="modal-body">
                     <div class="alert alert-danger d-none quick-add-error"></div>
                     <?= csrfField() ?>
+                    <?php if (!empty($quickAddVia)): ?><input type="hidden" name="_via" value="<?= e($quickAddVia) ?>"><?php endif; ?>
                     <div class="mb-3">
                         <label class="form-label">Nama Supplier <span class="text-danger">*</span></label>
                         <input type="text" name="supplier_name" class="form-control" required>
@@ -79,6 +80,7 @@ document.addEventListener('DOMContentLoaded', function () {
         formId: 'formQuickAddSupplier',
         selectEl: 'supplier_id',
         endpoint: '<?= BASE_URL ?>/index.php?module=supplier&action=quickStore',
+        extraFill: function (opt, d) { opt.dataset.npwp = d.npwp || ''; },
     });
 
     // Preview kode ikut ter-refresh tiap modal dibuka (form.reset() sebelumnya

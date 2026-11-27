@@ -68,10 +68,10 @@ class ClientController extends Controller
 
         $out = fopen('php://output', 'w');
         fputs($out, "\xEF\xBB\xBF");
-        fputcsv($out, ['Kode', 'Nama Client', 'PIC', 'Telepon', 'Email', 'Alamat', 'Status']);
+        fputcsv($out, ['Kode', 'Nama Client', 'NPWP', 'PIC', 'Telepon', 'Email', 'Alamat', 'Status']);
         foreach ($rows as $r) {
             fputcsv($out, [
-                $r['client_code'], $r['client_name'], $r['contact_person'],
+                $r['client_code'], $r['client_name'], $r['npwp'] ?? '', $r['contact_person'],
                 $r['phone'], $r['email'], $r['address'], $r['status'],
             ]);
         }
@@ -212,7 +212,10 @@ class ClientController extends Controller
      */
     public function quickStore()
     {
-        Middleware::requirePermission('client', 'quick_add');
+        // Dari form Rekap PPN (_via=rekap_ppn) cukup izin 'rekap_ppn'.'quick_add' -- tanpa melonggarkan izin Client.
+        if (!Middleware::viaPengajuanQuickAdd()) {
+            Middleware::requirePermission('client', 'quick_add');
+        }
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->json(['errors' => ['Metode tidak diizinkan.']], 405);
@@ -245,7 +248,7 @@ class ClientController extends Controller
             "Client '{$data['client_name']}' ditambahkan cepat dari form lain"
         );
 
-        $this->json(['id' => $id, 'label' => $data['client_name']]);
+        $this->json(['id' => $id, 'label' => $data['client_name'], 'npwp' => $data['npwp']]);
     }
 
     // ================= Helper privat =================
@@ -255,6 +258,7 @@ class ClientController extends Controller
         return [
             'client_name'    => trim($_POST['client_name'] ?? ''),
             'contact_person' => trim($_POST['contact_person'] ?? ''),
+            'npwp'           => trim($_POST['npwp'] ?? ''),
             'phone'          => trim($_POST['phone'] ?? ''),
             'email'          => trim($_POST['email'] ?? ''),
             'address'        => trim($_POST['address'] ?? ''),
@@ -272,6 +276,10 @@ class ClientController extends Controller
         }
         if ($data['email'] !== '' && !filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
             $errors[] = 'Format email tidak valid.';
+        }
+        // NPWP customer (Master NPWP untuk Rekap PPN): angka, titik, strip, spasi.
+        if ($data['npwp'] !== '' && !preg_match('/^[0-9.\-\s]{1,30}$/', $data['npwp'])) {
+            $errors[] = 'NPWP hanya boleh berisi angka, titik, atau strip (maks. 30 karakter).';
         }
 
         return $errors;

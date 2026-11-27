@@ -535,14 +535,17 @@ return [
     ],
 
     // Rekap PPN -- register faktur pajak PPN Masukan + PPN Keluaran dalam satu menu (acuan: sheet "PPN Masukan" & "PPN Keluaran").
-    // Modul MANDIRI (diisi manual; tidak terhubung ke PO/Invoice/Kas). Default: Accounting kelola penuh; Direktur otomatis
-    // baca saja (view, export); role lain bisa dibuka lewat Pengaturan > Hak Akses (migrasi 2026_11_28_c).
+    // Modul MANDIRI (diisi manual; "Tarik dari Invoice Keluar" hanya MEMBACA invoice). Akses:
+    // HANYA Super Admin + akun Nissa & Purwati (izin per akun, migrasi 2026_11_29_b) -- tidak ada role yang otomatis
+    // punya akses (Accounting & Direktur juga tidak). 'quick_add' = baris "+ Tambah baru" di dropdown Customer/Vendor/Project
+    // (dipakai lewat Middleware::viaPengajuanQuickAdd, penanda _via=rekap_ppn).
     'rekap_ppn' => [
-        'view'   => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
-        'create' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
-        'edit'   => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
-        'delete' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
-        'export' => [ROLE_SUPER_ADMIN, ROLE_ACCOUNTING],
+        'view'      => [ROLE_SUPER_ADMIN],
+        'create'    => [ROLE_SUPER_ADMIN],
+        'edit'      => [ROLE_SUPER_ADMIN],
+        'delete'    => [ROLE_SUPER_ADMIN],
+        'export'    => [ROLE_SUPER_ADMIN],
+        'quick_add' => [ROLE_SUPER_ADMIN],
     ],
 
     // Master Rekening Tujuan (Master Data) -- penerima pembayaran untuk kolom Rekening Tujuan Pengajuan Budget.

@@ -64,6 +64,7 @@ function clientSortLink(string $col, string $label, string $sort, string $dir): 
                     <tr>
                         <th><?= clientSortLink('client_code', 'Kode', $sort, $dir) ?></th>
                         <th><?= clientSortLink('client_name', 'Nama Client', $sort, $dir) ?></th>
+                        <th>NPWP</th>
                         <th><?= clientSortLink('contact_person', 'PIC', $sort, $dir) ?></th>
                         <th>Telepon</th>
                         <th>Email</th>
@@ -73,7 +74,7 @@ function clientSortLink(string $col, string $label, string $sort, string $dir): 
                 </thead>
                 <tbody>
                     <?php if (empty($clients)): ?>
-                        <tr><td colspan="7" class="p-0">
+                        <tr><td colspan="8" class="p-0">
                             <div class="empty-state">
                                 <i class="bi bi-people empty-icon"></i>
                                 <div class="empty-title">Belum ada client</div>
@@ -88,6 +89,7 @@ function clientSortLink(string $col, string $label, string $sort, string $dir): 
                         <tr>
                             <td><?= e($c['client_code']) ?></td>
                             <td><?= e($c['client_name']) ?></td>
+                            <td class="text-nowrap"><?= e($c['npwp'] ?? '') !== '' ? e($c['npwp']) : '<span class="text-muted">-</span>' ?></td>
                             <td><?= e($c['contact_person'] ?? '-') ?></td>
                             <td><?= e($c['phone'] ?? '-') ?></td>
                             <td><?= e($c['email'] ?? '-') ?></td>

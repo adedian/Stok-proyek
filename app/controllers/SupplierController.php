@@ -213,7 +213,10 @@ class SupplierController extends Controller
      */
     public function quickStore()
     {
-        Middleware::requirePermission('supplier', 'quick_add');
+        // Dari form Rekap PPN (_via=rekap_ppn) cukup izin 'rekap_ppn'.'quick_add' -- tanpa melonggarkan izin Supplier.
+        if (!Middleware::viaPengajuanQuickAdd()) {
+            Middleware::requirePermission('supplier', 'quick_add');
+        }
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->json(['errors' => ['Metode tidak diizinkan.']], 405);
@@ -246,7 +249,7 @@ class SupplierController extends Controller
             "Supplier '{$data['supplier_name']}' ditambahkan cepat dari form lain"
         );
 
-        $this->json(['id' => $id, 'label' => $data['supplier_name']]);
+        $this->json(['id' => $id, 'label' => $data['supplier_name'], 'npwp' => $data['npwp']]);
     }
 
     // ================= Helper privat =================

@@ -15,7 +15,7 @@ $__qaCliMaster       = $__qaCliCode->masterCodeForEntity('client');
 $__qaCliCanAddPrefix = function_exists('can') && (can('master_kode', 'edit') || can('client', 'quick_add'));
 ?>
 <div class="modal fade" id="modalQuickAddClient" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog<?= !empty($quickAddVia) ? ' modal-dialog-centered' : '' ?>">
         <div class="modal-content">
             <form id="formQuickAddClient">
                 <div class="modal-header">
@@ -25,6 +25,7 @@ $__qaCliCanAddPrefix = function_exists('can') && (can('master_kode', 'edit') || 
                 <div class="modal-body">
                     <div class="alert alert-danger d-none quick-add-error"></div>
                     <?= csrfField() ?>
+                    <?php if (!empty($quickAddVia)): ?><input type="hidden" name="_via" value="<?= e($quickAddVia) ?>"><?php endif; ?>
                     <div class="mb-3">
                         <label class="form-label">Nama Client <span class="text-danger">*</span></label>
                         <input type="text" name="client_name" class="form-control" required>
@@ -51,6 +52,10 @@ $__qaCliCanAddPrefix = function_exists('can') && (can('master_kode', 'edit') || 
                             <input type="text" name="phone" class="form-control">
                         </div>
                         <div class="col-12">
+                            <label class="form-label">NPWP <span class="text-muted small">(opsional)</span></label>
+                            <input type="text" name="npwp" class="form-control" maxlength="30" inputmode="numeric">
+                        </div>
+                        <div class="col-12">
                             <label class="form-label">Email</label>
                             <input type="email" name="email" class="form-control">
                         </div>
@@ -75,6 +80,8 @@ document.addEventListener('DOMContentLoaded', function () {
         formId: 'formQuickAddClient',
         selectEl: <?= json_encode($quickAddClientTargetId ?? 'client_id') ?>,
         endpoint: '<?= BASE_URL ?>/index.php?module=client&action=quickStore',
+        // NPWP ikut disimpan di <option> supaya form (mis. Rekap PPN) bisa mengisi NPWP otomatis.
+        extraFill: function (opt, d) { opt.dataset.npwp = d.npwp || ''; },
     });
 
     // Preview kode ikut ter-refresh tiap modal dibuka (form.reset() sebelumnya

@@ -35,7 +35,8 @@ function permissionFileMatrix(): array
         $matrix = require ROOT_PATH . '/config/permissions.php';
         // Direktur: VIEW ONLY -- otomatis boleh SEMUA aksi baca di modul tak terkunci; tak pernah boleh tambah/ubah/hapus/dll.
         foreach ($matrix as $module => $actions) {
-            if (permissionIsLockedModule($module)) {
+            // Rekap PPN: hanya Super Admin + akun Nissa/Purwati -- Direktur TIDAK otomatis ikut.
+            if (permissionIsLockedModule($module) || $module === 'rekap_ppn') {
                 continue;
             }
             foreach ($actions as $action => $roles) {

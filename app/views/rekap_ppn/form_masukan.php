@@ -1,8 +1,9 @@
 <?php
 /**
- * Form PPN Masukan (acuan: sheet "PPN Masukan"). Input: faktur, tanggal, NPWP, nama, masa/tahun, DPP, project, keterangan.
+ * Form PPN Masukan (acuan: sheet "PPN Masukan"). Input: faktur, tanggal, vendor (dropdown master Supplier), NPWP (terisi otomatis dari
+ * master vendor), masa/tahun, DPP, project (dropdown master Project), keterangan. Vendor & Project punya "+ Tambah baru" di dasar dropdown.
  * DPP Nilai Lain = DPP x 11/12, PPN = DPP Nilai Lain x 12%, Jumlah = DPP + PPN dihitung live (tampilan saja; server menghitung ulang).
- * Variabel: $mode, $r, $posted, $defMasa, $defTahun, $vendors, $npwpMap, $projects
+ * Variabel: $mode, $r, $posted, $defMasa, $defTahun, $suppliers, $projects, $canQuickAdd
  */
 $isEdit = $mode === 'edit';
 $h = fn(string $k, $def = '') => $posted[$k] ?? ($r[$k] ?? $def);
@@ -10,6 +11,17 @@ $dppText = $posted !== null ? (string) ($posted['dpp'] ?? '') : (isset($r['dpp']
 $masaVal = (string) $h('masa', $defMasa);
 $tahunVal = (string) $h('tahun', $defTahun);
 $backUrl = BASE_URL . '/rekap_ppn?tab=masukan&' . http_build_query(['tahun' => (int) $tahunVal, 'masa' => (int) $masaVal]);
+
+// Dropdown master. Data lama yang belum ada di master tampil sebagai opsi "(belum di master)" bernilai 0 + nama disimpan di hidden *_legacy.
+$supSel = $h('supplier_id', '');
+$vendorLegacy = ($supSel === '' || $supSel === null) ? (string) ($posted !== null ? ($posted['vendor_legacy'] ?? '') : ($r['vendor_name'] ?? '')) : '';
+$prjSel = $h('project_id', '');
+$projectLegacy = ($prjSel === '' || $prjSel === null) ? (string) ($posted !== null ? ($posted['project_legacy'] ?? '') : ($r['project_name'] ?? '')) : '';
+$qaAttr = fn(string $type) => $canQuickAdd ? ' data-quick-add="' . $type . '"' : '';
+$npwpMap = [];
+foreach ($suppliers as $o) {
+    $npwpMap[(string) $o['id']] = $o['npwp'];
+}
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
@@ -29,11 +41,19 @@ $backUrl = BASE_URL . '/rekap_ppn?tab=masukan&' . http_build_query(['tahun' => (
             <div class="row g-3">
                 <div class="col-md-6">
                     <label class="form-label">Nama Vendor <span class="text-danger">*</span></label>
-                    <input type="text" name="vendor_name" id="vendorName" class="form-control" maxlength="150" list="vendorList" autocomplete="off" required value="<?= e($h('vendor_name')) ?>">
-                    <datalist id="vendorList"><?php foreach ($vendors as $v): ?><option value="<?= e($v) ?>"><?php endforeach; ?></datalist>
+                    <select name="supplier_id" id="supplier_id" class="form-select" required<?= $qaAttr('supplier') ?>>
+                        <option value="">-- Pilih Vendor --</option>
+                        <?php if ($vendorLegacy !== ''): ?>
+                            <option value="0" selected><?= e($vendorLegacy) ?> (belum di master)</option>
+                        <?php endif; ?>
+                        <?php foreach ($suppliers as $o): ?>
+                            <option value="<?= (int) $o['id'] ?>" data-npwp="<?= e($o['npwp']) ?>" <?= (string) $supSel === (string) $o['id'] ? 'selected' : '' ?>><?= e($o['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <input type="hidden" name="vendor_legacy" value="<?= e($vendorLegacy) ?>">
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">NPWP</label>
+                    <label class="form-label">NPWP <span class="text-muted small">(terisi otomatis dari master vendor)</span></label>
                     <input type="text" name="npwp" id="npwp" class="form-control" maxlength="30" inputmode="numeric" placeholder="mis. 0013050083055000" value="<?= e($h('npwp')) ?>">
                 </div>
                 <div class="col-md-6">
@@ -58,8 +78,16 @@ $backUrl = BASE_URL . '/rekap_ppn?tab=masukan&' . http_build_query(['tahun' => (
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Project</label>
-                    <input type="text" name="project_name" class="form-control" maxlength="150" list="projectList" autocomplete="off" value="<?= e($h('project_name')) ?>">
-                    <datalist id="projectList"><?php foreach ($projects as $v): ?><option value="<?= e($v) ?>"><?php endforeach; ?></datalist>
+                    <select name="project_id" id="project_id" class="form-select"<?= $qaAttr('project') ?>>
+                        <option value="">-- Pilih Project --</option>
+                        <?php if ($projectLegacy !== ''): ?>
+                            <option value="0" selected><?= e($projectLegacy) ?> (belum di master)</option>
+                        <?php endif; ?>
+                        <?php foreach ($projects as $o): ?>
+                            <option value="<?= (int) $o['id'] ?>" <?= (string) $prjSel === (string) $o['id'] ? 'selected' : '' ?>><?= e($o['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <input type="hidden" name="project_legacy" value="<?= e($projectLegacy) ?>">
                 </div>
                 <div class="col-12">
                     <label class="form-label">Keterangan</label>
@@ -97,6 +125,12 @@ $backUrl = BASE_URL . '/rekap_ppn?tab=masukan&' . http_build_query(['tahun' => (
     </div>
 </form>
 
+<?php if ($canQuickAdd): ?>
+    <?php $quickAddVia = 'rekap_ppn'; ?>
+    <?php require ROOT_PATH . '/app/views/partials/quick_add_supplier_modal.php'; ?>
+    <?php $quickAddProjectTargetId = 'project_id'; $quickAddProjectDynamic = false; require ROOT_PATH . '/app/views/partials/quick_add_project_modal.php'; ?>
+<?php endif; ?>
+
 <script>
 (function () {
     const form = document.getElementById('masukanForm');
@@ -105,6 +139,8 @@ $backUrl = BASE_URL . '/rekap_ppn?tab=masukan&' . http_build_query(['tahun' => (
     const dateEl = document.getElementById('fakturDate');
     const masaEl = document.getElementById('masa');
     const tahunEl = document.getElementById('tahun');
+    const supEl = document.getElementById('supplier_id');
+    const npwpEl = document.getElementById('npwp');
     const isEdit = <?= $isEdit ? 'true' : 'false' ?>;
     // Sama dengan parseCurrencyInput() di server: koma = ribuan, titik = desimal.
     function num(v) { const n = parseFloat(String(v || '').replace(/,/g, '').trim()); return isNaN(n) ? 0 : n; }
@@ -131,15 +167,31 @@ $backUrl = BASE_URL . '/rekap_ppn?tab=masukan&' . http_build_query(['tahun' => (
         masaEl.value = String(parseInt(p[1], 10));
     });
 
-    // NPWP terisi otomatis dari vendor yang pernah diinput (hanya bila NPWP masih kosong).
-    const vendorEl = document.getElementById('vendorName'), npwpEl = document.getElementById('npwp');
-    vendorEl.addEventListener('change', function () {
-        if (!npwpEl.value.trim() && npwpMap[vendorEl.value]) { npwpEl.value = npwpMap[vendorEl.value]; }
+    // NPWP terisi otomatis dari master vendor yang dipilih (opsi hasil "Tambah baru" membawa data-npwp sendiri).
+    supEl.addEventListener('change', function () {
+        const opt = supEl.options[supEl.selectedIndex];
+        if (!supEl.value || supEl.value === '0') { return; }
+        npwpEl.value = (opt && opt.dataset.npwp !== undefined) ? opt.dataset.npwp : (npwpMap[supEl.value] || '');
+    });
+
+    // "+ Tambah baru" di dasar dropdown -> buka modal Tambah Cepat dengan nama terisi dari kata yang diketik.
+    const QA = { supplier: ['modalQuickAddSupplier', 'supplier_name'], project: ['modalQuickAddProject', 'project_name'] };
+    form.addEventListener('quickadd', function (e) {
+        const cfg = QA[e.target.getAttribute('data-quick-add')];
+        const modalEl = cfg && document.getElementById(cfg[0]);
+        if (!modalEl) { return; }
+        const nameInput = modalEl.querySelector('[name="' + cfg[1] + '"]');
+        if (nameInput) { nameInput.value = (e.detail && e.detail.term) || ''; }
+        modalEl.addEventListener('shown.bs.modal', function () {
+            const empty = Array.prototype.find.call(modalEl.querySelectorAll('input.form-control:not([type=hidden])'), function (i) { return !i.value && !i.readOnly; });
+            (empty || nameInput || modalEl).focus();
+        }, { once: true });
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
     });
 
     form.addEventListener('submit', function (e) {
         let msg = '';
-        if (!form.vendor_name.value.trim()) { msg = 'Nama vendor wajib diisi.'; }
+        if (!supEl.value) { msg = 'Vendor wajib dipilih.'; }
         else if (!form.faktur_number.value.trim()) { msg = 'No. Faktur wajib diisi.'; }
         else if (!dateEl.value) { msg = 'Tanggal faktur wajib diisi.'; }
         else if (!/^\d{4}$/.test(tahunEl.value.trim())) { msg = 'Tahun pajak harus 4 digit.'; }

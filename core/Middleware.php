@@ -112,13 +112,16 @@ class Middleware
      */
     public static function viaPengajuanQuickAdd(): bool
     {
+        // Penanda _via: 'pengajuan_budget' (form Pengajuan Budget) atau 'rekap_ppn' (dropdown Customer/Vendor/Project
+        // di form Rekap PPN) -- masing-masing memakai izin 'quick_add' modul itu sendiri.
+        $via = $_POST['_via'] ?? '';
         if (($_GET['action'] ?? '') !== 'quickStore'
             || ($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST'
-            || ($_POST['_via'] ?? '') !== 'pengajuan_budget') {
+            || !in_array($via, ['pengajuan_budget', 'rekap_ppn'], true)) {
             return false;
         }
         self::requireAuth();
-        return can('pengajuan_budget', 'quick_add');
+        return can($via, 'quick_add');
     }
 
     public static function requirePermission(string $module, string $action): void

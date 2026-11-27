@@ -39,6 +39,11 @@ $actionUrl = $isEdit ? 'update' : 'store';
                            value="<?= e($client['contact_person'] ?? '') ?>">
                 </div>
                 <div class="col-md-6">
+                    <label class="form-label">NPWP <span class="text-muted small">(dipakai di Rekap PPN &mdash; terisi otomatis saat customer dipilih)</span></label>
+                    <input type="text" name="npwp" class="form-control" maxlength="30" inputmode="numeric"
+                           placeholder="mis. 0769014697604000" value="<?= e($client['npwp'] ?? '') ?>">
+                </div>
+                <div class="col-md-6">
                     <label class="form-label">No. Telepon</label>
                     <input type="text" name="phone" class="form-control" value="<?= e($client['phone'] ?? '') ?>">
                 </div>

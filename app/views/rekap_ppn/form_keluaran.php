@@ -3,7 +3,9 @@
  * Form PPN Keluaran (acuan: sheet "PPN Keluaran"). Header: tanggal, invoice, faktur pajak, customer, NPWP, keterangan.
  * Baris: nama barang, qty, pricelist (opsional), harga satuan (SUDAH termasuk PPN 11%). Subtotal = Harga x Qty,
  * DPP = Subtotal / 1,11, DPP Nilai Lain = DPP x 11/12, PPN = Subtotal - DPP dihitung live (tampilan saja; server menghitung ulang).
- * Variabel: $mode, $k, $items, $posted, $customers, $npwpMap
+ * Customer = dropdown Master Client (+ "+ Tambah baru"); NPWP terisi otomatis dari master. Dua tombol simpan: Draft (hanya butuh
+ * tanggal + customer) dan Lengkap (wajib No. Faktur Pajak, NPWP, dan >= 1 barang).
+ * Variabel: $mode, $k, $items, $posted, $clients, $canQuickAdd
  */
 $isEdit = $mode === 'edit';
 $h = fn(string $key, $def = '') => $posted[$key] ?? ($k[$key] ?? $def);
@@ -13,6 +15,14 @@ $numText = function ($v): string {
 $blank = ['item_name' => '', 'qty' => '', 'pricelist' => '', 'unit_price' => ''];
 $rows = $items ?: [$blank];
 $dateVal = (string) $h('entry_date', date('Y-m-d'));
+// Customer lama yang belum ada di master tampil sebagai opsi "(belum di master)" bernilai 0; namanya dibawa di hidden customer_legacy.
+$cliSel = $h('client_id', '');
+$customerLegacy = ($cliSel === '' || $cliSel === null) ? (string) ($posted !== null ? ($posted['customer_legacy'] ?? '') : ($k['customer_name'] ?? '')) : '';
+$npwpMap = [];
+foreach ($clients as $o) {
+    $npwpMap[(string) $o['id']] = $o['npwp'];
+}
+$curStatus = $posted['status'] ?? ($k['status'] ?? '');
 $backUrl = BASE_URL . '/rekap_ppn?tab=keluaran&' . http_build_query(['tahun' => (int) substr($dateVal, 0, 4), 'masa' => (int) substr($dateVal, 5, 2)]);
 $renderRow = function (array $it) use ($numText) {
     $qty = $it['qty_raw'] ?? $numText($it['qty']);
@@ -72,12 +82,24 @@ $renderRow = function (array $it) use ($numText) {
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Nama Customer <span class="text-danger">*</span></label>
-                    <input type="text" name="customer_name" id="customerName" class="form-control" maxlength="150" list="customerList" autocomplete="off" required value="<?= e($h('customer_name')) ?>">
-                    <datalist id="customerList"><?php foreach ($customers as $v): ?><option value="<?= e($v) ?>"><?php endforeach; ?></datalist>
+                    <select name="client_id" id="client_id" class="form-select" required<?= $canQuickAdd ? ' data-quick-add="client"' : '' ?>>
+                        <option value="">-- Pilih Customer --</option>
+                        <?php if ($customerLegacy !== ''): ?>
+                            <option value="0" selected><?= e($customerLegacy) ?> (belum di master)</option>
+                        <?php endif; ?>
+                        <?php foreach ($clients as $o): ?>
+                            <option value="<?= (int) $o['id'] ?>" data-npwp="<?= e($o['npwp']) ?>" <?= (string) $cliSel === (string) $o['id'] ? 'selected' : '' ?>><?= e($o['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <input type="hidden" name="customer_legacy" value="<?= e($customerLegacy) ?>">
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">NPWP</label>
-                    <input type="text" name="npwp" id="npwp" class="form-control" maxlength="30" inputmode="numeric" value="<?= e($h('npwp')) ?>">
+                    <label class="form-label">NPWP <span class="text-muted small">(terisi otomatis dari Master Customer)</span></label>
+                    <input type="text" name="npwp" id="npwp" class="form-control" maxlength="30" inputmode="numeric" value="<?= e($h('npwp') !== '' && $h('npwp') !== null ? $h('npwp') : ($posted === null ? ($npwpMap[(string) $cliSel] ?? '') : '')) ?>">
+                    <div class="form-check mt-1 d-none" id="saveNpwpWrap">
+                        <input class="form-check-input" type="checkbox" name="save_npwp_master" value="1" id="saveNpwpMaster">
+                        <label class="form-check-label small" for="saveNpwpMaster">Customer ini belum punya NPWP di master &mdash; simpan NPWP ini ke Master Customer</label>
+                    </div>
                 </div>
                 <div class="col-12">
                     <label class="form-label">Keterangan</label>
@@ -131,11 +153,19 @@ $renderRow = function (array $it) use ($numText) {
         </div>
     </div>
 
-    <div class="d-flex gap-2 flex-wrap">
-        <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Simpan</button>
+    <div class="d-flex gap-2 flex-wrap align-items-center">
+        <button type="submit" name="save_mode" value="lengkap" class="btn btn-primary"><i class="bi bi-check2-circle"></i> Simpan (Lengkap)</button>
+        <button type="submit" name="save_mode" value="draft" class="btn btn-outline-warning text-dark" id="saveDraftBtn"><i class="bi bi-file-earmark"></i> Simpan Draft</button>
         <a href="<?= e($backUrl) ?>" class="btn btn-light border">Batal</a>
+        <?php if ($isEdit && $curStatus === 'draft'): ?><span class="badge bg-warning text-dark">Status sekarang: Draft</span><?php endif; ?>
     </div>
+    <div class="form-text mt-2"><strong>Lengkap</strong> wajib punya No. Faktur Pajak, NPWP, dan minimal 1 barang, serta ikut dihitung di Ringkasan PPN. <strong>Draft</strong> hanya butuh tanggal &amp; customer dan belum dihitung.</div>
 </form>
+
+<?php if ($canQuickAdd): ?>
+    <?php $quickAddVia = 'rekap_ppn'; $quickAddClientTargetId = 'client_id'; ?>
+    <?php require ROOT_PATH . '/app/views/partials/quick_add_client_modal.php'; ?>
+<?php endif; ?>
 
 <template id="klRowTemplate"><?= $renderRow($blank) ?></template>
 
@@ -145,6 +175,8 @@ $renderRow = function (array $it) use ($numText) {
     const tpl = document.getElementById('klRowTemplate');
     const form = document.getElementById('keluaranForm');
     const npwpMap = <?= json_encode($npwpMap, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    const cliEl = document.getElementById('client_id'), npwpEl = document.getElementById('npwp');
+    const saveWrap = document.getElementById('saveNpwpWrap'), saveChk = document.getElementById('saveNpwpMaster');
 
     // Sama dengan parseCurrencyInput() di server: koma = ribuan, titik = desimal.
     function num(v) { const n = parseFloat(String(v || '').replace(/,/g, '').trim()); return isNaN(n) ? 0 : n; }
@@ -189,15 +221,47 @@ $renderRow = function (array $it) use ($numText) {
     });
     body.addEventListener('input', recalc);
 
-    const custEl = document.getElementById('customerName'), npwpEl = document.getElementById('npwp');
-    custEl.addEventListener('change', function () {
-        if (!npwpEl.value.trim() && npwpMap[custEl.value]) { npwpEl.value = npwpMap[custEl.value]; }
+    // NPWP terisi otomatis dari Master Customer yang dipilih (opsi hasil "Tambah baru" membawa data-npwp sendiri).
+    function masterNpwp() {
+        const opt = cliEl.options[cliEl.selectedIndex];
+        if (!cliEl.value || cliEl.value === '0') { return null; }
+        return (opt && opt.dataset.npwp !== undefined) ? opt.dataset.npwp : (npwpMap[cliEl.value] || '');
+    }
+    // Tawarkan "simpan NPWP ke master" hanya bila master customer belum punya NPWP tapi NPWP sudah diketik.
+    function syncSaveNpwp() {
+        const m = masterNpwp();
+        const show = m === '' && npwpEl.value.trim() !== '';
+        saveWrap.classList.toggle('d-none', !show);
+        if (!show) { saveChk.checked = false; }
+    }
+    cliEl.addEventListener('change', function () {
+        const m = masterNpwp();
+        if (m !== null) { npwpEl.value = m; }
+        syncSaveNpwp();
+    });
+    npwpEl.addEventListener('input', syncSaveNpwp);
+    syncSaveNpwp();
+
+    // "+ Tambah baru" di dasar dropdown -> modal Tambah Cepat Client dengan nama terisi dari kata yang diketik.
+    form.addEventListener('quickadd', function (e) {
+        const modalEl = document.getElementById('modalQuickAddClient');
+        if (!modalEl) { return; }
+        const nameInput = modalEl.querySelector('[name="client_name"]');
+        if (nameInput) { nameInput.value = (e.detail && e.detail.term) || ''; }
+        modalEl.addEventListener('shown.bs.modal', function () {
+            const empty = Array.prototype.find.call(modalEl.querySelectorAll('input.form-control:not([type=hidden])'), function (i) { return !i.value && !i.readOnly; });
+            (empty || nameInput || modalEl).focus();
+        }, { once: true });
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
     });
 
     form.addEventListener('submit', function (e) {
+        const isDraft = e.submitter && e.submitter.value === 'draft';
         let msg = '';
         if (!form.entry_date.value) { msg = 'Tanggal wajib diisi.'; }
-        else if (!form.customer_name.value.trim()) { msg = 'Nama customer wajib diisi.'; }
+        else if (!cliEl.value) { msg = 'Customer wajib dipilih.'; }
+        else if (!isDraft && !form.faktur_number.value.trim()) { msg = 'No. Faktur Pajak wajib diisi untuk Simpan (Lengkap) -- atau pakai Simpan Draft.'; }
+        else if (!isDraft && !npwpEl.value.trim()) { msg = 'NPWP wajib diisi untuk Simpan (Lengkap) -- atau pakai Simpan Draft.'; }
         let filled = 0;
         body.querySelectorAll('.kl-row').forEach(function (tr, i) {
             const name = tr.querySelector('[name="item_name[]"]').value.trim();
@@ -212,7 +276,7 @@ $renderRow = function (array $it) use ($numText) {
                 else if (!(num(price) > 0)) { msg = 'Baris ' + (i + 1) + ': Harga satuan harus lebih dari 0.'; }
             }
         });
-        if (!filled && !msg) { msg = 'Minimal harus ada 1 baris barang.'; }
+        if (!filled && !msg && !isDraft) { msg = 'Minimal harus ada 1 baris barang untuk Simpan (Lengkap) -- atau pakai Simpan Draft.'; }
         if (msg) { e.preventDefault(); alert(msg); }
     });
     recalc();

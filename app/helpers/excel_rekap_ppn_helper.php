@@ -14,7 +14,8 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
  *   PPN Masukan : NO | NPWP | NAMA | FAKTUR | TGL | MASA | TAHUN | DPP | DPP NILAI LAIN | PPN | JUMLAH | PROJECT | KETERANGAN
  *                 + baris total, lalu blok ringkasan (Pajak Masukan / Keluaran / Kurang-Lebih Bayar / Lebih Bayar masa sebelumnya).
  *   PPN Keluaran: NO | TANGGAL | INVOICE | FAKTUR PAJAK | NAMA CUSTOMER | NPWP | NAMA BARANG | QTY | PRICELIST | DISKON |
- *                 HARGA SATUAN | SUBTOTAL | DPP | DPP NILAI LAIN | PPN | TOTAL | KETERANGAN (1 baris per barang).
+ *                 HARGA SATUAN | SUBTOTAL | DPP | DPP NILAI LAIN | PPN | TOTAL | KETERANGAN | STATUS (1 baris per barang).
+ *                 Faktur Draft ikut tampil (kolom STATUS) tetapi TIDAK dihitung di ringkasan.
  * Nilai = angka yang tampil di aplikasi (sudah dibulatkan per sen); baris total memakai rumus SUM.
  *
  * @param array  $masukan   baris ppn_masukan
@@ -95,13 +96,18 @@ function streamRekapPpn(array $masukan, array $keluaran, array $summary, string 
     $sh->setCellValue("I{$r}", 'RINGKASAN ' . strtoupper($label));
     $sh->getStyle("H{$r}:J{$r}")->getFont()->setBold(true);
     $lines = [
-        ['PAJAK KELUARAN', (float) $s['keluaran']['ppn']],
+        ['PAJAK KELUARAN (faktur Lengkap)', (float) $s['keluaran']['ppn']],
         ['PAJAK MASUKAN', (float) $s['masukan']['ppn']],
         [$s['selisih'] >= 0 ? 'PPN KURANG BAYAR (Keluaran - Masukan)' : 'PPN LEBIH BAYAR (Keluaran - Masukan)', (float) $s['selisih']],
     ];
     if ($s['period'] !== null) {
         $lines[] = ['LEBIH BAYAR MASA SEBELUMNYA', (float) $s['carry']];
         $lines[] = [$s['setor'] >= 0 ? 'PPN YANG HARUS DISETOR' : 'LEBIH BAYAR (DIBAWA KE MASA BERIKUTNYA)', (float) $s['setor']];
+    }
+    if ((int) $s['draft']['n'] > 0) {
+        $r++;
+        $sh->setCellValue("I{$r}", 'Catatan: ' . (int) $s['draft']['n'] . ' faktur keluaran Draft belum dihitung (PPN ' . number_format((float) $s['draft']['ppn'], 2, '.', ',') . ')');
+        $sh->getStyle("I{$r}")->getFont()->setItalic(true)->getColor()->setRGB('B45309');
     }
     foreach ($lines as $idx => [$t, $v]) {
         $r++;
@@ -121,15 +127,15 @@ function streamRekapPpn(array $masukan, array $keluaran, array $summary, string 
     // ================= PPN Keluaran =================
     $sk = $wb->createSheet();
     $sk->setTitle('PPN Keluaran');
-    foreach (['A' => 5, 'B' => 12, 'C' => 24, 'D' => 22, 'E' => 32, 'F' => 21, 'G' => 40, 'H' => 8, 'I' => 16, 'J' => 9, 'K' => 16, 'L' => 17, 'M' => 17, 'N' => 17, 'O' => 16, 'P' => 17, 'Q' => 26] as $c => $w) {
+    foreach (['A' => 5, 'B' => 12, 'C' => 24, 'D' => 22, 'E' => 32, 'F' => 21, 'G' => 40, 'H' => 8, 'I' => 16, 'J' => 9, 'K' => 16, 'L' => 17, 'M' => 17, 'N' => 17, 'O' => 16, 'P' => 17, 'Q' => 26, 'R' => 10] as $c => $w) {
         $sk->getColumnDimension($c)->setWidth($w);
     }
     $sk->setCellValue('A1', 'REKAP PPN KELUARAN - ' . strtoupper($label));
     $sk->getStyle('A1')->getFont()->setBold(true)->setSize(13);
-    foreach (['NO.', 'TANGGAL', 'INVOICE', 'FAKTUR PAJAK', 'NAMA CUSTOMER', 'NPWP', 'NAMA BARANG', 'QTY', 'PRICELIST', 'DISKON', 'HARGA SATUAN', 'SUBTOTAL', 'DPP', 'DPP NILAI LAIN', 'PPN', 'TOTAL', 'KETERANGAN'] as $i => $t) {
+    foreach (['NO.', 'TANGGAL', 'INVOICE', 'FAKTUR PAJAK', 'NAMA CUSTOMER', 'NPWP', 'NAMA BARANG', 'QTY', 'PRICELIST', 'DISKON', 'HARGA SATUAN', 'SUBTOTAL', 'DPP', 'DPP NILAI LAIN', 'PPN', 'TOTAL', 'KETERANGAN', 'STATUS'] as $i => $t) {
         $sk->setCellValue(chr(65 + $i) . '3', $t);
     }
-    $head($sk, 'A3:Q3');
+    $head($sk, 'A3:R3');
     $r = 4;
     $first = $r;
     foreach ($keluaran as $i => $k) {
@@ -143,6 +149,7 @@ function streamRekapPpn(array $masukan, array $keluaran, array $summary, string 
                 $sk->setCellValue("E{$r}", $k['customer_name']);
                 $text($sk, "F{$r}", $k['npwp']);
                 $sk->setCellValue("Q{$r}", $k['notes']);
+                $sk->setCellValue("R{$r}", RekapPpn::STATUS_LABELS[$k['status']] ?? $k['status']);
             }
             if ($it) {
                 $sk->setCellValue("G{$r}", $it['item_name']);
@@ -166,7 +173,7 @@ function streamRekapPpn(array $masukan, array $keluaran, array $summary, string 
     }
     $last = $r - 1;
     if ($keluaran) {
-        $sk->getStyle("A{$first}:Q{$last}")->applyFromArray($thin);
+        $sk->getStyle("A{$first}:R{$last}")->applyFromArray($thin);
         $sk->getStyle("A{$first}:A{$last}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $sk->getStyle("H{$first}:H" . ($last + 1))->getNumberFormat()->setFormatCode('#,##0.##');
         $sk->getStyle("I{$first}:I{$last}")->getNumberFormat()->setFormatCode($nf);
@@ -175,8 +182,8 @@ function streamRekapPpn(array $masukan, array $keluaran, array $summary, string 
         foreach (['H', 'L', 'M', 'N', 'O', 'P'] as $c) {
             $sk->setCellValue("{$c}{$r}", "=SUM({$c}{$first}:{$c}{$last})");
         }
-        $sk->getStyle("A{$r}:Q{$r}")->getFont()->setBold(true);
-        $sk->getStyle("A{$r}:Q{$r}")->applyFromArray($thin);
+        $sk->getStyle("A{$r}:R{$r}")->getFont()->setBold(true);
+        $sk->getStyle("A{$r}:R{$r}")->applyFromArray($thin);
         $sk->setCellValue("G{$r}", 'TOTAL');
         $sk->getStyle("G{$r}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
     }
